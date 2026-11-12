@@ -4,7 +4,7 @@
 // keeps what it made. Long text is said in pieces, the next one fetched while this one plays.
 // When no AI voice can be reached, nothing is said and `onError` explains; there is no robot fallback.
 //
-// No "@/" imports here: Pod+ (podscroll/) uses this file too.
+// No "@/" imports here: Podster (podscroll/) uses this file too.
 
 export type AiVoiceName = "hannah" | "autumn" | "diana" | "austin" | "daniel" | "troy" | "calm";
 export type SayOptions = {

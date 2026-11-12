@@ -18,7 +18,7 @@ export default function NativeBack() {
   const flavor = nativeFlavor();
   const home = flavor === "educator" ? "/reader" : flavor === "eyegaze" ? "/eye-gaze-home" : "/library";
   const [ownBack, setOwnBack] = useState(false);
-  // Arise Eye Gazer: every screen has its own big Home or Back, chosen by looking at it, so no floating
+  // Arise AAC: every screen has its own big Home or Back, chosen by looking at it, so no floating
   // button goes over it (it used to sit on top of the screen's own one).
   const floating = flavor !== "eyegaze";
   const show = isReaderApp() && !isHomeScreen(path);

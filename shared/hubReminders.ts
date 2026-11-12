@@ -15,14 +15,25 @@ export const MORNING_FROM_HOUR = 7;
 export const MORNING_UNTIL_HOUR = 12;
 
 /** The wall-clock date and time in a time zone ("America/Denver"), or in UTC when the name is not valid. */
-export function localParts(nowMs: number, timeZone: string): { date: string; minutes: number } {
-  let formatter: Intl.DateTimeFormat;
-  try {
-    formatter = new Intl.DateTimeFormat("en-CA", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-  } catch {
-    formatter = new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+// One formatter per time zone, kept: making one is slow, and the phone plans reminders for every five
+// minutes of the next three days (864 times in a row), which froze the app for seconds.
+const FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+const formatterFor = (timeZone: string): Intl.DateTimeFormat => {
+  let f = FORMATTERS.get(timeZone);
+  if (!f) {
+    try {
+      f = new Intl.DateTimeFormat("en-CA", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    } catch {
+      f = new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+    if (FORMATTERS.size > 50) FORMATTERS.clear();
+    FORMATTERS.set(timeZone, f);
   }
-  const part = (type: string) => formatter.formatToParts(new Date(nowMs)).find((p) => p.type === type)?.value || "00";
+  return f;
+};
+export function localParts(nowMs: number, timeZone: string): { date: string; minutes: number } {
+  const parts = formatterFor(timeZone).formatToParts(new Date(nowMs));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value || "00";
   return { date: `${part("year")}-${part("month")}-${part("day")}`, minutes: Number(part("hour")) * 60 + Number(part("minute")) };
 }
 
@@ -33,6 +44,22 @@ const toMinutes = (hm: string) => {
 };
 
 /** Reminders due now that have not been sent (`sent` holds the keys already sent). */
+/** The phone plans reminders for every five minutes of the next three days (864 checks in a row). Working out
+ *  the whole calendar on each one took seconds on a big WorkHub; prepareHubReminders lets a run work out each
+ *  day's calendar once and reuse it. */
+const PREPARED = Symbol("prepared-hub-reminders");
+type Prepared = Workspace & { [PREPARED]?: Map<string, ReturnType<typeof calendarEvents>> };
+export function prepareHubReminders(workspace: Workspace): Workspace {
+  if ((workspace as Prepared)[PREPARED]) return workspace;
+  return { ...workspace, [PREPARED]: new Map() } as Prepared;
+}
+const daysEvents = (workspace: Workspace, date: string) => {
+  const memo = (workspace as Prepared)[PREPARED];
+  if (!memo) return calendarEvents(workspace, date, date);
+  let list = memo.get(date);
+  if (!list) { list = calendarEvents(workspace, date, date); memo.set(date, list); }
+  return list;
+};
 export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: string, sent: Record<string, unknown> = {}): HubReminder[] {
   const { date, minutes } = localParts(nowMs, timeZone);
   const prefs = cleanHubNotify(workspace.notify);
@@ -41,7 +68,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
   const soon = (start: number | null) => start !== null && minutes < start && start - minutes <= ahead;
 
   // Repeating events count on the days they fall on; hidden ones do not count at all.
-  const todays = calendarEvents(workspace, date, date);
+  const todays = daysEvents(workspace, date);
   if (prefs.headsUp.on && prefs.headsUp.events) {
     for (const event of todays) {
       if (event.date !== date || !event.start || event.done) continue;

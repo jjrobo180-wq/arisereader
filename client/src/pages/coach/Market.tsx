@@ -1,4 +1,4 @@
-// The Arise marketplace: clients post what they need in Arise Fit, trainers who fit reply in Arise Trainer with a
+// The Arise marketplace: clients post what they need in Cooked, trainers who fit reply in Cooked PT with a
 // short pitch and a price, and the client hires one in a tap. Rules: shared/coachMarket.ts. Server: server/coach.ts.
 import { useState } from "react";
 import { Check, ChevronRight, Inbox, Megaphone, Send } from "lucide-react";
@@ -23,7 +23,7 @@ export function PostRequest({ token, need, say, onPosted }: { token: string | nu
   </Card>;
 }
 
-/** Arise Fit: your requests and the trainers who replied. */
+/** Cooked: your requests and the trainers who replied. */
 export function MyRequests({ token, onProfile, onHired }: { token: string | null; onProfile: (t: PublicTrainer) => void; onHired: () => void }) {
   const { data, reload } = usePoll(() => coachApi<{ requests: Mine[] }>(token, "/market/mine"), [token], 60_000);
   const [open, setOpen] = useState<Mine | null>(null);
@@ -66,7 +66,7 @@ function HireSheet({ token, rid, t, onClose, onDone }: { token: string | null; r
   const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
   const first = t.name.split(" ")[0];
   return <Sheet title={`Hire ${first}`} onClose={onClose} testId="market-hire-sheet">
-    <p className="text-[15px]" style={{ color: C.steel }}>You'll be connected right away. {first} can build your plan and message you here. Pick what {first} can see from Arise Fit (change it any time in Sharing):</p>
+    <p className="text-[15px]" style={{ color: C.steel }}>You'll be connected right away. {first} can build your plan and message you here. Pick what {first} can see from Cooked (change it any time in Sharing):</p>
     <div className="mt-3 space-y-1.5">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <input type="checkbox" checked={consent[k]} onChange={(e) => setConsent({ ...consent, [k]: e.target.checked })} className="h-6 w-6 accent-[var(--fit-accent)]" /><span><b className="block text-[15px]">{CONSENT_LABEL[k][0]}</b><span className="text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span></label>)}</div>
     {err && <p className="mt-3 text-[14px]" style={{ color: C.red }}>{err}</p>}
@@ -75,7 +75,7 @@ function HireSheet({ token, rid, t, onClose, onDone }: { token: string | null; r
   </Sheet>;
 }
 
-// ── Arise Trainer ─────────────────────────────────────────────────────────────────────────────────────────────
+// ── Cooked PT ─────────────────────────────────────────────────────────────────────────────────────────────
 type ForMe = { id: string; name: string; at: string; title: string; need: Need; replies: number; mine: MarketReply | null; status: string; hiredMe: boolean };
 export function MarketCard({ token, say }: { token: string | null; say: (m: string) => void }) {
   const { data, reload } = usePoll(() => coachApi<{ requests: ForMe[]; problem: string }>(token, "/trainer/market"), [token], 120_000);
@@ -94,7 +94,7 @@ export function MarketCard({ token, say }: { token: string | null; say: (m: stri
 function MarketSheet({ token, data, say, onClose, reload }: { token: string | null; data: { requests: ForMe[]; problem: string }; say: (m: string) => void; onClose: () => void; reload: () => void }) {
   const [reply, setReply] = useState<ForMe | null>(null);
   return <Sheet title="Client requests" onClose={onClose} testId="market-sheet">
-    {data.problem ? <p className="rounded-[12px] p-4 text-[15px]" style={{ background: C.card }}>{data.problem} Clients post what they need in Arise Fit, and the trainers who fit get told first.</p>
+    {data.problem ? <p className="rounded-[12px] p-4 text-[15px]" style={{ background: C.card }}>{data.problem} Clients post what they need in Cooked, and the trainers who fit get told first.</p>
       : !data.requests.length ? <p className="py-8 text-center text-[15px]" style={{ color: C.dim }}>No requests that fit you right now. You'll get a notification when one comes in.</p>
       : <div className="space-y-2.5">{data.requests.map((r) => <Card key={r.id} className="!p-4" testId="market-request">
         <div className="flex items-center gap-2"><b className="flex-1 text-[17px]">{r.name}</b><span className="text-[12px]" style={{ color: C.dim }}>{ago(r.at)}</span></div>

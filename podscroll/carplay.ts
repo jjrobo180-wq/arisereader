@@ -1,5 +1,5 @@
-// Pod+ in the car (CarPlay, native/arise-carplay). The car's screens and player are native, so they
-// work even when Pod+ is started from the car; this side keeps them in step with the phone:
+// Podster in the car (CarPlay, native/arise-carplay). The car's screens and player are native, so they
+// work even when Podster is started from the car; this side keeps them in step with the phone:
 //   - hands over the library (shows you follow, Listen later, Liked, Pod Modes, where you are in each
 //     episode, and how to reach the server as this listener) whenever it changes
 //   - takes back where you got to in the car, so Continue listening on the phone picks up there
@@ -75,7 +75,7 @@ export function installCarPlay(o: { api: string; device: () => string; session: 
   };
   const publish = () => { if (timer) clearTimeout(timer); timer = setTimeout(send, 1500); };
 
-  // Where you got to in the car (taken when Pod+ comes back to the front, and now and then).
+  // Where you got to in the car (taken when Podster comes back to the front, and now and then).
   const take = () => {
     void nativeCall(PLUGIN, NAME, "takeSpots").then((r: any) => {
       const car = r?.spots && typeof r.spots === "object" ? r.spots : {};
@@ -106,7 +106,7 @@ export function installCarPlay(o: { api: string; device: () => string; session: 
 }
 
 /** Signed in: the library is saved to the account too (a little while after it changes), so the Apple
- *  TV app and other devices signed in to the same Pod+ account show the same shows and spots. */
+ *  TV app and other devices signed in to the same Podster account show the same shows and spots. */
 export function installLibrarySync(o: { api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>; signedIn: () => boolean; es: () => Earshot }): { changed: () => void } {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let last = "";

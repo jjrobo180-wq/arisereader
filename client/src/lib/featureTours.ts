@@ -219,7 +219,7 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       details: [
         "Print or share parent connection codes for students.",
         "Parents can link to their child and view progress.",
-        "Family tools are especially important for Eye Gazer personalization and controls."
+        "Family tools are especially important for Arise AAC personalization and controls."
       ],
     },
     {
@@ -233,13 +233,13 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       ],
     },
     {
-      title: "Eye Gazer Support",
+      title: "Arise AAC Support",
       subtitle: "Support visual, AAC, and simplified learning",
       emoji: "👁️",
       details: [
-        "Eye Gazer students have a separate simplified learning experience.",
+        "Arise AAC students have a separate simplified learning experience.",
         "Staff can review Eye Gaze quiz standards and requests.",
-        "Eye Gazer learning includes visual quizzes, AAC/My Talker, games, Life Skills, My World, Shorts, flash cards, and progress."
+        "Arise AAC learning includes visual quizzes, AAC/My Talker, games, Life Skills, My World, Shorts, flash cards, and progress."
       ],
     },
     {
@@ -260,7 +260,7 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       subtitle: "Large choices, simple navigation, full access",
       emoji: "👋",
       details: [
-        "The Eye Gazer home keeps the most important choices large and easy to reach.",
+        "The Arise AAC home keeps the most important choices large and easy to reach.",
         "Main choices include My Talker, Games, Life Skills, and My World.",
         "More tools include A.R.I.S.E. Shorts, Flash Cards, My Buddy, and My Progress."
       ],
@@ -352,7 +352,7 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       details: [
         "Track completed Eye Gaze learning activities and quiz progress.",
         "Progress can include skill areas and completed activity counts.",
-        "Eligible real student accounts can appear in Eye Gazer rankings; demo accounts never do."
+        "Eligible real student accounts can appear in Arise AAC rankings; demo accounts never do."
       ],
     },
     {
@@ -360,17 +360,17 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       subtitle: "Grown-ups shape the experience",
       emoji: "👨‍👩‍👧",
       details: [
-        "Parents can choose which Eye Gazer tools are available.",
+        "Parents can choose which Arise AAC tools are available.",
         "Grown-up gates protect editing areas such as My World and communication settings.",
         "The learner keeps a simple interface while adults keep access to setup controls."
       ],
     },
     {
-      title: "Eye Gazer Account",
+      title: "Arise AAC Account",
       subtitle: "Profile, appearance, and personal settings",
       emoji: "🎨",
       details: [
-        "Use the Eye Gazer account area for profile and appearance choices.",
+        "Use the Arise AAC account area for profile and appearance choices.",
         "Personal settings can include profile image, colors, learning buddy settings, and related preferences.",
         "Navigation stays focused on Home, My Talker, Games, Life Skills, and Profile."
       ],
@@ -419,11 +419,11 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       ],
     },
     {
-      title: "Eye Gazer Family Controls",
+      title: "Arise AAC Family Controls",
       subtitle: "Choose what your child can access",
       emoji: "👁️",
       details: [
-        "For linked Eye Gazer students, families can control available learning areas.",
+        "For linked Arise AAC students, families can control available learning areas.",
         "Choose access to games, videos, communication, Life Skills, My World, and other supported tools.",
         "Controls let the child keep a simple home screen matched to family priorities."
       ],
@@ -443,7 +443,7 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       subtitle: "Turn familiar spaces into learning spaces",
       emoji: "🏠",
       details: [
-        "Add room or environment photos for the linked Eye Gazer learner.",
+        "Add room or environment photos for the linked Arise AAC learner.",
         "Edit object labels and learning prompts.",
         "Grown-up checks protect editing tools while the learner gets a simple exploration view."
       ],
@@ -464,7 +464,7 @@ export const FEATURE_TOURS: Record<TutorialRole, FeatureTourStep[]> = {
       emoji: "❤️",
       details: [
         "Use the parent account to monitor, celebrate, personalize, and communicate.",
-        "Student and Eye Gazer experiences remain separate from the parent account.",
+        "Student and Arise AAC experiences remain separate from the parent account.",
         "The parent account never competes on student leaderboards."
       ],
     },

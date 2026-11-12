@@ -33,11 +33,17 @@ export type MoneyPlan = {
   sources: IncomeSource[]; onHand: OnHand[]; incomeLog: IncomeEntry[]; payments: BillPayment[]; goals: Goal[]; goalMoves: GoalMove[];
   /** Kept aside each month before anything else, so a slow month doesn't break the plan. */
   cushion: number;
+  /** A month that has been changed has its own copy of the bills, income and spending limits, so editing one month
+   *  never touches another. A month with no copy shows the plan as it was set up. See viewMonth / editMonth. */
+  months?: Record<string, MonthLayer>;
 };
+/** One month's own bills (their `paid` lists stay with the plan's bills), income sources and spending limits. */
+export type MonthLayer = { bills: PlanBill[]; sources: IncomeSource[]; budget: BudgetCategory[] };
 /** A bill can be paid in parts: each part a day of the month and an amount (they add up to the bill). */
 export type BillPart = { day: number; amount: number };
 export type PlanBill = Bill & { parts?: BillPart[] };
 
+export const MONTH_LAYERS_KEPT = 36;
 export const MONEY_LIMITS = { sources: 12, onHand: 12, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
 export const emptyMoney = (): MoneyPlan => ({ setUp: false, who: "me", style: "monthly", sources: [], onHand: [], incomeLog: [], payments: [], goals: [], goalMoves: [], cushion: 0 });
 
@@ -64,23 +70,46 @@ function rows<T>(v: unknown, max: number, clean: (r: Record<string, any>) => T |
   return out;
 }
 
-/** Cleans a saved plan (anything missing or wrong is filled in or dropped). */
-export function cleanMoney(raw: unknown): MoneyPlan {
-  const r = obj(raw);
-  if (!r) return emptyMoney();
-  const FREQ = ["weekly", "biweekly", "semimonthly", "monthly", "irregular"] as const;
-  return {
-    setUp: r.setUp === true,
-    who: oneOf(r.who, ["me", "two", "family"] as const, "me"),
-    style: oneOf(r.style, ["paycheck", "monthly"] as const, "monthly"),
-    cushion: num(r.cushion, 0, 10_000_000),
-    sources: rows(r.sources, MONEY_LIMITS.sources, (s) => {
+const FREQ = ["weekly", "biweekly", "semimonthly", "monthly", "irregular"] as const;
+function cleanSource(s: Record<string, any>): IncomeSource | null {
       const name = typedEnd(str(s.name, 60));
       if (!name) return null;
       const frequency = oneOf(s.frequency, FREQ, "monthly");
       const days = Array.isArray(s.days) ? [...new Set(s.days.map((d: unknown) => Math.round(num(d, 1, 31, 0))).filter((d: number) => d >= 1))].sort((a, b) => a - b).slice(0, 2) as number[] : [];
       return { id: str(s.id, 100), name, kind: oneOf(s.kind, ["paycheck", "tips", "gig", "other"] as const, "paycheck"), frequency, amount: num(s.amount, 0, 10_000_000), days, anchor: isDay(s.anchor) ? s.anchor : "" };
-    }),
+    }
+function cleanLayerBill(b: Record<string, any>): PlanBill | null {
+  const name = typedEnd(str(b.name, 80));
+  const parts = cleanParts(b.parts);
+  return name ? { id: str(b.id, 100), name, amount: num(b.amount, 0, 10_000_000), dueDay: Math.round(num(b.dueDay, 1, 31, 1)), category: str(b.category, 40), autopay: b.autopay === true, paid: Array.isArray(b.paid) ? ([...new Set(b.paid.filter(isMonth))].slice(-120) as string[]) : [], ...(parts ? { parts } : {}) } : null;
+}
+function cleanMonths(v: unknown): Record<string, MonthLayer> | undefined {
+  const m = obj(v);
+  if (!m) return undefined;
+  const out: Record<string, MonthLayer> = {};
+  for (const key of Object.keys(m).filter(isMonth).sort().slice(-MONTH_LAYERS_KEPT)) {
+    const l = obj(m[key]);
+    if (!l) continue;
+    out[key] = {
+      bills: rows(l.bills, 200, cleanLayerBill),
+      sources: rows(l.sources, MONEY_LIMITS.sources, cleanSource),
+      budget: rows(l.budget, 60, (c) => { const name = typedEnd(str(c.name, 40)); return name ? { id: str(c.id, 100), name, limit: num(c.limit, 0, 10_000_000) } : null; }),
+    };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Cleans a saved plan (anything missing or wrong is filled in or dropped). */
+export function cleanMoney(raw: unknown): MoneyPlan {
+  const r = obj(raw);
+  if (!r) return emptyMoney();
+  return {
+    setUp: r.setUp === true,
+    who: oneOf(r.who, ["me", "two", "family"] as const, "me"),
+    style: oneOf(r.style, ["paycheck", "monthly"] as const, "monthly"),
+    cushion: num(r.cushion, 0, 10_000_000),
+    ...(cleanMonths(r.months) ? { months: cleanMonths(r.months) } : {}),
+    sources: rows(r.sources, MONEY_LIMITS.sources, cleanSource),
     onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
       const name = typedEnd(str(o.name, 60));
       return name && num(o.amount, 0, 100_000_000) > 0 ? { id: str(o.id, 100), name, amount: cents(num(o.amount, 0, 100_000_000)) } : null;
@@ -102,6 +131,52 @@ export function cleanParts(v: unknown): BillPart[] | undefined {
   if (!Array.isArray(v)) return undefined;
   const parts = v.map(obj).filter(Boolean).map((p) => ({ day: Math.round(num(p!.day, 1, 31, 1)), amount: cents(num(p!.amount, 0, 10_000_000)) })).filter((p) => p.amount > 0).slice(0, 4);
   return parts.length > 1 ? parts.sort((a, b) => a.day - b.day) : undefined;
+}
+
+// ─── One month at a time ───
+type Editable = { sources: IncomeSource[]; bills: PlanBill[]; budget: BudgetCategory[] };
+
+/** What a month shows: its own bills, income and spending limits if it has been changed, otherwise the plan as set up.
+ *  The `paid` lists always come from the plan's bills (the calendar, alerts and widgets read them there). */
+export function viewMonth(plan: MoneyPlan, bills: PlanBill[], budget: BudgetCategory[], month: string): { plan: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] } {
+  const layer = plan.months?.[month];
+  if (!layer) return { plan, bills, budget };
+  const paidOf = new Map(bills.map((b) => [b.id, b.paid]));
+  return {
+    plan: { ...plan, sources: layer.sources },
+    bills: layer.bills.map((b) => (paidOf.has(b.id) ? { ...b, paid: paidOf.get(b.id)! } : b)),
+    budget: layer.budget,
+  };
+}
+
+/** Changes one month only. The first change in a month gives it its own copy of the bills, income and limits;
+ *  every other month stays exactly as it was. */
+export function editMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, month: string, edit: (v: Editable) => Editable, setUp = f.money.setUp): { money: MoneyPlan } {
+  const v = viewMonth(f.money, f.bills, f.budget, month);
+  const next = edit({ sources: v.plan.sources, bills: v.bills, budget: v.budget });
+  const months = { ...(f.money.months ?? {}), [month]: { bills: next.bills, sources: next.sources, budget: next.budget } };
+  const keep = Object.keys(months).sort().slice(-MONTH_LAYERS_KEPT);
+  return { money: { ...f.money, setUp, months: Object.fromEntries(keep.map((k) => [k, months[k]])) } };
+}
+
+/** Writes a result computed on a month's view (payBill / unpayBill) back: `paid` goes to the plan's bills, and to the
+ *  month's copy for a bill that only exists there. */
+function applyPaid(f: { money: MoneyPlan; bills: PlanBill[] }, month: string, plan: MoneyPlan, viewBills: PlanBill[]): { money: MoneyPlan; bills: PlanBill[] } {
+  const inPlan = new Set(f.bills.map((b) => b.id));
+  const bills = f.bills.map((b) => { const v = viewBills.find((x) => x.id === b.id); return v ? { ...b, paid: v.paid } : b; });
+  const layer = f.money.months?.[month];
+  const months = layer ? { ...f.money.months, [month]: { ...layer, bills: layer.bills.map((b) => (inPlan.has(b.id) ? b : viewBills.find((x) => x.id === b.id) ?? b)) } } : f.money.months;
+  return { money: { ...plan, sources: f.money.sources, ...(months ? { months } : {}) }, bills };
+}
+export function payBillInMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, month: string, billId: string, amount: number, date: string, id: string) {
+  const v = viewMonth(f.money, f.bills, f.budget, month);
+  const r = payBill(v.plan, v.bills, billId, month, amount, date, id);
+  return applyPaid(f, month, r.plan, r.bills);
+}
+export function unpayBillInMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, month: string, billId: string) {
+  const v = viewMonth(f.money, f.bills, f.budget, month);
+  const r = unpayBill(v.plan, v.bills, billId, month);
+  return applyPaid(f, month, r.plan, r.bills);
 }
 
 // ─── Income ───
@@ -282,12 +357,15 @@ export function goalProgress(plan: MoneyPlan, g: Goal, today: string) {
 
 // ─── Insights ───
 export function monthsBack(plan: MoneyPlan, bills: PlanBill[], expenses: Expense[], month: string, count = 6) {
-  return Array.from({ length: count }, (_, i) => shiftMonth(month, i - count + 1)).map((m) => ({
-    month: m,
-    income: Math.max(receivedIn(plan, m), 0),
-    spent: spentInMonth(expenses, m),
-    bills: cents(plan.payments.filter((p) => p.month === m).reduce((t, p) => t + p.amount, 0) + bills.filter((b) => b.paid.includes(m) && !plan.payments.some((p) => p.billId === b.id && p.month === m)).reduce((t, b) => t + b.amount, 0)),
-  }));
+  return Array.from({ length: count }, (_, i) => shiftMonth(month, i - count + 1)).map((m) => {
+    const mb = viewMonth(plan, bills, [], m).bills; // each month's own bills
+    return {
+      month: m,
+      income: Math.max(receivedIn(plan, m), 0),
+      spent: spentInMonth(expenses, m),
+      bills: cents(plan.payments.filter((p) => p.month === m).reduce((t, p) => t + p.amount, 0) + mb.filter((b) => b.paid.includes(m) && !plan.payments.some((p) => p.billId === b.id && p.month === m)).reduce((t, b) => t + b.amount, 0)),
+    };
+  });
 }
 export function byCategory(expenses: Expense[], budget: BudgetCategory[], month: string) {
   const rowsOut = budget.map((c) => ({ id: c.id, name: c.name, limit: c.limit, spent: cents(expenses.filter((e) => e.categoryId === c.id && e.date.startsWith(month)).reduce((t, e) => t + e.amount, 0)) }));

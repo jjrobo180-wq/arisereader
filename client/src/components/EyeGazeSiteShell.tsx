@@ -88,7 +88,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const here = nav.find(item => item.path === location);
   const firstName = user.displayName?.split(" ")[0] || "Friend";
   // Signing out is for grown-ups: it asks first, so a tap by mistake doesn't end the child's session.
-  const signOut = () => { if (window.confirm("Grown-ups: sign out of Arise Eye Gazer?")) { logout(); navigate("/"); } };
+  const signOut = () => { if (window.confirm("Grown-ups: sign out of Arise AAC?")) { logout(); navigate("/"); } };
 
   return (
     <div data-eye-gaze-shell className="eg-app min-h-screen touch-manipulation text-slate-900" style={{ backgroundColor: background }}>

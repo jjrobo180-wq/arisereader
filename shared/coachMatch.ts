@@ -1,5 +1,5 @@
 // Smart matching (November 2026): instead of scrolling a directory, a client answers six quick questions in
-// Arise Fit and gets their best three trainers, each with the reasons and the price that fits them.
+// Cooked and gets their best three trainers, each with the reasons and the price that fits them.
 // Plain scoring here (so it is explainable and testable); the server can add a one-line AI intro on top.
 import { MODE_LABEL, type Mode, type Price, type PublicTrainer } from "./coach";
 

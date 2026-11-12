@@ -1,5 +1,5 @@
 // Sound on tablets and phones. iPad and iPhone Safari (and, more loosely, Android) only let sound
-// start inside a tap. Eye Gazer's games and lessons start their sounds later — after a voice line
+// start inside a tap. Arise AAC's games and lessons start their sounds later — after a voice line
 // has been fetched, or when a look-to-press timer runs out — so on a tablet they stayed silent, and
 // a reading game whose instructions are spoken seemed not to work at all. Desktop browsers let any
 // earlier click count, which is why it only went wrong on tablets.

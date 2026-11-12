@@ -54,8 +54,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     selector: '[data-tour="eye-gaze-section"]',
-    title: "Eye Gazer Learning",
-    desc: "A.R.I.S.E. also includes a dedicated Eye Gazer experience with visual quizzes, My Talker AAC, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, and family controls.",
+    title: "Arise AAC Learning",
+    desc: "A.R.I.S.E. also includes a dedicated Arise AAC experience with visual quizzes, My Talker AAC, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, and family controls.",
     position: "bottom",
   },
   {

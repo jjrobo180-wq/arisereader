@@ -15,8 +15,11 @@ import { isSampleMode } from "@/lib/sampleMode";
 import { TourArt } from "@/components/TourArt";
 import { nativeRemindersAvailable, nativeRemindersOn, turnOnNativeReminders } from "@/lib/nativeReminders";
 import { lockPageScroll } from "@/lib/scrollLock";
+import { fetchSeen, markSeen } from "@/lib/seenOnce";
 
 const DONE_KEY = (id: number | string) => `arise-walkthrough-v1:${id}`;
+/** True once this person has finished (or skipped) the first-run walkthrough on this phone. */
+export const walkthroughDone = (id: number | string): boolean => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
 type Step = { id: string; icon: ReactNode; tint: string; title: string; body: ReactNode; action?: { label: string; run: () => void | Promise<void> } };
 
 export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustomize, onNotificationSettings, onConnectCalendar }: {
@@ -38,8 +41,16 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     // Not in the homepage's sample viewer (the tour would cover the demo); it's still in its ⋯ menu.
     if (isSampleMode()) return;
     try { first = localStorage.getItem(DONE_KEY(userId)) !== "1"; } catch { first = false; }
+    if (!first) return;
+    // Once per account: if this account already went through it on another device, don't show it here.
     // In the iPhone app it opens straight after sign-in (the notification question comes first).
-    if (first) { const t = window.setTimeout(() => setOpen(true), isNativeApp() ? 250 : 900); return () => window.clearTimeout(t); }
+    let gone = false, t = 0;
+    void fetchSeen().then((seen) => {
+      if (gone) return;
+      if (seen?.walkthrough) { try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* asked again next time */ } return; }
+      t = window.setTimeout(() => setOpen(true), isNativeApp() ? 250 : 900);
+    });
+    return () => { gone = true; window.clearTimeout(t); };
   }, [userId]);
   // Only the iPhone setup page (⋯ → iPhone connections), not the whole tour.
   const [setupOnly, setSetupOnly] = useState(false);
@@ -50,7 +61,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     window.addEventListener(IPHONE_SETUP_EVENT, setup);
     return () => { window.removeEventListener(WALKTHROUGH_EVENT, show); window.removeEventListener(IPHONE_SETUP_EVENT, setup); };
   }, []);
-  const close = () => { setOpen(false); setSetupOnly(false); try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } };
+  const close = () => { setOpen(false); setSetupOnly(false); try { localStorage.setItem(DONE_KEY(userId), "1"); } catch { /* shown again next time */ } markSeen("walkthrough"); };
   if (!open) return null;
 
   const other = hub === "life" ? "WorkHub" : "LifeHub";

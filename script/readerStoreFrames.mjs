@@ -9,6 +9,9 @@ import path from "node:path";
 
 const IN = process.env.IN || "store-shots/raw";
 const OUT = process.env.OUT || "store-shots";
+// A screen chosen by hand (a real phone screenshot, its status bar cropped off) is used in place of the
+// one taken automatically with the same name.
+const FIXED = process.env.FIXED || "script/reader-store-fixed";
 
 // One headline per screenshot, by its number in readerStoreShots.mjs: the library, a short read, its quiz, the games.
 const SLIDES = [
@@ -42,7 +45,7 @@ function html(kind, slide, shot) {
   .ribbon { position: absolute; top: 0; right: ${k.ribbon * 0.8}px; width: ${k.ribbon}px; height: ${k.ribbon * 1.85}px; background: ${g.ribbon}; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
   h1 { position: absolute; left: 0; right: 0; top: ${k.top}px; margin: 0; font-size: ${k.title}px; line-height: 1.04; font-weight: 900; letter-spacing: -0.025em; }
   p { position: absolute; left: 0; right: 0; top: ${k.top + k.title * 2.08 + k.sub * 0.9}px; margin: 0; font-size: ${k.sub}px; line-height: 1.2; font-weight: 500; color: ${g.sub}; }
-  .device { position: absolute; left: 50%; top: ${k.frameTop}px; width: ${k.frameW}px; margin-left: ${-(k.frameW / 2 + k.bezel)}px; border: ${k.bezel}px solid #07060c; border-radius: ${k.radius + k.bezel}px; overflow: hidden; background: #000; box-shadow: 0 ${k.frameW * 0.06}px ${k.frameW * 0.16}px rgba(0, 0, 0, .45), 0 0 0 1.5px rgba(255, 255, 255, .14); }
+  .device { position: absolute; left: 50%; top: ${k.frameTop}px; width: ${k.frameW}px; margin-left: ${-(k.frameW / 2 + k.bezel)}px; border: ${k.bezel}px solid #07060c; border-radius: ${k.radius + k.bezel}px; overflow: hidden; background: #000; min-height: ${k.h - k.frameTop + k.radius}px; box-shadow: 0 ${k.frameW * 0.06}px ${k.frameW * 0.16}px rgba(0, 0, 0, .45), 0 0 0 1.5px rgba(255, 255, 255, .14); }
   /* The page's own top color runs up under the rounded corners, so nothing on the screen is clipped by them. */
   .device .lip { height: ${k.radius * 0.42}px; }
   .device img { display: block; width: 100%; }
@@ -56,7 +59,10 @@ function html(kind, slide, shot) {
       const c = document.createElement("canvas"); c.width = 8; c.height = 8;
       const x = c.getContext("2d"); x.drawImage(img, 0, 0, 8, 8, 0, 0, 8, 8);
       const [r, g, b] = x.getImageData(2, 2, 1, 1).data;
-      document.getElementById("lip").style.background = "rgb(" + r + "," + g + "," + b + ")";
+      const color = "rgb(" + r + "," + g + "," + b + ")";
+      document.getElementById("lip").style.background = color;
+      // A picture shorter than the frame: the page's color carries on below it.
+      document.querySelector(".device").style.background = color;
       document.body.dataset.ready = "1";
     };
     if (img.complete) paint(); else img.onload = paint;
@@ -65,7 +71,9 @@ function html(kind, slide, shot) {
 }
 
 await mkdir(OUT, { recursive: true });
-const files = (await readdir(IN)).filter((f) => /^(iphone|ipad)-\d+\.png$/.test(f)).sort();
+const named = (list) => list.filter((f) => /^(iphone|ipad)-\d+\.png$/.test(f));
+const fixed = named(await readdir(FIXED).catch(() => []));
+const files = [...new Set([...named(await readdir(IN).catch(() => [])), ...fixed])].sort();
 if (!files.length) throw new Error(`No screenshots in ${IN}`);
 const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
 for (const file of files) {
@@ -75,12 +83,12 @@ for (const file of files) {
   const k = KINDS[kind];
   const ctx = await browser.newContext({ viewport: { width: k.w, height: k.h }, deviceScaleFactor: k.scale });
   const page = await ctx.newPage();
-  const shot = (await readFile(path.join(IN, file))).toString("base64");
+  const shot = (await readFile(path.join(fixed.includes(file) ? FIXED : IN, file))).toString("base64");
   await page.setContent(html(kind, slide, shot), { waitUntil: "load" });
   await page.waitForSelector("body[data-ready]");
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: path.join(OUT, file), omitBackground: false });
-  console.log(`ok ${file} ${k.w * k.scale}x${k.h * k.scale}`);
+  console.log(`ok ${file} ${k.w * k.scale}x${k.h * k.scale}${fixed.includes(file) ? " (chosen by hand)" : ""}`);
   await ctx.close();
 }
 await browser.close();

@@ -1,4 +1,4 @@
-// Pod+ notifications on iPhone (plugin: @capacitor/push-notifications). The phone hands the server its
+// Podster notifications on iPhone (plugin: @capacitor/push-notifications). The phone hands the server its
 // Apple device token with the ids of the shows it follows (server/podPush.ts); the server sends
 // "New episode" when one of them puts one out. Tapping it opens that episode.
 import { hasNativePlugin, isNativeApp, nativeCall, nativeListen } from "../client/src/lib/nativeApp";
@@ -14,7 +14,7 @@ let lastSent = "";
 export const podPushAvailable = () => isNativeApp() && hasNativePlugin(PLUGIN);
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 
-/** Whether iOS already allows Pod+ to notify. */
+/** Whether iOS already allows Podster to notify. */
 export async function podPushAllowed(): Promise<boolean> {
   if (!podPushAvailable()) return false;
   try { return String((await nativeCall(PLUGIN, NAME, "checkPermissions"))?.receive ?? "") === "granted"; } catch { return false; }

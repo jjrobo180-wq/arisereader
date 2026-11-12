@@ -1,4 +1,4 @@
-// Pod+ Music: free, legal music from the Internet Archive. Only recordings the Archive marks as
+// Podster Music: free, legal music from the Internet Archive. Only recordings the Archive marks as
 // public domain (the Public Domain Mark or CC0) are ever listed or played, so anyone may play them
 // on the site: the music (Beethoven, Mozart, Bach...) and the recording itself are both free.
 // The server asks the Archive and keeps answers a while; audio plays straight from the Archive.

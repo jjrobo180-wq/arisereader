@@ -21,9 +21,9 @@ test("a bundle is on when added, or when any of its old pages was already on", (
   assert.equal(isOn("healthlite", { sections: { ...f.sections, healthlite: false, cycle: true } }), false);
 });
 
-test("Health Lite promotes Arise Fit and the picker opens on first use", () => {
+test("Health Lite promotes Cooked and the picker opens on first use", () => {
   const hl = BUNDLES.find((b) => b.id === "healthlite")!;
-  assert.match(hl.promo!.cta, /Arise Fit/);
+  assert.match(hl.promo!.cta, /Cooked/);
   const ui = read("client/src/components/family-hub/BundleApp.tsx");
   assert.match(ui, /data-testid="bundle-promo"/);
   assert.match(ui, /useState\(!asked && bundle\.fixed\.length === 0\)/);

@@ -1,4 +1,4 @@
-// Pod+ downloads relay: members' pass required, only public http(s) audio, never this server or a private network.
+// Podster downloads relay: members' pass required, only public http(s) audio, never this server or a private network.
 // Run with: npx tsx --test tests/pod-download.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

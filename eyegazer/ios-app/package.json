@@ -2,7 +2,7 @@
   "name": "eyegazer-ios",
   "private": true,
   "version": "1.0.0",
-  "description": "Arise Eye Gazer iPhone and iPad app (built from the shared frontend with VITE_NATIVE_APP=eyegaze)",
+  "description": "Arise AAC iPhone and iPad app (built from the shared frontend with VITE_NATIVE_APP=eyegaze)",
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",

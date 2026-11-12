@@ -41,7 +41,7 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
   const big = !!detail;
 
   return <article className={`${detail ? "" : "hov cursor-pointer"} border-b line px-4 pb-1.5 pt-3`} onClick={open}>
-    {post.recommended && !detail && <div className="sx-post-recommended"><Sparkles size={14} /><strong>Recommended by Pod+</strong><span>· Official podcast pick</span></div>}
+    {post.recommended && !detail && <div className="sx-post-recommended"><Sparkles size={14} /><strong>Recommended by Podster</strong><span>· Official podcast pick</span></div>}
     {plain && <p className="muted -mt-0.5 mb-1 flex items-center gap-2 pl-7 text-[13px] font-bold"><Repeat2 size={15} /><button type="button" className="hover:underline" onClick={(e) => { e.stopPropagation(); ctx.openProfile(post.author.handle); }}>{post.mine ? "You" : post.author.name} reposted</button></p>}
     <div className="flex gap-3">
       {!big && <Avatar p={p.author} size={40} onClick={() => ctx.openProfile(p.author.handle)} />}
@@ -67,7 +67,7 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
     </div>
     {menu && <ActionSheet onClose={() => setMenu(false)} items={[
       ...(post.mine ? [{ label: "Delete post", icon: <Trash2 size={18} />, danger: true, onClick: remove }] : []),
-      { label: "Copy link", icon: <Link2 size={18} />, onClick: () => shareOrCopy(linkTo(`post/${p.id}`), "Pod+", ctx.say) },
+      { label: "Copy link", icon: <Link2 size={18} />, onClick: () => shareOrCopy(linkTo(`post/${p.id}`), "Podster", ctx.say) },
       ...(!p.mine ? [
         { label: `Block @${p.author.handle}`, icon: <Ban size={18} />, danger: true, onClick: block },
         { label: "Report post", icon: <Flag size={18} />, danger: true, onClick: report },

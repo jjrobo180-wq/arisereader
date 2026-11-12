@@ -1,4 +1,4 @@
-// Moving to Arise Trainer, in the Business tab: import clients and workouts from Trainerize, TrueCoach or any
+// Moving to Cooked PT, in the Business tab: import clients and workouts from Trainerize, TrueCoach or any
 // spreadsheet (CSV), email everyone your invite link, and export everything any time. Server: server/coach.ts.
 import { useState } from "react";
 import { ArrowDownToLine, Check, Copy, Download, FileUp, Mail, Users } from "lucide-react";
@@ -68,7 +68,7 @@ function ImportClients({ token, say, onClose }: { token: string | null; say: (m:
       <ol className="space-y-2 text-[15px]" style={{ color: C.steel }}>
         <li><b style={{ color: C.text }}>1.</b> Export your client list from Trainerize or TrueCoach as a CSV file (their support can send it if you can't find the button). Any spreadsheet saved as CSV works too.</li>
         <li><b style={{ color: C.text }}>2.</b> It needs a name column and an email or phone column. Tags come over too.</li>
-        <li><b style={{ color: C.text }}>3.</b> They land in your Leads, and you invite them to Arise Fit in one go.</li>
+        <li><b style={{ color: C.text }}>3.</b> They land in your Leads, and you invite them to Cooked in one go.</li>
       </ol>
       <label className="mt-5 flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-[14px] text-[16px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}><ArrowDownToLine className="h-5 w-5" />{busy ? "Reading…" : "Choose the CSV file"}
         <input type="file" accept=".csv,text/csv,.txt,text/plain,.tsv" className="sr-only" onChange={pick} data-testid="tr-import-clients-file" /></label>
@@ -78,7 +78,7 @@ function ImportClients({ token, say, onClose }: { token: string | null; say: (m:
       {sent !== null ? <p className="flex items-center gap-2 rounded-[12px] p-3 text-[15px] font-semibold" style={{ background: C.card, color: C.lime }}><Check className="h-5 w-5" />Invite emailed to {sent}. They'll show up in Clients as they join.</p>
         : withEmail.length > 0 && <Btn className="w-full" disabled={!!busy} onClick={emailAll} testId="tr-invite-all"><Mail className="h-5 w-5" />{busy === "mail" ? "Sending…" : `Email all ${withEmail.length} my invite link`}</Btn>}
       <Btn kind="soft" className="mt-2 w-full" onClick={copy}><Copy className="h-5 w-5" />Copy invite link</Btn>
-      <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Each one gets a short note from you with a button to join you in Arise Fit. Replies come to your email. Clients without an email are in Leads with their phone number, ready to text.</p>
+      <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Each one gets a short note from you with a button to join you in Cooked. Replies come to your email. Clients without an email are in Leads with their phone number, ready to text.</p>
     </>}
     {err && <p className="mt-3 text-[14px]" style={{ color: C.red }}>{err}</p>}
   </Sheet>;

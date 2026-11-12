@@ -1,13 +1,13 @@
-// Pod+ native core, shared by CarPlay (inside the iPhone app), the Apple Watch app and the Apple TV app.
+// Podster native core, shared by CarPlay (inside the iPhone app), the Apple Watch app and the Apple TV app.
 // No Capacitor and no UIKit here, so the same file builds for iOS, watchOS and tvOS.
 //
 //   PodEp, PodShowRef, PodMode, PodSpot  what the web app keeps (shared/earshot.ts), in Swift
 //   PodLibrary                            the listener's library the web app hands over (podscroll/carplay.ts)
 //   PodStore                              where the library and the resume spots are kept on this device
-//   PodAPI                                the Pod+ server's public routes (/api/podscroll, server/earshot.ts)
+//   PodAPI                                the Podster server's public routes (/api/podscroll, server/earshot.ts)
 import Foundation
 
-// MARK: - What Pod+ keeps
+// MARK: - What Podster keeps
 
 public struct PodEp: Codable, Hashable, Identifiable {
     public var id: String
@@ -25,7 +25,7 @@ public struct PodEp: Codable, Hashable, Identifiable {
         self.id = id; self.showId = showId; self.title = title; self.show = show; self.art = art; self.audio = audio; self.secs = secs; self.date = date; self.live = live
     }
 
-    /** An episode someone made on Pod+ (its id is "77" and 12 digits): it plays straight from storage. */
+    /** An episode someone made on Podster (its id is "77" and 12 digits): it plays straight from storage. */
     public var isOwn: Bool { id.count == 14 && id.hasPrefix("77") && id.allSatisfy(\.isNumber) }
     public var isLive: Bool { live == true }
 
@@ -268,7 +268,7 @@ public final class PodStore {
     }
 }
 
-// MARK: - The Pod+ server
+// MARK: - The Podster server
 
 public struct PodAd: Hashable {
     public var key: String
@@ -301,7 +301,7 @@ public enum PodError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .server(let m): return m
-        case .offline: return "Can't reach Pod+ right now. Check your connection."
+        case .offline: return "Can't reach Podster right now. Check your connection."
         }
     }
 }
@@ -368,7 +368,7 @@ public final class PodAPI {
         let b = try await json("/api/podscroll/genre/\(genre.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? genre)")
         return PodJSON.list(b["shows"]).compactMap { PodShowRef(json: $0) }
     }
-    /** The shows for some genres, each with its newest episodes (the Pod+ home page and For You). */
+    /** The shows for some genres, each with its newest episodes (the Podster home page and For You). */
     public func feed(genres: [String]) async throws -> [String: [PodPool]] {
         let g = genres.prefix(12).joined(separator: ",")
         let b = try await json("/api/podscroll/feed?genres=\(g.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? g)")
@@ -418,7 +418,7 @@ public final class PodAPI {
         return (PodJSON.list(b["shows"]).compactMap { PodShowRef(json: $0) }, PodJSON.list(b["episodes"]).compactMap { PodEp(json: $0) })
     }
 
-    // Signing in (Pod+ account: an email and a 6-digit code) and the account's library
+    // Signing in (Podster account: an email and a 6-digit code) and the account's library
 
     public func sendCode(email: String) async throws {
         _ = try await json("/api/podscroll/account/code", method: "POST", body: ["email": email])

@@ -84,7 +84,7 @@ const NOUNS: Record<AlertEventKey, [string, string]> = {
   teacher_signup: ["teacher update", "teacher updates"],
   parent_signup: ["new parent", "new parents"],
   quiz_completed: ["quiz taken", "quizzes taken"],
-  eye_gaze_quiz_completed: ["Eye Gazer quiz", "Eye Gazer quizzes"],
+  eye_gaze_quiz_completed: ["Arise AAC quiz", "Arise AAC quizzes"],
   assessment_completed: ["assessment finished", "assessments finished"],
   ai_quiz_review: ["AI quiz to review", "AI quizzes to review"],
   quiz_request: ["book request", "book requests"],

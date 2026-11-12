@@ -1,4 +1,4 @@
-// Arise Fit+ for each account, and the guest pass (shared/fitPlus.ts says what both are).
+// Cooked Fitness by Arise Premium for each account, and the guest pass (shared/fitPlus.ts says what both are).
 // Someone has Fit+ when they pay for it (or the admin gave it, server/plans.ts's fitPlusOwn), or when
 // a person who pays shared their guest pass with them and still pays. Records in the settings table
 // (server/fitKv.ts):
@@ -84,7 +84,7 @@ export function createPasses(deps: PassDeps) {
       return s;
     },
     async code(me: number, fresh = false) {
-      if (!(await own(me)).live) return { error: 403, message: "Guest passes come with your own Arise Fit+ plan. A guest pass can't be shared again." };
+      if (!(await own(me)).live) return { error: 403, message: "Guest passes come with your own Cooked Fitness by Arise Premium plan. A guest pass can't be shared again." };
       const p = (await passOf(me)) ?? { code: "", guest: null, since: null, freedAt: null };
       if (p.code && !fresh) return { code: p.code };
       if (p.code) await kv.set(K.code(p.code), null);
@@ -102,8 +102,8 @@ export function createPasses(deps: PassDeps) {
       const p = await passOf(owner);
       if (!p || p.code !== code) return { error: 404, message: "That guest pass code doesn't work anymore. Ask for a new one." };
       if (owner === me) return { error: 400, message: "That's your own guest pass. Send it to a friend or family member." };
-      if ((await own(me)).live) return { error: 409, message: "You already have Arise Fit+ yourself, so you don't need a guest pass." };
-      if (!(await own(owner)).live) return { error: 409, message: `${await nameOf(owner)}'s Arise Fit+ isn't active, so their guest pass isn't either.` };
+      if ((await own(me)).live) return { error: 409, message: "You already have Cooked Fitness by Arise Premium yourself, so you don't need a guest pass." };
+      if (!(await own(owner)).live) return { error: 409, message: `${await nameOf(owner)}'s Cooked Fitness by Arise Premium isn't active, so their guest pass isn't either.` };
       if (p.guest === me) return { ok: true };
       if (p.guest) return { error: 409, message: `${await nameOf(owner)} has already shared their guest pass. Each Fit+ member can share with one person.` };
       const wait = switchAfter(p);
@@ -112,7 +112,7 @@ export function createPasses(deps: PassDeps) {
       if (host) return { error: 409, message: `You already have ${await nameOf(host)}'s guest pass. Give it up first to use this one.` };
       await kv.set(K.pass(owner), { ...p, guest: me, since: new Date(now()).toISOString() });
       await kv.set(K.guest(me), { owner });
-      void notify(owner, { title: "Guest pass used", body: `${await nameOf(me)} now has Arise Fit+ with your guest pass.`, url: "#/fit", tag: `fit-pass-${owner}` });
+      void notify(owner, { title: "Guest pass used", body: `${await nameOf(me)} now has Cooked Fitness by Arise Premium with your guest pass.`, url: "#/fit", tag: `fit-pass-${owner}` });
       return { ok: true };
     },
     async end(me: number) {
@@ -120,7 +120,7 @@ export function createPasses(deps: PassDeps) {
       if (mine?.guest) {
         const guest = mine.guest;
         await free(me, mine);
-        void notify(guest, { title: "Guest pass ended", body: `${await nameOf(me)} took back their Arise Fit+ guest pass.`, url: "#/fit", tag: `fit-pass-${me}` });
+        void notify(guest, { title: "Guest pass ended", body: `${await nameOf(me)} took back their Cooked Fitness by Arise Premium guest pass.`, url: "#/fit", tag: `fit-pass-${me}` });
         return { ok: true };
       }
       const g = await kv.get(K.guest(me));
@@ -129,7 +129,7 @@ export function createPasses(deps: PassDeps) {
         const p = await passOf(owner);
         if (p?.guest === me) await free(owner, p);
         await kv.set(K.guest(me), null);
-        void notify(owner, { title: "Guest pass is free", body: `${await nameOf(me)} gave back your Arise Fit+ guest pass.`, url: "#/fit", tag: `fit-pass-${owner}` });
+        void notify(owner, { title: "Guest pass is free", body: `${await nameOf(me)} gave back your Cooked Fitness by Arise Premium guest pass.`, url: "#/fit", tag: `fit-pass-${owner}` });
       }
       return { ok: true };
     },
@@ -140,7 +140,7 @@ export function createPasses(deps: PassDeps) {
 export const needsPlus = (plusOf: (id: number) => Promise<{ plus: boolean }>, what: string): RequestHandler => async (req: any, res: any, next: any) => {
   try { if ((await plusOf(Number(req.user?.id))).plus) return next(); }
   catch { /* treated as no plan */ }
-  res.status(402).json({ message: `${what} is part of Arise Fit+.`, code: PLUS_REQUIRED });
+  res.status(402).json({ message: `${what} is part of Cooked Fitness by Arise Premium.`, code: PLUS_REQUIRED });
 };
 
 export function registerPassRoutes(app: Express, auth: RequestHandler, deps: PassDeps) {
@@ -155,7 +155,7 @@ export function registerPassRoutes(app: Express, auth: RequestHandler, deps: Pas
       limit.fail(String(me));
     }
     try { const r = await fn(me, req); return r?.error ? res.status(r.error).json({ message: r.message }) : res.json(r); }
-    catch (e: any) { console.error("[fit] plus", e?.message); return res.status(503).json({ message: "Arise Fit+ can't be checked right now. Try again in a moment." }); }
+    catch (e: any) { console.error("[fit] plus", e?.message); return res.status(503).json({ message: "Cooked Fitness by Arise Premium can't be checked right now. Try again in a moment." }); }
   };
   app.get("/api/fit/plus", auth, wrap((me) => p.status(me)));
   app.post("/api/fit/pass/code", auth, wrap((me, req) => p.code(me, req.body?.fresh === true), true));

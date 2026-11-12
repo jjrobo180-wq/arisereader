@@ -1,4 +1,4 @@
-// Arise Fit AI form check: turns the body points from a pose model (MediaPipe's 33-point skeleton,
+// Cooked AI form check: turns the body points from a pose model (MediaPipe's 33-point skeleton,
 // coordinates 0–1) into joint angles, counts reps and spots common faults for each lift. Pure math,
 // shared by the camera screen and the tests.
 // Accuracy: joint angles are measured in 3D (MediaPipe's world points, in meters) when they're there, so

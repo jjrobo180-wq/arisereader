@@ -10,7 +10,7 @@ export const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: LucideIcon
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "stats", label: "Stats", icon: BarChart3 },
   { id: "updates", label: "News & updates", icon: Megaphone },
-  { id: "todo", label: "To-do", icon: ListTodo },
+  { id: "todo", label: "Needs review", icon: ListTodo },
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "people", label: "People", icon: Users },
   { id: "library", label: "Library", icon: Library },

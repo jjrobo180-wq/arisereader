@@ -12,6 +12,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, goToSignIn, isReaderHost } from "@/lib/hubs";
 import { isReaderApp } from "@/lib/nativeApp";
 import AccountPrivacy from "@/components/AccountPrivacy";
+import GetReaderApp from "@/components/GetReaderApp";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
@@ -33,7 +34,7 @@ type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "ch
  *  item per part, and the buttons that used to sit in the console's own header are items too. */
 const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = (["overview", "people", "schools", "library", "inbox", "stats", "todo", "settings"] as AdminSection[])
   .map((id) => ADMIN_SECTIONS.find((a) => a.id === id)!).filter(Boolean)
-  .map((a) => ({ id: `admin:${a.id}` as View, label: a.id === "todo" ? "Arise To Duo" : a.id === "schools" ? "Schools & plans" : a.label, icon: a.icon }));
+  .map((a) => ({ id: `admin:${a.id}` as View, label: a.id === "schools" ? "Schools & plans" : a.label, icon: a.icon }));
 const ADMIN_PART_LABEL: Record<OverviewPart, string> = { home: "Overview", attention: "Needs attention", actions: "Quick actions", leaderboard: "Student leaderboard" };
 const EnglishStaff = lazy(() => import("@/components/english/EnglishStaff"));
 const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").then((m) => ({ default: m.AdminTab })));
@@ -271,6 +272,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             <a href={workhubHref} className="inline-flex min-h-9 items-center rounded-xl px-4 text-sm font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" onClick={openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
           </div>
         </section>}
+        {/* The iPhone app's download link, for parents, teachers and admins (hidden inside the app itself). */}
+        <GetReaderApp tone="dark" who={user?.role === "parent" ? "your child" : "your class"} />
         <SupportBanner dark />
       </div>
 

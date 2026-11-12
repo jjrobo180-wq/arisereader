@@ -84,7 +84,7 @@ export const PLANS = {
     monthlyCents: 1000,
   },
   /**
-   * Arise Fit+ (shared/fitPlus.ts): the paid tier of Arise Fit, $10 a month per account. Each paying
+   * Cooked+ (shared/fitPlus.ts): the paid tier of Cooked, $10 a month per account. Each paying
    * account can share it free with one other account (the guest pass). Sold on the website only.
    */
   fitPlus: {
@@ -92,7 +92,7 @@ export const PLANS = {
   },
   /**
    * Arise All Access: one $10-a-month plan for one person that unlocks the paid tier of every app:
-   * Arise To Duo Unlimited, Arise Notes Plus, Arise Fit+ (with its guest pass) and ad-free Pod+.
+   * Arise To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free Podster.
    * It replaces selling those separately; people who already pay for one of them keep it.
    */
   allAccess: {

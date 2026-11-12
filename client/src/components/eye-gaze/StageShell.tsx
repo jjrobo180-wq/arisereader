@@ -33,7 +33,7 @@ export default function StageShell({ title, badge, accent = "#38bdf8", hostRef, 
   const [open, setOpen] = useState(false); const D = settings.dwell;
   const fsRef = useRef(false);
   // Full screen on the website only: in the iPhone and iPad apps the game already fills the screen (and asking
-  // WebKit for it crashed Arise Eye Gazer).
+  // WebKit for it crashed Arise AAC).
   useEffect(() => { if (isNativeApp()) return; try { const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }; if (!document.fullscreenElement && (el.requestFullscreen || el.webkitRequestFullscreen)) { void (el.requestFullscreen || el.webkitRequestFullscreen)!.call(el)?.catch?.(() => {}); fsRef.current = true; } } catch { /* optional */ } }, []);
   const back = () => { try { if (fsRef.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* optional */ } onBack(); };
   const opt = <T,>(label: string, value: T, set: (v: T) => void, opts: [T, string][]) => (

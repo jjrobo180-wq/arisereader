@@ -103,7 +103,6 @@ import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import { useHubLook } from "@/components/HubLook";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
-import { addDays } from "@shared/familyHub";
 import { calendarEvents } from "@shared/hubHidden";
 import { toggleTask } from "@shared/hubTasks";
 import "@/components/teacher-hub/hubPaper.css";
@@ -147,7 +146,8 @@ import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
-import AppWalkthrough from "@/components/AppWalkthrough";
+import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
+import AllAccessPopup from "@/components/AllAccessPopup";
 import HubCoach from "@/components/HubCoach";
 import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
 import { boardGoals } from "@shared/hubGoalBoard";
@@ -723,7 +723,7 @@ function TeacherHubPage() {
   const [notifyOpen, setNotifyOpen] = useState(false);
   const hubReady = canUseHub && loaded && !loadError && !needsPlan;
   const pollAnswers = usePollAnswers(token, user?.id, hubReady);
-  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
+  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff && !!user && walkthroughDone(user.id));
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
@@ -1098,6 +1098,8 @@ function TeacherHubPage() {
           setWorkspace((prev) => { const had = prev.calendars.find((c) => isIphoneCalendar(c.url)); return replaceCalendarEvents(prev, { id: had?.id || id(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() }, events, id); });
           return events.length;
         }} />}
+      {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). The same one LifeHub shows. */}
+      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         initialOpen={storeOpenApp ?? undefined}
@@ -1449,9 +1451,14 @@ function TeacherHubPage() {
             {(() => {
               // Everything else under My plugins (kits like IEP, Notes, Sheets and Office apps, Drive, Dropbox),
               // in the order you set: ⋯ (or press and hold) → Move up / Move down.
-              const extras: { key: string; label: string; node: any }[] = [];
+              const extras: { key: string; label: string; node: any; remove?: () => void }[] = [];
               myOfficeApps.forEach((a) => extras.push({ key: `office:${a.id}`, label: a.name, node: <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={`flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-600 hover:text-indigo-700 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm md:hover:bg-slate-100`}><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></a> }));
-              myKits.forEach((d) => { const Icon = kitIcon(d.icon); extras.push({ key: `kit:${d.id}`, label: d.name, node: (<div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              myKits.forEach((d) => { const Icon = kitIcon(d.icon); extras.push({ key: `kit:${d.id}`, label: d.name, remove: () => {
+                const before: string[] | undefined = (workspace as any).kitInstalled;
+                setWorkspace((prev) => ({ ...prev, kitInstalled: ((prev as any).kitInstalled as string[] | undefined ?? []).filter((k) => k !== d.id) } as typeof prev));
+                if (kitOpen === d.id) setKitOpen(null);
+                toasts.show(`${d.name} removed. Add it back any time from the Plugin Gallery.`, [{ label: "Undo", run: () => setWorkspace((prev) => ({ ...prev, kitInstalled: before ?? [] } as typeof prev)) }]);
+              }, node: (<div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                   <button type="button" onClick={() => { closeApps(); openKit(d.id); afterPick(); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`hub-kit-${d.id}`} data-hub-nav
                     className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${kitOpen === d.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: d.color }}><Icon className="h-3.5 w-3.5" /></span>
@@ -1498,7 +1505,7 @@ function TeacherHubPage() {
               return sorted.map((x, i) => <div key={x.key} className={`group/navitem relative flex items-center ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`} {...holdFor(`x:${x.key}`)}>
                 <div className="min-w-0 flex-1" onClickCapture={(e) => { if (wasHeld()) { e.stopPropagation(); e.preventDefault(); } }}>{x.node}</div>
                 <AppItemMenu name={x.label} open={itemMenu === `x:${x.key}`} setOpen={(o) => setItemMenu(o ? `x:${x.key}` : null)} className={deskTop || deskCompact ? "md:hidden" : ""}
-                  actions={[...(i > 0 ? [{ label: "Move up", onPick: () => move(x.key, -1) }] : []), ...(i < sorted.length - 1 ? [{ label: "Move down", onPick: () => move(x.key, 1) }] : []), { label: "Customize menu", onPick: () => setCustomize(true) }]} />
+                  actions={[...(i > 0 ? [{ label: "Move up", onPick: () => move(x.key, -1) }] : []), ...(i < sorted.length - 1 ? [{ label: "Move down", onPick: () => move(x.key, 1) }] : []), ...(x.remove ? [{ label: "Remove app", danger: true, onPick: x.remove }] : []), { label: "Customize menu", onPick: () => setCustomize(true) }]} />
                 {!deskTop && !deskCompact && <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
                   <button type="button" onClick={() => move(x.key, -1)} disabled={i === 0} aria-label={`Move ${x.label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
                   <button type="button" onClick={() => move(x.key, 1)} disabled={i === sorted.length - 1} aria-label={`Move ${x.label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>

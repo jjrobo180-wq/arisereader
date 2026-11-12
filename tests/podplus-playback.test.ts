@@ -1,4 +1,4 @@
-// Pod+ playback fixes: other apps' sound, Wiki podcasts that keep going, Apple-style scrubbing and
+// Podster playback fixes: other apps' sound, Wiki podcasts that keep going, Apple-style scrubbing and
 // skipping, and ads found by several methods agreeing.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +7,7 @@ import { combineAds, alignAds } from "../shared/earshotAds";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("opening Pod+ doesn't take the speaker from other apps", () => {
+test("opening Podster doesn't take the speaker from other apps", () => {
   const py = read("podscroll/ios-app/configure-ios.py");
   const setup = py.slice(py.indexOf('setup = """'), py.indexOf('src = src[:ret]'));
   assert.match(setup, /setCategory\(\.playback/);
@@ -21,7 +21,7 @@ test("a Wiki podcast belongs to the player engine, so leaving the page doesn't s
   assert.doesNotMatch(player, /return \(\) => \{[^}]*stopAiVoice/, "the screen no longer stops the voice when it closes");
   assert.doesNotMatch(player, /onClick=\{\(\) => \{ pause\(\); onBack\(\); \}\}/, "Back doesn't pause");
   assert.match(engine, /mediaSession/); assert.match(engine, /h\("pause"/);
-  assert.match(read("podscroll/Home.tsx"), /<WikiMini /, "a mini bar shows it while you're elsewhere in Pod+");
+  assert.match(read("podscroll/Home.tsx"), /<WikiMini /, "a mini bar shows it while you're elsewhere in Podster");
 });
 
 test("scrubbing seeks when the finger lifts, and the lock screen scrubs and skips like Apple's", () => {

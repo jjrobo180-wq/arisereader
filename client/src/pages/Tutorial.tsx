@@ -273,7 +273,7 @@ export default function Tutorial() {
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Parent / Family</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Explore linked-child progress, certificates, messages, Eye Gazer family controls, My Talker personalization, My World, Life Skills, and more.
+                Explore linked-child progress, certificates, messages, Arise AAC family controls, My Talker personalization, My World, Life Skills, and more.
               </p>
               <div className="flex items-center gap-1 text-cyan-300 text-sm font-black">
                 <PlayCircle className="w-4 h-4" />
@@ -1823,7 +1823,7 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
             <div className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl arise-icon-tile"><Eye className="h-5 w-5" /></div>
-            <h4 className="mt-2 font-bold text-white">Eye Gazer family tools</h4>
+            <h4 className="mt-2 font-bold text-white">Arise AAC family tools</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">Personalize My Talker, My World, Life Skills, videos, flash cards, and supported access settings for a linked learner.</p>
           </div>
         </div>

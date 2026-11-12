@@ -1,4 +1,4 @@
-// Video form checks (November 2026): a client films a set in Arise Fit and sends it to their trainer. The trainer
+// Video form checks (November 2026): a client films a set in Cooked and sends it to their trainer. The trainer
 // pauses on the frames that matter, draws on them (lines, circles, arrows), writes a note on each, and can add a
 // voice note. The client plays it back with the drawings showing at those moments. Server: server/coach.ts.
 

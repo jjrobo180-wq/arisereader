@@ -1,4 +1,4 @@
-// "What should I order?": the AI suggests orders at any restaurant (even ones not in Arise Fit's lists) that fit
+// "What should I order?": the AI suggests orders at any restaurant (even ones not in Cooked's lists) that fit
 // what's left of the person's day. Pure parts here so they're tested; the call is in server/fit.ts.
 export type MenuAsk = {
   place: string; cuisine: string; goal: string; diet: string; mode: "calories" | "points"; wants: string;

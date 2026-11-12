@@ -1,0 +1,38 @@
+name: App Store details (Arise To Duo)
+# Sets the parts of Arise To Duo's App Store Connect page that the API allows: the age rating answers and the App Review
+# notes with the review account's sign-in (.github/scripts/todo_store_fill.py). Run by hand; the review account's
+# password is typed here and is hidden in the log. Doesn't submit anything.
+on:
+  workflow_dispatch:
+    inputs:
+      demo_user:
+        description: Sign-in name of the App Review account (made by you on arisetodo.com, with All Access switched on)
+        required: true
+      demo_pass:
+        description: Its password
+        required: true
+      contact_first: { description: App Review contact first name, required: false, default: "" }
+      contact_last: { description: App Review contact last name, required: false, default: "" }
+      contact_phone: { description: App Review contact phone, required: false, default: "" }
+      contact_email: { description: App Review contact email, required: false, default: "" }
+jobs:
+  fill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hide the password
+        run: echo "::add-mask::${{ github.event.inputs.demo_pass }}"
+      - name: App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DEMO_USER: ${{ github.event.inputs.demo_user }}
+          DEMO_PASS: ${{ github.event.inputs.demo_pass }}
+          CONTACT_FIRST: ${{ github.event.inputs.contact_first }}
+          CONTACT_LAST: ${{ github.event.inputs.contact_last }}
+          CONTACT_PHONE: ${{ github.event.inputs.contact_phone }}
+          CONTACT_EMAIL: ${{ github.event.inputs.contact_email }}
+        run: python3 .github/scripts/todo_store_fill.py

@@ -43,7 +43,7 @@ export default function TvLink() {
           </div>
         ) : (
           <form onSubmit={send}>
-            <p className="mt-2 text-slate-600">Open Arise Duo or Arise Fit on your Apple TV and type the code it shows. You're signing it in as <b>{user.displayName || user.username}</b>.</p>
+            <p className="mt-2 text-slate-600">Open Arise Duo or Cooked on your Apple TV and type the code it shows. You're signing it in as <b>{user.displayName || user.username}</b>.</p>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}

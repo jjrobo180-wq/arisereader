@@ -1,4 +1,4 @@
-// "Your website" in Arise Trainer's Business tab: build, preview and publish a trainer's own site (#/t/<slug>),
+// "Your website" in Cooked PT's Business tab: build, preview and publish a trainer's own site (#/t/<slug>),
 // and work the leads its contact form sends in. Server: server/coach.ts. Shapes: shared/coachSite.ts.
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Check, ExternalLink, Eye, Globe, Mail, Phone, Send, Share2, Sparkles, Trash2, X } from "lucide-react";
@@ -88,11 +88,11 @@ function LeadSheet({ lead: l, invite, onClose, onStatus, onRemove }: { lead: Lea
     <Title>Status</Title>
     <div className="grid grid-cols-2 gap-2">{LEAD_STATUS.map((s) => <button key={s.id} type="button" onClick={() => onStatus(s.id)} className="flex h-12 items-center justify-center gap-1.5 rounded-[10px] text-[14px] font-semibold" style={l.status === s.id ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.text }} data-testid={`tr-lead-${s.id}`}>{l.status === s.id && <Check className="h-4 w-4" />}{s.label}</button>)}</div>
     {(l.email || l.phone) && <Btn kind="soft" className="mt-3 w-full !text-[15px]" disabled={!invite} onClick={() => {
-      const msg = `Hi ${first}! Here's how we get started: tap this to join me in the Arise Fit app. Your plan and our chat live there. ${invite}`;
+      const msg = `Hi ${first}! Here's how we get started: tap this to join me in the Cooked app. Your plan and our chat live there. ${invite}`;
       if (l.status === "new") onStatus("contacted");
       window.location.href = l.phone ? `sms:${l.phone.replace(/[^\d+]/g, "")}${/iPhone|iPad|Mac/.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(msg)}` : `mailto:${l.email}?subject=${encodeURIComponent("Getting started")}&body=${encodeURIComponent(msg)}`;
     }} testId="tr-lead-invite"><Send className="h-4 w-4" />{l.phone ? "Text" : "Email"} {first} my invite link</Btn>}
-    <p className="mt-2 text-[13px]" style={{ color: C.dim }}>When {first} opens it, they join you in Arise Fit and show up in Clients.</p>
+    <p className="mt-2 text-[13px]" style={{ color: C.dim }}>When {first} opens it, they join you in Cooked and show up in Clients.</p>
     <Btn kind="danger" className="mt-5 w-full" onClick={onRemove}><Trash2 className="h-4 w-4" />Delete lead</Btn>
   </Sheet>;
 }

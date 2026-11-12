@@ -1,5 +1,5 @@
 // Downloads for listening without a connection. The player shared with Arise's Earshot only asks
-// this registry; Pod+ plugs in the real downloader (podscroll/downloads.ts). With nothing plugged in
+// this registry; Podster plugs in the real downloader (podscroll/downloads.ts). With nothing plugged in
 // (Arise), there are no download buttons and every episode streams as before.
 import { useEffect, useState } from "react";
 import type { SavedEpisode } from "@shared/earshot";

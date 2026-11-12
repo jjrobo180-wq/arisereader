@@ -34,7 +34,7 @@ export const BUNDLES: Bundle[] = [
   {
     id: "healthlite", section: "healthlite", name: "Health Lite", category: "Health & wellness", icon: "HeartPulse", color: "#e0566b",
     tagline: "Everything for your health, in one place",
-    description: "One simple home for your health. Pick the tools you want, like a period tracker, medicine reminders, a food diary, workouts, sleep, mood or water, and switch between them with one tap. Want more depth? Arise Fit has full programs, meal tracking and coaching.",
+    description: "One simple home for your health. Pick the tools you want, like a period tracker, medicine reminders, a food diary, workouts, sleep, mood or water, and switch between them with one tap. Want more depth? Cooked Fitness by Arise has full programs, meal tracking and coaching.",
     features: ["Pick only the tools you need", "Period tracker, medicine, food, workouts, sleep, mood", "Daily trackers for water, steps, pain and more", "Your records stay private to you"],
     pickerTitle: "Pick your health tools", pickerIntro: "Choose what you want in Health Lite. You can change this any time with the settings button.",
     fixed: [],
@@ -77,7 +77,7 @@ export const BUNDLES: Bundle[] = [
         { id: "flossed" as FamilySection, label: "Flossed" },
       ] },
     ],
-    promo: { title: "Want more from your health?", body: "Arise Fit has full training programs, meal tracking, sleep scores, a medicine tracker and a period tracker, plus a coach.", cta: "Get Arise Fit", href: FIT_LINK },
+    promo: { title: "Want more from your health?", body: "Cooked Fitness by Arise has full training programs, meal tracking, sleep scores, a medicine tracker and a period tracker, plus a coach.", cta: "Get Cooked Fitness", href: FIT_LINK },
   },
   {
     id: "inspire", section: "inspire", name: "Journal & Inspiration", category: "Inspiration", icon: "NotebookPen", color: "#8b5cf6",

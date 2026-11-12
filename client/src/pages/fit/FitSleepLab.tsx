@@ -1,5 +1,5 @@
-// Arise Fit+ Sleep Lab: three premium sleep tools.
-//  • Pillow tracking: put the phone on the mattress or under your pillow, plugged in, with Arise Fit open.
+// Cooked+ Sleep Lab: three premium sleep tools.
+//  • Pillow tracking: put the phone on the mattress or under your pillow, plugged in, with Cooked open.
 //    The motion sensor feels how much you move; calm stretches count as deep sleep, small movements as
 //    light sleep, big ones as awake. A smart alarm wakes you in the lightest moment of the window you pick.
 //    iPhone pauses apps when the screen locks, so the screen stays on (dark) all night.
@@ -87,7 +87,7 @@ export function SoundsScreen({ onClose }: { onClose: () => void }) {
       <Title>Turn off after</Title>
       <div className="flex flex-wrap gap-2">{[15, 30, 60, 120, 0].map((m) => <button key={m} type="button" onClick={() => { setTimer(m); end.current = Date.now() + m * 60_000; }} aria-pressed={timer === m} className="h-10 rounded-full px-4 text-[14px] font-semibold" style={timer === m ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card }}>{m === 0 ? "Never" : m < 60 ? `${m} min` : `${m / 60} hr`}</button>)}</div>
       {id && timer > 0 && left > 0 && <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Fades out in {Math.ceil(left / 60000)} min.</p>}
-      <p className="mt-6 px-1 text-[12px]" style={{ color: C.dim }}>Sounds are made on your phone, so they work offline. Keep Arise Fit open and the screen on while they play.</p>
+      <p className="mt-6 px-1 text-[12px]" style={{ color: C.dim }}>Sounds are made on your phone, so they work offline. Keep Cooked open and the screen on while they play.</p>
     </div>
   </div></Layer>;
 }
@@ -132,7 +132,7 @@ export function PillowTracker({ data, update, say, onClose }: { data: FitData; u
     haptic("medium");
     try {
       const DM: any = (window as any).DeviceMotionEvent;
-      if (DM && typeof DM.requestPermission === "function") { const r = await DM.requestPermission(); if (r !== "granted") { setProblem("Motion access was declined. In Settings > Arise Fit, allow Motion & Orientation, then try again."); return; } }
+      if (DM && typeof DM.requestPermission === "function") { const r = await DM.requestPermission(); if (r !== "granted") { setProblem("Motion access was declined. In Settings > Cooked, allow Motion & Orientation, then try again."); return; } }
       if (!DM) { setProblem("This device can't sense motion, so pillow tracking isn't available here."); return; }
     } catch { setProblem("Couldn't turn on the motion sensor."); return; }
     start.current = Date.now(); epochs.current = []; woke.current = false; setPhase("night"); setProblem("");
@@ -207,7 +207,7 @@ export function PillowTracker({ data, update, say, onClose }: { data: FitData; u
           <button type="button" onClick={(e) => { e.stopPropagation(); finish(true); }} className="h-12 rounded-full px-6 text-[16px] font-semibold" style={{ background: "#312e81", color: "#fff" }}>I'm awake</button>
           <button type="button" onClick={(e) => { e.stopPropagation(); if (window.confirm("Stop without saving?")) finish(false); }} className="h-12 rounded-full px-6 text-[16px] font-semibold" style={{ background: "#1f1f2b", color: "#c7d2fe" }}>Cancel</button>
         </div>
-        <p className="mt-6 max-w-xs px-4 text-[12px]" style={{ color: "#6b6f9a" }}>Keep the phone plugged in and Arise Fit open. Tap the screen to dim it.</p>
+        <p className="mt-6 max-w-xs px-4 text-[12px]" style={{ color: "#6b6f9a" }}>Keep the phone plugged in and Cooked open. Tap the screen to dim it.</p>
       </>}
     </>}
   </div></Layer>;
@@ -221,7 +221,7 @@ export function PillowTracker({ data, update, say, onClose }: { data: FitData; u
       <Card className="!p-5" style={{ background: "linear-gradient(170deg,#1e1b4b,#312e81)", color: "#eef" }}>
         <Bed className="h-8 w-8" style={{ color: "#c7d2fe" }} />
         <p className="mt-3 text-[26px] leading-tight" style={display}>Put the phone on your mattress or under your pillow.</p>
-        <p className="mt-2 text-[14px] leading-snug" style={{ color: "#c7d2fe" }}>Your phone feels how still you are, and finds your lightest sleep so the alarm wakes you gently. Plug it in and leave Arise Fit open.</p>
+        <p className="mt-2 text-[14px] leading-snug" style={{ color: "#c7d2fe" }}>Your phone feels how still you are, and finds your lightest sleep so the alarm wakes you gently. Plug it in and leave Cooked open.</p>
       </Card>
       <Title>Smart alarm</Title>
       <Card className="!p-4">
@@ -263,7 +263,7 @@ export function SleepLab({ data, update, say }: { data: FitData; update: Update;
         <div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: "linear-gradient(145deg,#6366f1,#3730a3)", color: "#fff" }}><Watch className="h-5 w-5" /></span>
           <span className="min-w-0 flex-1"><span className="block text-[16px] font-semibold leading-tight">Apple Watch</span><span className="block text-[12.5px] leading-snug" style={{ color: C.dim }}>{connected ? "Connected. Wear your watch to bed and nights, stages and heart data arrive on their own." : "Wear it to bed. Nights, deep and REM sleep and heart data come in from Apple Health."}</span></span></div>
         {native && !connected && <Btn kind="soft" className="mt-3 w-full" onClick={async () => { try { await connectHealth(); say("Apple Health connected."); } catch { say("Couldn't connect Apple Health."); } }}><Check className="h-4 w-4" />Connect Apple Health</Btn>}
-        {!native && <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Open Arise Fit on your iPhone to connect your watch.</p>}
+        {!native && <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Open Cooked on your iPhone to connect your watch.</p>}
       </div>
     </div>
     {open === "pillow" && <PillowTracker data={data} update={update} say={say} onClose={() => setOpen("")} />}

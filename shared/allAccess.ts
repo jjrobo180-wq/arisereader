@@ -1,16 +1,17 @@
 // Arise All Access, as people see it: one $10-a-month plan for every Arise app (sold in server/plans.ts,
-// kind "all_access"). Shared by the website, the iPhone apps and Pod+.
+// kind "all_access"). Shared by the website, the iPhone apps and Podster.
 export const ALL_ACCESS = {
   name: "Arise All Access",
   price: "$10",
   per: "a month",
   /** Where it's bought (the website; the iPhone apps link here only where Apple allows it). */
   url: "https://arisetodo.com/app#/all-access",
+  /** Each app's name, then what All Access adds in it (shown smaller). */
   perks: [
-    "To Duo Unlimited: every plugin and AI",
-    "Arise Notes Plus: 1,500 minutes a month",
-    "Arise Fit+, with a guest pass for a friend",
-    "Ad-free listening in Pod+",
+    { app: "Arise To Duo", detail: "Unlimited: every plugin and AI" },
+    { app: "Arise Notes", detail: "Plus: 1,500 minutes a month" },
+    { app: "Cooked Fitness by Arise", detail: "Premium All in one Health & Fitness App, with a guest pass for a friend" },
+    { app: "Podster", detail: "Ad-free listening" },
   ],
 } as const;
 

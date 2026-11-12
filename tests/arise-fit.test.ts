@@ -1,4 +1,4 @@
-// Arise Fit (shared/fit.ts, server/fit.ts): the math, what's kept, the programs and the library.
+// Cooked (shared/fit.ts, server/fit.ts): the math, what's kept, the programs and the library.
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";

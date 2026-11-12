@@ -88,7 +88,7 @@ def main():
                 raise RuntimeError(f"Apple signing configuration returned HTTP {error.code}; no certificate was changed") from None
         ids = [x for x in api("bundleIds?" + urllib.parse.urlencode({"filter[identifier]": bundle}))["data"] if x["attributes"]["identifier"] == bundle]
         if not ids and "--register-bundle-id" in sys.argv:
-            # A brand-new app (Arise Fit): its explicit App ID is registered once, then reused.
+            # A brand-new app (Cooked): its explicit App ID is registered once, then reused.
             name = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--app-name=")), bundle)
             ids = [api("bundleIds", {"data": {"type": "bundleIds", "attributes": {"identifier": bundle, "name": name, "platform": "IOS"}}})["data"]]
             print("Registered the App ID " + bundle)

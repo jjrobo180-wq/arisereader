@@ -11,6 +11,7 @@ import { onVipList } from "../shared/plans";
 import { isSampleAccount } from "../shared/sampleAccounts";
 import {
   PLAN_FILTERS, ROLE_FILTERS, SORTS, ZERO_ROLES, stripeKeyMode, bestInfo, cleanTrialDays, emptyCounts, matchesPlan, matchesQuery, matchesRole, monthlyRecurringCents, pageOf, planView, sortPeople,
+  PROGRAMS, bestOf, programOf, programStats, type Program, type ProgramMembership, type ProgramPerson, type ProgramRow,
   type Counts, type Overview, type Person, type PersonRole, type PlanFilter, type PlanInfo, type PersonSort, type RoleFilter,
 } from "../shared/todoAdmin";
 
@@ -35,6 +36,8 @@ export function registerTodoAdminRoutes(
     setArchived: (userId: number, archive: boolean, byUserId: number) => Promise<void>;
     /** Turns an account on without waiting for its email code. */
     confirm: (userId: number) => Promise<void>;
+    /** Deletes an account and everything that belongs to it. `blockedBy` names what stopped it. */
+    deleteAccount?: (userId: number) => Promise<{ blockedBy?: string }>;
     now?: () => number;
   },
 ) {
@@ -216,17 +219,24 @@ export function registerTodoAdminRoutes(
   app.get("/api/todo-admin/people", auth, admin, async (req: any, res: any) => {
     try {
       res.set("Cache-Control", "no-store");
-      const role: RoleFilter = (ROLE_FILTERS as readonly string[]).includes(String(req.query?.role)) ? (req.query.role as RoleFilter) : "todo";
+      const role: RoleFilter = (ROLE_FILTERS as readonly string[]).includes(String(req.query?.role)) ? (req.query.role as RoleFilter) : "all";
       const plan: PlanFilter = (PLAN_FILTERS as readonly string[]).includes(String(req.query?.plan)) ? (req.query.plan as PlanFilter) : "all";
       const sort: PersonSort = (SORTS as readonly string[]).includes(String(req.query?.sort)) ? (req.query.sort as PersonSort) : "newest";
       const q = String(req.query?.q ?? "").slice(0, 80);
       const [l, book] = await Promise.all([load(), planBook()]);
       const m = await money(book);
       const { people } = peopleFrom(l, book, m);
-      const inRole = people.filter((p) => matchesRole(p, role));
+      const mem = await allMemberships();
+      const prog = programOf(req.query?.program);
+      const freePlan = planView(null, false, now());
+      // With a program chosen, the list, the plan filter and its counts are all about that program.
+      const inRole = people
+        .filter((p) => matchesRole(p, role) && (!prog || !!mem.get(p.id)?.some((x) => x.id === prog.id))) 
+        .map((p) => (prog ? { ...p, plan: mem.get(p.id)?.find((x) => x.id === prog.id)?.plan ?? freePlan } : p));
       const rows = sortPeople(inRole.filter((p) => matchesPlan(p, plan) && matchesQuery(p, q)), sort);
       const counts = Object.fromEntries(PLAN_FILTERS.map((f) => [f, inRole.filter((p) => matchesPlan(p, f)).length]));
-      res.json({ ...pageOf(rows, Number(req.query?.page), Number(req.query?.size)), counts, moneyAvailable: m.available });
+      const page = pageOf(rows, Number(req.query?.page), Number(req.query?.size));
+      res.json({ ...page, rows: page.rows.map((r) => ({ ...r, memberships: (mem.get(r.id) ?? []).map(({ plan: _p, ...m }) => m) })), counts, moneyAvailable: m.available });
     } catch (e) { fail(res, e, "people"); }
   });
 
@@ -246,14 +256,71 @@ export function registerTodoAdminRoutes(
       if (customer) {
         try { payments = await T.personPayments(customer); } catch (e: any) { paymentsNote = e instanceof Refused ? e.message : "Their payments could not be loaded."; }
       }
+      const programs: ProgramRow[] = [];
+      for (const prog of PROGRAMS) {
+        const pi = bestOf((await T.programInfos(prog.kinds)).get(u.id) || []);
+        programs.push({ id: prog.id, name: prog.name, canGive: !!prog.give, plan: planView(pi, false, now(), prog.id === "todo" ? undefined : prog.membership), given: !!pi && pi.source === "admin" && pi.live });
+      }
       const days = [...(l.days.get(u.id) ?? [])].sort().reverse();
       res.json({
         person, payments, paymentsNote, hasCustomer: !!customer, mode: stripeKeyMode(await T.stripeKey()),
         plan: info && { kind: info.kind, source: info.source, status: info.status, live: info.live, endsAt: info.endsAt, trial: info.trial, cancelAtPeriodEnd: info.cancelAtPeriodEnd, note: info.note || "", paidOnline: info.source === "stripe", canCancel: info.source === "stripe" && info.live && info.status !== "canceled" && !!info.subscriptionId },
-        usedOn: { days: days.length, last: days.slice(0, 10) },
+        programs, usedOn: { days: days.length, last: days.slice(0, 10) },
         vip: person.plan.tier === "vip",
       });
     } catch (e) { fail(res, e, "person"); }
+  });
+
+  // ─── Programs: each app's memberships on their own ────────────────────────
+  const vipOf = (u: Raw, vip: Awaited<ReturnType<typeof T.readVip>>) => onVipList(vip, { id: u.id, email: u.email, role: u.role, accountApproved: u.confirmed });
+  /** Everyone's standing in one program. To Duo's includes the VIP list, so the numbers match the people list. */
+  const programViews = async (prog: Program) => {
+    const [l, infos, vipList] = await Promise.all([load(), T.programInfos(prog.kinds), prog.id === "todo" ? T.readVip() : Promise.resolve(null)]);
+    return l.users.map((u) => {
+      const info = bestOf(infos.get(u.id) || []);
+      const vip = !!vipList && vipOf(u, vipList);
+      return { u, info, plan: planView(info, vip, now(), prog.id === "todo" ? undefined : prog.membership), last: l.lastActive.get(u.id) };
+    });
+  };
+  /** Every live membership anyone has, in every program, by person. */
+  const allMemberships = async (): Promise<Map<number, ProgramMembership[]>> => {
+    const out = new Map<number, ProgramMembership[]>();
+    for (const prog of PROGRAMS) {
+      for (const v of await programViews(prog)) {
+        if (v.plan.tier === "free" || v.plan.tier === "ended") continue;
+        (out.get(v.u.id) ?? out.set(v.u.id, []).get(v.u.id)!).push({ id: prog.id, name: prog.name, label: v.plan.label, tier: v.plan.tier, plan: v.plan });
+      }
+    }
+    return out;
+  };
+  const askedProgram = (v: unknown): Program => { const p = programOf(v); if (!p) throw new Refused("Choose a program.", 400); return p; };
+  app.get("/api/todo-admin/programs", auth, admin, async (_req: any, res: any) => {
+    try {
+      res.set("Cache-Control", "no-store");
+      const out = [];
+      const users = (await load()).users;
+      for (const prog of PROGRAMS) {
+        const st = programStats(prog, await programViews(prog));
+        st.accounts = prog.id === "todo" ? users.filter((u) => u.role === "todo").length : prog.id === "reader" ? users.filter((u) => u.role !== "todo").length : null;
+        out.push(st);
+      }
+      res.json({ programs: out, accounts: users.length });
+    } catch (e) { fail(res, e, "programs"); }
+  });
+  /** One program's people: its members by default, or anyone found by name, username or email. */
+  app.get("/api/todo-admin/programs/:program/people", auth, admin, async (req: any, res: any) => {
+    try {
+      res.set("Cache-Control", "no-store");
+      const prog = askedProgram(req.params?.program);
+      const q = String(req.query?.q ?? "").slice(0, 80).trim();
+      const views = await programViews(prog);
+      const rows = views
+        .filter((v) => (q ? matchesQuery({ name: v.u.name, username: v.u.username, email: v.u.email } as Person, q) : !!v.info))
+        .map((v): ProgramPerson => ({ id: v.u.id, name: v.u.name, username: v.u.username, email: v.u.email, role: v.u.role, createdAt: v.u.createdAt, enabled: v.u.enabled,
+          lastActiveAt: v.last ? new Date(v.last).toISOString() : null, plan: v.plan, given: !!v.info && v.info.source === "admin" && v.info.live }))
+        .sort((a, b) => Number(b.plan.tier !== "free" && b.plan.tier !== "ended") - Number(a.plan.tier !== "free" && a.plan.tier !== "ended") || a.name.localeCompare(b.name));
+      res.json({ ...pageOf(rows, Number(req.query?.page), 50), searching: !!q });
+    } catch (e) { fail(res, e, "program people"); }
   });
 
   // ─── Actions ──────────────────────────────────────────────────────────────
@@ -278,6 +345,64 @@ export function registerTodoAdminRoutes(
       await T.giveTrial(u.id, days, String(req.body?.note ?? ""));
       done(res);
     } catch (e) { fail(res, e, "trial"); }
+  });
+
+  app.post("/api/todo-admin/people/:id/program", auth, admin, async (req: any, res: any) => {
+    try {
+      const u = await target(req);
+      const prog = askedProgram(req.body?.program);
+      if (!prog.give) throw new Refused(`${prog.name} memberships are managed in the Reader admin, under Schools & plans.`);
+      if (u.role === "student") throw new Refused("Memberships are for adult accounts. Students can't be given one here.");
+      const days = cleanTrialDays(req.body?.days);
+      if (days === null) throw new Refused("Choose how long the membership lasts.");
+      await T.giveProgram(u.id, prog.kinds, prog.give, days, String(req.body?.note ?? ""));
+      done(res);
+    } catch (e) { fail(res, e, "give membership"); }
+  });
+  app.post("/api/todo-admin/people/:id/program/end", auth, admin, async (req: any, res: any) => {
+    try {
+      const u = await target(req);
+      const prog = askedProgram(req.body?.program);
+      if (!prog.give) throw new Refused("There is no free membership to end here.");
+      await T.endProgram(u.id, prog.give);
+      done(res);
+    } catch (e) { fail(res, e, "end membership"); }
+  });
+  /** Deletes several accounts at once. The admin types DELETE to confirm. Says who could not be deleted, and why. */
+  app.post("/api/todo-admin/people/delete-many", auth, admin, async (req: any, res: any) => {
+    try {
+      const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(Number).filter((x: number) => Number.isSafeInteger(x) && x > 0))].slice(0, 200) as number[];
+      if (!ids.length) throw new Refused("Choose who to delete.");
+      if (String(req.body?.confirm ?? "").trim() !== "DELETE") throw new Refused("Type DELETE to confirm.");
+      if (!deps.deleteAccount) throw new Refused("Deleting accounts is not set up on this server.", 503);
+      const byId = new Map((await load()).users.map((u) => [u.id, u]));
+      const self = Number(req.user?.id);
+      let deleted = 0;
+      const skipped: { id: number; name: string; why: string }[] = [];
+      for (const id of ids) {
+        const u = byId.get(id);
+        if (!u) { skipped.push({ id, name: "", why: "was not found" }); continue; }
+        const name = u.name || u.username;
+        if (id === self) { skipped.push({ id, name, why: "is your own account" }); continue; }
+        try {
+          const r = await deps.deleteAccount(id);
+          if (r.blockedBy) skipped.push({ id, name, why: `still has ${r.blockedBy.replace(/_/g, " ")} linked to it` }); else deleted++;
+        } catch { skipped.push({ id, name, why: "could not be deleted" }); }
+      }
+      done(res, { deleted, skipped });
+    } catch (e) { fail(res, e, "delete many"); }
+  });
+  /** Deletes an account for good. The admin types the person's username to confirm. */
+  app.post("/api/todo-admin/people/:id/delete", auth, admin, async (req: any, res: any) => {
+    try {
+      const u = await target(req);
+      if (u.id === Number(req.user?.id)) throw new Refused("You can't delete your own account.");
+      if (!deps.deleteAccount) throw new Refused("Deleting accounts is not set up on this server.", 503);
+      if (String(req.body?.confirm ?? "").trim().toLowerCase() !== u.username.toLowerCase()) throw new Refused("Type their username exactly to delete the account.");
+      const { blockedBy } = await deps.deleteAccount(u.id);
+      if (blockedBy) throw new Refused(`This account still has ${blockedBy.replace(/_/g, " ")} linked to it, so it can't be deleted yet. Switch it off instead.`, 409);
+      done(res);
+    } catch (e) { fail(res, e, "delete"); }
   });
 
   app.post("/api/todo-admin/people/:id/trial/end", auth, admin, async (req: any, res: any) => {

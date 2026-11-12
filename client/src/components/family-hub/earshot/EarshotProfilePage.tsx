@@ -1,4 +1,4 @@
-// Pod+ profile pages, MySpace style but minimal: your page, your way. A background (color, gradient,
+// Podster profile pages, MySpace style but minimal: your page, your way. A background (color, gradient,
 // pattern or photo), a banner, accent color, font, card style and corners, a profile song, a mood,
 // and widgets you add, move between the two columns, reorder and fill in: Top 8 shows, Top 8
 // friends, guestbook, quote, links, photo, text, interests, latest posts, clips and your podcast.
@@ -71,7 +71,7 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
     : { background: `linear-gradient(120deg, ${page.accent}, ${alpha(page.accent, 0.35)})` };
   const share = () => {
     const url = `${location.origin}${location.pathname}#/u/${data.profile.handle}`;
-    if (navigator.share) void navigator.share({ title: `${data.profile.name} on Pod+`, url }).catch(() => {});
+    if (navigator.share) void navigator.share({ title: `${data.profile.name} on Podster`, url }).catch(() => {});
     else void navigator.clipboard?.writeText(url).then(() => ctx.say("Link copied.")).catch(() => ctx.say(url));
   };
   const btn = "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold sm:flex-none";

@@ -1,6 +1,6 @@
-// Arise Trainer: the coaching app for personal trainers (the iPhone app built with VITE_NATIVE_APP=trainer,
+// Cooked PT: the coaching app for personal trainers (the iPhone app built with VITE_NATIVE_APP=trainer,
 // and #/trainer on the website). Tabs: Clients, Inbox, Schedule, Library, Business. Clients come from
-// Arise Fit, with their training, food and health data shared automatically (server/coach.ts).
+// Cooked, with their training, food and health data shared automatically (server/coach.ts).
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Briefcase, CalendarDays, CheckSquare, ChevronRight, Dumbbell, Inbox, BookOpen, LayoutTemplate, LogOut, Megaphone, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Square, Star, Trash2, UserPlus, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -61,7 +61,7 @@ export default function TrainerApp() {
         {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
       </div>}
     </main>
-    <nav aria-label="Arise Trainer" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
+    <nav aria-label="Cooked PT" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
       <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.24), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 -2px 0 var(--fit-accent)", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
       {tabs.map(([id, label, Icon, badge]) => <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} data-testid={`tr-tab-${id}`}
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
@@ -103,7 +103,7 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
   return <div>
     <Header kicker={`${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, ${data.profile.name.split(" ")[0] || "coach"}`} title="Clients" right={active.length > 1 ? <button type="button" onClick={() => { setPicking(!picking); setPicked([]); }} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: picking ? C.lime : C.card, color: picking ? "var(--fit-on-accent)" : C.text }}>{picking ? "Done" : "Select"}</button> : undefined} />
     {!data.listed && <Card onClick={goBusiness} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} testId="tr-get-listed">
-      <p className="text-[24px] leading-none" style={display}>Get listed in Arise Fit</p><p className="mt-1 text-[13px] font-semibold">{data.problems.length ? `Finish your profile: ${data.problems[0].toLowerCase()}.` : `Go live in the trainer directory. ${data.price.trialDays} days free, then ${money(data.price.cents)}/month.`}</p></Card>}
+      <p className="text-[24px] leading-none" style={display}>Get listed in Cooked</p><p className="mt-1 text-[13px] font-semibold">{data.problems.length ? `Finish your profile: ${data.problems[0].toLowerCase()}.` : `Go live in the trainer directory. ${data.price.trialDays} days free, then ${money(data.price.cents)}/month.`}</p></Card>}
     <CopilotCard token={token} clients={data.clients.filter((c) => c.status === "active").length} say={say} onOpenClient={(id) => { const c = data.clients.find((x) => x.id === id); if (c) onOpen(c); }} />
     <MarketCard token={token} say={say} />
     <Btn className="mb-3 w-full" onClick={() => setInviting(true)} testId="tr-invite"><UserPlus className="h-5 w-5" />Invite a client</Btn>
@@ -114,7 +114,7 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
     {data.clients.some((c) => c.status === "active") && <div className="relative mb-2"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients" className={`${inputCls} pl-10`} style={inputStyle} /></div>}
     {tags.length > 0 && <div className="mb-2"><Chips label="Tag" value={tag} onChange={setTag} items={[{ id: "", label: "All" }, ...tags.map((t) => ({ id: t, label: t }))]} /></div>}
     {active.length ? <div className="space-y-2">{active.map((c, k) => <ClientRowCard key={c.id} c={c} k={k} onOpen={() => onOpen(c)} pick={picking ? { on: picked.includes(c.id), toggle: () => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])) } : undefined} />)}</div>
-      : <Card className="text-center"><Users className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>No clients yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>Invite clients with your link, or get found in Arise Fit. Their workouts, food and health data come with them. No client limit.</p></Card>}
+      : <Card className="text-center"><Users className="mx-auto h-8 w-8" style={{ color: C.dim }} /><p className="mt-2 text-[20px]" style={display}>No clients yet</p><p className="mt-1 text-[14px]" style={{ color: C.dim }}>Invite clients with your link, or get found in Cooked. Their workouts, food and health data come with them. No client limit.</p></Card>}
     {picking && picked.length > 0 && <Layer><div className="fit-up fixed inset-x-3 z-[45] flex gap-2 rounded-[14px] p-2" style={{ bottom: "calc(max(12px, env(safe-area-inset-bottom)) + 76px)", background: C.card2, boxShadow: "0 -10px 40px rgba(0,0,0,.6)" }}>
       <Btn className="flex-1 !text-[15px]" onClick={() => setCast(true)} testId="tr-broadcast"><Megaphone className="h-4 w-4" />Message {picked.length}</Btn>
       <Btn kind="soft" className="flex-1 !text-[15px]" onClick={() => { setSeed(data.clients.filter((c) => picked.includes(c.id)).map((c) => c.clientId)); setPicking(false); setPicked([]); }} testId="tr-make-group"><Users className="h-4 w-4" />Make a group</Btn></div></Layer>}
@@ -183,7 +183,7 @@ function LibraryTab({ lib, saveLib, token, say }: { lib: Library; saveLib: (l: L
     <div className="mt-3 space-y-2">
       {sec === "workouts" && (lib.workouts.length ? lib.workouts.map((x, k) => item(x.name, `${x.items.length} exercises · ${x.items.map((i) => i.name).join(", ")}`, () => setW(x), () => saveLib({ ...lib, workouts: lib.workouts.filter((y) => y.id !== x.id) }), k)) : <Empty icon={Dumbbell} text="Build workouts once, then drop them on any client's calendar. Start from a template or let AI draft one." />)}
       {sec === "programs" && (lib.programs.length ? lib.programs.map((x, k) => item(x.name, `${x.weeks} weeks · ${x.days.length} workouts`, () => setP(x), () => saveLib({ ...lib, programs: lib.programs.filter((y) => y.id !== x.id) }), k)) : <Empty icon={CalendarDays} text="Programs lay your workouts out over weeks. Assign one and the whole plan lands on the client's calendar." />)}
-      {sec === "exercises" && (lib.exercises.length ? lib.exercises.map((x, k) => item(x.name, `${x.muscle || "exercise"}${x.video ? " · has video" : ""}`, () => setE(x), () => saveLib({ ...lib, exercises: lib.exercises.filter((y) => y.id !== x.id) }), k)) : <Empty icon={Dumbbell} text="Arise Fit's catalog is already here. Add your own moves with your demo video link." />)}
+      {sec === "exercises" && (lib.exercises.length ? lib.exercises.map((x, k) => item(x.name, `${x.muscle || "exercise"}${x.video ? " · has video" : ""}`, () => setE(x), () => saveLib({ ...lib, exercises: lib.exercises.filter((y) => y.id !== x.id) }), k)) : <Empty icon={Dumbbell} text="Cooked's catalog is already here. Add your own moves with your demo video link." />)}
       {sec === "forms" && (lib.forms.length ? lib.forms.map((x, k) => item(x.title, `${x.questions.length} questions`, () => setF(x), () => saveLib({ ...lib, forms: lib.forms.filter((y) => y.id !== x.id) }), k)) : <Empty icon={CheckSquare} text="Check-in forms your clients answer each week." />)}
       {sec === "replies" && <>{lib.quickReplies.map((r, k) => item(r, "", () => {}, () => saveLib({ ...lib, quickReplies: lib.quickReplies.filter((y) => y !== r) }), k))}
         <form className="flex gap-2" onSubmit={(ev) => { ev.preventDefault(); if (reply.trim()) { saveLib({ ...lib, quickReplies: [...lib.quickReplies, reply.trim().slice(0, 300)] }); setReply(""); } }}><input value={reply} onChange={(ev) => setReply(ev.target.value)} placeholder="Great work today! 💪" className={inputCls} style={inputStyle} /><Btn type="submit" disabled={!reply.trim()}><Plus className="h-5 w-5" /></Btn></form>
@@ -214,7 +214,7 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
     <BrandCard token={token} name={data.profile.name} say={say} />
     <Title>Directory listing</Title>
     <Card className="!p-4" testId="tr-plan">
-      {data.listed ? <><p className="flex items-center gap-2 text-[22px] leading-none" style={display}><BadgeCheck className="h-6 w-6" style={{ color: C.lime }} />Live in Arise Fit</p>
+      {data.listed ? <><p className="flex items-center gap-2 text-[22px] leading-none" style={display}><BadgeCheck className="h-6 w-6" style={{ color: C.lime }} />Live in Cooked</p>
         <p className="mt-1 text-[13px]" style={{ color: C.dim }}>Clients can find you, see your prices and ask you to coach them. {data.paidUntil ? `Paid through ${shortDate(data.paidUntil)}.` : ""}</p>
         {data.subscribed && !isNativeApp() && <Btn kind="soft" className="mt-3 w-full !text-[15px]" disabled={busy} onClick={() => go("/trainer/listing/manage")}>Card and billing</Btn>}</>
       : <><p className="text-[22px] leading-none" style={display}>Not listed yet</p>
@@ -229,13 +229,13 @@ function Business({ data, token, reload, say }: { data: TrainerHome; token: stri
     {data.reviews.length ? <div className="space-y-2">{data.reviews.map((r) => <Card key={r.id} className="!p-3.5"><div className="flex items-center gap-2"><Stars value={r.stars} /><span className="text-[13px] font-semibold">{r.name}</span><span className="ml-auto text-[11px]" style={{ color: C.dim }}>{shortDate(r.date)}</span></div>
       {r.text && <p className="mt-1.5 text-[14px]">{r.text}</p>}
       {r.reply ? <p className="mt-2 rounded-[8px] p-2 text-[13px]" style={{ background: C.card2, color: C.steel }}>You: {r.reply}</p> : <button type="button" onClick={() => setReply({ id: r.id, text: "" })} className="mt-2 text-[13px] font-semibold" style={{ color: C.lime }}>Reply</button>}</Card>)}</div>
-      : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Clients you've coached can review you in Arise Fit. <Star className="inline h-3.5 w-3.5" /></p>}
+      : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Clients you've coached can review you in Cooked. <Star className="inline h-3.5 w-3.5" /></p>}
     <Title>Appearance</Title>
     <ThemePicker testId="tr-theme" />
     <Title>Account</Title>
     <Card onClick={() => setAccount(true)} className="!p-4"><div className="flex items-center gap-3"><ShieldCheck className="h-5 w-5" style={{ color: C.dim }} /><span className="flex-1 font-semibold">Account & privacy</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Btn kind="danger" className="mt-2 w-full" onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-5 w-5" />Sign out</Btn>
-    <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you by card in the app or through your own links. Client data comes from Arise Fit only with the client's permission and stops when they stop sharing. Keep it private.</p>
+    <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Clients pay you by card in the app or through your own links. Client data comes from Cooked only with the client's permission and stops when they stop sharing. Keep it private.</p>
     {edit && <ListingEditor token={token} initial={data.profile} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); reload(); say("Listing saved."); }} />}
     {preview && <TrainerPage id={pub.id} preview={{ trainer: pub, reviews: data.reviews }} onClose={() => setPreview(false)} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}

@@ -1,5 +1,5 @@
 /**
- * Arise Fit for Apple TV (native/fit-tv), signed in with a code like Arise Duo (server/tvLink.ts, app "fit"):
+ * Cooked for Apple TV (native/fit-tv), signed in with a code like Arise Duo (server/tvLink.ts, app "fit"):
  *   GET  /api/fit/tv?day=YYYY-MM-DD&tz=<minutes>  what the TV shows: today's numbers (the same as the Fit
  *        widgets), the program's next day and your saved routines as follow-along sessions, the interval
  *        timers (built in and yours), the last workouts and the week.
@@ -82,7 +82,7 @@ export function registerFitTvRoutes(app: Express, auth: RequestHandler, store: S
     const tz = Number(req.query?.tz);
     const shift = Number.isFinite(tz) && Math.abs(tz) <= 840 ? (new Date().getTimezoneOffset() - tz) * 60_000 : 0;
     try { res.json(fitTvSummary(await store.get(Number(req.user.id)), dayOf(req.query?.day), String(req.user.displayName || ""), Date.now() + shift)); }
-    catch { res.status(503).json({ message: "Arise Fit couldn't load your data. Try again in a moment." }); }
+    catch { res.status(503).json({ message: "Cooked couldn't load your data. Try again in a moment." }); }
   });
   app.post("/api/fit/tv/workout", auth, async (req: any, res) => {
     const name = String(req.body?.name || "").trim().slice(0, 80), secs = Math.round(Number(req.body?.secs));

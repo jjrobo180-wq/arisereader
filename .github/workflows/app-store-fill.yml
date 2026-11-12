@@ -66,4 +66,7 @@ jobs:
           CONTACT_LAST: ${{ github.event.inputs.contact_last }}
           CONTACT_PHONE: ${{ github.event.inputs.contact_phone }}
           CONTACT_EMAIL: ${{ github.event.inputs.contact_email }}
+          # The version opened in App Store Connect when the last one is already on the store: the same
+          # number as the iPhone build (APP_VERSION in arisereader-ios.yml).
+          APP_VERSION: "1.1"
         run: python3 .github/scripts/app_store_fill.py

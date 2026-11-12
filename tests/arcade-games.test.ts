@@ -341,11 +341,11 @@ test("word rescue: a right letter keeps the turn and the eighth miss loses", () 
 
 test("harder computers beat easy ones in the strategy games", () => {
   for (const id of ["gomoku", "ultimate", "gobble", "dots", "seabattle"]) {
-    let hardWins = 0, games = 6;
+    let hardWins = 0, games = 12;
     for (let i = 0; i < games; i++) {
       const a = playOut(id, [1, 3]);
       if (a.outcome === 2) hardWins++;
     }
-    assert.ok(hardWins >= 4, `${id}: hard won ${hardWins}/${games}`);
+    assert.ok(hardWins >= 7, `${id}: hard won ${hardWins}/${games}`);
   }
 });

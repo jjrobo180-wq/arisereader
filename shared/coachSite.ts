@@ -1,7 +1,7 @@
 
 /** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
 const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
-// Trainer websites (November 2026): every Arise Trainer coach can publish their own site at arisetodo.com/#/t/<slug>,
+// Trainer websites (November 2026): every Cooked PT coach can publish their own site at arisetodo.com/#/t/<slug>,
 // built from their listing (photo, bio, prices, specialties, reviews) plus what they add here: a look, a headline,
 // services, photos and FAQs. The contact form sends leads straight to the trainer's app. Server: server/coach.ts.
 export type SiteTemplate = "bold" | "clean" | "studio" | "warm";
