@@ -26,7 +26,7 @@
   } catch (e) {}
 })();
 </script>
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://arisetodo.com/notes/#app","name":"Arise Notes","alternateName":"Arise Notes: Notes Super App","applicationCategory":"ProductivityApplication","applicationSubCategory":"AI note taker","operatingSystem":"iOS, iPadOS, Android, Windows, macOS, ChromeOS (web app)","url":"https://arisetodo.com/notes/","image":"https://arisetodo.com/notes-app/icon-512.png","description":"Record or upload a meeting or class and get a transcript, a summary and to-dos. Write notes, ask AI about them, and send to-dos to Arise To Duo.","offers":[{"@type":"Offer","name":"Free","price":"0","priceCurrency":"USD"},{"@type":"Offer","name":"Basic","price":"4.99","priceCurrency":"USD"},{"@type":"Offer","name":"Plus","price":"7.99","priceCurrency":"USD"},{"@type":"Offer","name":"Family","price":"9.99","priceCurrency":"USD"}],"publisher":{"@type":"Organization","name":"A.R.I.S.E.","url":"https://arisetodo.com/"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://arisetodo.com/notes/#app","name":"Arise Notes","alternateName":"Arise Notes: Notes Super App","applicationCategory":"ProductivityApplication","applicationSubCategory":"AI note taker","operatingSystem":"iOS, iPadOS, Android, Windows, macOS, ChromeOS (web app)","url":"https://arisetodo.com/notes/","image":"https://arisetodo.com/notes-app/icon-512.png","description":"Record or upload a meeting or class and get a transcript, a summary and to-dos. Write notes, ask AI about them, and send to-dos to Arise To Duo.","offers":[{"@type":"Offer","name":"Free","price":"0","priceCurrency":"USD"},{"@type":"Offer","name":"Arise All Access","price":"10","priceCurrency":"USD"}],"publisher":{"@type":"Organization","name":"A.R.I.S.E.","url":"https://arisetodo.com/"}}]}</script>
 <style>
 :root{--ink:#1c2238;--muted:#69738c;--line:#e9edf5;--blue:#5169ed;--teal:#11b9af;--purple:#8b64e9;--background:#f9fafc;--surface:#fff;--shade:#f2f5fc;--grad:linear-gradient(115deg,#10b9af 0%,#5279ed 53%,#9363e7 100%);--shadow:0 24px 65px rgba(33,53,97,.10),0 2px 10px rgba(33,53,97,.035)}
 *,*::before,*::after{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:90px}body{margin:0;background:var(--background);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #749af1;outline-offset:3px}a{text-decoration:none;color:inherit}svg{display:block}::selection{background:#c8f4ef;color:#0d3d4b}
@@ -445,6 +445,13 @@
 .device h3{margin:0 0 6px;font-size:17px}
 .device p{margin:0;color:#5f6886;font-size:14px;line-height:1.55}
 .pricing-grid.four{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.uc-card{position:absolute;left:-26px;bottom:-34px;z-index:2;width:250px;background:#fff;border:1px solid #e1e5f0;border-radius:20px;box-shadow:0 24px 50px -22px #1d2a5a66;padding:12px 12px 14px;font-size:12.5px}
+.uc-head{display:flex;flex-direction:column;align-items:center;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid #f0f1f6}
+.uc-head b{font-size:13px;color:#1f2440}.uc-head span{font-size:10px;color:#8a92a8}
+.uc-msg{width:fit-content;max-width:85%;padding:7px 10px;border-radius:15px;margin:5px 0;line-height:1.4}
+.uc-msg.me{margin-left:auto;background:#0a84ff;color:#fff;border-bottom-right-radius:5px}
+.uc-msg.them{background:#e9e9eb;color:#111;border-bottom-left-radius:5px}
+@media(max-width:900px){.uc-card{position:relative;left:auto;bottom:auto;margin:16px auto 0;width:min(300px,100%)}}
 </style>
 <header class="site-header">
  <div class="container nav-inner">
@@ -455,14 +462,14 @@
  </div>
 </header>
 <main id="top">
-<div class="educator-ribbon"><b>New: record right inside a note</b> · Type @ariserecord to start · Ask AI about your notes · Undercover AI chat in the App Gallery</div>
+<div class="educator-ribbon"><b>AI meeting notes + Undercover AI</b> · Record, summarize and send your to-dos · Ask AI in six looks that don't look like AI</div>
 <section class="hero">
  <div class="container hero-grid">
  <div class="hero-copy">
   <div class="eyebrow"><i class="dot"></i> The notes super app</div>
-  <h1>Every meeting, <span class="gradient-text">already written up.</span></h1>
-  <p class="lede">Arise Notes records your meeting or class, or takes a file you upload, and turns it into a transcript, a summary and your to-dos. Write your own notes too, ask AI anything about them, and send the to-dos straight into your Arise To Duo planner. Made for teachers, special education teams, students, families and anyone who sits in meetings.</p>
-  <div class="hero-actions"><a class="button button-primary" href="/notes/?app#/signup">Create a free account <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/notes/?app#/">Already a member? Sign in</a><a class="hero-demo-link" href="#features">See everything it does ↓</a></div>
+  <h1>Meeting notes, plus <span class="gradient-text">AI no one can see.</span></h1>
+  <p class="lede">Arise Notes records your meeting and turns it into a transcript, a summary and your to-dos. And when you need an answer mid-meeting, Undercover gives you an AI chat that looks like a text thread or a document, so nobody can tell you're using AI.</p>
+  <div class="hero-actions"><a class="button button-primary" href="/notes/?app#/signup">Create a free account <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/notes/?app#/">Already a member? Sign in</a><a class="hero-demo-link" href="#undercover">See Undercover ↓</a></div>
   <div class="hero-micro"><span class="mini-mark"><svg><use href="#i-check"/></svg> 60 free AI minutes a month</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Same account as all of Arise</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Phone, tablet or computer</span></div>
  </div>
  <div class="hero-art" aria-label="Arise Notes preview"><div class="halo"></div>
@@ -481,7 +488,7 @@
     <div class="nm-todo"><em></em> Book the gym for March 14 · You · Mon</div>
    </div>
   </div>
-  <div class="float-tag bottom"><span class="bubble"><svg><use href="#i-check"/></svg></span> To-dos sent to Arise To Duo</div>
+  <div class="uc-card" aria-label="Undercover AI chat preview"><div class="uc-head"><b>Sam</b><span>Undercover · Text thread</span></div><div class="uc-msg me">whats the sales tax on 3,850 in Denver</div><div class="uc-msg them">About $340. Denver's rate is 8.81%, so $3,850 × 8.81% ≈ $339.19</div><div class="uc-msg me">ty 🙏</div></div>
  </div>
  </div>
 </section>
@@ -552,16 +559,39 @@
  <div class="container">
   <div class="pricing-heading">
    <div class="section-kicker">Simple pricing</div>
-   <h2 class="section-heading" id="pricing-title">Start free. <span class="gradient-text">Add minutes when you need them.</span></h2>
-   <p>Every plan has every notes tool. Paid plans add more AI minutes for recordings and summaries.</p>
+   <h2 class="section-heading" id="pricing-title">Start free. <span class="gradient-text">Get everything for $10.</span></h2>
+   <p>Start free, or get Arise All Access for every Arise app with AI: Arise Notes, Arise To Duo, Podster, Cooked and more.</p>
   </div>
-  <div class="pricing-grid four">
-   <article class="pricing-card"><div class="plan-label">For everyone</div><h3>Free</h3><div class="price">$0 <span>/ month</span></div><p>Everything in Notes to try it out.</p><ul><li>60 AI minutes a month</li><li>Recordings up to 2 hours</li><li>Speaker labels and IEP mode</li><li>Unlimited typed notes</li></ul><a class="button button-primary" href="/notes/?app#/signup">Get started free</a></article>
-   <article class="pricing-card"><div class="plan-label">For light use</div><h3>Basic</h3><div class="price">$4.99 <span>/ month</span></div><p>10 hours a month.</p><ul><li>600 AI minutes a month</li><li>Every tool except speaker labels</li><li>Summaries, to-dos and exports</li></ul><a class="button button-primary" href="/notes/?app#/signup">Get Basic</a></article>
-   <article class="pricing-card"><div class="plan-label">Most popular</div><h3>Plus</h3><div class="price">$7.99 <span>/ month</span></div><p>25 hours a month, or $79.99 a year.</p><ul><li>1,500 AI minutes a month</li><li>Speaker labels and IEP mode</li><li>Unused minutes roll over</li></ul><a class="button button-primary" href="/notes/?app#/signup">Get Plus</a></article>
-   <article class="pricing-card"><div class="plan-label">For up to 4 people</div><h3>Family</h3><div class="price">$9.99 <span>/ month</span></div><p>Everything in Plus, shared.</p><ul><li>2,000 AI minutes a month, shared</li><li>Up to 4 people</li><li>Unused minutes roll over</li></ul><a class="button button-primary" href="/notes/?app#/signup">Get Family</a></article>
+  <div class="pricing-grid">
+   <article class="pricing-card">
+    <div class="plan-label">For everyone</div>
+    <h3>Arise Notes · Free</h3>
+    <div class="price">$0 <span>/ month</span></div>
+    <p>Everything in Notes to get started.</p>
+    <ul>
+     <li>Record or upload meetings, with 60 AI minutes a month</li>
+     <li>Unlimited typed notes, full screen</li>
+     <li>Undercover AI chat and the App Gallery</li>
+     <li>Same account as every Arise app</li>
+    </ul>
+    <a class="button button-primary" href="/notes/?app#/signup">Get started free</a>
+   </article>
+   <article class="pricing-card">
+    <div class="plan-label">One plan for every Arise app</div>
+    <h3>Arise All Access</h3>
+    <div class="price">$10 <span>/ month</span></div>
+    <p>Everything in Free, plus every app and AI, and the paid tier of every Arise app.</p>
+    <ul>
+     <li>Arise Notes Plus: 1,500 minutes a month, speaker labels, IEP mode</li>
+     <li>To Duo Unlimited: all 575+ plugins, Add with AI and the AI assistant</li>
+     <li>Cooked+, with a free guest pass for a friend</li>
+     <li>Ad-free listening in Podster</li>
+     <li>Cancel anytime. Nothing is deleted if you go back to Free</li>
+    </ul>
+    <a class="button button-primary" href="/app#/all-access">Get All Access</a>
+   </article>
   </div>
-  <p class="pricing-note" style="margin-top:14px">Arise Notes Plus is also included in Arise All Access ($10 a month), along with every Arise To Duo plugin and AI, Cooked+ and ad-free Podster.</p>
+  <p class="pricing-note" style="margin-top:14px">All Access is for normal personal, family and classroom use (fair use). If an account goes far beyond normal use, we'll contact you first.</p>
  </div>
 </section>
 
@@ -580,7 +610,7 @@
 <div class="section-kicker">Questions</div>
 <h2 class="section-heading" id="faq-title">Arise Notes, <span class="gradient-text">answered.</span></h2>
 <details class="faq-item"><summary>What is Arise Notes?</summary><p>Arise Notes is a notes super app. It records or takes an uploaded file and turns it into a transcript, a summary and to-dos, and it's also a full place to write your own notes, ask AI questions and use extra apps like Sticky Notes, Whiteboard and Flashcards.</p></details>
-<details class="faq-item"><summary>Is Arise Notes free?</summary><p>Yes. The free plan has every notes tool and 60 AI minutes a month. Basic is $4.99 a month for 600 minutes, Plus is $7.99 a month for 1,500 minutes, and Family is $9.99 a month for 2,000 minutes shared by up to 4 people.</p></details>
+<details class="faq-item"><summary>Is Arise Notes free?</summary><p>Yes. The free plan has every notes tool and 60 AI minutes a month. Arise All Access is $10 a month for every Arise app with AI, including Arise Notes Plus with 1,500 minutes a month.</p></details>
 <details class="faq-item"><summary>What's an AI minute?</summary><p>One minute of audio that Arise Notes transcribes and summarizes. Typing notes doesn't use minutes.</p></details>
 <details class="faq-item"><summary>How do I record inside a note?</summary><p>Tap Record a meeting, tap the mic in any note, or type @ariserecord. Use @arisepause, @ariseresume, @arisemark and @arisestop while you record. When you stop, the summary is added to the same note.</p></details>
 <details class="faq-item"><summary>Does it work with Arise To Duo?</summary><p>Yes. It's the same account. To-dos and dates from your notes can go straight into your Arise To Duo tasks and calendar.</p></details>
