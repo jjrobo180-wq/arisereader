@@ -40,7 +40,7 @@ cfg.setdefault("plugins", {})["CapacitorUpdater"] = {
     # New web code is downloaded in the background (checked every 10 minutes) and switched to only when
     # the app goes to the background, never while it's on screen. The old setting (direct updates "always") reloaded the
     # app the moment an update finished downloading, at launch and in the middle of use, which people
-    # saw as the app freezing (tests/live-update-quiet.test.ts).
+    # saw as the app freezing (tests/ota.test.ts).
     "directUpdate": False,
     "periodCheckDelay": 600,
 }
