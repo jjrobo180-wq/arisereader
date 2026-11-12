@@ -135,7 +135,7 @@ test("the Notes tab looks serious and professional in every look, with real fold
   assert.match(css, /\.an-pro \.an-l-bar \{/);
   // A folder list first on a phone, with your own folders, edit, counts and a way back.
   assert.match(view, /data-testid="pages-folder-screen"/);
-  assert.match(view, /<h3>My folders<\/h3>/);
+  assert.match(view, /<h3>Folders<\/h3>/);
   assert.match(view, /data-testid="pages-back-folders"/);
   assert.match(view, /data-testid="pages-folder-edit"/);
   assert.match(view, /className="pp-row"/);

@@ -34,7 +34,7 @@ type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "ch
  *  item per part, and the buttons that used to sit in the console's own header are items too. */
 const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = (["overview", "people", "schools", "library", "inbox", "stats", "todo", "settings"] as AdminSection[])
   .map((id) => ADMIN_SECTIONS.find((a) => a.id === id)!).filter(Boolean)
-  .map((a) => ({ id: `admin:${a.id}` as View, label: a.id === "todo" ? "Arise To Duo" : a.id === "schools" ? "Schools & plans" : a.label, icon: a.icon }));
+  .map((a) => ({ id: `admin:${a.id}` as View, label: a.id === "schools" ? "Schools & plans" : a.label, icon: a.icon }));
 const ADMIN_PART_LABEL: Record<OverviewPart, string> = { home: "Overview", attention: "Needs attention", actions: "Quick actions", leaderboard: "Student leaderboard" };
 const EnglishStaff = lazy(() => import("@/components/english/EnglishStaff"));
 const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").then((m) => ({ default: m.AdminTab })));
