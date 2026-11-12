@@ -1178,6 +1178,14 @@ const presence = createPresenceTracker({
 // Wrong passwords and proctor codes: after this many misses, wait before trying again.
 const loginFailsByName = createAttemptLimiter({ max: 10, windowMs: 15 * 60_000 });
 const loginFailsByAddress = createAttemptLimiter({ max: 100, windowMs: 15 * 60_000 });
+/** After a teacher or admin sets a new password, the student can sign in with it straight away:
+ *  wrong guesses before the reset no longer hold them at "Too many wrong passwords" for 15 minutes. */
+async function unlockSignIn(userId: number) {
+  try {
+    const u = await storage.getUser(userId);
+    if (u?.username) loginFailsByName.reset(String(u.username).trim().toLowerCase());
+  } catch {}
+}
 const proctorFails = createAttemptLimiter({ max: 8, windowMs: 15 * 60_000 });
 // Parent invitations a student has sent today (each send is counted with .fail()).
 const parentInviteSends = createAttemptLimiter({ max: PARENT_INVITES_PER_DAY, windowMs: 24 * 60 * 60_000 });
@@ -5168,12 +5176,13 @@ export async function registerRoutes(
 
   app.post("/api/admin/students/:id/reset-password", authMiddleware, adminMiddleware, async (req, res) => {
     const userId = parseInt(req.params.id);
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 4) {
+    const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword.trim() : "";
+    if (newPassword.length < 4) {
       return res.status(400).json({ message: "Password must be at least 4 characters" });
     }
     const hashed = bcrypt.hashSync(newPassword, 10);
     await storage.resetPassword(userId, hashed);
+    await unlockSignIn(userId);
     res.json({ message: "Password reset successfully" });
   });
 
@@ -11964,12 +11973,13 @@ Important:
     try {
       const studentId = parseInt(req.params.id);
       if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
-      const { newPassword } = req.body;
-      if (!newPassword || newPassword.length < 4) {
+      const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword.trim() : "";
+      if (newPassword.length < 4) {
         return res.status(400).json({ message: "Password must be at least 4 characters" });
       }
       const hashed = bcrypt.hashSync(newPassword, 10);
       await storage.resetPassword(studentId, hashed);
+      await unlockSignIn(studentId);
       res.json({ success: true, message: "Password reset successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -12424,6 +12434,7 @@ Important:
       const tempPassword = 'arise' + Math.random().toString(36).slice(2, 8);
       const hashedPassword = bcrypt.hashSync(tempPassword, 10);
       await storage.resetPassword(studentId, hashedPassword);
+      await unlockSignIn(studentId);
       res.json({ success: true, tempPassword });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

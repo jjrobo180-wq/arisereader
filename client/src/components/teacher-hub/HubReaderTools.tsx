@@ -713,10 +713,12 @@ function StudentAction({ action, request, teachers, onClose, onDone }: {
 
   const run = async (work: () => Promise<void>) => { setBusy(true); setError(""); try { await work(); } catch (e) { setError(e instanceof Error ? e.message : "That didn't work. Try again."); } finally { setBusy(false); } };
   const resetPassword = () => run(async () => {
-    if (password.length < 4) throw new Error("Use at least 4 characters.");
+    const pw = password.trim();
+    if (pw.length < 4) throw new Error("Use at least 4 characters.");
     // A teacher's own student uses the class route; anyone else goes through the school route.
-    await request(`/api/teacher-admin/students/${student.id}/reset-password`, { method: "POST", body: JSON.stringify({ newPassword: password }) });
-    onDone(`${student.name}'s password was changed.`);
+    await request(`/api/teacher-admin/students/${student.id}/reset-password`, { method: "POST", body: JSON.stringify({ newPassword: pw }) });
+    // Show exactly what was saved, so a capital letter a tablet added on its own is plain to see.
+    onDone(`${student.name}'s new password is ${pw}`);
   });
   const addReward = () => run(async () => {
     if (!title.trim() || !message.trim()) throw new Error("Give the reward a title and a message.");
@@ -741,7 +743,7 @@ function StudentAction({ action, request, teachers, onClose, onDone }: {
     <div className="space-y-4">
       <p className="text-sm text-slate-600"><span className="font-semibold text-slate-900">{student.name}</span> @{student.username}</p>
       {kind === "password" && <form onSubmit={(e) => { e.preventDefault(); void resetPassword(); }} className="space-y-3">
-        <Labeled label="New password"><Field value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="off" /></Labeled>
+        <Labeled label="New password"><Field value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} /></Labeled>
         <PrimaryButton type="submit" disabled={busy}><KeyRound className="h-4 w-4" /> Change password</PrimaryButton>
       </form>}
       {kind === "reward" && <>

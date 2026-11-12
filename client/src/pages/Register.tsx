@@ -183,10 +183,12 @@ export default function Register({ independent = false }: { independent?: boolea
               </>}
             </div>}
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            {/* Only on the Arise AAC signup link (#/register?eye=1). On the ordinary student signup, kids
+                ticked it by mistake: it locked them into the AAC screens, with no reading library or book quizzes. */}
+            {eyeEntry && <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
               <input type="checkbox" checked={isEyeGaze} onChange={e => setIsEyeGaze(e.target.checked)} className="mt-1 h-5 w-5 accent-violet-700" />
               <span><strong className="flex items-center gap-1.5 text-sm"><Eye className="h-4 w-4 text-violet-700" aria-hidden="true" /> Arise AAC / non-verbal account</strong><span className="mt-1 block text-xs leading-5 text-slate-600">Use the dedicated accessible experience with large visual choices, My Talker, Arise AAC games, Life Skills, and family personalization.</span></span>
-            </label>
+            </label>}
 
             {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
             <Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-violet-700 font-bold text-white shadow-lg shadow-violet-200 hover:bg-violet-800">{loading ? "Creating account…" : independentStudent ? "Create Independent Account" : "Create Student Account"}</Button>
