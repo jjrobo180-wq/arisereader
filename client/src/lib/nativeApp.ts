@@ -132,7 +132,10 @@ const updater = () => {
   try { const reg = cap?.registerPlugin?.("CapacitorUpdater"); if (reg?.getLatest) return reg; } catch { /* not available */ }
   return null;
 };
-let checking = false, lastCheck = 0;
+let checking = false, lastCheck = 0, shownAt = 0, touchedAt = 0;
+/** True when the app just came back to the screen and nobody has typed or tapped since, so switching
+ *  to the new copy now can't lose anything (it reloads before anyone is using it). */
+const untouchedSinceShown = () => shownAt > 0 && touchedAt < shownAt && Date.now() - shownAt < 20_000;
 /** `applyNow` switches to the new copy at once (only the first check after launch, before anything is on screen);
  *  otherwise it waits for the next time the app is opened, so a screen never reloads while someone is using it. */
 export async function liveUpdateNow(force = false, applyNow = false): Promise<"none" | "applied" | "failed"> {
@@ -150,7 +153,7 @@ export async function liveUpdateNow(force = false, applyNow = false): Promise<"n
     sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
     const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
     if (!bundle?.id) return "failed";
-    if (applyNow || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
+    if (applyNow || untouchedSinceShown() || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
     else await u.next({ id: bundle.id }); // used the next time the app opens
     return "applied";
   } catch { return "failed"; } finally { checking = false; }
@@ -158,7 +161,10 @@ export async function liveUpdateNow(force = false, applyNow = false): Promise<"n
 export function keepLiveUpdated(): void {
   if (!isNativeApp() || typeof document === "undefined") return;
   window.setTimeout(() => void liveUpdateNow(true, true), 6000);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
+  const touched = () => { touchedAt = Date.now(); };
+  for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, touched, { capture: true, passive: true });
+  // Back on the screen: the new copy is used right away if nobody has started using the app yet.
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { shownAt = Date.now(); void liveUpdateNow(true); } });
   window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
 }
 
