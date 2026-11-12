@@ -2,7 +2,7 @@
 // handwritten (pages you write on with the Apple Pencil). It saves itself as you go, syncs, and can be
 // locked with the notes password. Menu: appearance, pin, colour, folder, lock, AI, versions, export.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Maximize2, MessageCircle, Minimize2, Send, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
+import { ChevronLeft, Maximize2, MessageCircle, Mic, Minimize2, Pause, Play, Send, Square, Star, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
 import { DEFAULT_LOOK, blankInkPage, pageTitle, textOfHtml, type InkPage, type Page, type PageContent, type PageLook, type PageMeta } from "@shared/arisePages";
 import { noteHtml as aiNoteHtml } from "@shared/ariseNotes";
 import { wordCount } from "@shared/office/docModel";
@@ -22,6 +22,7 @@ import { AppearanceSheet, ColorDots, ForgotSheet, SYNC_WORDS, UnlockSheet, Vault
 import { drafts } from "./drafts";
 import { useAppearance } from "../appearance";
 import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { takeCommands, useNoteRecording } from "./useNoteRecording";
 import { answerLines } from "@shared/undercover";
 import { WAIT, answerHtml, deleteReply, failReply, finishReply, clearStale, mergeReply, newReplyId, parseAtArise, waitingBlock } from "@shared/ariseReply";
 
@@ -90,6 +91,11 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
   }, [key, sync]);
   const edit = (patch: Partial<PageContent & { inkText?: string }>) => {
     if (!contentRef.current) return;
+    // Typed commands (@ariserecord, @arisepause, @ariseresume, @arisestop, @arisemark) run and are taken out.
+    if (patch.html) {
+      const cmd = takeCommands(patch.html);
+      if (cmd.commands.length) { patch = { ...patch, html: cmd.html }; setResetKey((k) => k + 1); cmd.commands.forEach((c) => recording.run(c)); }
+    }
     const next = { ...contentRef.current, ...patch };
     contentRef.current = next;
     setContent(next);
@@ -98,6 +104,15 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
     timer.current = setTimeout(() => void persist(), 450);
   };
   const setMeta = (patch: Partial<Page>) => { void persist(patch); };
+  // Recording a meeting in this note (useNoteRecording.ts): when it stops, its summary is added here.
+  const recording = useNoteRecording(ctx, (html) => { edit({ html: `${contentRef.current?.html ?? ""}${html}` }); setResetKey((k) => k + 1); say("The meeting's summary is in your note."); }, say);
+  // "Record a meeting" on the Notes tab opens a new note and starts right away.
+  useEffect(() => {
+    if (!content || page?.kind !== "text") return;
+    let go = false;
+    try { go = sessionStorage.getItem("arise-pages-record") === "1"; if (go) sessionStorage.removeItem("arise-pages-record"); } catch { /* no */ }
+    if (go) void recording.start();
+  }, [!!content, page?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
   // Leaving: save now, and drop a new note nobody wrote in.
   useEffect(() => () => {
     if (timer.current) { clearTimeout(timer.current); void persist(); }
@@ -239,10 +254,24 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
       {onExpand && <IconBtn label={expanded ? "Shrink back to the list" : "Fill the whole page"} onClick={onExpand}>{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</IconBtn>}
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}
+      {content && page.kind === "text" && recording.state === "idle" && <IconBtn label="Record a meeting into this note" onClick={() => void recording.start()}><Mic className="h-5 w-5" /></IconBtn>}
       {content && page.kind === "text" && <IconBtn label={askOn ? "Hide Ask AI" : "Ask AI in this note"} onClick={toggleAsk} className={askOn ? "!text-[var(--an-violet)]" : ""}><MessageCircle className="h-5 w-5" /></IconBtn>}
       {content && page.kind === "text" && <IconBtn label="AI tools" onClick={() => setPanel("ai")}><Sparkles className="h-5 w-5" /></IconBtn>}
       <IconBtn label="More" onClick={() => setPanel("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>
     </header>
+    {recording.state !== "idle" && <div className="an-noprint sticky top-[calc(var(--sat,env(safe-area-inset-top,0px))+3rem)] z-20 mx-3 mt-2 flex items-center gap-2 rounded-2xl bg-[#1d1a33] px-3 py-2 text-white shadow-lg" role="status" aria-live="polite" data-testid="pages-rec-bar">
+      {recording.state === "finishing" || recording.state === "starting" ? <><Spinner /><span className="text-[14px] font-semibold">{recording.state === "starting" ? "Starting…" : recording.step || "Finishing…"}</span></> : <>
+        <span className={`h-2.5 w-2.5 rounded-full ${recording.state === "recording" ? "animate-pulse bg-[#ef4444]" : "bg-white/40"}`} aria-hidden />
+        <span className="tabular-nums text-[15px] font-semibold">{Math.floor(recording.secs / 60)}:{String(Math.floor(recording.secs % 60)).padStart(2, "0")}</span>
+        <span className="text-[13px] text-white/70">{recording.state === "paused" ? "Paused" : "Recording"}</span>
+        <span className="mx-1 h-1.5 flex-1 overflow-hidden rounded-full bg-white/15" aria-hidden><span className="block h-full rounded-full bg-[#a78bfa] transition-[width]" style={{ width: `${Math.round(Math.min(1, recording.level) * 100)}%` }} /></span>
+        <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Mark this moment as important" onClick={recording.mark}><Star className="h-[18px] w-[18px]" /></button>
+        {recording.state === "recording"
+          ? <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Pause recording" onClick={recording.pause}><Pause className="h-[18px] w-[18px]" /></button>
+          : <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Resume recording" onClick={recording.resume}><Play className="h-[18px] w-[18px]" /></button>}
+        <button type="button" className="flex h-10 items-center gap-1.5 rounded-full bg-[#ef4444] px-3 text-[13px] font-semibold" aria-label="Stop and write it up" onClick={() => void recording.stop()}><Square className="h-3.5 w-3.5" fill="currentColor" />Stop</button>
+      </>}
+    </div>}
     {trashed && <div className="px-4 pt-3"><Notice tone="warn" action={<Btn kind="soft" onClick={() => { sync.restore(page.id); say("Restored."); }}>Restore</Btn>}>This note is in Recently Deleted.</Notice></div>}
 
     {/* Body */}
@@ -251,9 +280,8 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
         : content ? <InkBody content={content} pencilOnly={settings.prefs.pencilOnly} edit={(p) => { edit(p); if (p.ink) readInk(p.ink); }} onPencilOnly={(v) => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, pencilOnly: v } })} title={title} />
           : <Spinner />}
 
-    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Arise's reply" data-testid="pages-reply-bar">
-      <Sparkles className="h-4 w-4 shrink-0 text-[var(--an-violet)]" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Arise's reply</span>
+    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Reply" data-testid="pages-reply-bar">
+      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Reply</span>
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={mergeIt} className="min-h-11 rounded-xl bg-[var(--an-violet)] px-3 text-[14px] font-bold text-white" data-testid="pages-reply-merge">Merge into note</button>
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={deleteIt} className="min-h-11 rounded-xl px-3 text-[14px] font-bold text-[var(--an-muted)] ring-1 ring-[var(--an-line)]" data-testid="pages-reply-delete">Delete</button>
     </div>}

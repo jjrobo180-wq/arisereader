@@ -73,6 +73,10 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     return loading;
   };
   const none = (res: any, why = "No new version available") => res.json({ message: why, error: "no_new_version_available" });
+  // The last few update checks, so we can see what a phone is running and what it was offered
+  // (app, versions and plugin details only: nothing about the person).
+  const recent: { at: string; app: string; running: string; build: string; plugin: string; os: string; offered: string }[] = [];
+  app.get("/api/ota-checks", (_req, res) => { res.set("Cache-Control", "no-store"); res.json({ checks: recent }); });
 
   app.post("/api/ota/:app", async (req: any, res) => {
     res.set("Cache-Control", "no-store");
@@ -86,6 +90,8 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     const next = pickUpdate(list, which, current);
     const newest = list.filter((r) => r.app === which).sort((a, b) => b.built - a.built)[0]?.version || "none";
     console.log(`[ota] ${which} running ${String(req.body?.version_name ?? "")}/${String(req.body?.version_build ?? "")} → ${next ? `offered ${next.version}` : "nothing new"} (newest known ${newest})`);
+    recent.unshift({ at: new Date(now()).toISOString(), app: which, running: String(req.body?.version_name ?? "").slice(0, 40), build: String(req.body?.version_build ?? "").slice(0, 40), plugin: String(req.body?.plugin_version ?? "").slice(0, 20), os: String(req.body?.version_os ?? "").slice(0, 20), offered: next ? next.version : `nothing (newest ${newest})` });
+    if (recent.length > 40) recent.length = 40;
     if (!next) return none(res);
     res.json({ version: next.version, url: next.url, checksum: next.checksum });
   });

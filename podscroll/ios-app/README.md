@@ -36,6 +36,6 @@ Done in the app and on the server:
 - **Permissions:** a sentence for Camera, Photos and Microphone; export compliance answered.
 - **Podster Social safety (1.2):** community rules agreed to before making a profile (zero tolerance), a word and photo filter before anything is posted, report a post, reply, story, message or person (with a reason), block from profiles, replies and chats, posts hidden after 3 reports, and every report emailed to the admin (look within 24 hours).
 - **Account deletion (5.1.1(v)):** menu → Account & privacy → Delete my account (or Delete my data without an account).
-- **Privacy Policy / Terms / Support:** https://podscroll.onrender.com/privacy/, /terms/, /support/.
+- **Privacy Policy / Terms / Support:** https://arisetodo.com/podster/privacy/, /terms/, /support/.
 
 Still yours to do in App Store Connect: the Privacy Policy and Support URLs above, App Privacy answers (email, user content, identifiers; none used for tracking), an age rating of 13+ or higher for Podster Social, screenshots, and App Review notes (no account needed to listen; email sign-in for Social).

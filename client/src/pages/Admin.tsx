@@ -2540,7 +2540,7 @@ Generate exactly 10 questions.`;
   const NAV: { id: AdminTab; label: string; icon: typeof Users; badge?: number }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "stats", label: "Stats", icon: BarChart3 },
-    { id: "todo", label: "To-do", icon: ListTodo, badge: todoCount },
+    { id: "todo", label: "Needs review", icon: ListTodo, badge: todoCount },
     { id: "inbox", label: "Inbox", icon: Inbox, badge: unreadMsgCount },
     { id: "people", label: "People", icon: Users, badge: peopleAttention },
     { id: "library", label: "Library", icon: Library },
@@ -2855,7 +2855,7 @@ Generate exactly 10 questions.`;
   const todoTab = (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-xl font-black sm:text-2xl">To-do</h1>
+        <h1 className="text-xl font-black sm:text-2xl">Needs review</h1>
         <p className="mt-1 text-sm text-muted-foreground">Everything waiting for you. Each item leaves this page, and the bell, once it's handled.</p>
       </div>
 

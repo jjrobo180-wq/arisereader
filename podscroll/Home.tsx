@@ -116,7 +116,7 @@ const TAGS = ["Phone down. Podcast on.", "Video killed the radio star.", "Screen
 const WHY: { h: string; p: string }[] = [
   { h: "Video killed the radio star.", p: "Audio's back, and it doesn't need your screen." },
   { h: "Lock your phone. It keeps playing.", p: "On YouTube that takes Premium. Here it's free." },
-  { h: "No ads stacked on ads.", p: "No unskippable pre-rolls, no break every few minutes. We don't add a single ad of our own." },
+  { h: "Free to listen.", p: "Podster is free, with ads. We don't add any ads of our own, and Arise All Access skips the ones in the shows." },
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
   { h: "Get the hours back.", p: "The people getting things done aren't scrolling. They're listening while they do it." },
   { h: "No algorithm bait.", p: "Popular gets you started; after that your feed follows your taste, not view counts. The thing you need might come from a show with one follower." },
@@ -564,7 +564,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Podster Member.</b> Your show can earn, and your place is kept on every device.</p>
         : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
           <p className="text-sm font-semibold">Podster Membership</p>
-          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free, with no ads for everyone. Members get paid for their own show.</p>
+          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free, with ads. Arise All Access skips the ads and lets you get paid for your own show.</p>
           <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
         </div>}
   </>;
@@ -664,7 +664,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Get paid for your own show</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your place saved on every device</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your Pod Modes and likes everywhere</li>
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />No ads for anyone, member or not</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Free to listen, with ads (All Access skips them)</li>
             </ul>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -714,7 +714,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           </div>
         </div>
         {pro
-          ? <button onClick={() => { setDrawer(false); onSignOut(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={22} strokeWidth={1.8} />Sign out{email ? ` (${email})` : ""}</button>
+          ? <button onClick={() => { setDrawer(false); onSignOut(); }} className="flex min-h-10 w-full items-center gap-6 rounded-[10px] px-3 py-1.5 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={22} strokeWidth={1.8} className="shrink-0" /><span className="min-w-0 flex-1"><span className="block">Sign out</span>{email && <span className="block truncate text-xs opacity-60">{email}</span>}</span></button>
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
       </nav>
     </div>}
