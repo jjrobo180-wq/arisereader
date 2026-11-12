@@ -1,4 +1,4 @@
--- Timestamped comments for Earshot and Pod+: the moment in the episode a comment is about (seconds).
+-- Timestamped comments for Earshot and Podster: the moment in the episode a comment is about (seconds).
 -- Null means the comment is about the whole episode. Safe to run more than once.
 alter table public.earshot_comments add column if not exists at_sec integer;
 alter table public.podscroll_comments add column if not exists at_sec integer;

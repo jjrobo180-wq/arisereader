@@ -1,4 +1,4 @@
-// Pod+ search, built like a web search: exact phrases ("quoted") and guest names ranked first, a
+// Podster search, built like a web search: exact phrases ("quoted") and guest names ranked first, a
 // "Did you mean", an AI answer above the results, refine filters (type, sort, released, length,
 // show size), and search inside one show's archive (up to its 200 newest episodes, where most
 // apps show 25). Results come from /api/podscroll/search?deep=1 (up to 200 episodes, 50 shows).

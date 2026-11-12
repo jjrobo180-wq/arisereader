@@ -1,5 +1,5 @@
 name: App Store screens
-# Phone-size screenshots of Arise To Duo and Pod+ to check layouts, buttons and colors before a release.
+# Phone-size screenshots of Arise To Duo and Podster to check layouts, buttons and colors before a release.
 # Run it from the Actions tab (Run workflow); the pictures are in the run's "app-store-screens" artifact.
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build Arise and Pod+
+      - name: Build Arise and Podster
         run: |
           npx vite build
           npx vite build --config podscroll/vite.config.ts

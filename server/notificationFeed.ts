@@ -155,7 +155,7 @@ export function buildAdminFeed(src: AdminFeedSources, filters: FeedFilters): Fee
     });
   }
   for (const q of src.aiQuizzes) {
-    const kind = q.quiz_type === "eye_gaze" ? "Eye Gazer quiz" : q.quiz_type === "iarise" ? "iArise quiz" : q.quiz_type === "favorite_topic" ? "Favorite topic quiz" : "Book quiz";
+    const kind = q.quiz_type === "eye_gaze" ? "Arise AAC quiz" : q.quiz_type === "iarise" ? "iArise quiz" : q.quiz_type === "favorite_topic" ? "Favorite topic quiz" : "Book quiz";
     add({
       key: `ai_quiz:${q.id}`, category: "ai_quiz", createdAt: at(q.created_at), target: { type: "ai_quiz", id: q.id },
       title: `AI quiz to review: “${clip(q.book_title || "Untitled", 80)}”`,

@@ -316,6 +316,17 @@ function ReaderPlanGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Cooked Fitness by Arise and Cooked PT on the website: signed out, their own branded sign-in
+ *  (?start=signup opens on making an account); signed in, the app. */
+function AppSignInGate({ flavor, children }: { flavor: "fit" | "trainer"; children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <div className="fixed inset-0" style={{ background: "#f2f2f4" }} />;
+  if (user) return <>{children}</>;
+  let start: "welcome" | "signup" = "welcome";
+  try { if (new URLSearchParams(window.location.search).get("start") === "signup") start = "signup"; } catch { /* welcome */ }
+  return <NativeSignIn flavor={flavor} start={start} />;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading, token } = useAuth();
   const [location] = useLocation();
@@ -323,7 +334,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // teacher without it is sent to the plan page, the one place they can still use.
   const isPlanTeacher = !!user && user.role === "teacher" && !user.isAdmin;
   // Arise Reader is paid for accounts made from November 9, 2026 (older ones keep it free).
-  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Duo or Eye Gazer.
+  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Duo or Arise AAC.
   const onReader = !!user && !user.isAdmin && isReaderHost() && nativeFlavor() !== "eyegaze";
   const { plan, loading: planLoading } = usePlan(isPlanTeacher || onReader ? token : null);
   // The page shows straight away and the plan arrives behind it. Only a teacher who
@@ -391,14 +402,14 @@ function AdminPreviewBar() {
           onClick={() => switchMode("regular")}
           className={`rounded-xl px-3 py-2 text-xs font-black transition ${adminPreviewMode === "regular" ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/10"}`}
         >
-          Non-Eye Gazer
+          Non-Arise AAC
         </button>
         <button
           type="button"
           onClick={() => switchMode("eye-gaze")}
           className={`rounded-xl px-3 py-2 text-xs font-black transition ${adminPreviewMode === "eye-gaze" ? "bg-cyan-400 text-slate-950" : "text-slate-300 hover:bg-white/10"}`}
         >
-          Eye Gazer
+          Arise AAC
         </button>
         <button
           type="button"
@@ -457,7 +468,7 @@ function StudentOnTodo() {
 function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean; onTodoDomain: boolean }) {
   const { user } = useAuth();
   if (!user) return null;
-  // The Eye Gazer app is its own place: whoever signs in (an Eye Gazer account, a LifeHub or
+  // The Arise AAC app is its own place: whoever signs in (an Arise AAC account, a LifeHub or
   // teacher account, the administrator) opens the eye-gaze home, never a hub on arisetodo.com.
   if (isEyeGazerApp()) return <Redirect to={user.role === "parent" ? "/eye-gaze-parent" : "/eye-gaze-home"} replace />;
   // Signed in from a Para Team invite link: straight back to join that team.
@@ -593,7 +604,7 @@ function AppRoutes() {
   // router — a page of its own rather than a screen inside the To-Do app. Signing in is still the
   // hub's, so a signed-out visitor is sent to that screen.
   if (isReaderPage()) {
-    // The Eye Gazer app never shows Arise Reader: an old "#/reader" address opens Eye Gazer.
+    // The Arise AAC app never shows Arise Reader: an old "#/reader" address opens Arise AAC.
     if (isEyeGazerApp()) { window.location.hash = user ? (user.role === "parent" ? "#/eye-gaze-parent" : "#/eye-gaze-home") : "#/signin"; return null; }
     if (!user) { goToSignIn(); return null; }
     // Its code may still be loading: show the spinner meanwhile (without a loading boundary here,
@@ -604,9 +615,10 @@ function AppRoutes() {
     <Suspense fallback={<PageFallback path={routePath} />}>
     <Switch key={routePath}>
       <Route path="/fit">
-        <ProtectedRoute><FitApp /></ProtectedRoute>
+        {/* Signed out on the website: Cooked Fitness by Arise's own sign-in (from arisetodo.com/cooked/), not the To Duo homepage. */}
+        <AppSignInGate flavor="fit"><ProtectedRoute><FitApp /></ProtectedRoute></AppSignInGate>
       </Route>
-      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Pod+ (pages/AllAccess.tsx). */}
+      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
       <Route path="/all-access">
         {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
             then this same page shows the plan. Never the homepage. */}
@@ -626,7 +638,8 @@ function AppRoutes() {
       {/* A goal quiz a teacher sent as a link: no sign-in (shared/hubIep.ts). */}
       <Route path="/goal-quiz/:code"><GoalQuizPage /></Route>
       <Route path="/trainer">
-        <ProtectedRoute><TrainerApp /></ProtectedRoute>
+        {/* Signed out on the website: Cooked PT's own sign-in (from arisetodo.com/cooked-pt/). */}
+        <AppSignInGate flavor="trainer"><ProtectedRoute><TrainerApp /></ProtectedRoute></AppSignInGate>
       </Route>
       <Route path="/lifehub">
         {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
@@ -997,7 +1010,7 @@ function AppRoutes() {
       <Route path="/eye-gaze-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
       </Route>
-      {/* Wren, the AI-voice talker, inside the Eye Gazer app (same grown-up permission as My Talker). */}
+      {/* Wren, the AI-voice talker, inside the Arise AAC app (same grown-up permission as My Talker). */}
       <Route path="/eye-gaze-wren">
         {isEyeGazeStudent || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-talker"><EyeGazeWren /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" replace />}
       </Route>

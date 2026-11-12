@@ -1,7 +1,7 @@
-// The listening extras' screens for the Earshot/Pod+ player: Ask the episode (answers that jump to the
+// The listening extras' screens for the Earshot/Podster player: Ask the episode (answers that jump to the
 // moment), Catch me up (a recap of what you already heard), Fit my drive (episodes that fill your
 // minutes), the Hours back counter, and timed comments popping up as their moment plays.
-// Imports nothing from the Arise app (Pod+ uses it too).
+// Imports nothing from the Arise app (Podster uses it too).
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { sayAI, stopAiVoice } from "../../../lib/aiVoice";
 import { Car, Clock3, Loader2, MessageCircle, Play, Send, Sparkles, Volume2, X } from "lucide-react";
@@ -204,8 +204,8 @@ export function useHoursBack(): HoursBack {
   return h;
 }
 
-/** The counter: this week's time back, all time, and where it came from. light: on a white page (Pod+ home). */
-/** The ads someone without Pod+ Membership sat through (listenExtras.countCouldSave). */
+/** The counter: this week's time back, all time, and where it came from. light: on a white page (Podster home). */
+/** The ads someone without Podster Membership sat through (listenExtras.countCouldSave). */
 export function useCouldSave(): HoursBack {
   const [h, setH] = useState(readCouldSave);
   useEffect(() => {
@@ -217,7 +217,7 @@ export function useCouldSave(): HoursBack {
   return h;
 }
 
-/** For someone without Pod+ Membership: the time it would have given back, the same way members see theirs. */
+/** For someone without Podster Membership: the time it would have given back, the same way members see theirs. */
 function CouldSaveCard({ light, onHide, onJoin }: { light?: boolean; onHide?: () => void; onJoin?: () => void }) {
   const c = useCouldSave(), h = useHoursBack();
   const wkAds = c.weeks[weekKey()]?.ads ?? 0, allAds = c.total.ads;
@@ -241,7 +241,7 @@ function CouldSaveCard({ light, onHide, onJoin }: { light?: boolean; onHide?: ()
 }
 
 export function HoursBackCard({ light, onHide, member, onJoin }: { light?: boolean; onHide?: () => void;
-  /** A Pod+ member (ads skipped for them). Not a member: what they could have saved. Unknown: worked out from the tallies. */ member?: boolean; onJoin?: () => void }) {
+  /** A Podster member (ads skipped for them). Not a member: what they could have saved. Unknown: worked out from the tallies. */ member?: boolean; onJoin?: () => void }) {
   const h = useHoursBack();
   const could = useCouldSave();
   const notMember = member === false || (member === undefined && (could.weeks[weekKey()]?.ads ?? 0) > 0 && !(h.weeks[weekKey()]?.ads));

@@ -1,4 +1,4 @@
-// Pod+ Clips (#/clips, in the menu): TikTok videos in a swipe row that play inside Pod+ through
+// Podster Clips (#/clips, in the menu): TikTok videos in a swipe row that play inside Podster through
 // TikTok's official embed player (developers.tiktok.com/docs/en/embed-player). Nothing opens TikTok.
 // The clip in view plays; the rest pause. One shared list, set by the site owner, that everyone sees
 // (server/podcastClips.ts); the owner edits it right here when signed in.
@@ -88,7 +88,7 @@ export function Clips({ api, say, onBack, onSignIn }: { api: Api; say: (m: strin
       </div>
     </div>
     <h1 className="text-2xl font-bold tracking-tight">Clips</h1>
-    <p className="mt-1 text-sm text-[#606060]">Short videos, right here in Pod+. Scroll: the clip in view plays, the rest pause.</p>
+    <p className="mt-1 text-sm text-[#606060]">Short videos, right here in Podster. Scroll: the clip in view plays, the rest pause.</p>
     {editing && <div className="mt-3">
       <label htmlFor="ps-clip-links" className="text-sm font-semibold">Video links or @usernames, one per line</label>
       <textarea id="ps-clip-links" value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} placeholder={"@someone\n@someone_else\nhttps://www.tiktok.com/@someone/video/7123456789012345678"} className="mt-1.5 w-full rounded-xl border border-[#d3d3d3] p-3 font-mono text-xs outline-none focus:border-[#1c62b9]" />

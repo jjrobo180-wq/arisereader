@@ -1,4 +1,4 @@
-// Ad-free copies of podcast episodes (Earshot + Pod+), kept in storage and played straight from there.
+// Ad-free copies of podcast episodes (Earshot + Podster), kept in storage and played straight from there.
 //
 // Playback through the server finds the ads a host stitched into a listener's copy by comparing it
 // with other copies (server/podcastPlay.ts). Once a copy has been compared, its show audio (content

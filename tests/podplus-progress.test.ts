@@ -1,4 +1,4 @@
-// Pod+: a show's page shows the episode that's playing and the ones you've played, and Continue
+// Podster: a show's page shows the episode that's playing and the ones you've played, and Continue
 // listening keeps the show you just left (EarshotExtras ShowPage, EarshotPlayer saveSpot, Home).
 import test from "node:test";
 import assert from "node:assert/strict";

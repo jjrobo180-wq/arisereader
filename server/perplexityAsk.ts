@@ -1,4 +1,4 @@
-// Pod+ "Ask the episode" and "Catch me up" answered by Perplexity (its fast "sonar" model). Those send
+// Podster "Ask the episode" and "Catch me up" answered by Perplexity (its fast "sonar" model). Those send
 // the whole transcript (often 20,000+ tokens), more than Groq's free plan takes in a minute, so on Groq
 // they crawled; Perplexity takes it in one go and answers in a few seconds, and can look up the show
 // on the web too. The key is the site's Perplexity key (admin settings, or PERPLEXITY_API_KEY), the

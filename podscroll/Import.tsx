@@ -1,4 +1,4 @@
-// Pod+ "Bring your shows": everything someone follows in another podcast app, followed in Pod+ too.
+// Podster "Bring your shows": everything someone follows in another podcast app, followed in Podster too.
 // An OPML file (Overcast, Pocket Casts, Castro, Podcast Addict and most apps can export one), or show
 // names and links pasted in (Apple Podcasts, Spotify and YouTube Music have no export). Each show is
 // found in the directory one at a time (server/podcastImport.ts) and followed the moment it's found,
@@ -83,7 +83,7 @@ export function ImportView({ api, es, update, say, onBack, onSearch, onFollowing
 
   return <div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6" data-testid="pod-import">
     <button onClick={onBack} className="mb-3 inline-flex h-9 items-center gap-1 rounded-full pl-1 pr-3 text-sm font-medium hover:bg-[#f2f2f2]"><ChevronLeft size={18} />Home</button>
-    <h1 className="text-2xl font-bold tracking-tight">Bring your shows to Pod+</h1>
+    <h1 className="text-2xl font-bold tracking-tight">Bring your shows to Podster</h1>
     <p className="mt-1 text-[15px] text-[#606060]">Follow everything you already listen to in another app, all at once.</p>
 
     {rows ? <section className="mt-5">

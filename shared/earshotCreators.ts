@@ -1,5 +1,5 @@
-// Creators on Pod+ and Earshot: Open Mic (where new and independent podcasters get found), Studio
-// stats, the Pod+ Rise creator program, and LivePod (live shows with chat and Cheers). The rules
+// Creators on Podster and Earshot: Open Mic (where new and independent podcasters get found), Studio
+// stats, the Podster Rise creator program, and LivePod (live shows with chat and Cheers). The rules
 // here are shared by the server and the app, so both agree on rankings, limits and wording.
 
 /** Episodes people make get ids "77" + 12 digits of their post id (server/podcastSocial.ts ownEpisodeId). */
@@ -61,7 +61,7 @@ export function trend(now: number, before: number): number | null {
 }
 
 // ---------------------------------------------------------------------------
-// Pod+ Rise, the creator program
+// Podster Rise, the creator program
 // ---------------------------------------------------------------------------
 export type RiseInput = { episodes: number; followers: number; plays30: number; daysSinceFirst: number; livePods: number };
 export type RiseStep = { id: string; label: string; have: number; need: number; done: boolean };
@@ -124,7 +124,7 @@ export function liveClock(ms: number): string {
 export const ICE_SERVERS = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }, { urls: "stun:stun.cloudflare.com:3478" }];
 
 // ---------------------------------------------------------------------------
-// Creator sign-in (Pod+)
+// Creator sign-in (Podster)
 // ---------------------------------------------------------------------------
 export function cleanEmail(v: unknown): string {
   const e = typeof v === "string" ? v.trim().toLowerCase() : "";

@@ -39,7 +39,7 @@ function Root() {
 // ─── Signed out ──────────────────────────────────────────────────────────────
 function Welcome() {
   const { login } = useAuth();
-  const [mode, setMode] = useState<"in" | "up" | "code">("in");
+  const [mode, setMode] = useState<"in" | "up" | "code">(() => (/^#\/(signup|register)/.test(window.location.hash) ? "up" : "in"));
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");

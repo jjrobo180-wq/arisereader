@@ -20,7 +20,7 @@ export const nativeFlavor = (): NativeFlavor => {
 };
 /** Inside one of the two Arise Reader apps (student or Educator). */
 export const isReaderApp = (): boolean => isNativeApp() && (nativeFlavor() === "reader" || nativeFlavor() === "educator" || nativeFlavor() === "eyegaze");
-/** Inside the Arise Eye Gazer app (the A.R.I.S.E. eye-gaze games and lessons, on iPad and iPhone). */
+/** Inside the Arise AAC app (the A.R.I.S.E. eye-gaze games and lessons, on iPad and iPhone). */
 export const isEyeGazerApp = (): boolean => isNativeApp() && nativeFlavor() === "eyegaze";
 /** Inside the Cooked iPhone app. */
 export const isFitApp = (): boolean => isNativeApp() && nativeFlavor() === "fit";
@@ -38,8 +38,8 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
   reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
-  fit: { name: "Cooked", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
-  eyegaze: { name: "Arise Eye Gazer", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
+  fit: { name: "Cooked Fitness by Arise", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
+  eyegaze: { name: "Arise AAC", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
   trainer: { name: "Cooked PT", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
   talk: { name: "Arise Talk", bundle: "com.arisereader.talk", api: "https://arisetodo.com" },
@@ -132,7 +132,10 @@ const updater = () => {
   try { const reg = cap?.registerPlugin?.("CapacitorUpdater"); if (reg?.getLatest) return reg; } catch { /* not available */ }
   return null;
 };
-let checking = false, lastCheck = 0;
+let checking = false, lastCheck = 0, shownAt = 0, touchedAt = 0;
+/** True when the app just came back to the screen and nobody has typed or tapped since, so switching
+ *  to the new copy now can't lose anything (it reloads before anyone is using it). */
+const untouchedSinceShown = () => shownAt > 0 && touchedAt < shownAt && Date.now() - shownAt < 20_000;
 /** `applyNow` switches to the new copy at once (only the first check after launch, before anything is on screen);
  *  otherwise it waits for the next time the app is opened, so a screen never reloads while someone is using it. */
 export async function liveUpdateNow(force = false, applyNow = false): Promise<"none" | "applied" | "failed"> {
@@ -150,15 +153,39 @@ export async function liveUpdateNow(force = false, applyNow = false): Promise<"n
     sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
     const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
     if (!bundle?.id) return "failed";
-    if (applyNow || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
+    if (applyNow || untouchedSinceShown() || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
     else await u.next({ id: bundle.id }); // used the next time the app opens
     return "applied";
   } catch { return "failed"; } finally { checking = false; }
 }
+/** Settings → "Check for updates": does the whole check now and says in plain words what happened,
+ *  so a phone that isn't updating shows why. Switches to the new copy right away when there is one. */
+export async function checkForUpdateNow(): Promise<string> {
+  if (!isNativeApp()) return "This is the website: it always has the newest version. Reload the page to get it.";
+  const u = updater();
+  if (!u) return "This app can't update itself (the updater isn't in this build). It needs a new TestFlight build.";
+  let cur: any = null;
+  try { cur = await u.current(); } catch { /* unknown */ }
+  const running = String(cur?.bundle?.version || "builtin"), shipped = String(cur?.native || "");
+  let latest: any;
+  try { latest = await u.getLatest(); } catch (e: any) { return `Couldn't reach the update server (${e?.message || e}). Running ${running}.`; }
+  const version = String(latest?.version || ""), url = String(latest?.url || "");
+  if (!version || !url || latest?.error) return `Up to date: no newer version for this app (running ${running}${shipped ? `, app ${shipped}` : ""}; server said: ${latest?.message || latest?.error || "nothing new"}).`;
+  if (running === version) return `Up to date (${version}).`;
+  try {
+    const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
+    if (!bundle?.id) return `Downloaded ${version} but it couldn't be opened.`;
+    await u.set({ id: bundle.id }); // reloads into the new copy
+    return `Updating to ${version}…`;
+  } catch (e: any) { return `Found ${version} but the download failed: ${e?.message || e}`; }
+}
 export function keepLiveUpdated(): void {
   if (!isNativeApp() || typeof document === "undefined") return;
   window.setTimeout(() => void liveUpdateNow(true, true), 6000);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
+  const touched = () => { touchedAt = Date.now(); };
+  for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, touched, { capture: true, passive: true });
+  // Back on the screen: the new copy is used right away if nobody has started using the app yet.
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { shownAt = Date.now(); void liveUpdateNow(true); } });
   window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
 }
 

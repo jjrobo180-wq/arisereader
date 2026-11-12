@@ -1,5 +1,5 @@
-// Pod+ notifications on iPhone: "New episode" when a show you follow puts one out.
-// Listening needs no account, and what someone follows is kept on their phone, so the Pod+ app hands
+// Podster notifications on iPhone: "New episode" when a show you follow puts one out.
+// Listening needs no account, and what someone follows is kept on their phone, so the Podster app hands
 // the server its Apple device token together with the ids of the shows it follows (and again
 // whenever that list changes). Every half hour the server looks at each followed show's newest
 // episode (the same Apple lookup the app uses, cached) and tells the phones following it.

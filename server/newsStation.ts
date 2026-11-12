@@ -1,4 +1,4 @@
-// Pod+ Live News Radio as one station for everyone: the server keeps a running schedule (which
+// Podster Live News Radio as one station for everyone: the server keeps a running schedule (which
 // bulletin goes on air when), and every listener plays the bulletin that's on air now, from the point
 // it has reached. Tune in on any phone or account and you hear the same thing at the same moment,
 // like a real station. The newest bulletin from each news show goes on next; when nothing new has

@@ -200,8 +200,8 @@ export function PartyRoom({ room: wanted, api, wsBase, device, nickname, setNick
   };
 
   const invite = async () => {
-    const link = `${location.origin}/app/#/party/${roomId}`;
-    try { if (navigator.share) { await navigator.share({ title: "Listen with me on Pod+", text: state.ep ? `Listen to “${state.ep.title}” with me` : "Listen with me on Pod+", url: link }); return; } } catch { return; }
+    const link = location.protocol === "capacitor:" ? `https://arisetodo.com/podster/app/#/party/${roomId}` : `${location.origin}${import.meta.env.BASE_URL}app/#/party/${roomId}`;
+    try { if (navigator.share) { await navigator.share({ title: "Listen with me on Podster", text: state.ep ? `Listen to “${state.ep.title}” with me` : "Listen with me on Podster", url: link }); return; } } catch { return; }
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { say(link); }
   };
 

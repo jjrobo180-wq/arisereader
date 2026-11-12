@@ -1,4 +1,4 @@
-// A teacher-made quiz (#/custom-quiz/:id) for an Eye Gazer: the same lesson player as the
+// A teacher-made quiz (#/custom-quiz/:id) for an Arise AAC: the same lesson player as the
 // built-in lessons, so it reads, looks and works the same way. Other accounts keep CustomEyeGazeQuiz.
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";

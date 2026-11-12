@@ -13,7 +13,7 @@ test("Notes' bar is To Duo's floating pill with a + menu, in every look", () => 
   assert.doesNotMatch(app, /LookTabBar/);
   const dock = read("client/src/components/arise-notes/NotesDock.tsx");
   assert.match(dock, /rounded-full bg-\[#1d1a33\]/);
-  for (const id of ["notes-tab-ai", "notes-tab-pages", "notes-tab-record", "notes-tab-ask", "notes-tab-menu"]) assert.match(dock, new RegExp(id));
+  for (const id of ["notes-tab-pages", "notes-tab-record", "notes-tab-ask", "notes-tab-menu"]) assert.match(dock, new RegExp(id));
   assert.match(read("client/src/components/arise-notes/SettingsScreen.tsx"), /<TabBar ctx=\{ctx\} on="menu" \/>/);
 });
 

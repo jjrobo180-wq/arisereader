@@ -48,7 +48,7 @@ const roleTheme: Record<TutorialRole, {
     gradient: "from-blue-500/25 via-violet-500/10 to-cyan-400/10",
   },
   "eye-gaze": {
-    label: "Eye Gazer",
+    label: "Arise AAC",
     icon: Eye,
     accent: "text-cyan-300",
     soft: "bg-cyan-400/15 border-cyan-300/25",
@@ -79,12 +79,12 @@ function miniCards(role: TutorialRole, step: number) {
       [
         { icon: "👨‍👩‍👧", title: "Family", sub: "Parent connections" },
         { icon: "🔔", title: "Alerts", sub: "Pending work" },
-        { icon: "👁️", title: "Eye Gazer", sub: "Accessible learning" },
+        { icon: "👁️", title: "Arise AAC", sub: "Accessible learning" },
       ],
     ],
     parent: [
       [
-        { icon: "👧", title: "Ariana", sub: "Eye Gazer" },
+        { icon: "👧", title: "Ariana", sub: "Arise AAC" },
         { icon: "📚", title: "Jordan", sub: "Reader" },
         { icon: "➕", title: "Add Child", sub: "One parent account" },
       ],

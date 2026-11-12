@@ -1,4 +1,4 @@
-// What people post on Pod+ Social and Earshot Social (posts, comments, replies, messages, stories,
+// What people post on Podster Social and Earshot Social (posts, comments, replies, messages, stories,
 // profiles, guestbooks) is checked before anyone else sees it, as Apple's rules for apps with
 // user content ask (App Review Guideline 1.2: filter objectionable material, let people report it
 // and block abusive users, and act on reports).
@@ -46,7 +46,7 @@ const BANNED_RE = new RegExp(`(^|[^a-z])(${BANNED.map((w) => w.replace(/[.*+?^${
 export function textProblem(text: string): string | null {
   if (!text || !text.trim()) return null;
   const plain = normalizeForFilter(text);
-  if (BANNED_RE.test(plain) || BANNED_RE.test(text.toLowerCase())) return "it has words that aren't allowed on Pod+";
+  if (BANNED_RE.test(plain) || BANNED_RE.test(text.toLowerCase())) return "it has words that aren't allowed on Podster";
   return null;
 }
 
@@ -74,7 +74,7 @@ export async function moderateText(text: string, fetcher: typeof fetch = fetch):
 }
 
 /** The message people see when what they wrote is refused. */
-export const refusedWords = (reason: string) => `That can't be posted (${reason}). Pod+ has zero tolerance for hate, harassment, threats and sexual content.`;
+export const refusedWords = (reason: string) => `That can't be posted (${reason}). Podster has zero tolerance for hate, harassment, threats and sexual content.`;
 
 export async function moderateImages(urls: string[], text = "", fetcher: typeof fetch = fetch): Promise<Verdict> {
   if (text) { const t = textProblem(text); if (t) return { ok: false, reason: t }; }

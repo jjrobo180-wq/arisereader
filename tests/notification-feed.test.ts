@@ -34,7 +34,7 @@ test("every kind of waiting work becomes an action item that links to it", () =>
   const byKey = Object.fromEntries(feed.items.map((i) => [i.key, i]));
   assert.deepEqual(byKey["teacher:24"].target, { type: "teacher", id: 24 });
   assert.deepEqual(byKey["ai_quiz:91"].target, { type: "ai_quiz", id: 91 });
-  assert.match(byKey["ai_quiz:91"].body, /Eye Gazer quiz/);
+  assert.match(byKey["ai_quiz:91"].body, /Arise AAC quiz/);
   assert.deepEqual(byKey["request:71"].target, { type: "request", id: 71 });
   assert.match(byKey["review:81"].body, /Score 6\/10/);
   assert.match(byKey["grade_change:41"].body, /Grade 5 → Grade 6 \(6-8 band\)/);

@@ -1,5 +1,5 @@
-// Pod+ Studio: notes that come in as a PDF, a photo, or a recording, turned into plain text for
-// Study Pod+ and Meeting Pod.
+// Podster Studio: notes that come in as a PDF, a photo, or a recording, turned into plain text for
+// Study Podster and Meeting Pod.
 //   PDF       the text inside it, read here (most PDFs made from Word, Google Docs or slides).
 //             A scanned PDF has no text inside: the person is asked to add photos of the pages.
 //   Photo     an AI that can see reads the handwriting or printed notes (Groq's vision model,

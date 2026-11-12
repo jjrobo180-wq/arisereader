@@ -1,4 +1,4 @@
-// Pod+ downloads: a member's copy of a podcast episode, relayed from the podcast's own host for the
+// Podster downloads: a member's copy of a podcast episode, relayed from the podcast's own host for the
 // many hosts that don't let a web page save their audio directly (no CORS). Members only, through
 // the same 12-hour signed pass as Voice boost (GET /books/relay-pass, which needs membership).
 //
@@ -72,7 +72,7 @@ function open(url: URL, range: string, hops = 0): Promise<{ res: http.IncomingMe
 export function registerPodDownloadRoute(app: Express, opts: { prefix: string; passOk: (pass: string) => boolean; clientIp: (req: any) => string }) {
   const perIp = createAttemptLimiter({ max: 400, windowMs: 60 * 60_000 });
   app.get(`${opts.prefix}/download`, async (req: any, res) => {
-    if (!opts.passOk(String(req.query.k || ""))) return res.status(403).json({ message: "Downloads are part of Pod+ Membership. Sign in again." });
+    if (!opts.passOk(String(req.query.k || ""))) return res.status(403).json({ message: "Downloads are part of Podster Membership. Sign in again." });
     const url = downloadUrlAllowed(String(req.query.u || ""));
     if (!url) return res.status(400).json({ message: "That episode can't be downloaded." });
     const ip = opts.clientIp(req);

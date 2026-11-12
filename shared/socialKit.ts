@@ -1,4 +1,4 @@
-// Pod+ Social: the small rules both the server and the app follow. Hashtags and mentions in a post,
+// Podster Social: the small rules both the server and the app follow. Hashtags and mentions in a post,
 // photos and videos (only files people uploaded to our storage), polls, the For You order, and the
 // two people in a conversation. Pure functions, so they're tested on their own.
 

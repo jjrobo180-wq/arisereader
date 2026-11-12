@@ -2,7 +2,7 @@
 // (reader/ios-app/widgets, added to the app by .github/scripts/reader_widgets.py and .rb).
 // The app hands the widget a small snapshot: the reader's first name, points, quizzes passed and
 // grade band. iOS shows it until the next snapshot. Nothing happens on the website, in an app
-// build without widgets, or in the Educator and Eye Gazer apps.
+// build without widgets, or in the Educator and Arise AAC apps.
 import { isReaderApp, nativeCall, nativeFlavor } from "@/lib/nativeApp";
 
 export type ReaderWidgetSnapshot = { name: string; points: number; quizzes: number; band: string };

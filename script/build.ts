@@ -1,3 +1,4 @@
+import path from "node:path";
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "node:fs/promises";
@@ -68,6 +69,23 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
+
+  // Podster's website, served on arisetodo.com at /podster/ (homepage, /podster/app/, /podster/creators/).
+  console.log("building podster...");
+  process.env.PODSTER_BASE = "/podster/";
+  try {
+    await viteBuild({ configFile: "podscroll/vite.config.ts", build: { outDir: path.resolve("dist/public/podster"), emptyOutDir: true } });
+  } finally {
+    delete process.env.PODSTER_BASE;
+  }
+  // Every page link and file must stay inside /podster/, or it would open a To Duo page instead.
+  for (const page of ["index.html", "app/index.html", "creators/index.html"]) {
+    const html = await readFile(path.resolve("dist/public/podster", page), "utf-8");
+    const stray = html.match(/(?:href|src)="\/(?!podster\/|\/)[^"]*"/g);
+    if (stray) throw new Error(`podster/${page} links outside /podster/: ${stray.slice(0, 5).join(", ")}`);
+    if (page === "app/index.html" && !html.includes('"/podster/assets/')) throw new Error(`podster/${page} has no /podster/assets/ files`);
+  }
+  console.log("podster built at /podster/");
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));

@@ -28,7 +28,7 @@ export default function Register({ independent = false }: { independent?: boolea
   const [usernameEdited, setUsernameEdited] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  // Arriving from the Eye Gazer home page (/eyegaze/) the box starts ticked: #/register?eye=1
+  // Arriving from the Arise AAC home page (/eyegaze/) the box starts ticked: #/register?eye=1
   const [isEyeGaze, setIsEyeGaze] = useState(() => typeof window !== "undefined" && /[?&]eye=1(?:&|$)/.test(window.location.hash));
   const [school, setSchool] = useState<SchoolChoice | null>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -106,12 +106,12 @@ export default function Register({ independent = false }: { independent?: boolea
   };
 
   const band = BANDS.find(item => item.id === gradeBand);
-  // Arrived from the Eye Gazer home page: say so at the top.
+  // Arrived from the Arise AAC home page: say so at the top.
   const [eyeEntry] = useState(() => typeof window !== "undefined" && /[?&]eye=1(?:&|$)/.test(window.location.hash));
-  const eyebrow = eyeEntry ? "Eye Gazer account" : independentStudent ? "Independent reader" : "School-connected student";
-  const title = eyeEntry ? <>Eye Gazer <span className="text-violet-700">Signup</span></> : independentStudent ? <>Independent Student <span className="text-violet-700">Signup</span></> : <>Student <span className="text-violet-700">Signup</span></>;
+  const eyebrow = eyeEntry ? "Arise AAC account" : independentStudent ? "Independent reader" : "School-connected student";
+  const title = eyeEntry ? <>Arise AAC <span className="text-violet-700">Signup</span></> : independentStudent ? <>Independent Student <span className="text-violet-700">Signup</span></> : <>Student <span className="text-violet-700">Signup</span></>;
   const intro = eyeEntry
-    ? "An accessible account with large visual choices, My Talker, Eye Gazer games and Life Skills."
+    ? "An accessible account with large visual choices, My Talker, Arise AAC games and Life Skills."
     : independentStudent ? "This account is not attached to a school or teacher. You can read, quiz, earn rewards, and connect a parent or guardian after signup." : "Connect your account to your school and teacher so your reading progress, quizzes, and rewards show in the right class.";
 
   return (
@@ -185,7 +185,7 @@ export default function Register({ independent = false }: { independent?: boolea
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
               <input type="checkbox" checked={isEyeGaze} onChange={e => setIsEyeGaze(e.target.checked)} className="mt-1 h-5 w-5 accent-violet-700" />
-              <span><strong className="flex items-center gap-1.5 text-sm"><Eye className="h-4 w-4 text-violet-700" aria-hidden="true" /> Eye Gazer / non-verbal account</strong><span className="mt-1 block text-xs leading-5 text-slate-600">Use the dedicated accessible experience with large visual choices, My Talker, Eye Gazer games, Life Skills, and family personalization.</span></span>
+              <span><strong className="flex items-center gap-1.5 text-sm"><Eye className="h-4 w-4 text-violet-700" aria-hidden="true" /> Arise AAC / non-verbal account</strong><span className="mt-1 block text-xs leading-5 text-slate-600">Use the dedicated accessible experience with large visual choices, My Talker, Arise AAC games, Life Skills, and family personalization.</span></span>
             </label>
 
             {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}

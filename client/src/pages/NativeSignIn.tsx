@@ -10,7 +10,7 @@ import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, Che
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
-import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
+import { LEGAL, NATIVE_APPS, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
@@ -42,7 +42,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
     ] },
-  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Eye Gazer account, or any A.R.I.S.E. account.", create: "Create an Eye Gazer account",
+  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Arise AAC account, or any A.R.I.S.E. account.", create: "Create an Arise AAC account",
     features: [
       { tint: "#0891b2", icon: <Eye className="h-[22px] w-[22px]" />, title: "Made for eye gaze", text: "Games, lessons and a talker that work with a look, a tap or a switch." },
       { tint: "#7c3aed", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Lessons and books", text: "Letters, words, life skills and stories at their level." },
@@ -54,9 +54,9 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
       { tint: "#3b82f6", icon: <LineChart className="h-[22px] w-[22px]" />, title: "Real progress", text: "Strength, volume, weight and streaks over time." },
     ] },
-  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Cooked).", create: "Create a free account",
+  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Cooked Fitness by Arise).", create: "Create a free account",
     features: [
-      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Cooked workouts, food and health data come to you." },
+      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Cooked Fitness by Arise workouts, food and health data come to you." },
       { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
       { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
     ] },
@@ -82,13 +82,14 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
 
 const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
 
-export default function NativeSignIn() {
+/** On the website, `flavor` picks the app's own sign-in (#/fit, #/trainer) and `start` can open on sign-up. */
+export default function NativeSignIn({ flavor: forced, start }: { flavor?: NativeFlavor; start?: "welcome" | "signup" } = {}) {
   const { login, signInWithApple } = useAuth();
   const [, navigate] = useLocation();
-  const flavor = nativeFlavor();
+  const flavor = forced ?? nativeFlavor();
   const copy = COPY[flavor];
-  const appName = nativeAppInfo().name;
-  const [screen, setScreen] = useState<Screen>("welcome");
+  const appName = NATIVE_APPS[flavor].name;
+  const [screen, setScreen] = useState<Screen>(start ?? "welcome");
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -121,7 +122,7 @@ export default function NativeSignIn() {
 
   const signIn = (e: FormEvent) => { e.preventDefault(); void run("form", async () => { await login(username.trim(), password); showHubMenus(); }); };
 
-  /** Eye Gazer: a plain account of its own. Just a name, a username and a password: no school,
+  /** Arise AAC: a plain account of its own. Just a name, a username and a password: no school,
    *  no teacher, no email code. It opens straight into the eye-gaze home with every feature. */
   const signUpEyeGazer = () => run("form", async () => {
     const clean = username.trim().toLowerCase();
@@ -235,7 +236,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked Fitness by Arise and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         {(!signingUp || eyeGazer) && <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />}

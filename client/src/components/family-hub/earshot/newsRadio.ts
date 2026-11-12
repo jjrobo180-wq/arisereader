@@ -1,4 +1,4 @@
-// Pod+ Live News Radio: nonstop news, built from the news publishers' own hourly bulletins and news
+// Podster Live News Radio: nonstop news, built from the news publishers' own hourly bulletins and news
 // shows (NPR News Now, CBS News Roundup, ABC News Update, BBC...), the same public podcast feeds every
 // podcast app plays. Newest first, one per show, and a bulletin that comes out while it's playing
 // goes in next, so it plays like a live news station. The episodes come from Up to the Minute News
@@ -6,7 +6,7 @@
 import type { PodEpisode } from "@shared/earshot";
 
 export const NEWS_RADIO_ID = "__newsradio";
-export const NEWS_RADIO_NAME = "Pod+ Live News Radio";
+export const NEWS_RADIO_NAME = "Podster Live News Radio";
 /** How far back the lineup reaches. */
 export const NEWS_RADIO_HOURS = 12;
 /** Long shows (a 50-minute interview) don't suit a news station; bulletins and daily news shows do. */

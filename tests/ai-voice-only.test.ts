@@ -39,7 +39,7 @@ test("the server tries every AI voice it has before giving up", async () => {
   assert.match(readFileSync("server/earshot.ts", "utf8"), /speak: \(text, voice\) => aiSpeech\(text, voice\)/);
 });
 
-test("Pod+ home shows the episode you were on, to finish or continue", () => {
+test("Podster home shows the episode you were on, to finish or continue", () => {
   const home = readFileSync("podscroll/Home.tsx", "utf8");
   assert.match(home, /function ContinueListening/);
   assert.match(home, /earshot\.spots/);
@@ -55,7 +55,7 @@ test("opening Arise To Duo on iPhone doesn't stop other apps' audio", () => {
   assert.match(readFileSync("arisetodo/ios-app/configure-ios.py", "utf8"), /setCategory\(\.ambient, mode: \.default, options: \[\.mixWithOthers\]\)/);
 });
 
-test("Pod+ on a weak signal: says Buffering or Waiting for a signal, keeps the episode and its spot", () => {
+test("Podster on a weak signal: says Buffering or Waiting for a signal, keeps the episode and its spot", () => {
   const p = readFileSync("client/src/components/family-hub/earshot/EarshotPlayer.tsx", "utf8");
   assert.match(p, /addEventListener\("waiting", waiting\)/);
   assert.match(p, /Waiting for a signal/);
