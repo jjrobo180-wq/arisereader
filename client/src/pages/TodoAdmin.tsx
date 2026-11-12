@@ -336,7 +336,7 @@ function ProgramPanel({ stats, onChanged }: { stats: ProgramStats; onChanged: ()
   const remove = (p: ProgramPerson) => {
     const typedName = window.prompt(`Delete ${who(p)}'s whole Arise account for good?\n\nThis removes them from every Arise program, not only ${stats.name}, and it can't be undone.\n\nType their username (${p.username}) to delete.`);
     if (typedName === null) return;
-    void run(p, () => api(`/api/todo-admin/people/${p.id}`, { method: "DELETE", body: { confirm: typedName } }), `${who(p)}'s account was deleted.`);
+    void run(p, () => api(`/api/todo-admin/people/${p.id}/delete`, { method: "POST", body: { confirm: typedName } }), `${who(p)}'s account was deleted.`);
   };
   return (
     <div className="space-y-4" data-testid={`program-${stats.id}`}>

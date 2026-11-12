@@ -335,7 +335,7 @@ export function registerTodoAdminRoutes(
     } catch (e) { fail(res, e, "end membership"); }
   });
   /** Deletes an account for good. The admin types the person's username to confirm. */
-  app.delete("/api/todo-admin/people/:id", auth, admin, async (req: any, res: any) => {
+  app.post("/api/todo-admin/people/:id/delete", auth, admin, async (req: any, res: any) => {
     try {
       const u = await target(req);
       if (u.id === Number(req.user?.id)) throw new Refused("You can't delete your own account.");
