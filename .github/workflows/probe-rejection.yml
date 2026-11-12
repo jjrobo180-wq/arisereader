@@ -1,0 +1,42 @@
+name: Probe rejection
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, sys, urllib.request, urllib.error
+          sys.path.insert(0, ".github/scripts")
+          from apple_signing import token
+          auth = token()
+          def api(p):
+              url = "https://api.appstoreconnect.apple.com/" + p
+              req = urllib.request.Request(url, headers={"Authorization": "Bearer " + auth})
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r: return json.load(r)
+              except urllib.error.HTTPError as e:
+                  print("  API", e.code, p, e.read().decode(errors="replace")[:300]); return None
+          APP = "6828284417"
+          subs = api(f"v1/reviewSubmissions?filter[app]={APP}&limit=10&include=items")
+          print(json.dumps(subs, indent=1)[:6000])
+          for s in (subs or {}).get("data", []):
+              for path in (f"v1/reviewSubmissions/{s['id']}/items", f"v1/reviewSubmissions/{s['id']}/relationships/items"):
+                  print(path); print(json.dumps(api(path), indent=1)[:3000])
+          vs = api(f"v1/apps/{APP}/appStoreVersions?limit=5")
+          print(json.dumps(vs, indent=1)[:3000])
+          for v in (vs or {}).get("data", []):
+              for rel in ("appStoreVersionSubmission","appStoreReviewDetail","customerReviews"):
+                  print(rel); print(json.dumps(api(f"v1/appStoreVersions/{v['id']}/{rel}"), indent=1)[:1500])
+          for p in ("v1/resolutionCenterMessages", f"v1/apps/{APP}/resolutionCenterThreads", "v1/resolutionCenterThreads"):
+              print(p); print(json.dumps(api(p), indent=1)[:1500])
+          PY
