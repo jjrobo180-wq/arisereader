@@ -5,6 +5,7 @@
 // paper…), in the look you chose for new notes.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SwipeItem } from "./SwipeItem";
+import type { ListNote } from "../api";
 import { AudioLines, Upload, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
@@ -22,7 +23,7 @@ import { useAppearance } from "../appearance";
 type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "folder"; id: string } | { kind: "tag"; tag: string } | { kind: "locked" } | { kind: "ink" } | { kind: "trash" };
 const FKEY = "arise-pages-filter", PKEY = "arise-pages-pane";
 
-export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: string | null; tabs: React.ReactNode }) {
+export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: AppCtx; openId: string | null; tabs: React.ReactNode; /** Meetings recorded or uploaded for AI notes (they used to be on the Recordings page). */ recorded?: ListNote[] }) {
   const userId = ctx.me.user.id;
   const say = useToast();
   const { sync, metas, settings, state, message } = usePages(userId);
@@ -185,6 +186,14 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
           {sec.label && <h3 className="pp-section">{sec.label}</h3>}
           <ul className={grid ? "an-masonry" : "pp-rows"} style={sec.label ? undefined : { marginTop: ".5rem" }}>{sec.items.map((m, i) => card(m, i))}</ul>
         </section>)}</div>}
+      {filter.kind === "all" && !q.trim() && recorded.length > 0 && <section aria-label="Recorded meetings" data-testid="pages-recorded">
+        <h3 className="pp-section">Recorded meetings</h3>
+        <ul className="pp-rows">{recorded.map((n) => <li key={n.id}><button type="button" className="pp-row" onClick={() => ctx.go({ name: "note", id: n.id })} data-testid="pages-recorded-row">
+          <span className="pp-row-icon" aria-hidden><AudioLines /></span>
+          <span className="min-w-0 flex-1"><span className="pp-row-title">{n.title || "Untitled recording"}</span>
+            <span className="pp-row-line"><span className="pp-row-date">{shortDate(n.createdAt)}</span><span className="pp-row-preview">{n.status === "recording" || n.status === "processing" ? "Writing it down…" : n.status === "no_minutes" ? "Out of minutes" : n.source === "upload" ? "Uploaded recording" : n.source === "memo" ? "Voice memo" : "Recorded meeting"}</span></span></span>
+        </button></li>)}</ul>
+      </section>}
     </div>
     {undo && <div className="pp-undo" role="status" data-testid="pages-undo"><span className="min-w-0 flex-1 truncate">Deleted “{undo.title}”</span><button type="button" onClick={() => { sync.restore(undo.id); setUndo(null); say("Restored."); }}>Undo</button></div>}
     {filter.kind !== "trash" && !wide && <button type="button" className="pp-compose" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>}

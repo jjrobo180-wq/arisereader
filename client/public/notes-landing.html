@@ -449,7 +449,7 @@
 <header class="site-header">
  <div class="container nav-inner">
   <a class="logo" href="#top" aria-label="Arise Notes home"><img class="notes-logo" src="/notes-app/icon-192.png" alt=""/><span>Arise <span class="todo">Notes</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#record">Record</a><a href="#ask">Ask AI</a><a href="#undercover">Undercover</a><a href="#apps">Apps</a><a href="#devices">Devices</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a class="mobile-auth" href="/notes/?app#/">Sign in</a><a class="mobile-auth" href="/notes/?app#/signup">Create account</a></nav>
+  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#record">Record</a><a href="#ask">Ask AI</a><a href="#undercover">Undercover</a><a href="#apps">Apps</a><a href="#tutorial">Tutorial</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="#whats-new">What's new</a><a class="mobile-auth" href="/notes/?app#/">Sign in</a><a class="mobile-auth" href="/notes/?app#/signup">Create account</a></nav>
   <div class="nav-auth"><a class="header-signin" href="#pricing">Pricing</a><a class="header-signin" href="/notes/?app#/">Sign in</a><a class="button button-primary" href="/notes/?app#/signup">Get started <svg><use href="#i-arrow"/></svg></a></div>
   <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg><use href="#i-menu"/></svg></button>
  </div>
@@ -533,6 +533,21 @@
  <div class="device"><h3>With all of Arise</h3><p>Your Arise account works here, in Arise To Duo, Podster and every other Arise app.</p></div>
 </div></div></section>
 
+<section class="how" id="tutorial"><style>
+.tut-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:30px}
+.tut{background:#fff;border:1px solid #e6e9f2;border-radius:18px;padding:22px}
+.tut .number{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#f1efff;color:#5b4fd8;font-weight:850}
+.tut h3{margin:14px 0 6px;font-size:17px;color:#1f2440}
+@media(max-width:900px){.tut-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.tut-grid{grid-template-columns:1fr}}.tut ol{margin:0;padding-left:18px;color:#5f6886;font-size:14px;line-height:1.7}
+</style><div class="container"><div class="center"><div class="section-kicker">Tutorial</div><h2 class="section-heading">How to use <span class="gradient-text">Arise Notes.</span></h2><p class="section-desc">From your first recording to your to-dos in about two minutes.</p></div>
+<div class="tut-grid">
+ <div class="tut"><span class="number">1</span><h3>Make your free account</h3><ol><li>Tap <b>Create a free account</b>.</li><li>Use your Arise account if you already have one.</li><li>On a phone, add it to your home screen so it opens like an app.</li></ol></div>
+ <div class="tut"><span class="number">2</span><h3>Record a meeting</h3><ol><li>On the Notes page, tap <b>Record a meeting</b>.</li><li>Pick a template, like Staff meeting or IEP meeting.</li><li>Keep typing your own notes while it records.</li></ol></div>
+ <div class="tut"><span class="number">3</span><h3>Or upload a file</h3><ol><li>Tap <b>Upload</b> on the Notes page.</li><li>Choose an audio or video file up to 2 hours.</li><li>The transcript and summary appear when it's done.</li></ol></div>
+ <div class="tut"><span class="number">4</span><h3>Use the commands</h3><ol><li>Type <b>@ariserecord</b> in any note to start.</li><li><b>@arisepause</b>, <b>@ariseresume</b> and <b>@arisemark</b> while you talk.</li><li><b>@arisestop</b> writes the summary into the note.</li></ol></div>
+ <div class="tut"><span class="number">5</span><h3>Send your to-dos</h3><ol><li>Open the To-dos part of the note.</li><li>Check who's doing what and when.</li><li>Send them to your Arise To Duo tasks and calendar.</li></ol></div>
+ <div class="tut"><span class="number">6</span><h3>Ask and share</h3><ol><li>Tap <b>Ask</b> to ask about one note, all notes or anything.</li><li>Share a view-only link or export to PDF or Word.</li><li>Add more tools from the <b>App Gallery</b>.</li></ol></div>
+</div></div></section>
 <section class="pricing-section" id="pricing" aria-labelledby="pricing-title">
  <div class="container">
   <div class="pricing-heading">
@@ -575,8 +590,19 @@
 </section>
 
 <section class="bottom-cta"><div class="container"><div class="cta-card"><div class="section-kicker">Stop scribbling</div><h2>Be in the meeting.<br />Let Arise Notes take the notes.</h2><p>Record, write, ask and follow up, all in one place. <a href="#pricing" style="color:#fff;text-decoration:underline">See pricing</a>.</p><a href="/notes/?app#/signup" class="button">Get started with Arise Notes <svg><use href="#i-arrow"/></svg></a><div class="cta-small"><a href="/notes/?app#/">Already have an account? Sign in</a> · <a href="/">Arise To Duo</a></div></div></div></section>
+<section class="arise-updates" id="whats-new" aria-labelledby="wu-heading" style="--wu-accent:#6a5ae0">
+<div class="wu-wrap"><div class="wu-head"><div><div class="wu-kicker">Arise Notes</div><h2 id="wu-heading">What's new &amp; upcoming</h2><p class="wu-intro">The latest in Arise Notes, and what's coming next.</p></div><a class="wu-all" href="/notes/?app#/">Open Arise Notes <span aria-hidden="true">↗</span></a></div>
+<div class="wu-grid">
+ <div class="wu-card"><span class="wu-type">New</span><h3>Record inside a note</h3><p>Tap Record a meeting or type @ariserecord, and the summary lands in the same note.</p><div class="wu-bottom"><span>Notes page</span><b>New</b></div></div>
+ <div class="wu-card"><span class="wu-type">New</span><h3>Ask AI, your way</h3><p>Ask about your notes or anything at all, and get the answer as a chat, a note or a text.</p><div class="wu-bottom"><span>Ask</span><b>New</b></div></div>
+ <div class="wu-card"><span class="wu-type">New</span><h3>Undercover in the App Gallery</h3><p>A private AI chat with six looks that pass for a text thread or a document.</p><div class="wu-bottom"><span>App Gallery</span><b>New</b></div></div>
+ <div class="wu-card"><span class="wu-type">New</span><h3>Full-screen notes</h3><p>Notes open full screen, so you see your whole page instead of half a page and a menu.</p><div class="wu-bottom"><span>Notes page</span><b>New</b></div></div>
+ <div class="wu-card"><span class="wu-type upcoming">Upcoming</span><h3>Arise Notes on the App Store</h3><p>The iPhone and iPad app, with home screen widgets, is on its way.</p><div class="wu-bottom"><span>iPhone &amp; iPad</span><b>Soon</b></div></div>
+ <div class="wu-card"><span class="wu-type upcoming">Upcoming</span><h3>Its own web address</h3><p>Arise Notes is getting its own domain. arisetodo.com/notes keeps working.</p><div class="wu-bottom"><span>Web</span><b>Soon</b></div></div>
+</div></div>
+</section>
 </main>
-<footer class="site-footer"><div class="container footer-inner"><a class="logo" href="#top" aria-label="Back to top"><img class="notes-logo" src="/notes-app/icon-192.png" alt=""/><span>Arise <span class="todo">Notes</span></span></a><span class="footer-text">Arise Notes · The notes super app · 2026</span><span class="footer-actions"><a class="footer-link" href="/">Arise To Duo</a><a class="footer-link" href="/notes/?app#/privacy">Privacy</a><a class="footer-link" href="/terms/">Terms</a><a class="footer-link" href="/support/">Support</a><a class="footer-link" href="/notes/?app#/">Sign in</a><a class="footer-link" href="/notes/?app#/signup">Create account</a><a class="footer-link" href="#top">Back to top ↑</a></span></div></footer>
+<footer class="site-footer"><div class="container footer-inner"><a class="logo" href="#top" aria-label="Back to top"><img class="notes-logo" src="/notes-app/icon-192.png" alt=""/><span>Arise <span class="todo">Notes</span></span></a><span class="footer-text">Arise Notes · The notes super app · 2026</span><span class="footer-actions"><a class="footer-link" href="/">Arise To Duo</a><a class="footer-link" href="/notes/?app#/privacy">Privacy</a><a class="footer-link" href="/terms/">Terms</a><a class="footer-link" href="/support/">Support</a><a class="footer-link" href="/notes/?app#/">Sign in</a><a class="footer-link" href="/notes/?app#/signup">Create account</a><a class="footer-link" href="#tutorial">Tutorial</a><a class="footer-link" href="#faq">FAQ</a><a class="footer-link" href="#top">Back to top ↑</a></span></div></footer>
 <script>
 (function(){
   var byId=function(i){return document.getElementById(i)};

@@ -285,11 +285,11 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
       case "local": return <LocalNoteScreen key={route.id} ctx={ctx} id={route.id} />;
-      case "pages": return <PagesView ctx={ctx} openId={null} tabs={<TabBar ctx={ctx} on="pages" />} />;
-      case "page": return <PagesView ctx={ctx} openId={route.id} tabs={<TabBar ctx={ctx} on="pages" />} />;
+      case "pages": return <PagesView ctx={ctx} openId={null} recorded={notes ?? []} tabs={<TabBar ctx={ctx} on="pages" />} />;
+      case "page": return <PagesView ctx={ctx} openId={route.id} recorded={notes ?? []} tabs={<TabBar ctx={ctx} on="pages" />} />;
       case "apps": return <AppsScreen ctx={ctx} />;
       case "app": return <AppScreen key={route.id} ctx={ctx} id={route.id} />;
-      default: return <PagesView ctx={ctx} openId={null} tabs={<TabBar ctx={ctx} on="pages" />} />; // "home" (the old Recordings page) is gone: Notes is the main page
+      default: return <PagesView ctx={ctx} openId={null} recorded={notes ?? []} tabs={<TabBar ctx={ctx} on="pages" />} />; // "home" (the old Recordings page) is gone: Notes is the main page
     }
   })();
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
