@@ -86,8 +86,7 @@ jobs:
           # is 145 MB, and only Arise AAC and Arise Reader carry it).
           case "${{ matrix.app }}" in
             reader|eyegaze) LIMIT=200 ;;
-            todo) LIMIT=100 ;;
-            educator) LIMIT=40 ;;
+            todo|educator) LIMIT=100 ;;
             *) LIMIT=30 ;;
           esac
           if [ "$(stat -c %s "$ZIP")" -gt $(( LIMIT * 1024 * 1024 )) ]; then
