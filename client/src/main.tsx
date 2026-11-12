@@ -59,7 +59,8 @@ if (todoCompact) document.documentElement.classList.add("todo-compact");
 if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
-// The Educator, Trainer, Talk and Arise AAC apps let iOS inset the page ("automatic"), so the system already does this.
+// The Educator, Talk and Arise AAC apps let iOS inset the page ("automatic"), so the system already does this.
+// Cooked PT draws edge to edge ("never") and pads with env(safe-area-inset-*) itself.
 if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9

@@ -121,10 +121,10 @@ export function markAppReadyWhenDrawn(): void {
   window.setTimeout(tick, 800);
 }
 
-/** Live updates while the app is open, like the website: the newest web code is fetched in the background and
- *  switched to right away (the updater reloads the page; unsaved typing is kept by the hub's draft copy), so
- *  nobody has to close the app twice. Checked shortly after it opens, whenever it comes back to the screen,
- *  and every few minutes while it's on screen. */
+/** Live updates while the app is open: the newest web code is downloaded in the background and switched to
+ *  the next time the app goes to the background or opens again — never while it's on screen. Reloading on the
+ *  spot (a few seconds after opening, or when coming back) showed up as the app freezing and losing its place.
+ *  Builds whose updater already does this by itself (autoUpdate on) are left to it, so the code isn't downloaded twice. */
 const updater = () => {
   const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
   const p = cap?.Plugins?.CapacitorUpdater;
@@ -132,17 +132,19 @@ const updater = () => {
   try { const reg = cap?.registerPlugin?.("CapacitorUpdater"); if (reg?.getLatest) return reg; } catch { /* not available */ }
   return null;
 };
-let checking = false, lastCheck = 0, shownAt = 0, touchedAt = 0;
-/** True when the app just came back to the screen and nobody has typed or tapped since, so switching
- *  to the new copy now can't lose anything (it reloads before anyone is using it). */
-const untouchedSinceShown = () => shownAt > 0 && touchedAt < shownAt && Date.now() - shownAt < 20_000;
-/** `applyNow` switches to the new copy at once (only the first check after launch, before anything is on screen);
- *  otherwise it waits for the next time the app is opened, so a screen never reloads while someone is using it. */
-export async function liveUpdateNow(force = false, applyNow = false): Promise<"none" | "applied" | "failed"> {
+let checking = false, lastCheck = 0;
+/** Downloads newer web code, if any, and queues it for the next time the app goes to the background or opens.
+ *  It never reloads the screen (only "Check for updates" in Settings does, because someone asked for it). */
+export async function liveUpdateNow(force = false): Promise<"none" | "applied" | "failed"> {
   if (!isNativeApp() || checking || (!force && Date.now() - lastCheck < 60_000)) return "none";
   const u = updater(); if (!u) return "none";
   checking = true; lastCheck = Date.now();
   try {
+    // The app's own updater already checks, downloads and switches over in the background: nothing to add.
+    if (typeof u.isAutoUpdateEnabled === "function") {
+      const auto: any = await u.isAutoUpdateEnabled().catch(() => null);
+      if (auto?.enabled === true) return "none";
+    }
     const latest: any = await u.getLatest();
     const version = String(latest?.version || ""), url = String(latest?.url || "");
     if (!version || !url || latest?.error) return "none";
@@ -153,8 +155,8 @@ export async function liveUpdateNow(force = false, applyNow = false): Promise<"n
     sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
     const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
     if (!bundle?.id) return "failed";
-    if (applyNow || untouchedSinceShown() || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
-    else await u.next({ id: bundle.id }); // used the next time the app opens
+    if (typeof u.next !== "function") return "none"; // very old updater: leave it to the next app build
+    await u.next({ id: bundle.id }); // used the next time the app goes to the background or opens
     return "applied";
   } catch { return "failed"; } finally { checking = false; }
 }
@@ -181,12 +183,10 @@ export async function checkForUpdateNow(): Promise<string> {
 }
 export function keepLiveUpdated(): void {
   if (!isNativeApp() || typeof document === "undefined") return;
-  window.setTimeout(() => void liveUpdateNow(true, true), 6000);
-  const touched = () => { touchedAt = Date.now(); };
-  for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, touched, { capture: true, passive: true });
-  // Back on the screen: the new copy is used right away if nobody has started using the app yet.
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { shownAt = Date.now(); void liveUpdateNow(true); } });
-  window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
+  // Well after the first screen is up, so the download never competes with opening the app.
+  window.setTimeout(() => void liveUpdateNow(true), 30_000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
+  window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(); }, 10 * 60_000);
 }
 
 /** The hash to open for a notification's link. Links are written "/#/lifehub?go=tasks", and this page
