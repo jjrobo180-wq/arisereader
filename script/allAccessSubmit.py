@@ -45,6 +45,21 @@ if STAGE == "1":
     except RuntimeError as e:
         print("Subscription submit said:", e)
     print("After submit:"); sub_state()
+elif STAGE == "3":
+    subs = api("reviewSubmissions?filter[app]=%s&filter[platform]=IOS" % APP)["data"]
+    for x in subs: print("  submission", x["id"], x["attributes"].get("state"))
+    cand = [x for x in subs if x["attributes"].get("state") in ("READY_FOR_REVIEW", "UNRESOLVED_ISSUES")]
+    sid = cand[0]["id"] if cand else None
+    print("  using", sid)
+    if sid:
+        try: print("  items:", json.dumps(api(f"reviewSubmissions/{sid}/items")["data"])[:600])
+        except RuntimeError as e: print("  items err", e)
+        for kind, rel in (("subscriptions", "subscription"),):
+            try:
+                r = api("reviewSubmissionItems", {"data": {"type": "reviewSubmissionItems", "relationships": {"reviewSubmission": {"data": {"type": "reviewSubmissions", "id": sid}}, rel: {"data": {"type": kind, "id": SUB}}}}})
+                print("  ADDED subscription to the submission:", json.dumps(r)[:300])
+            except RuntimeError as e: print("  add said:", e)
+    sub_state()
 else:
     subs = api("reviewSubmissions?filter[app]=%s&filter[platform]=IOS" % APP)["data"]
     for x in subs: print("  review submission", x["id"], x["attributes"].get("state"))
