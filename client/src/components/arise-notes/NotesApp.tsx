@@ -154,6 +154,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const go = useCallback<Go>((r) => {
     if (guard.current && !guard.current()) return;
     guard.current = null;
+    // "home" was the Recordings page, which is gone: every back button lands on the Notes page (with its own look).
+    if (r.name === "home") r = { name: "pages" };
     setRoute(r);
     if (mode === "standalone") { if (window.location.hash !== hashOf(r)) window.history.pushState(null, "", hashOf(r)); }
     window.scrollTo({ top: 0 });
