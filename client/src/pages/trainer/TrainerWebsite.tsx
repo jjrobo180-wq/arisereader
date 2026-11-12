@@ -1,4 +1,4 @@
-// "Your website" in Arise Trainer's Business tab: build, preview and publish a trainer's own site (#/t/<slug>),
+// "Your website" in Cooked PT's Business tab: build, preview and publish a trainer's own site (#/t/<slug>),
 // and work the leads its contact form sends in. Server: server/coach.ts. Shapes: shared/coachSite.ts.
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Check, ExternalLink, Eye, Globe, Mail, Phone, Send, Share2, Sparkles, Trash2, X } from "lucide-react";

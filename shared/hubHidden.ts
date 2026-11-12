@@ -9,10 +9,20 @@ const fold = (text: string) => String(text || "").trim().toLowerCase().replace(/
 
 export type HideScope = "one" | "all";
 
+/** The rules sorted by name, each name tidied once: checking thousands of events re-tidied every rule's name
+ *  for every event, which took seconds on a big calendar (reminders, the calendar screens). */
+function hiddenMatcher(rules: HiddenRule[]): (event: Pick<HubEvent, "title" | "date" | "start">) => boolean {
+  const byTitle = new Map<string, HiddenRule[]>();
+  for (const r of rules) { const k = fold(r.title); const list = byTitle.get(k); if (list) list.push(r); else byTitle.set(k, [r]); }
+  return (event) => {
+    const list = byTitle.get(fold(event.title));
+    return !!list && list.some((r) => !r.date || (r.date === event.date && (r.start || "") === (event.start || "")));
+  };
+}
+
 export function isHidden(event: Pick<HubEvent, "title" | "date" | "start">, rules: HiddenRule[] | undefined): boolean {
   if (!rules?.length) return false;
-  const title = fold(event.title);
-  return rules.some((r) => fold(r.title) === title && (!r.date || (r.date === event.date && (r.start || "") === (event.start || ""))));
+  return hiddenMatcher(rules)(event);
 }
 
 /**
@@ -27,7 +37,9 @@ export function calendarEvents(workspace: Pick<Workspace, "events" | "hiddenEven
   const mine = (workspace.events || []).filter((e) => !(e.calendarId && theirs.has(e.calendarId)) && !off.has(e.calendarId || "work"));
   const all = expandEvents(mine, from, to);
   const rules = workspace.hiddenEvents;
-  return rules?.length ? all.filter((e) => !isHidden(e, rules)) : all;
+  if (!rules?.length) return all;
+  const hidden = hiddenMatcher(rules);
+  return all.filter((e) => !hidden(e));
 }
 
 /** Hides this event ("one": just this day and time) or every event with its name ("all"). */

@@ -1,4 +1,4 @@
-// Pod+ in the car (CarPlay), laid out like Apple Podcasts in the car. Four tabs and the car's Now Playing screen:
+// Podster in the car (CarPlay), laid out like Apple Podcasts in the car. Four tabs and the car's Now Playing screen:
 //   Listen Now  an Up Next row of artwork (what you're partway through and new from shows you follow), then
 //               Up Next, Saved and Liked as lists
 //   Library     Shows, Latest Episodes, Saved, Liked and Pod Modes; your shows' artwork, then every show
@@ -6,8 +6,8 @@
 //   Radio       Live News Radio and stations near you (by kind)
 // Now Playing has Up Next (the rest of the queue), the show's button (its episodes) and the speed button.
 // Everything plays through PodEngine (ad-free, picking up where you left off). The lists come from the
-// library the iPhone app hands over (PodStore) and from the Pod+ server, so CarPlay works even when
-// Pod+ was started from the car and the phone's screen never opened.
+// library the iPhone app hands over (PodStore) and from the Podster server, so CarPlay works even when
+// Podster was started from the car and the phone's screen never opened.
 #if os(iOS) && canImport(CarPlay)
 import CarPlay
 import Combine
@@ -101,7 +101,7 @@ public final class PodCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSc
         if sections.isEmpty {
             let start = CPListItem(text: "Live News Radio", detailText: "Nonstop news, ad-free", image: symbol("dot.radiowaves.left.and.right"))
             start.handler = { [weak self] _, done in MainActor.assumeIsolated { self?.engine.playStation(); self?.showNowPlaying() }; done() }
-            let hint = CPListItem(text: "Follow shows on your iPhone", detailText: "Open Pod+ on your phone; your shows and saved episodes show up here.", image: symbol("iphone"))
+            let hint = CPListItem(text: "Follow shows on your iPhone", detailText: "Open Podster on your phone; your shows and saved episodes show up here.", image: symbol("iphone"))
             sections.append(CPListSection(items: [start, hint]))
         }
         t.updateSections(Array(sections.prefix(CPListTemplate.maximumSectionCount)))
@@ -191,7 +191,7 @@ public final class PodCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSc
             let (name, tag, icon) = kind
             return row(name, nil, icon) { [weak self] in self?.pushEpisodes(title: name, live: true) { await PodAPI.shared.stations(tag: tag) } }
         }
-        let t = CPListTemplate(title: "Radio", sections: [CPListSection(items: [live], header: "Pod+", sectionIndexTitle: nil), CPListSection(items: stations, header: "Stations", sectionIndexTitle: nil)])
+        let t = CPListTemplate(title: "Radio", sections: [CPListSection(items: [live], header: "Podster", sectionIndexTitle: nil), CPListSection(items: stations, header: "Stations", sectionIndexTitle: nil)])
         t.tabTitle = "Radio"; t.tabImage = UIImage(systemName: "radio.fill")
         return t
     }

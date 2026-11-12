@@ -61,7 +61,7 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 /** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
  *  menu (the section right before it). Rendering splices this block in after that anchor. */
 /** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
- *  stays in the family's data. Earshot lives on as its own app, Pod+. */
+ *  stays in the family's data. Earshot lives on as its own app, Podster. */
 export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot"];
 export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
@@ -361,10 +361,18 @@ const num = (v: unknown, min: number, max: number, fallback = 0) => {
 };
 const int = (v: unknown, min: number, max: number, fallback = 0) => Math.round(num(v, min, max, fallback));
 const bool = (v: unknown, fallback = false) => (typeof v === "boolean" ? v : fallback);
+// Answers kept (a date's answer never changes): the calendar and reminders ask about the same few days
+// for every event, which made thousands of Date objects in a row and stalled the iPhone app.
+const DAY_OK = new Map<string, boolean>();
 export const isDay = (v: unknown): v is string => {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const known = DAY_OK.get(v);
+  if (known !== undefined) return known;
   const d = new Date(v + "T12:00:00Z");
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  const ok = !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  if (DAY_OK.size > 5000) DAY_OK.clear();
+  DAY_OK.set(v, ok);
+  return ok;
 };
 const day = (v: unknown) => (isDay(v) ? v : "");
 const clock = (v: unknown) => (typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : "");
@@ -810,8 +818,12 @@ export const isOn = (section: FamilySection, f: Pick<Family, "sections">): boole
 
 /** Whether an event (or one of its repeats) falls on a day. */
 export function occursOn(e: FamilyEvent, date: string): boolean {
-  if (!isDay(date) || date < e.date) return false;
-  if (date === e.date) return true;
+  // Same answers as checking the date first, in the cheapest order: a one-off event on another day is a
+  // quick "no" with no Date objects (most events, called for every event on every day shown or planned).
+  if (date === e.date) return isDay(date);
+  if (date < e.date) return false;
+  if (e.repeat !== "weekly" && e.repeat !== "monthly" && e.repeat !== "yearly") return false;
+  if (!isDay(date)) return false;
   const a = fromDay(e.date), b = fromDay(date);
   if (e.repeat === "weekly") return a.getDay() === b.getDay();
   if (e.repeat === "monthly") {

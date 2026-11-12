@@ -1,5 +1,5 @@
 // Listening extras kept on this device: the Hours back tally, and Voice boost (clearer voices, quieter
-// loud parts) through the Web Audio API. Imports nothing from the Arise app (Pod+ uses it too).
+// loud parts) through the Web Audio API. Imports nothing from the Arise app (Podster uses it too).
 import { addHoursBack, cleanHoursBack, emptyHoursBack, type HoursBack, type SavedKind } from "@shared/earshotListen";
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ export function countHoursBack(kind: SavedKind, secs: number) {
 }
 if (typeof window !== "undefined") window.addEventListener("pagehide", () => { if (flushT) { clearTimeout(flushT); flush(); } });
 
-// Time Pod+ Membership would have given back: the ads someone without it sat through (ads Pod+ had
+// Time Podster Membership would have given back: the ads someone without it sat through (ads Podster had
 // found, which a member's player skips by itself). Same weekly shape as Hours back, its own tally.
 const MISSED_KEY = "earshot.couldSave";
 export function readCouldSave(): HoursBack {

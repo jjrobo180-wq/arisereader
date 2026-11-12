@@ -8,10 +8,10 @@ import { API_BASE } from "@/lib/queryClient";
 
 const KINDS: { id: string; label: string; detail: string }[] = [
   { id: "student", label: "Students", detail: "Arise Reader students" },
-  { id: "eyegazer", label: "Eye Gazers", detail: "Eye Gazer accounts" },
+  { id: "eyegazer", label: "Arise AAC users", detail: "Arise AAC accounts" },
   { id: "teacher", label: "Teachers", detail: "Teachers and their WorkHub" },
   { id: "parent", label: "Parents", detail: "Parent accounts" },
-  { id: "todo", label: "Arise To Duo & Pod+", detail: "To Duo, LifeHub and Pod+ accounts" },
+  { id: "todo", label: "Arise To Duo & Podster", detail: "To Duo, LifeHub and Podster accounts" },
 ];
 type Preview = { count: number; byKind: Record<string, number>; sample: string[] };
 type Job = { running: boolean; total: number; done: number; deleted?: number; blocked?: string[]; failed?: string[] };
@@ -52,7 +52,7 @@ export default function AdminDeleteAccounts() {
     <div className="flex items-start gap-3">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-700"><Trash2 className="h-5 w-5" /></span>
       <div className="min-w-0"><h2 className="text-base font-bold">Delete accounts</h2>
-        <p className="text-sm text-muted-foreground">Delete every account of the kinds you pick, across Arise To Duo, Pod+, Arise Reader and Eye Gazer, with everything that belongs to them. Admins, your own account and sample (App Review) accounts are never included. This can't be undone.</p></div>
+        <p className="text-sm text-muted-foreground">Delete every account of the kinds you pick, across Arise To Duo, Podster, Arise Reader and Arise AAC, with everything that belongs to them. Admins, your own account and sample (App Review) accounts are never included. This can't be undone.</p></div>
     </div>
     {job && (job.running || job.total > 0) && <div className="mt-3 rounded-xl bg-muted px-3 py-2 text-sm" role="status" data-testid="admin-delete-progress">
       {job.running ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Deleting… {job.done} of {job.total}</span>

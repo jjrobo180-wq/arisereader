@@ -1,4 +1,4 @@
-// Pod+ Wiki podcasts (shared/podWiki.ts).
+// Podster Wiki podcasts (shared/podWiki.ts).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

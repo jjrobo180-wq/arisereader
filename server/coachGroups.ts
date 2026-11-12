@@ -1,4 +1,4 @@
-// Arise Trainer groups: group pages (posts, photos, comments, likes, pins), group chat, and challenges with a
+// Cooked PT groups: group pages (posts, photos, comments, likes, pins), group chat, and challenges with a
 // leaderboard. A trainer owns each group; members are their active clients. Shapes: shared/coachGroups.ts.
 // Registered from registerCoachRoutes (server/coach.ts), which passes its store, key-value store and helpers.
 import type { Express, RequestHandler } from "express";

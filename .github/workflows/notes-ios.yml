@@ -60,6 +60,7 @@ jobs:
         run: |
           npm ci
           VITE_NATIVE_APP=notes npx vite build
+          bash .github/scripts/prune_notes_bundle.sh dist/public
           rm -rf notes/ios-app/www
           mkdir -p notes/ios-app/www
           cp -R dist/public/. notes/ios-app/www/

@@ -29,7 +29,8 @@ import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
-import DuoSetup, { duoSetupDone } from "@/components/DuoSetup";
+import DuoSetup, { duoSetupDone, rememberDuoSetupDone } from "@/components/DuoSetup";
+import { fetchSeen } from "@/lib/seenOnce";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
@@ -789,7 +790,20 @@ export default function AriseTodo() {
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)), "life");
-  const [setupOpen, setSetupOpen] = useState(() => !!user && !isSampleMode() && !duoSetupDone(user.id));
+  // Setup shows once per account (lib/seenOnce.ts): on a device that hasn't seen it, ask the account
+  // first; the walkthrough waits until that's known so it never jumps ahead of setup.
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(() => !user || isSampleMode() || duoSetupDone(user.id));
+  useEffect(() => {
+    if (!user || setupChecked) return;
+    let gone = false;
+    void fetchSeen().then((seen) => {
+      if (gone) return;
+      if (seen?.setup) rememberDuoSetupDone(user.id); else setSetupOpen(true);
+      setSetupChecked(true);
+    });
+    return () => { gone = true; };
+  }, [user?.id, setupChecked]);
   const setLayout = (next: LifeLayout) => { const stamped = stampLook(layout, next); setFamily((f) => ({ ...f, layout: stamped })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
@@ -1229,11 +1243,11 @@ export default function AriseTodo() {
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the Plugin Gallery). */}
     <HubCoach userId={user.id} hub="life" />
     {setupOpen && <DuoSetup userId={user.id} layout={layout} setLayout={setLayout} plugins={pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })} setFamily={setFamily as any} unlimited={!!todoPlan?.unlimited} room={Math.max(0, (todoPlan?.apps.limit ?? FREE_APPS) - appsIn("life", data) - (todoPlan?.apps.work ?? 0))} lifeplanOn={isOn("lifeplan", family)} onClose={() => setSetupOpen(false)} />}
-    {!setupOpen && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
+    {!setupOpen && setupChecked && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
     {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). */}
-    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Fit and Pod+." />
+    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}

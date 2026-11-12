@@ -1,4 +1,4 @@
-// "Top shows": the round, numbered row on Pod+. Real popularity, not name matches:
+// "Top shows": the round, numbered row on Podster. Real popularity, not name matches:
 //  - a genre: Apple Podcasts' own Top Podcasts chart for that genre (US);
 //  - All: the overall Top Podcasts chart;
 //  - a topic (Obama, WW2...): the shows whose episodes cover it, ranked by where they sit in Apple's
@@ -44,7 +44,7 @@ export function parseChart(body: unknown, genre = ""): ChartShow[] {
   return out;
 }
 
-/** Pod+ genres that are sub-genres in Apple's charts, and the chart category that marks their shows. */
+/** Podster genres that are sub-genres in Apple's charts, and the chart category that marks their shows. */
 const SUB_CATEGORY: Record<string, string> = {
   money: "Investing", politics: "Politics", mental: "Mental Health", books: "Books", food: "Food", travel: "Places & Travel",
   relationships: "Relationships", parenting: "Parenting", nature: "Nature", growth: "Self-Improvement", gaming: "Video Games", hobbies: "Hobbies",

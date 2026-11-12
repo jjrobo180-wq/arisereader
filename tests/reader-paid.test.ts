@@ -52,7 +52,7 @@ test("the server refuses the Reader's own data to a new account without a plan, 
   const src = readFileSync("server/plans.ts", "utf8");
   assert.match(src, /app\.use\("\/api", readerGate\)/);
   for (const p of ["/api/books", "/api/student", "/api/custom-quizzes", "/api/parent", "/api/teacher"]) assert.ok(src.includes(`"${p}"`), p);
-  assert.ok(!/READER_LOCKED = \[[^\]]*"\/api\/(plan|billing|login|me|arise-todo|lifehub|teacher-hub|eye-gaze)"/.test(src), "plans, payment, sign-in, the hubs and Eye Gazer stay open");
+  assert.ok(!/READER_LOCKED = \[[^\]]*"\/api\/(plan|billing|login|me|arise-todo|lifehub|teacher-hub|eye-gaze)"/.test(src), "plans, payment, sign-in, the hubs and Arise AAC stay open");
   assert.match(src, /user\.is_eye_gaze_user \|\| user\.isEyeGazeUser\) return next\(\)/);
 });
 
@@ -64,9 +64,9 @@ test("a scholarship form on the pricing page, read in Admin", () => {
   assert.match(readFileSync("client/src/pages/Admin.tsx", "utf8"), /<AdminScholarships \/>/);
 });
 
-test("Eye Gazer is 100% free: Eye Gazers have every extra and are never asked for a Reader plan", () => {
+test("Arise AAC is 100% free: Arise AAC users have every extra and are never asked for a Reader plan", () => {
   const src = readFileSync("server/plans.ts", "utf8");
   assert.match(src, /if \(isEyeGazer\(user\)\) return \{ premium: true/);
   assert.match(src, /isEyeGazer\(user\) \? \{ access: true/);
-  assert.match(src, /if \(isEyeGazer\(await deps\.getUser\(id\)\)\)/, "a parent of an Eye Gazer child");
+  assert.match(src, /if \(isEyeGazer\(await deps\.getUser\(id\)\)\)/, "a parent of an Arise AAC child");
 });

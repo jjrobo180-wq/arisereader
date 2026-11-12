@@ -1,4 +1,4 @@
-// Creators: Open Mic ranking, Pod+ Rise, sign-in emails, and a LivePod run end to end over a real
+// Creators: Open Mic ranking, Podster Rise, sign-in emails, and a LivePod run end to end over a real
 // websocket (host, two listeners: the audio handshake, chat, Cheers and their budget, likes, ending).
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -28,7 +28,7 @@ test("Open Mic puts new and small creators forward, and rising favors momentum",
   assert.deepEqual([0, 1, 2, 3, 4, 9].map(isMicSlot), [false, false, false, false, true, true]);
 });
 
-test("Pod+ Rise progress, trends and sign-in emails", () => {
+test("Podster Rise progress, trends and sign-in emails", () => {
   const r = riseProgress({ episodes: 3, followers: 50, plays30: 1500, daysSinceFirst: 31.5, livePods: 0 });
   assert.equal(r.eligible, false);
   assert.deepEqual(r.steps.map((s) => s.done), [true, false, true, true]);

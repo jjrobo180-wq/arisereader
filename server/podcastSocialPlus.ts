@@ -1,4 +1,4 @@
-// Pod+ Social, the rest of the app (registered by server/podcastSocial.ts, sharing its helpers):
+// Podster Social, the rest of the app (registered by server/podcastSocial.ts, sharing its helpers):
 //  - Explore (trending hashtags, people to follow, a grid of photo/video/episode posts) and Search
 //    (people, posts and hashtags), hashtag pages
 //  - Profiles: counts, "follows you", people you both know, followers/following lists, and tabs
@@ -24,7 +24,7 @@ export type PlusDeps = {
   blockSet: (v: string) => Promise<Set<string>>; publicPrefix: () => string; folderOf: (v: string) => string;
   /** Checks words before they're posted; true when it already answered with a refusal. */
   refuseWords: (res: any, ...parts: string[]) => Promise<boolean>;
-  /** "Pod+" or "Earshot (LifeHub)", for report alerts. */
+  /** "Podster" or "Earshot (LifeHub)", for report alerts. */
   appName: string;
 };
 export type Person = Profile & { followed?: boolean; followers?: number; me?: boolean; followsYou?: boolean };
@@ -113,7 +113,7 @@ export function registerSocialPlus(app: Express, d: PlusDeps) {
       const { data: fresh } = await db().from("podcast_profiles").select(d.PROFILE_COLS).order("created_at", { ascending: false }).limit(40);
       const topIds = [...pop.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id).filter((id) => id !== me && !mine.has(id) && !blocked.has(id)).slice(0, 20);
       const top = topIds.length ? [...(await d.peopleById(topIds)).values()] : [];
-      // Always suggest the official Pod+ account to people who don't follow it yet,
+      // Always suggest the official Podster account to people who don't follow it yet,
       // while respecting blocks, the current user, and hidden profiles.
       const { data: official } = await db().from("podcast_profiles").select(d.PROFILE_COLS).eq("handle", "jjrobo180").maybeSingle();
       const featured = official && official.verified && official.voter !== me && !mine.has(official.voter) && !blocked.has(official.voter) && !official.hidden ? [official] : [];

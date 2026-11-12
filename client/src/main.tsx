@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNativeApp, isNotesApp, isReaderApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -25,10 +25,10 @@ import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 // The Arise Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
 // In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
 // (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
-// which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
+// which the app's view controllers don't allow (Arise AAC, a crash report from an iPad, November 2026).
 // So in the apps, full screen does nothing and says it worked.
 if (isNativeApp()) installNoFullscreen();
-if (isFitApp() || isReaderApp() || isNotesApp()) {
+if (isFitApp() || isReaderApp() || isNotesApp() || isUndercoverApp()) {
   const vp = document.querySelector('meta[name="viewport"]');
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }
@@ -59,7 +59,8 @@ if (todoCompact) document.documentElement.classList.add("todo-compact");
 if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
-// The Educator, Trainer, Talk and Eye Gazer apps let iOS inset the page ("automatic"), so the system already does this.
+// The Educator, Talk and Arise AAC apps let iOS inset the page ("automatic"), so the system already does this.
+// Cooked PT draws edge to edge ("never") and pads with env(safe-area-inset-*) itself.
 if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
@@ -252,7 +253,12 @@ window.addEventListener("vite:preloadError", (event) => {
   if (/preload CSS/i.test(message)) event.preventDefault();
 });
 createRoot(document.getElementById("root")!).render(<App />);
-void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
+// Only where the 5-Minute Reads' covers can show: the apps that open straight into their own screens
+// (Cooked, Cooked PT, Notes, Talk, Undercover) never show them, and loading the story list (411 KB), asking
+// Wikipedia for photos and watching every change on the page cost them for nothing.
+if (!(isFitApp() || isTrainerApp() || isNotesApp() || isUndercoverApp() || isTalkApp())) {
+  void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
+}
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
 // back to the copy that worked; client/src/lib/nativeApp.ts).
 markAppReadyWhenDrawn();

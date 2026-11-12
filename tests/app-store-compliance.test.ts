@@ -1,4 +1,4 @@
-// App Store readiness: deleting a Pod+ account removes what it made (Guideline 5.1.1(v)), and the
+// App Store readiness: deleting a Podster account removes what it made (Guideline 5.1.1(v)), and the
 // Support form (Guideline 1.5) checks what it sends.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -31,7 +31,7 @@ function fakeDb(missing: string[] = []) {
   return { db, deleted, removed };
 }
 
-test("deleting Pod+ data clears every table and the uploaded files for that person", async () => {
+test("deleting Podster data clears every table and the uploaded files for that person", async () => {
   const { db, deleted, removed } = fakeDb(["podscroll_comment_reports"]);
   await deletePodData(db, ["dABCDEFGHIJKLMNOP1234"]);
   for (const want of [
@@ -50,10 +50,10 @@ test("a real database error stops the deletion so it can be tried again", async 
 });
 
 test("support messages need an email and a message, and bots filling the hidden field are refused", () => {
-  assert.equal(typeof cleanSupport({ email: "nope", message: "Help me please" }, "Pod+"), "string");
-  assert.equal(typeof cleanSupport({ email: "a@b.co", message: "hi" }, "Pod+"), "string");
-  assert.equal(typeof cleanSupport({ email: "a@b.co", message: "Help me please", website: "spam.example" }, "Pod+"), "string");
+  assert.equal(typeof cleanSupport({ email: "nope", message: "Help me please" }, "Podster"), "string");
+  assert.equal(typeof cleanSupport({ email: "a@b.co", message: "hi" }, "Podster"), "string");
+  assert.equal(typeof cleanSupport({ email: "a@b.co", message: "Help me please", website: "spam.example" }, "Podster"), "string");
   const ok = cleanSupport({ name: " Sam ", email: "Sam@Example.com", topic: "Privacy", message: "Please delete my data." }, "Arise To Duo");
   assert.deepEqual(ok, { app: "Arise To Duo", name: "Sam", email: "sam@example.com", topic: "Privacy", message: "Please delete my data." });
-  assert.equal((cleanSupport({ email: "a@b.co", topic: "Made up", message: "Hello there" }, "Pod+") as any).topic, "Other");
+  assert.equal((cleanSupport({ email: "a@b.co", topic: "Made up", message: "Hello there" }, "Podster") as any).topic, "Other");
 });

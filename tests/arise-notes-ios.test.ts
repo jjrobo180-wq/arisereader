@@ -13,8 +13,8 @@ const read = (p: string) => readFileSync(p, "utf8");
 
 test("it's its own app: Arise Notes, com.arisereader.notes, opening to sign-in and then Notes", () => {
   const nat = read("client/src/lib/nativeApp.ts");
-  assert.match(nat, /\| "notes"( \| "talk")?;/);
-  assert.match(nat, /\|\| f === "notes"( \|\| f === "talk")? \? f : "todo"/);
+  assert.match(nat, /\| "notes"( \| "talk")?( \| "undercover")?;/);
+  assert.match(nat, /\|\| f === "notes"( \|\| f === "talk")?( \|\| f === "undercover")? \? f : "todo"/);
   assert.match(nat, /notes: \{ name: "Arise Notes", bundle: "com\.arisereader\.notes", api: "https:\/\/arisetodo\.com" \}/);
   assert.match(nat, /export const isNotesApp = \(\): boolean => isNativeApp\(\) && nativeFlavor\(\) === "notes";/);
 

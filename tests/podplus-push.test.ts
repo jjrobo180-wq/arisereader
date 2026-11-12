@@ -31,7 +31,7 @@ test("pod+ push: waits through the night, at most 4 a day, forgets a gone phone"
   assert.equal(gone.rows.length, 0);
 });
 
-test("pod+ app: welcome, notification question and tour on first launch; pushes go to the Pod+ app", async () => {
+test("pod+ app: welcome, notification question and tour on first launch; pushes go to the Podster app", async () => {
   const { readFileSync } = await import("node:fs");
   const r = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const main = r("podscroll/main.tsx");
