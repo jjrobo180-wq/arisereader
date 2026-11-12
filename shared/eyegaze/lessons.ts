@@ -1,4 +1,4 @@
-// The built-in Eye Gazer lessons: a few "learn" cards (big picture, the word, a short sentence
+// The built-in Arise AAC lessons: a few "learn" cards (big picture, the word, a short sentence
 // read aloud), then a 5-question quiz answered by looking at a picture or word.
 //
 // This file is the one place the lessons are written. When the server starts it saves them into

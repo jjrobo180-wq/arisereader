@@ -1,5 +1,5 @@
 -- Arise History (/history/): K–12 History Reads and quizzes with points, a class leaderboard, assignments and live review.
--- Accounts are the regular A.R.I.S.E. Reader accounts; these tables hold only Arise History's own data.
+-- Accounts are the regular Arise Reader accounts; these tables hold only Arise History's own data.
 -- History points live here and are separate from reading and math points. Safe to run more than once.
 
 -- Each student's progress: points, this week's numbers, streak, best score per quiz, certificates, history, settings.

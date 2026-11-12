@@ -2,7 +2,7 @@
   "name": "reader-ios",
   "private": true,
   "version": "1.0.0",
-  "description": "A.R.I.S.E. Reader iPhone app (built from the shared frontend with VITE_NATIVE_APP=reader)",
+  "description": "Arise Reader iPhone app (built from the shared frontend with VITE_NATIVE_APP=reader)",
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",

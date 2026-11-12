@@ -1,4 +1,4 @@
-// The Eye Gazer games in Safari's engine (WebKit) as an iPad, played with finger taps. Saves a
+// The Arise AAC games in Safari's engine (WebKit) as an iPad, played with finger taps. Saves a
 // screenshot of each game before and after tapping, and every error, to tests/ipad/out.
 import { webkit, devices } from "playwright";
 import { createServer } from "node:http";
@@ -19,9 +19,9 @@ const report = [];
 const browser = await webkit.launch();
 const ctx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
 // How to get into each game from its menu (button text, in order).
-const FLOW = { match: ["Play"], pop: ["First Words"], sentence: ["Little Line"], fidget: ["Surprise Tiles"], farm: [], runner: ["PLAY"], ninja: ["PLAY"], splash: ["SPLASH!"], talker: [], flashcards: [], lessons: [], home: [] };
+const FLOW = { match: ["Play"], pop: ["First Words"], sentence: ["Little Line"], fidget: ["Surprise Tiles"], farm: [], runner: ["PLAY"], ninja: ["PLAY"], splash: ["SPLASH!"], talker: [], flashcards: [], lessons: [], home: [], app: [] };
 const save = () => writeFile(`${out}report.md`, report.join("\n"));
-for (const g of (process.env.GAMES || "runner,ninja,splash,talker,flashcards,lessons,home").split(",")) {
+for (const g of (process.env.GAMES || "runner,ninja,splash,talker,flashcards,lessons,home,app").split(",")) {
   const errs = [], steps = [];
   let p;
   try {
@@ -66,4 +66,12 @@ for (const g of (process.env.GAMES || "runner,ninja,splash,talker,flashcards,les
   await p?.close().catch(() => {});
 }
 console.log(report.join("\n"));
+// The app's frame and Home on an iPhone too.
+try {
+  const phone = await browser.newContext({ ...devices["iPhone 14"] });
+  const pp = await phone.newPage();
+  await pp.goto("http://localhost:4173/index.html?g=app"); await pp.waitForTimeout(3500);
+  await pp.screenshot({ path: `${out}app-phone.png` });
+  await phone.close();
+} catch (e) { report.push("phone shot: " + String(e).slice(0, 200)); await save(); }
 await browser.close(); server.close();

@@ -28,7 +28,7 @@ type TourStep = {
   open?: { tab: string } | { section: string };
   /** Only for parents (a teacher's LifeHub has no linked child to show). */
   parentOnly?: boolean;
-  /** Only for teachers (and admins): the A.R.I.S.E. Reader class tools. */
+  /** Only for teachers (and admins): the Arise Reader class tools. */
   teacherOnly?: boolean;
 };
 
@@ -47,12 +47,12 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [{ sel: '[data-testid="hub-todo-switch"]', label: "Work / Life switch" }],
     },
     {
-      title: "A.R.I.S.E. Reader",
+      title: "Arise Reader",
       teacherOnly: true,
       body: "Your reading program lives here, in the violet button. Tap it any time to get back to your Reader Overview.",
       open: { tab: "reader" },
       targets: [
-        { sel: '[data-testid="hub-menu-arise"]', label: "A.R.I.S.E. Reader" },
+        { sel: '[data-testid="hub-menu-arise"]', label: "Arise Reader" },
         { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
         { sel: '[data-testid="hub-tab-apps"]', label: "Plugins", note: "Tap Plugins to see every section." },
       ],
@@ -97,14 +97,14 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     {
       title: "The rest of your Reader",
       teacherOnly: true,
-      body: "Everything else for your class sits under A.R.I.S.E. Reader too: Scenes, Parents, Quizzes & grading, Game time, Prizes and Reading records.",
+      body: "Everything else for your class sits under Arise Reader too: Scenes, Parents, Quizzes & grading, Game time, Prizes and Reading records.",
       open: { tab: "reader" },
       targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }, { sel: '[data-testid="hub-tab-apps"]', label: "Plugins" }],
     },
     {
       title: "Arise Learning",
       teacherOnly: true,
-      body: "Arise Math, Arise History and A.R.I.S.E. Connect have their own spot, right under A.R.I.S.E. Reader. Tap one to open it. An Add-on tag means it isn't on your plan yet; tapping it shows you how to add it.",
+      body: "Arise Math, Arise History and A.R.I.S.E. Connect have their own spot, right under Arise Reader. Tap one to open it. An Add-on tag means it isn't on your plan yet; tapping it shows you how to add it.",
       targets: [
         { sel: '[data-testid="hub-learning-heading"]', label: "Arise Learning" },
         { sel: '[data-testid="hub-learning-math"]', label: "Arise Learning" },
@@ -156,12 +156,12 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "Your child's reading",
-      body: "A.R.I.S.E. Reader is where you follow your child's reading. Tap it any time to come back here.",
+      body: "Arise Reader is where you follow your child's reading. Tap it any time to come back here.",
       parentOnly: true,
       open: { section: "reader" },
       targets: [
-        { sel: '[data-testid="life-section-reader"]', label: "A.R.I.S.E. Reader" },
-        { sel: '[data-testid="life-menu-reader"]', label: "A.R.I.S.E. Reader" },
+        { sel: '[data-testid="life-section-reader"]', label: "Arise Reader" },
+        { sel: '[data-testid="life-menu-reader"]', label: "Arise Reader" },
         { sel: '[data-testid="life-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
       ],
     },

@@ -1,5 +1,5 @@
-// Creators in Pod+ and Earshot: Open Mic (the page where new and independent podcasters get found),
-// Studio (a creator's numbers and the Pod+ Rise program), email sign-in for Pod+ creators, starting
+// Creators in Podster and Earshot: Open Mic (the page where new and independent podcasters get found),
+// Studio (a creator's numbers and the Podster Rise program), email sign-in for Podster creators, starting
 // a LivePod, and the LivePod room itself (live audio from the host's browser, chat, Cheers, likes).
 // Server: server/podcastCreators.ts, server/podcastLive.ts, server/podcastAccounts.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -34,7 +34,7 @@ export type MicEpisode = {
 export const LiveDot = ({ className = "" }: { className?: string }) => <span className={`relative inline-flex h-2 w-2 ${className}`}><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" style={{ background: ACCENT }} /><span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: ACCENT }} /></span>;
 
 // ===========================================================================
-// Sign in (Pod+): an email and a 6-digit code
+// Sign in (Podster): an email and a 6-digit code
 // ===========================================================================
 export function SignInSheet({ api, say, why, onDone, onClose }: { api: Api; say: (m: string) => void; why: string; onDone: (token: string, email: string) => void; onClose: () => void }) {
   const [email, setEmail] = useState("");
@@ -207,7 +207,7 @@ export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoin
 }
 
 // ===========================================================================
-// Studio: a creator's numbers, their LivePods, and Pod+ Rise (a white page)
+// Studio: a creator's numbers, their LivePods, and Podster Rise (a white page)
 // ===========================================================================
 type StudioData = {
   profile: Profile;
@@ -226,7 +226,7 @@ export function Studio({ api, say, onClose, onCreate, email, onSignOut }: { api:
   const [metric, setMetric] = useState<"plays" | "minutes" | "followers">("plays");
   const [joining, setJoining] = useState(false);
   useEffect(() => { api("/api/earshot/creators/studio").then(setD).catch((e) => setErr(e?.message || "Studio didn't load.")); }, [api]);
-  const join = () => { setJoining(true); api("/api/earshot/creators/rise", { method: "POST" }).then(() => { setD((x) => (x ? { ...x, rise: { ...x.rise, joined: true } } : x)); say("You're on the Pod+ Rise list."); }).catch((e) => say(e.message)).finally(() => setJoining(false)); };
+  const join = () => { setJoining(true); api("/api/earshot/creators/rise", { method: "POST" }).then(() => { setD((x) => (x ? { ...x, rise: { ...x.rise, joined: true } } : x)); say("You're on the Podster Rise list."); }).catch((e) => say(e.message)).finally(() => setJoining(false)); };
   const max = Math.max(1, ...(d?.daily.map((x) => x[metric]) ?? [1]));
   const sources: Record<string, number> = d?.sources ?? {};
   const srcTotal = Object.values(sources).reduce((a, b) => a + b, 0);
@@ -293,14 +293,14 @@ export function Studio({ api, say, onClose, onCreate, email, onSignOut }: { api:
           </section>
         </div>
 
-        {/* Pod+ Membership: what a creator needs to earn (no follower, play or time minimums) */}
+        {/* Podster Membership: what a creator needs to earn (no follower, play or time minimums) */}
         <section className="relative mt-3 overflow-hidden rounded-3xl p-5 text-[#fff]" style={{ background: "linear-gradient(120deg,#13b2ac,#5576e5 55%,#835adf)" }}>
           <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full border border-[#fff]/25" />
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Pod+ Membership</p>
+            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Arise All Access</p>
               <h3 className="mt-1 text-[24px] font-extrabold leading-tight tracking-tight">Earn from your first episode</h3>
-              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with a Pod+ Membership, the same $5 a month plan listeners get. No follower, play or time minimums.</p></div>
-            <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: "rgba(255,255,255,.18)" }}><span className="text-center leading-none"><b className="block text-[22px] font-extrabold">$5</b><span className="text-[11px] font-bold opacity-85">a month</span></span></div>
+              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with Arise All Access, the same $10 a month plan listeners get for ad-free Podster. No follower, play or time minimums.</p></div>
+            <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: "rgba(255,255,255,.18)" }}><span className="text-center leading-none"><b className="block text-[22px] font-extrabold">$10</b><span className="text-[11px] font-bold opacity-85">a month</span></span></div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">{RISE_PERKS.map((p) => <div key={p.id} className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,.12)" }}>
             <p className="flex items-center justify-between gap-2 text-[13.5px] font-bold">{p.title}<span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider" style={{ background: "rgba(255,255,255,.2)" }}>Opening soon</span></p>
@@ -459,7 +459,7 @@ export function LiveRoom({ api, wsBase, roomId, ticket: firstTicket, say, onClos
         if (!ticket) { const b = await api(`/api/earshot/creators/live/${roomId}/ticket`, { method: "POST" }); ticket = b.ticket; host = !!b.host; }
         if (host && !stream.current) {
           try { stream.current = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
-          catch { if (!closed) { setStatus("error"); setError("Pod+ needs your microphone to go live. Allow it in your browser's settings, then try again."); } return; }
+          catch { if (!closed) { setStatus("error"); setError("Podster needs your microphone to go live. Allow it in your browser's settings, then try again."); } return; }
           stopMeter = meter(stream.current);
         }
         if (closed) return;
@@ -514,7 +514,7 @@ export function LiveRoom({ api, wsBase, roomId, ticket: firstTicket, say, onClos
   const share = () => {
     send({ t: "share" });
     const url = `${location.origin}${location.pathname}`;
-    const msg = `${room?.host.name ?? "Someone"} is live on Pod+: ${room?.title ?? ""}`;
+    const msg = `${room?.host.name ?? "Someone"} is live on Podster: ${room?.title ?? ""}`;
     if (navigator.share) void navigator.share({ title: room?.title || "LivePod", text: msg, url }).catch(() => {});
     else void navigator.clipboard?.writeText(`${msg} ${url}`).then(() => say("Link copied."), () => say(url));
   };

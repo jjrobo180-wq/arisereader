@@ -1,7 +1,7 @@
-// The listening extras' screens for the Earshot/Pod+ player: Ask the episode (answers that jump to the
+// The listening extras' screens for the Earshot/Podster player: Ask the episode (answers that jump to the
 // moment), Catch me up (a recap of what you already heard), Fit my drive (episodes that fill your
 // minutes), the Hours back counter, and timed comments popping up as their moment plays.
-// Imports nothing from the Arise app (Pod+ uses it too).
+// Imports nothing from the Arise app (Podster uses it too).
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { sayAI, stopAiVoice } from "../../../lib/aiVoice";
 import { Car, Clock3, Loader2, MessageCircle, Play, Send, Sparkles, Volume2, X } from "lucide-react";
@@ -204,8 +204,8 @@ export function useHoursBack(): HoursBack {
   return h;
 }
 
-/** The counter: this week's time back, all time, and where it came from. light: on a white page (Pod+ home). */
-/** The ads someone without Pod+ Membership sat through (listenExtras.countCouldSave). */
+/** The counter: this week's time back, all time, and where it came from. light: on a white page (Podster home). */
+/** The ads someone without Podster Membership sat through (listenExtras.countCouldSave). */
 export function useCouldSave(): HoursBack {
   const [h, setH] = useState(readCouldSave);
   useEffect(() => {
@@ -217,7 +217,7 @@ export function useCouldSave(): HoursBack {
   return h;
 }
 
-/** For someone without Pod+ Membership: the time it would have given back, the same way members see theirs. */
+/** For someone without Podster Membership: the time it would have given back, the same way members see theirs. */
 function CouldSaveCard({ light, onHide, onJoin }: { light?: boolean; onHide?: () => void; onJoin?: () => void }) {
   const c = useCouldSave(), h = useHoursBack();
   const wkAds = c.weeks[weekKey()]?.ads ?? 0, allAds = c.total.ads;
@@ -225,23 +225,23 @@ function CouldSaveCard({ light, onHide, onJoin }: { light?: boolean; onHide?: ()
   const ink = light ? "text-[#0f0f0f]" : "text-white", soft = light ? "text-[#606060]" : "text-white/55";
   const title = wkAds >= 60 ? `${hoursWords(wkAds)} of ads you could've skipped this week`
     : allAds >= 60 ? `${hoursWords(allAds)} of ads you could've skipped`
-    : "Time you could save with Pod+";
+    : "Time you could save with All Access";
   const line = wkAds >= 60 || allAds >= 60
-    ? `Pod+ Membership skips ads for you automatically.${wkMine >= 60 ? ` You saved ${hoursWords(wkMine)} this week with a faster speed.` : ""}`
-    : "Pod+ Membership skips ads for you. The time it would give back adds up here as you listen.";
+    ? `Arise All Access skips ads for you automatically.${wkMine >= 60 ? ` You saved ${hoursWords(wkMine)} this week with a faster speed.` : ""}`
+    : "Arise All Access skips ads for you. The time it would give back adds up here as you listen.";
   return <section aria-label="Time you could save" data-testid="could-save-card" className={`relative flex items-center gap-3.5 rounded-2xl p-3.5 pr-10 ${light ? "bg-[#fff4ec] ring-1 ring-[#ffd9bf]" : "bg-white/[.05] ring-1 ring-white/[.08]"}`}>
     <span className="grid h-11 w-11 flex-none place-items-center rounded-full text-white" style={{ background: ACCENT }}><Clock3 size={21} /></span>
     <div className="min-w-0">
       <p className={`text-[15px] font-semibold ${ink}`}>{title}</p>
       <p className={`text-xs leading-snug ${soft}`}>{line}</p>
-      {onJoin && <button type="button" onClick={onJoin} className="mt-2 h-8 rounded-full px-3.5 text-xs font-semibold text-white" style={{ background: ACCENT }}>Get it back with Pod+</button>}
+      {onJoin && <button type="button" onClick={onJoin} className="mt-2 h-8 rounded-full px-3.5 text-xs font-semibold text-white" style={{ background: ACCENT }}>Get it back with All Access</button>}
     </div>
     {onHide && <button type="button" onClick={onHide} aria-label="Hide this counter" title="Hide (turn it back on in Settings)" className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full ${light ? "text-[#606060] hover:bg-black/5" : "text-white/50 hover:bg-white/10"}`}><X size={15} /></button>}
   </section>;
 }
 
 export function HoursBackCard({ light, onHide, member, onJoin }: { light?: boolean; onHide?: () => void;
-  /** A Pod+ member (ads skipped for them). Not a member: what they could have saved. Unknown: worked out from the tallies. */ member?: boolean; onJoin?: () => void }) {
+  /** A Podster member (ads skipped for them). Not a member: what they could have saved. Unknown: worked out from the tallies. */ member?: boolean; onJoin?: () => void }) {
   const h = useHoursBack();
   const could = useCouldSave();
   const notMember = member === false || (member === undefined && (could.weeks[weekKey()]?.ads ?? 0) > 0 && !(h.weeks[weekKey()]?.ads));

@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 import { ConnectedPanel, useHubLinks } from "./HubLinks";
 import { MakeGoalQuiz, StudentQuizzes } from "./HubGoalQuiz";
 import { goalQuizzes } from "@shared/hubLinks";
+import { pmStatus } from "@shared/hubIep";
 import { friendlyDate } from "@shared/hubDates";
 import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentProfile";
 import { planText } from "@shared/hubProgress";
@@ -108,6 +109,17 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           {s.disability1 && <Fact label="Disability 1" value={s.disability1} />}
           {s.disability2 && <Fact label="Disability 2" value={s.disability2} />}
         </div>
+        {profile.goals.length > 0 && (() => {
+          const st = profile.goals.map((x) => pmStatus(x.goal, today));
+          const late = st.filter((x) => x.state === "overdue").length, soon = st.filter((x) => x.state === "due soon").length;
+          const next = st.filter((x) => x.state !== "met").map((x) => x.next).sort()[0];
+          const ok = late === 0;
+          return <div className={`mt-3 flex items-center gap-3 rounded-xl p-3 text-sm ${ok ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`} data-testid="profile-pm-check">
+            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-white ${ok ? "bg-emerald-600" : "bg-amber-600"}`} aria-hidden>{ok ? "✓" : "!"}</span>
+            <span className="min-w-0"><b className="block">{ok ? "Progress checks are up to date" : `${late} progress check${late === 1 ? "" : "s"} overdue`}</b>
+              <span className="text-xs">{soon ? `${soon} due soon. ` : ""}{next ? `Next check ${friendlyDate(next, today)}.` : "Every goal is met."}</span></span>
+          </div>;
+        })()}
         <StudentTeamSummary workspace={workspace} student={s.name} emails />
         {s.accommodations && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Accommodations</div><p className="mt-1 whitespace-pre-wrap break-words text-slate-800">{s.accommodations}</p></div>}
         {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Quick notes</div><p className="mt-1 whitespace-pre-wrap break-words text-slate-800">{s.notes}</p></div>}

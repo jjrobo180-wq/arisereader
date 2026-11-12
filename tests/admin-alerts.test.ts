@@ -27,7 +27,7 @@ function setup(options: { settings?: unknown; emailConfigured?: boolean; sendOk?
       return ok ? { sent: true } : { sent: false, error: "Email API error 403: domain not verified" };
     },
     emailConfigured: () => options.emailConfigured ?? true,
-    fromAddress: "A.R.I.S.E Reader <alerts@arisereader.com>",
+    fromAddress: "Arise Reader <alerts@arisereader.com>",
     fallbackRecipient: "Owner@Example.com",
     appUrl: "https://arisereader.com",
     now: () => clock,
@@ -91,7 +91,7 @@ test("an alert makes a notification for every admin and sends one email", async 
   assert.equal(rows[0].title, "Quiz taken: Ana scored 8/10 on “Frindle”");
   assert.equal(emails.length, 1);
   assert.deepEqual(emails[0].to, ["owner@example.com"]);
-  assert.equal(emails[0].subject, "Quiz taken: Ana scored 8/10 on “Frindle” · A.R.I.S.E Reader");
+  assert.equal(emails[0].subject, "Quiz taken: Ana scored 8/10 on “Frindle” · Arise Reader");
   assert.ok(emails[0].html.includes("8/10 (80%)"));
   assert.ok(!emails[0].html.includes(">Empty<"), "empty lines are left out");
   assert.ok(emails[0].html.includes('href="https://arisereader.com/#/admin"'));
@@ -139,7 +139,7 @@ test("alerts within a minute of an email are combined into one email", async () 
   assert.equal(emails.length, 1, "the next ones wait");
   await advance(BUNDLE_WINDOW_MS);
   assert.equal(emails.length, 2);
-  assert.equal(emails[1].subject, "2 new alerts: 1 quiz taken, 1 new student · A.R.I.S.E Reader");
+  assert.equal(emails[1].subject, "2 new alerts: 1 quiz taken, 1 new student · Arise Reader");
   assert.ok(emails[1].html.includes("Ben") && emails[1].html.includes("Cy"));
   assert.deepEqual(state().log[0].events, ["quiz_completed", "student_signup"]);
   // after a quiet minute the next alert goes straight away again
@@ -211,7 +211,7 @@ test("the test email goes out whatever the switches say, and explains what's mis
   const result = await alerts.sendTest();
   assert.equal(result.sent, true);
   assert.equal(emails.length, 1);
-  assert.equal(emails[0].subject, "Test alert · A.R.I.S.E Reader");
+  assert.equal(emails[0].subject, "Test alert · Arise Reader");
   assert.equal(state().log[0].events[0], "test");
   const noKey = setup({ emailConfigured: false });
   assert.match((await noKey.alerts.sendTest()).error || "", /RESEND_API_KEY/);
@@ -235,7 +235,7 @@ test("names in emails are escaped, never sent as HTML", () => {
   assert.ok(!html.includes("<img") && !html.includes("<b>Bo"));
   assert.equal(escapeHtml(`"&'<>`), "&quot;&amp;&#39;&lt;&gt;");
   const subject = alertEmailSubject(Array.from({ length: 5 }, (_, i) => ({ event: (["quiz_completed", "student_signup", "parent_signup", "club_signup", "quiz_completed"] as const)[i], alert: { title: "t", summary: "" } })));
-  assert.equal(subject, "5 new alerts: 2 quizzes taken, 1 new student, 1 new parent, and more · A.R.I.S.E Reader");
+  assert.equal(subject, "5 new alerts: 2 quizzes taken, 1 new student, 1 new parent, and more · Arise Reader");
 });
 
 test("the day rolls over at midnight Mountain Time", () => {

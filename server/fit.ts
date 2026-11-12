@@ -1,7 +1,7 @@
-// Arise Fit (shared/fit.ts, client/src/pages/fit/): each person's training and nutrition, kept on the
+// Cooked (shared/fit.ts, client/src/pages/fit/): each person's training and nutrition, kept on the
 // server so it's on every phone they sign in on, and the exercise library.
 //   GET/PUT /api/fit/data      their data (cleaned and size-capped; table public.fit_data)
-//   GET     /api/fit/exercises the library: Arise Fit's own catalog plus wger's open exercise database
+//   GET     /api/fit/exercises the library: Cooked's own catalog plus wger's open exercise database
 //                              (wger.de, photos under Creative Commons, each credited in the app)
 //   GET     /api/fit/trails    trails near a point, from OpenStreetMap through Overpass (?lat&lng&km)
 //   GET     /api/fit/trail     one trail's line (?type&id)
@@ -17,10 +17,10 @@
 //                              workouts, food, sleep and body, from their saved data (shared/fitInsights.ts digestForAi)
 //   /api/fit/circle…           workout circles (server/fitCircle.ts)
 //   /api/fit/buddy…            workout buddies matched with a stranger (server/fitBuddy.ts)
-//   /api/fit/plus, /pass…      Arise Fit+ and guest passes (server/fitPass.ts)
+//   /api/fit/plus, /pass…      Cooked+ and guest passes (server/fitPass.ts)
 // Photo scanning, AI recipes, gyms near me and eat out (identify, recipe, nearby, busy) need Fit+.
 //   The phone can't call Overpass and Nominatim itself: they refuse requests that don't identify the
-//   app, and Overpass's main server is often too busy. The server asks with Arise Fit's name, tries
+//   app, and Overpass's main server is often too busy. The server asks with Cooked's name, tries
 //   the other public Overpass servers when one fails, and remembers answers for an hour.
 import { registerFitTvRoutes } from "./fitTv";
 import type { Express, RequestHandler } from "express";
@@ -60,7 +60,7 @@ async function askAiForRecipe(ask: RecipeAsk): Promise<Recipe | null> {
 
 
 export type AskTurn = { role: "user" | "assistant"; text: string };
-export const ASK_PROMPT = `You are Ask Fit, the data assistant inside the Arise Fit app. You answer one person's questions about THEIR OWN training, food, water, sleep and body, using only the numbers given below. You are not a doctor and not a trainer.
+export const ASK_PROMPT = `You are Ask Fit, the data assistant inside the Cooked app. You answer one person's questions about THEIR OWN training, food, water, sleep and body, using only the numbers given below. You are not a doctor and not a trainer.
 Rules: use only the data given; never invent workouts, weights or dates. If the data doesn't show it, say so and say what to log. For questions about the future, use the trends and forecast lines, call them estimates from the recent trend, and never promise a result. Use the person's units. Be warm, plain and short (under 120 words unless they ask for more); bullets only for lists. Give a concrete next step when it helps. For pain, injury, medical or eating-disorder worries, suggest a doctor or a qualified trainer. Never give a diet below 1,200 calories a day.`;
 async function askAiAboutData(digest: string, question: string, history: AskTurn[]): Promise<string> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -250,7 +250,7 @@ export function fromWger(r: any): LibraryExercise | null {
     ...(["quads", "hamstrings", "glutes", "calves"].includes(muscle) ? { lower: true } : {}) };
 }
 
-/** Arise Fit's own catalog first; wger fills in the rest (its photos are added to ours with the same name). */
+/** Cooked's own catalog first; wger fills in the rest (its photos are added to ours with the same name). */
 export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   const ours: LibraryExercise[] = CATALOG.map((e) => ({ ...e, images: [], source: "arise" as const }));
   const byName = new Map(ours.map((e) => [e.name.toLowerCase(), e]));
@@ -265,7 +265,9 @@ export function mergeLibrary(wger: LibraryExercise[]): LibraryExercise[] {
   return out;
 }
 
-export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; ask?: (digest: string, question: string, history: AskTurn[]) => Promise<string>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"] } = {}) {
+export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, opts: { store?: FitStore; fetchJson?: (url: string) => Promise<any>; overpass?: (query: string) => Promise<any>; identify?: (image: string, mode: "machine" | "gym") => Promise<GearAnswer>; recipe?: (ask: RecipeAsk) => Promise<Recipe | null>; menu?: (ask: MenuAsk) => Promise<MenuPick[]>; ask?: (digest: string, question: string, history: AskTurn[]) => Promise<string>; kv?: FitKv; nameOf?: CircleDeps["nameOf"]; notify?: CircleDeps["notify"]; ownPlus?: PassDeps["ownPlus"]; payment?: PassDeps["payment"];
+  /** Adds items to the person's Arise To Duo family grocery list. null: they have no Arise To Duo yet. */
+  addToDuoGroceries?: (userId: number, items: { name: string; qty?: string; aisle?: string }[]) => Promise<{ added: number; updated: number } | null> } = {}) {
   const store = opts.store ?? createSupabaseFitStore();
   const kv = opts.kv ?? createSupabaseKv();
   const circles = registerCircleRoutes(app, authMiddleware, { kv, getData: (id) => store.get(id), nameOf: opts.nameOf, notify: opts.notify });
@@ -337,6 +339,19 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
   });
   const identify = opts.identify ?? (process.env.OPENAI_API_KEY ? askAiForGear : null);
   const looks = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  // Send Cooked's grocery list (or foods from a meal photo) to the family grocery list in Arise To Duo.
+  app.post("/api/fit/to-duo-groceries", authMiddleware, async (req: any, res) => {
+    const id = Number(req.user?.id);
+    if (!Number.isSafeInteger(id) || id <= 0 || req.adminPreview) return res.status(403).json({ message: "Sign in to your own account." });
+    const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 200).map((x: any) => ({ name: String(x?.name ?? "").slice(0, 80), qty: String(x?.qty ?? "").slice(0, 30), aisle: String(x?.aisle ?? "").slice(0, 30) })).filter((x: any) => x.name.trim());
+    if (!items.length) return res.status(400).json({ message: "There's nothing to send." });
+    if (!opts.addToDuoGroceries) return res.status(503).json({ message: "Arise To Duo isn't reachable right now." });
+    try {
+      const r = await opts.addToDuoGroceries(id, items);
+      if (!r) return res.status(404).json({ message: "Open Arise To Duo once with this account, then send the list again." });
+      res.json(r);
+    } catch { res.status(503).json({ message: "Arise To Duo isn't reachable right now. Nothing was sent." }); }
+  });
   app.post("/api/fit/identify", authMiddleware, plus("Photo scanning"), async (req: any, res) => {
     res.set?.("Cache-Control", "no-store");
     if (!identify) return res.status(503).json({ message: "Photo scanning isn't set up on this site yet. Pick the machine from the list instead." });
@@ -361,12 +376,12 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     return r.json();
   });
 
-  // Arise Fit for Apple TV (server/fitTv.ts).
+  // Cooked for Apple TV (server/fitTv.ts).
   registerFitTvRoutes(app, authMiddleware, store);
 
   app.get("/api/fit/data", authMiddleware, async (req: any, res) => {
     try { res.set("Cache-Control", "no-store"); res.json({ data: cleanFit(await store.get(Number(req.user.id))) }); }
-    catch { res.status(503).json({ message: "Arise Fit couldn't load your data. Try again in a moment." }); }
+    catch { res.status(503).json({ message: "Cooked couldn't load your data. Try again in a moment." }); }
   });
 
   app.put("/api/fit/data", authMiddleware, async (req: any, res) => {
@@ -374,7 +389,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
     if (wait) return res.status(429).json({ message: `Saving too often. Try again in ${waitWords(wait)}.` });
     saves.fail(String(req.user.id));
     const data = cleanFit(req.body?.data);
-    if (JSON.stringify(data).length > LIMITS.bytes) return res.status(413).json({ message: "That's more than Arise Fit can keep. Delete some old workouts or foods first." });
+    if (JSON.stringify(data).length > LIMITS.bytes) return res.status(413).json({ message: "That's more than Cooked can keep. Delete some old workouts or foods first." });
     const me = Number(req.user.id);
     try {
       // Someone who just finished a workout: their circle hears about it (only when they're in one).
@@ -386,11 +401,11 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       if (group) void circles.tell(me, before, data).catch(() => {});
       if (buddy) void buddies.tell(me, before, data).catch(() => {});
     }
-    catch { res.status(503).json({ message: "Arise Fit couldn't save. Your changes are kept on this phone and will save when you're back online." }); }
+    catch { res.status(503).json({ message: "Cooked couldn't save. Your changes are kept on this phone and will save when you're back online." }); }
   });
 
   // ——— Trails and places (OpenStreetMap) ———————————————————————————————————————————————————————
-  const UA = "AriseFit/1.0 (+https://arisetodo.com; trails for Arise Fit runners)";
+  const UA = "AriseFit/1.0 (+https://arisetodo.com; trails for Cooked runners)";
   const OVERPASS_SERVERS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
   // All the public Overpass servers at once: the first good answer wins and the others are stopped.
   const overpassFetch = opts.overpass ?? (async (q: string): Promise<any> => {
@@ -544,7 +559,7 @@ export function registerFitRoutes(app: Express, authMiddleware: RequestHandler, 
       lib = { at: Date.now(), list };
       res.json({ exercises: list });
     } catch {
-      // wger unreachable: Arise Fit's own catalog still works.
+      // wger unreachable: Cooked's own catalog still works.
       res.json({ exercises: lib?.list ?? mergeLibrary([]), partial: true });
     }
   });

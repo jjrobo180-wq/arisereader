@@ -1,5 +1,5 @@
 name: Reader apps iOS launch check
-# Builds both A.R.I.S.E. Reader iPhone apps for the iOS 27 simulator (Xcode 27, as TestFlight does),
+# Builds both Arise Reader iPhone apps for the iOS 27 simulator (Xcode 27, as TestFlight does),
 # opens each one and fails if iOS stops it. Catches native mistakes before a TestFlight build.
 on:
   workflow_dispatch:

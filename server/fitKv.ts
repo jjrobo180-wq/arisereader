@@ -1,4 +1,4 @@
-// Small JSON records for Arise Fit kept in the settings table (key → JSON text), so features like
+// Small JSON records for Cooked kept in the settings table (key → JSON text), so features like
 // workout circles and guest passes need no table of their own. Tests use the in-memory one.
 export type FitKv = { get(key: string): Promise<any | null>; set(key: string, value: unknown | null): Promise<void> };
 

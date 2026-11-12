@@ -1,4 +1,4 @@
-// A.R.I.S.E. Reader: Haven City's pets and the student library.
+// Arise Reader: Haven City's pets and the student library.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

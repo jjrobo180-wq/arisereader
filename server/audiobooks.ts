@@ -1,4 +1,4 @@
-// Pod+ Audiobooks: free public domain audiobooks from LibriVox, read by volunteers. Every LibriVox
+// Podster Audiobooks: free public domain audiobooks from LibriVox, read by volunteers. Every LibriVox
 // recording is kept at the Internet Archive (collection "librivoxaudio"), which lists them (by
 // listens, by date, by rating) and keeps each book's chapters as MP3 files. The server asks the
 // Archive and keeps the answers a while, so the page never depends on another site letting it in.
@@ -18,6 +18,7 @@ import type { Express, RequestHandler } from "express";
 import { Readable } from "node:stream";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { haveAiMinutes, spendAi } from "./aiMinutes";
 import { parseDefinition } from "../shared/lifePlugins";
 import type { KV } from "./podcastDirectory";
 import type { BlobStore } from "./blobStore";
@@ -440,10 +441,10 @@ export const groqSpeak: Speaker = async (text, voice) => {
   return Buffer.from(await r.arrayBuffer());
 };
 
-/** Pod+ Membership: AI transcripts, Ask AI and Voice boost are for members (signed in with their
+/** Podster Membership: AI transcripts, Ask AI and Voice boost are for members (signed in with their
  *  email; the gate marks req.creator). Everything else in Audiobooks is free. */
 const isMember = (req: any) => !!req.creator;
-const membersOnly = (res: any, what: string) => res.status(402).json({ message: `${what} is part of Pod+ Membership.`, needSignIn: true, members: true });
+const membersOnly = (res: any, what: string) => res.status(402).json({ message: `${what} is part of Podster Membership.`, needSignIn: true, members: true });
 
 /** Voice boost's audio relay can't be sent a session (an audio player sends no headers), so a member
  *  gets a signed pass for it, good for 12 hours. */
@@ -664,6 +665,9 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       const today = new Date(now()).toISOString().slice(0, 10);
       if (today !== txDay) { txDay = today; txMinutes = 0; }
       if (txMinutes >= (opts.minutesPerDay ?? (Number(process.env.BOOK_AI_MINUTES_PER_DAY) || 600))) return res.status(503).json({ message: "Today's transcripts are used up. Try again tomorrow, or read the book's text." });
+      // A new transcript spends the account's AI minutes (10 minutes of audio; shared with Arise Notes).
+      const mine = !making.has(key);
+      if (mine && !(await haveAiMinutes(req, res))) return;
       let job = making.get(key);
       if (!job) {
         txLimit.fail(who);
@@ -679,6 +683,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
         job.finally(() => making.delete(key)).catch(() => {});
       }
       const lines = await job;
+      if (mine) void spendAi(req, TX_PIECE_SECS / 60, "pod-audiobook-transcript");
       if (!cache.has(key)) { remember(key, lines, 30 * DAY); if (kv) void kv.set(`ab:${key}`, lines).catch(() => {}); }
       res.json({ lines, more });
     } catch (e) { down(res, "transcript", e, "The transcript isn't ready right now. Try again in a moment."); }
@@ -719,6 +724,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     if (!isMember(req)) return membersOnly(res, kind === "recap" ? "Catch me up" : "Ask the book");
     if (kind === "ask" && q.length < 3) return res.status(400).json({ message: "Type a question about the book." });
     if (!opts.ask) return res.status(503).json({ message: "This isn't available right now." });
+    if (!(await haveAiMinutes(req, res))) return;
     const who = String(req.user?.id || clientIp(req));
     const wait = talkLimit.retryAfter(who);
     if (wait) return res.status(429).json({ message: `That's a lot of questions. Try again in ${waitWords(wait)}.` });
@@ -745,6 +751,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       const out = asObject(await opts.ask(system, user));
       const answer = plain(out?.answer, 2000);
       if (!answer) throw new Error("empty answer");
+      void spendAi(req, 1, `pod-book-${kind}`);
       res.json({ answer });
     } catch (e) { down(res, kind, e, "The AI isn't answering right now. Try again in a moment."); }
   };
@@ -762,7 +769,14 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       const text = book && await textOf(book);
       const s = text?.sections[sec];
       if (!s) return res.status(404).json({ message: "The text of this book isn't available." });
-      res.set("Cache-Control", "public, max-age=86400").json({ heading: s.heading, parts: narrationParts(s.text).map((p) => ({ from: p.from, to: p.to })), voices: NARRATOR_VOICES, ai: !!(opts.speak ?? (process.env.GROQ_API_KEY ? groqSpeak : null)) });
+      // Starting the AI narrator (play=1) spends the section's minutes of reading (about 900 letters a minute).
+      if (req.query.play === "1") {
+        if (!isMember(req)) return membersOnly(res, "The AI narrator");
+        if (!(await haveAiMinutes(req, res))) return;
+        void spendAi(req, Math.max(1, Math.ceil(s.text.length / 900)), "pod-book-narrator");
+        res.set("Cache-Control", "no-store");
+      } else res.set("Cache-Control", "public, max-age=86400");
+      res.json({ heading: s.heading, parts: narrationParts(s.text).map((p) => ({ from: p.from, to: p.to })), voices: NARRATOR_VOICES, ai: !!(opts.speak ?? (process.env.GROQ_API_KEY ? groqSpeak : null)) });
     } catch (e) { down(res, "narration", e, "The narrator isn't available right now."); }
   });
   let ttsDay = "", ttsChars = 0;
@@ -818,6 +832,8 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     if (!isMember(req)) return membersOnly(res, "Ask AI");
     if (q.length < 3) return res.status(400).json({ message: "Describe the kind of book you'd like." });
     if (!opts.ask) return res.status(503).json({ message: "AI search isn't available right now. Try the search box." });
+    if (!(await haveAiMinutes(req, res))) return;
+    void spendAi(req, 1, "pod-book-search");
     const who = String(req.user?.id || clientIp(req));
     const wait = aiLimit.retryAfter(who);
     if (wait) return res.status(429).json({ message: `That's a lot of AI searches. Try again in ${waitWords(wait)}.` });

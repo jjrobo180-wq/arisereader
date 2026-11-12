@@ -1,6 +1,6 @@
-// Pod+ sign in, create account and forgot password. Accounts use an email and a password; email
+// Podster sign in, create account and forgot password. Accounts use an email and a password; email
 // codes prove the email is yours (creating an account, resetting a password, or signing in without
-// one). Listening never needs an account (and has no ads for anyone); it's the Pod+ Membership (creator earnings).
+// one). Listening never needs an account (and has no ads for anyone); it's the Podster Membership (creator earnings).
 import { useState } from "react";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "../client/src/lib/appleSignIn";
@@ -30,7 +30,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
     onDone(b.token, b.email);
   });
 
-  // Sign in with Apple (the Pod+ iPhone app): signs in, or makes the account the first time.
+  // Sign in with Apple (the Podster iPhone app): signs in, or makes the account the first time.
   const withApple = () => run(async () => {
     const apple = await askApple("com.arisereader.podplus");
     if (!apple) return;
@@ -61,7 +61,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
   return <div role="dialog" aria-modal="true" aria-labelledby="ps-auth-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] backdrop-blur-sm sm:items-center">
     <div className={`relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl p-6 shadow-2xl ${C.card}`} style={{ fontFamily: "Roboto, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
       <button type="button" onClick={onClose} aria-label="Close" className={`absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full ${C.hover}`}><X size={20} /></button>
-      <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff6a1f]">Pod+</p>
+      <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff6a1f]">Podster</p>
       <h2 id="ps-auth-title" className="mt-1 pr-8 text-[26px] font-bold leading-tight tracking-tight">{titles[mode]}</h2>
 
       {(mode === "signin" || mode === "signup") && appleSignInAvailable() && <button type="button" onClick={withApple} disabled={busy} data-testid="pod-apple-sign-in"
@@ -74,7 +74,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
       </div>}
 
       {mode === "signup" && !sent && <ul className={`mt-4 grid gap-1.5 text-sm ${C.sub}`}>
-        {["Listening stays free and ad-free, no account needed", "Members can get paid for their show", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
+        {["Listening stays free, no account needed", "Your Pod Modes, likes and place on every device"].map((t) => <li key={t} className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff6a1f]" />{t}</li>)}
       </ul>}
 
       <form className="mt-5" onSubmit={(e) => {

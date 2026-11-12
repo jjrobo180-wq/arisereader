@@ -1,6 +1,6 @@
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNativeApp, isNotesApp, isReaderApp, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -17,22 +17,23 @@ import { installDuoPaneBridge } from "./lib/duoPaneBridge";
 import { installMediaUnlock, voiceElement } from "./lib/mediaUnlock";
 import { configureAiVoice } from "@/lib/aiVoice";
 import { API_BASE } from "@/lib/queryClient";
+import { AI_OFF_MESSAGE, askAiConsent, isAiRequest } from "@/lib/aiConsent";
 
-// Arise Fit draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
+// Cooked draws edge to edge (contentInset "never" in fit/ios-app/capacitor.config.json). Without
 // viewport-fit=cover the page stops short of the home indicator and env(safe-area-inset-*) reads 0, so titles
 // sit under the Dynamic Island and the tab bar floats above a gray strip.
-// The A.R.I.S.E. Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
+// The Arise Reader app draws edge to edge too (reader-app.css keeps headers below the clock), and so does Arise Notes.
 // In the iPhone and iPad apps the page already fills the screen, and asking WebKit for full screen on top
 // (the games, slides, the stand-by clock) crashed the app on iPad: WebKit moves the page to its own window,
-// which the app's view controllers don't allow (Arise Eye Gazer, a crash report from an iPad, November 2026).
+// which the app's view controllers don't allow (Arise AAC, a crash report from an iPad, November 2026).
 // So in the apps, full screen does nothing and says it worked.
 if (isNativeApp()) installNoFullscreen();
-if (isFitApp() || isReaderApp() || isNotesApp()) {
+if (isFitApp() || isReaderApp() || isNotesApp() || isUndercoverApp()) {
   const vp = document.querySelector('meta[name="viewport"]');
   if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) vp.setAttribute("content", `${vp.getAttribute("content")}, viewport-fit=cover`);
 }
 if (isReaderApp()) document.documentElement.classList.add("reader-app");
-// The A.R.I.S.E. Reader iPhone app: everything a little smaller (reader-app.css, html.reader-compact: 90%), so a
+// The Arise Reader iPhone app: everything a little smaller (reader-app.css, html.reader-compact: 90%), so a
 // phone shows more of a page, like the App Store's own apps. Done with the type size, never the viewport (see todo-compact).
 if (isNativeApp() && nativeFlavor() === "reader") document.documentElement.classList.add("reader-compact");
 // Arise Notes on the iPhone: a slightly smaller base size (index.css html.notes-app), so it feels like Apple's own
@@ -58,12 +59,13 @@ if (todoCompact) document.documentElement.classList.add("todo-compact");
 if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
-// The Educator, Trainer, Talk and Eye Gazer apps let iOS inset the page ("automatic"), so the system already does this.
+// The Educator, Talk and Arise AAC apps let iOS inset the page ("automatic"), so the system already does this.
+// Cooked PT draws edge to edge ("never") and pads with env(safe-area-inset-*) itself.
 if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }
 
 // Keep Notes at the physical iPhone viewport width. A custom initial-scale=0.9
 // made focus/keyboard geometry inconsistent with WKWebView's visual viewport.
-// Arise Fit retains its independent intentional compact layout.
+// Cooked retains its independent intentional compact layout.
 if (isFitApp()) {
   const shortSide = Math.min(window.screen.width, window.screen.height);
   if (shortSide > 0 && shortSide < 700) {
@@ -77,7 +79,7 @@ if (isFitApp()) {
 
 // iPhone apps: the page is exactly as wide as the screen. If iPhone ever lays the page out wider than the
 // screen, the bars and cards run off the edge and the page drags sideways, so the viewport is pinned to the
-// screen's own width in pixels. Arise Fit and Arise To Duo are left out: their page is meant to be wider than
+// screen's own width in pixels. Cooked and Arise To Duo are left out: their page is meant to be wider than
 // the screen (laid out at 90% / 93%), and pinning it is exactly what made To Duo jump to 100% while typing.
 if (window.location.protocol === "capacitor:" && !isFitApp()) {
   const meta = () => document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
@@ -146,7 +148,8 @@ if (window.location.protocol === "capacitor:") {
     if ((!h || h === "#/" || h === "#/signin") && /^#\/[\w\-\/?=&.%]*$/.test(saved) && !/^#\/(signin|join|admin-handoff)/.test(saved) && Date.now() - at < 12 * 3600_000) window.location.hash = saved;
   } catch { /* nothing kept */ }
   window.addEventListener("hashchange", () => {
-    try { const h = window.location.hash; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
+    // A tapped reminder's "?go=pills" is a one-time instruction; remembering it would re-open that screen on a later start.
+    try { const h = window.location.hash.split(/[?&](?:go|plan)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
   });
 }
 
@@ -200,17 +203,29 @@ if (isAriseTodoNative) {
 // restarting during a deploy) is tried again. Only reads (GET) are retried, so a sign-in, a save or a
 // submitted form is never sent twice; a wrong password is answered at once and counts once.
 const originalFetch = window.fetch;
+// A sign-in that has stopped working (signed out elsewhere, expired) is noticed while the app stays open:
+// two 401s in a row on requests that carried a sign-in ask the sign-in check to run again (AuthContext).
+let authed401s = 0, lastSessionCheck = 0;
 window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const target = resolveNativeApiUrl(url);
   const requestInput = target === url ? input : target;
   const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+  // The iPhone apps ask before the first AI request sends anything to an outside AI company.
+  if (isNativeApp() && isAiRequest(method, url) && !(await askAiConsent())) {
+    return new Response(JSON.stringify({ code: "ai_consent", message: AI_OFF_MESSAGE }), { status: 403, headers: { "Content-Type": "application/json" } });
+  }
   const readsApi = method === "GET" && /\/api\//.test(url) && !/\/api\/(login|logout|auth\/)/.test(url);
   const retries = readsApi ? 2 : 0;
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await originalFetch(requestInput, isAriseTodoNative && target !== url ? { ...init, credentials: "include" } : init);
+      if (headers.has("Authorization") && /\/api\//.test(url) && !/\/api\/(login|logout|me|auth\/)/.test(url)) {
+        if (res.status === 401) {
+          if (++authed401s >= 2 && Date.now() - lastSessionCheck > 30_000) { lastSessionCheck = Date.now(); authed401s = 0; window.dispatchEvent(new Event("arise:session-check")); }
+        } else authed401s = 0;
+      }
       const transient = res.status === 503 || (res.status === 401 && headers.has("Authorization") && attempt < 1);
       if (transient && attempt < retries) {
         await new Promise(r => setTimeout(r, 700));
@@ -238,7 +253,13 @@ window.addEventListener("vite:preloadError", (event) => {
   if (/preload CSS/i.test(message)) event.preventDefault();
 });
 createRoot(document.getElementById("root")!).render(<App />);
-void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
+// Only where the 5-Minute Reads' covers can show: the apps that open straight into their own screens
+// (Cooked, Cooked PT, Notes, Talk, Undercover) never show them, and loading the story list (411 KB), asking
+// Wikipedia for photos and watching every change on the page cost them for nothing.
+if (!(isFitApp() || isTrainerApp() || isNotesApp() || isUndercoverApp() || isTalkApp())) {
+  void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
+}
 // Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
 // back to the copy that worked; client/src/lib/nativeApp.ts).
 markAppReadyWhenDrawn();
+keepLiveUpdated();

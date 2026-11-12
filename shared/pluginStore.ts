@@ -223,10 +223,10 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-lifehub-notes", hub: "work", name: "LifeHub Notes", tagline: "Quick pinnable notes, the LifeHub way", category: "Planning", icon: "StickyNote", color: "#e5b04f", target: { kind: "notesApp", id: "work-lifehub-notes", label: "LifeHub Notes" },
     description: "The same simple, colorful note cards LifeHub users keep for codes, lists and ideas — now in WorkHub too. A separate set of notes from Work Notes, just for the quick stuff you'd normally jot on a sticky note.",
     features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from Work Notes"] },
-  // Reading records stayed in WorkHub when A.R.I.S.E. Reader moved to its own page. It is an
+  // Reading records stayed in WorkHub when Arise Reader moved to its own page. It is an
   // App Store screen now like the rest, so it needs to be here or there would be no way to add it.
   { id: "work-arise-records", hub: "work", name: "Reading records", tagline: "What your class has read, at a glance", category: "Students & IEPs", icon: "BookOpen", color: "#6d28d9", target: tab("arise"),
-    description: "Your class's A.R.I.S.E. Reader activity kept in WorkHub: what each student has read, their quizzes and how they're doing over time.",
+    description: "Your class's Arise Reader activity kept in WorkHub: what each student has read, their quizzes and how they're doing over time.",
     features: ["Each student's reading in one place", "Quizzes and scores", "Progress over the year"] },
   { id: "work-lessons", hub: "work", name: "Lessons", tagline: "Plan lessons by subject and group", category: "Planning", icon: "BookOpenCheck", color: "#2563eb", target: tab("lessons"),
     description: "Plan lessons with their objective, materials and the group they're for.",
@@ -631,7 +631,7 @@ const TEACHER_CHECKLIST = /\b(IEP|504|teach|teacher|student|class|classroom|scho
 
 /** Every plugin this hub can add: the ones built for it, then the ones built for the other hub that
  *  work here all the same (marked `recommendedFor`). The Arise learning apps are only for teachers and
- *  parents who came from A.R.I.S.E. Reader (`arise`). */
+ *  parents who came from Arise Reader (`arise`). */
 export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean }): Plugin[] {
   const arise = opts.arise ?? opts.teacher;
   const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !(hub === "life" && p.target.kind === "section" && BUNDLE_PARENT.has(p.target.section)) && (p.category !== "Arise apps" || arise);
@@ -905,3 +905,10 @@ export function templateInstalledCount(t: HubTemplate, family: Pick<Family, "sec
 export function setLifeTemplate<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout">>>(family: F, t: HubTemplate, on: boolean): F {
   return templatePlugins(t).reduce((f, p) => setLifePlugin(f, p, on), family);
 }
+
+/** "450+": how many plugins the Plugin Gallery has, rounded down to the nearest 50 so it stays true.
+ *  The one place that says it; the upgrade sheet, the setup screen and the pop-ups all use this. */
+export const PLUGIN_COUNT_LABEL = `${Math.floor(Math.max(
+  pluginsFor("life", { teacher: true, arise: true }).length,
+  pluginsFor("work", { teacher: true, arise: true }).length,
+) / 50) * 50}+`;

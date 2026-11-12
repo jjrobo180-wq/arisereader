@@ -4,8 +4,8 @@
 // the exact rules the server uses) and handed to iOS as scheduled notifications for the next
 // 24 hours. They're worked out again whenever the hub changes, so a checked-off task or a logged
 // meal stops its reminder.
-import { dueHubReminders, type HubReminder } from "@shared/hubReminders";
-import { dueTodoReminders } from "@shared/todoReminders";
+import { dueHubReminders, prepareHubReminders, type HubReminder } from "@shared/hubReminders";
+import { dueTodoReminders, goUrl, prepareTodoReminders } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
@@ -84,8 +84,11 @@ export function planReminders(kind: ReminderKind, workspace: unknown, from: numb
   const sent: Record<string, unknown> = {};
   const out: PlannedReminder[] = [];
   const start = Math.ceil(from / STEP_MS) * STEP_MS;
+  // The hub is checked and copied once for the whole run, not once per five-minute step (864 of them).
+  const life = kind === "life" ? prepareTodoReminders(workspace) : null;
+  const work = kind === "work" ? prepareHubReminders(workspace as Workspace) : null;
   for (let t = start; t <= from + ahead; t += STEP_MS) {
-    const due: (HubReminder & { news?: unknown })[] = kind === "life" ? dueTodoReminders(workspace, t, timeZone, sent) : dueHubReminders(workspace as Workspace, t, timeZone, sent);
+    const due: (HubReminder & { news?: unknown })[] = life ? dueTodoReminders(life, t, timeZone, sent) : dueHubReminders(work!, t, timeZone, sent);
     for (const r of due) {
       sent[r.key] = t;
       if (!r.news) out.push({ ...r, at: t });
@@ -183,9 +186,11 @@ export async function scheduleNativeReminders(kind: ReminderKind, workspace: unk
   return notifications.length;
 }
 
-/** A test notification a few seconds from now. */
+/** A test notification a few seconds from now. It looks like a pill reminder and, like the real ones, opens the
+ *  screen it's about when tapped (here Pills), so the test also proves tapping works. */
+export const TEST_REMINDER = { title: "Test reminder 💊", body: "Tap to open Pills, where you mark a dose taken.", url: goUrl("pills") };
 export async function sendNativeTest(): Promise<void> {
-  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: "Arise To Duo", body: "Reminders are working on this iPhone.", schedule: { at: new Date(Date.now() + 5000) }, ...soundField() }] });
+  await call("schedule", { notifications: [{ id: reminderId(`test:${Date.now()}`), title: TEST_REMINDER.title, body: TEST_REMINDER.body, extra: { url: TEST_REMINDER.url }, schedule: { at: new Date(Date.now() + 5000) }, ...soundField() }] });
 }
 
 /** Signing out: every reminder scheduled on this iPhone is taken away, so the next account never sees the last one's. */

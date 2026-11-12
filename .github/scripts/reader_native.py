@@ -1,4 +1,4 @@
-"""A.R.I.S.E. Reader iPhone app: the parts that make it an iPhone app rather than a web page in a frame.
+"""Arise Reader iPhone app: the parts that make it an iPhone app rather than a web page in a frame.
 
   - Home Screen quick actions (press and hold the icon): Library, Messages, Games, My profile.
   - The arisereader:// link scheme they use (client/src/lib/readerNative.ts sends each to its page).

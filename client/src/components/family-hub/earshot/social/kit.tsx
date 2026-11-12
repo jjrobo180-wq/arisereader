@@ -1,4 +1,4 @@
-// Pod+ Social: the shared pieces of the app. Types (the same shapes the server sends), the look
+// Podster Social: the shared pieces of the app. Types (the same shapes the server sends), the look
 // (light and dark, set by CSS variables on the app's root), avatars, names with a verified mark,
 // text with clickable @mentions, #hashtags and links, sheets, buttons, uploads with progress, and
 // a hook for lists that keep loading as you scroll.
@@ -42,7 +42,7 @@ export type SCtx = {
   openChatWith: (handle: string) => void; compose: (o?: { quote?: Post }) => void; sharePost: (p: Post) => void;
   /** True (and the profile maker opens) when they need a profile first. */
   needProfile: () => boolean;
-  /** Email sign-in (Pod+ website) before photos and videos; resolves true once signed in. */
+  /** Email sign-in (Podster website) before photos and videos; resolves true once signed in. */
   signIn: () => Promise<boolean>;
   play: (show: PodShow, ep: PodEpisode, at?: number) => void; hush: () => void;
 };
@@ -70,7 +70,7 @@ export const SX_CSS = `
 @keyframes sx-up{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}.sx .rise{animation:sx-up .22s ease-out}
 @keyframes sx-fade{from{opacity:0}to{opacity:1}}.sx .fade{animation:sx-fade .18s ease-out}
 
-/* Pod+ Social / mature responsive layout. Components keep their existing functionality. */
+/* Podster Social / mature responsive layout. Components keep their existing functionality. */
 .sx-social-root{
   container-type:inline-size;position:relative;display:flex;width:100%;height:100%;min-width:0;min-height:0;flex-direction:column;
   box-sizing:border-box;padding-top:4rem;overflow:hidden;isolation:isolate;
@@ -422,7 +422,7 @@ export const local = {
   set(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private window */ } },
 };
 
-/** The link to a post or profile (opens Pod+ on it). */
+/** The link to a post or profile (opens Podster on it). */
 export const linkTo = (path: string) => `${typeof location !== "undefined" ? location.origin + location.pathname : ""}#/social/${path}`;
 export async function shareOrCopy(url: string, title: string, say: (m: string) => void) {
   try {

@@ -12,6 +12,22 @@ async function throwIfResNotOk(res: Response) {
 // Fetch with retry is handled globally in main.tsx
 // This is kept for backward compatibility
 
+// The signed-in account's token, for apiRequest. The server only accepts "Authorization: Bearer …"; without
+// it every apiRequest was turned away as signed out (which is why no iPhone ever got registered for
+// notifications). AuthContext sets it; before that, it is read from the sign-in kept on the device.
+let authToken: string | null = null;
+export function setApiAuthToken(token: string | null): void { authToken = token || null; }
+function savedToken(): string | null {
+  try {
+    const cookie = /(?:^|;\s*)arise_session=([^;]+)/.exec(document.cookie)?.[1];
+    const raw = (cookie && decodeURIComponent(cookie)) || window.localStorage.getItem("arise_session_backup");
+    if (!raw) return null;
+    const token = JSON.parse(atob(raw))?.token;
+    return typeof token === "string" && token ? token : null;
+  } catch { return null; }
+}
+export const apiAuthToken = (): string | null => authToken || savedToken();
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -19,7 +35,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(`${API_BASE}${url}`, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: { ...(data ? { "Content-Type": "application/json" } : {}), ...(apiAuthToken() ? { Authorization: `Bearer ${apiAuthToken()}` } : {}) },
     body: data ? JSON.stringify(data) : undefined,
   });
 

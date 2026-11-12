@@ -85,10 +85,10 @@ export default function MemoScreen({ ctx }: { ctx: AppCtx }) {
       {(state === "idle" || state === "rec" || state === "thinking") && <section className="an-card flex flex-col items-center px-5 py-8 text-center">
         <p className="text-[15px] text-[var(--an-muted)]">{state === "rec" ? "Listening… tap to finish." : state === "thinking" ? "Writing it down…" : "Say one thing to do or remember. “Email Ms. Lee about the field trip by Friday.”"}</p>
         <button type="button" onClick={() => (state === "rec" ? void stop() : state === "idle" ? void start() : undefined)} disabled={state === "thinking" || !canRecord()} data-testid="notes-memo-button"
-          className={`mt-6 grid h-28 w-28 place-items-center rounded-full text-white transition ${state === "rec" ? "an-pulse bg-[var(--an-coral)]" : "bg-[#f5a524] hover:brightness-105"} disabled:opacity-60`} aria-label={state === "rec" ? "Stop the voice memo" : "Start a voice memo"}>
+          className={`mt-6 grid h-28 w-28 place-items-center rounded-full text-white transition ${state === "rec" ? "an-pulse bg-[var(--an-coral)]" : "bg-[var(--an-ink)] text-[var(--an-bg)] hover:opacity-90"} disabled:opacity-60`} aria-label={state === "rec" ? "Stop the voice memo" : "Start a voice memo"}>
           {state === "rec" ? <Square className="h-10 w-10" /> : <Mic className="h-11 w-11" />}
         </button>
-        <div className="an-bars mt-4 flex h-8 items-center" aria-hidden>{Array.from({ length: 12 }, (_, i) => <span key={i} style={{ height: `${Math.max(4, level * 30 * (0.5 + 0.5 * Math.abs(Math.sin(i + secs * 3))))}px`, background: "#f5a524" }} />)}</div>
+        <div className="an-bars mt-4 flex h-8 items-center" aria-hidden>{Array.from({ length: 12 }, (_, i) => <span key={i} style={{ height: `${Math.max(4, level * 30 * (0.5 + 0.5 * Math.abs(Math.sin(i + secs * 3))))}px`, background: "var(--an-ink)", opacity: .55 }} />)}</div>
         <p className="mt-1 font-mono text-[15px] tabular-nums text-[var(--an-muted)]">{fmtClock(secs)} / {fmtClock(MEMO_MAX_SECS)}</p>
       </section>}
       {error && <Notice tone="bad">{error}</Notice>}

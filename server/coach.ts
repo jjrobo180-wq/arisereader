@@ -4,9 +4,9 @@
 //   Public
 //     GET  /api/coach/trainers                 listed trainers (directory)
 //     GET  /api/coach/trainers/:id             one listing with its reviews
-//   A client (Arise Fit)
+//   A client (Cooked)
 //     GET  /api/coach/me                       my trainers: their plan for me, my side, unread counts
-//     POST /api/coach/request                  ask a trainer to coach me, choosing what Arise Fit shares
+//     POST /api/coach/request                  ask a trainer to coach me, choosing what Cooked shares
 //     PUT  /api/coach/links/:id/consent        change what's shared
 //     PUT  /api/coach/links/:id/client         my habit checks, check-in answers, photos, steps
 //     POST /api/coach/links/:id/done/:aid      I did an assigned workout
@@ -16,12 +16,12 @@
 //     GET  /api/coach/links/:id/messages       the conversation (?after=<id> for new ones)
 //     POST /api/coach/links/:id/messages       send one (the other side gets a notification)
 //     POST /api/coach/links/:id/end            stop coaching (sharing stops at once)
-//   A trainer (Arise Trainer)
+//   A trainer (Cooked PT)
 //     GET  /api/coach/trainer                  my listing, plan status, library and clients
 //     PUT  /api/coach/trainer/profile          my listing
 //     PUT  /api/coach/trainer/library          workout templates, own exercises, programs, forms
 //     POST /api/coach/links/:id/accept|decline a request
-//     GET  /api/coach/links/:id/client         a client: their Arise Fit data (by consent), my plan, their side
+//     GET  /api/coach/links/:id/client         a client: their Cooked data (by consent), my plan, their side
 //     PUT  /api/coach/links/:id/coaching       my plan for a client
 //     POST /api/coach/trainer/broadcast        one message to several clients (a group)
 //     POST /api/coach/reviews/:id/reply        answer a review
@@ -30,7 +30,7 @@
 //     POST /api/coach/trainer/listing/manage   Stripe's billing page (card, cancel)
 //
 // Data lives in public.coach_trainers, coach_links, coach_messages, coach_reviews, coach_library
-// (migrations/coach.sql). Arise Fit data is read live from fit_data, so the trainer always sees what's
+// (migrations/coach.sql). Cooked data is read live from fit_data, so the trainer always sees what's
 // current, limited to what the client chose to share.
 import type { Express, RequestHandler } from "express";
 import {
@@ -39,7 +39,21 @@ import {
   type ClientSide, type Coaching, type Consent, type Library, type LinkStatus, type Message, type PublicTrainer, type Review, type TrainerProfile,
 } from "../shared/coach";
 import { cleanFit, type FitData } from "../shared/fit";
+import { createHmac } from "node:crypto";
+import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type Lead, type LeadStatus } from "../shared/coachSite";
+import { createSupabaseKv, type FitKv } from "./fitKv";
 import { createAttemptLimiter } from "./attemptLimiter";
+import { registerCoachGroupRoutes } from "./coachGroups";
+import { clientFacts, draftFor, flags as copilotFlags, progress as progressPlan, reflow as reflowPlan, score as copilotScore } from "../shared/coachCopilot";
+import { checkinDue } from "../shared/coach";
+import { clientsCsv, importClients, importWorkouts } from "../shared/coachImport";
+import { cleanNeed, matchTrainers } from "../shared/coachMatch";
+import { brandManifest, cleanBrand, emptyBrand } from "../shared/coachBrand";
+import { PLATFORM_FEE_PCT, feeCents, payKind, payLabel, payable, totals as payTotals, type Payment } from "../shared/coachPay";
+import { MARKET, cleanReply, forTrainer, isOpen, requestTitle, trainerFits, whoToTell, type MarketRequest } from "../shared/coachMarket";
+import { FORM_LIMITS, VIDEO_TYPES, VOICE_TYPES, cleanFeedback, filePathOk, type FormCheck } from "../shared/coachFormCheck";
+import { CATALOG } from "../shared/fit";
+import { cleanPlanWorkout as cleanWorkoutForAi } from "../shared/coach";
 
 export type TrainerRow = { userId: number; profile: TrainerProfile; paidUntil: string | null; stripeCustomer: string | null; stripeSub: string | null; createdAt: string };
 export type LinkRow = { id: string; trainerId: number; clientId: number; status: LinkStatus; consent: Consent; coaching: Coaching; clientSide: ClientSide; createdAt: string; updatedAt: string };
@@ -132,18 +146,40 @@ export function createSupabaseCoachStore(): CoachStore {
   };
 }
 
+export type CoachFiles = { uploadUrl(path: string): Promise<string>; viewUrls(paths: string[]): Promise<Record<string, string>>; remove(paths: string[]): Promise<void> };
+const FORM_BUCKET = "coach-form-checks";
+let formBucket: Promise<void> | null = null;
+export function createSupabaseCoachFiles(): CoachFiles {
+  const db = async () => { const c = (await import("./supabase")).getAdminSupabase(); formBucket ??= Promise.resolve(c.storage.createBucket(FORM_BUCKET, { public: false, fileSizeLimit: "100MB" })).then(() => {}).catch(() => {}); await formBucket; return c; };
+  return {
+    async uploadUrl(path) { const { data, error } = await (await db()).storage.from(FORM_BUCKET).createSignedUploadUrl(path); if (error || !data) throw error ?? new Error("no upload link"); return data.signedUrl; },
+    async viewUrls(paths) { if (!paths.length) return {}; const { data } = await (await db()).storage.from(FORM_BUCKET).createSignedUrls(paths, 3 * 3600); return Object.fromEntries((data ?? []).filter((x: any) => x.signedUrl && x.path).map((x: any) => [x.path, x.signedUrl])); },
+    async remove(paths) { if (paths.length) await (await db()).storage.from(FORM_BUCKET).remove(paths); },
+  };
+}
+
 export type CoachDeps = {
   store?: CoachStore;
-  /** A person's Arise Fit data (fit_data), for what their trainer may see. */
+  /** A person's Cooked data (fit_data), for what their trainer may see. */
   fitData?: (userId: number) => Promise<FitData | null>;
   /** A person's first name for the other side to see. */
   nameOf?: (userId: number) => Promise<string>;
   notify?: (userId: number, m: { title: string; body: string; url: string; tag?: string }) => Promise<unknown>;
   stripeKey?: () => Promise<string>;
+  /** Private file storage for form-check videos and voice notes (Supabase Storage by default). */
+  files?: CoachFiles;
+  /** Sends an email (Resend, server/routes.ts). Left out, emailed invites are off and the app offers the link to copy. */
+  sendEmail?: (to: string, subject: string, html: string, options: { replyTo?: string; fromName?: string }) => Promise<{ sent: boolean; error?: string }>;
   fetch?: typeof fetch;
   appUrl?: string;
   /** Lets the site owner list a trainer for free (the free listing ends on its own). */
   isAdmin?: (req: any) => boolean;
+  /** The AI that drafts workouts (OpenAI by default): takes the instructions and the request, returns JSON text. */
+  ai?: (system: string, user: string) => Promise<string>;
+  /** Signs invite links, so a code can't be guessed or changed to another trainer's. */
+  inviteSecret?: string;
+  /** Small JSON records (trainer websites and their leads). */
+  kv?: FitKv;
   now?: () => number;
 };
 
@@ -353,6 +389,161 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
   }));
   app.put("/api/coach/trainer/library", auth, wrap(async (req) => { const id = me(req); const lib = cleanLibrary(req.body?.library); await store.saveLibrary(id, lib); return { library: lib }; }));
 
+  const num = (v: unknown, lo: number, hi: number, fb: number) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : fb; };
+  // ── Inviting a client directly (no directory listing needed, no client limit) ────────────────────────────
+  // A trainer shares a link; the client opens it in Cooked, picks what to share, and they're connected at once.
+  const secret = deps.inviteSecret ?? process.env.COACH_INVITE_SECRET ?? process.env.SESSION_SECRET ?? process.env.JWT_SECRET ?? "arise-coach-invites";
+  const sign = (trainerId: number) => createHmac("sha256", secret).update(`invite:${trainerId}`).digest("base64url").slice(0, 10);
+  const inviteCode = (trainerId: number) => `${trainerId.toString(36)}-${sign(trainerId)}`;
+  const trainerOfCode = (code: string): number | null => {
+    const m = /^([0-9a-z]{1,10})-([A-Za-z0-9_-]{10})$/.exec(String(code || ""));
+    if (!m) return null;
+    const id = parseInt(m[1], 36);
+    return Number.isSafeInteger(id) && id > 0 && sign(id) === m[2] ? id : null;
+  };
+  const joins = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.get("/api/coach/trainer/invite", auth, wrap(async (req) => { const id = me(req); const code = inviteCode(id); return { code, url: `${deps.appUrl ?? SITE}/#/fit?coach=${code}` }; }));
+  app.get("/api/coach/invite/:code", wrap(async (req) => {
+    const tid = trainerOfCode(req.params.code);
+    const t = tid ? await store.trainer(tid) : null;
+    if (!tid) throw new Refused("That invite link isn't right. Ask your trainer to send it again.", 404);
+    const name = t?.profile.name || (await first(tid));
+    return { trainer: { id: tid, name, photo: t?.profile.photo ?? "", headline: t?.profile.headline ?? "" } };
+  }));
+  app.post("/api/coach/invite/:code/join", auth, wrap(async (req) => {
+    const id = me(req);
+    const tid = trainerOfCode(req.params.code);
+    if (!tid) throw new Refused("That invite link isn't right. Ask your trainer to send it again.", 404);
+    if (tid === id) throw new Refused("That's your own invite link. Send it to a client.");
+    if (!allow(joins, `join:${id}`)) throw new Refused("Too many tries. Try again later.", 429);
+    const old = await store.linkBetween(tid, id);
+    const stamp = new Date(now()).toISOString();
+    if (old?.status === "active") return { id: old.id, status: "active" };
+    const link: LinkRow = { id: old?.id ?? uuid(), trainerId: tid, clientId: id, status: "active", consent: cleanConsent(req.body?.consent), coaching: old?.coaching ?? emptyCoaching(), clientSide: old?.clientSide ?? emptyClientSide(), createdAt: old?.createdAt ?? stamp, updatedAt: stamp };
+    await store.saveLink(link);
+    const t = await store.trainer(tid);
+    if (t?.profile.welcome) await store.addMessage(link.id, tid, t.profile.welcome);
+    void notify(tid, { title: "New client", body: `${await first(id)} joined from your invite link.`, url: "#/trainer", tag: `coach-${link.id}` });
+    return { id: link.id, status: "active" };
+  }));
+
+  // ── The AI workout and program builder ───────────────────────────────────────────────────────────────────
+  // It may only use Cooked's catalog, so every move it picks has a name and a demo video in the client's app.
+  const aiLimit = createAttemptLimiter({ max: 40, windowMs: 60 * 60_000 });
+  const callAi = deps.ai ?? (async (system: string, user: string) => {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) throw new Refused("The AI builder isn't set up on this server yet.", 503);
+    const r = await doFetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.4, max_tokens: 4000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }), signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) throw new Refused("The AI builder is busy. Try again in a minute.", 503);
+    return String((await r.json())?.choices?.[0]?.message?.content ?? "{}");
+  });
+  const EQUIP: Record<string, string[]> = { gym: [], dumbbells: ["dumbbell", "bodyweight", "bench", "band", "kettlebell"], home: ["bodyweight", "band", "other"] };
+  const catalogFor = (equip: string) => CATALOG.filter((e) => !EQUIP[equip]?.length || EQUIP[equip].includes(e.equipment));
+  const brief = (b: any) => ({
+    goal: String(b?.goal ?? "general fitness").slice(0, 120), level: ["beginner", "intermediate", "advanced"].includes(b?.level) ? b.level : "intermediate",
+    equip: ["gym", "dumbbells", "home"].includes(b?.equip) ? b.equip : "gym", minutes: Math.round(num(b?.minutes, 10, 120, 45)), focus: String(b?.focus ?? "").slice(0, 120), notes: String(b?.notes ?? "").slice(0, 400),
+  });
+  const RULES = (list: typeof CATALOG) => `You are an expert, certified strength and conditioning coach writing plans for a personal trainer to give a client.
+Use ONLY these exercises, by their exact id:
+${list.map((e) => `${e.id}: ${e.name} (${e.muscle}, ${e.equipment})`).join("\n")}
+Each item: {"exId": an id above, "sets": 1-8, "reps": text like "8-10", "12", "30s" or "10 min", "rest": seconds 0-300, "note": a short coaching cue}.
+Order exercises sensibly (big compound lifts first). Respect injuries or limits in the notes. Reply with JSON only.`;
+  const toWorkout = (raw: any, fallbackName: string) => {
+    const known = new Map(CATALOG.map((e) => [e.id, e.name]));
+    const items = (Array.isArray(raw?.items) ? raw.items : []).filter((i: any) => known.has(String(i?.exId))).slice(0, 14)
+      .map((i: any) => ({ exId: String(i.exId), name: known.get(String(i.exId))!, sets: Math.round(num(i.sets, 1, 8, 3)), reps: String(i.reps ?? "10").slice(0, 16), rest: Math.round(num(i.rest, 0, 300, 90)), ...(i.note ? { note: String(i.note).slice(0, 200) } : {}) }));
+    return cleanWorkoutForAi({ id: uuid().slice(0, 12), name: String(raw?.name || fallbackName).slice(0, 80), note: raw?.note ? String(raw.note).slice(0, 600) : undefined, mins: raw?.mins, items });
+  };
+  app.post("/api/coach/trainer/ai/workout", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const b = brief(req.body);
+    const out = JSON.parse(await callAi(`${RULES(catalogFor(b.equip))}\nReturn {"name": a short workout name, "note": one or two sentences to the client, "mins": number, "items": [...]}.`,
+      `One workout. Goal: ${b.goal}. Level: ${b.level}. Equipment: ${b.equip}. About ${b.minutes} minutes.${b.focus ? ` Focus: ${b.focus}.` : ""}${b.notes ? ` Notes: ${b.notes}` : ""}`).catch(() => "{}"));
+    const workout = toWorkout(out, `${b.goal} workout`);
+    if (!workout || workout.items.length < 2) throw new Refused("The AI didn't come back with a usable workout. Try again or change the request.", 502);
+    return { workout };
+  }));
+  app.post("/api/coach/trainer/ai/program", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const b = brief(req.body);
+    const perWeek = Math.round(num(req.body?.perWeek, 1, 6, 3)), weeks = Math.round(num(req.body?.weeks, 1, 16, 6));
+    const out = JSON.parse(await callAi(`${RULES(catalogFor(b.equip))}\nReturn {"name": program name, "note": two sentences on how to run it and progress, "workouts": [{"name", "note", "mins", "items": [...]}], "week": [{"weekday": 0-6 (0 = Sunday), "workout": index into workouts}]}. Use ${perWeek} training days per week, spread out with rest days.`,
+      `A ${weeks}-week program, ${perWeek} days a week. Goal: ${b.goal}. Level: ${b.level}. Equipment: ${b.equip}. About ${b.minutes} minutes a session.${b.focus ? ` Focus: ${b.focus}.` : ""}${b.notes ? ` Notes: ${b.notes}` : ""}`).catch(() => "{}"));
+    const workouts = (Array.isArray(out?.workouts) ? out.workouts : []).slice(0, 7).map((w: any, i: number) => toWorkout(w, `Day ${i + 1}`)).filter((w: any) => w && w.items.length >= 2);
+    if (!workouts.length) throw new Refused("The AI didn't come back with a usable program. Try again or change the request.", 502);
+    const week: { weekday: number; workout: number }[] = (Array.isArray(out?.week) ? out.week : []).map((d: any) => ({ weekday: Math.round(num(d?.weekday, 0, 6, 1)), workout: Math.round(num(d?.workout, 0, workouts.length - 1, 0)) }))
+      .filter((d: { weekday: number }, i: number, all: { weekday: number }[]) => all.findIndex((x) => x.weekday === d.weekday) === i).slice(0, perWeek);
+    const pattern = week.length ? week : workouts.map((_: unknown, i: number) => ({ weekday: [1, 3, 5, 2, 4, 6, 0][i], workout: i })).slice(0, perWeek);
+    const days = Array.from({ length: weeks }, (_, k) => pattern.map((d) => ({ day: k * 7 + d.weekday, workoutId: workouts[d.workout].id }))).flat().sort((a, c) => a.day - c.day);
+    return { workouts, program: { id: uuid().slice(0, 12), name: String(out?.name || `${b.goal}: ${weeks} weeks`).slice(0, 80), weeks, ...(out?.note ? { note: String(out.note).slice(0, 600) } : {}), days } };
+  }));
+
+  // ── Trainer websites (shared/coachSite.ts) ──────────────────────────────────────────────────────────────
+  const kv = deps.kv ?? createSupabaseKv();
+  const siteKey = (id: number) => `coach-site:${id}`, leadsKey = (id: number) => `coach-leads:${id}`;
+  const siteUrl = (slug: string) => `${deps.appUrl ?? SITE}/#/t/${slug}`;
+  app.get("/api/coach/trainer/site", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const site = cleanSite((await kv.get(siteKey(id))) ?? emptySite());
+    const slug = siteSlug(t?.profile.name || (await first(id)), id);
+    return { site, slug, url: siteUrl(slug) };
+  }));
+  app.put("/api/coach/trainer/site", auth, wrap(async (req) => {
+    const id = me(req); const site = cleanSite(req.body?.site);
+    const t = await store.trainer(id);
+    if (site.published && !(t?.profile.name)) throw new Refused("Add your name to your listing before you publish your site.");
+    await kv.set(siteKey(id), site);
+    return { site, url: siteUrl(siteSlug(t?.profile.name || "", id)) };
+  }));
+  app.get("/api/coach/site/:slug", wrap(async (req) => {
+    const id = idFromSlug(req.params.slug);
+    const t = id ? await store.trainer(id) : null;
+    const site = id ? cleanSite((await kv.get(siteKey(id))) ?? emptySite()) : null;
+    if (!id || !t || !site?.published) throw new Refused("This site isn't published.", 404);
+    const reviews = site.showReviews ? (await store.reviews(id)).map(({ clientId: _c, ...r }) => r).slice(0, 12) : []; // newest first
+    const p = t.profile;
+    return { site, slug: siteSlug(p.name, id), invite: inviteCode(id), reviews,
+      trainer: { id, name: p.name, headline: p.headline, bio: p.bio, photo: p.photo, specialties: p.specialties, certifications: p.certifications, years: p.years, languages: p.languages, city: p.city, state: p.state, modes: p.modes, prices: site.showPrices ? p.prices : [], instagram: p.instagram, bookingUrl: p.bookingUrl, accepting: p.accepting } };
+  }));
+  const leadLimit = createAttemptLimiter({ max: 5, windowMs: 60 * 60_000 });
+  app.post("/api/coach/site/:slug/lead", wrap(async (req) => {
+    const id = idFromSlug(req.params.slug);
+    const site = id ? cleanSite((await kv.get(siteKey(id))) ?? emptySite()) : null;
+    if (!id || !site?.published) throw new Refused("This site isn't published.", 404);
+    // A filled-in hidden field means a bot.
+    if (req.body?.website) return { ok: true };
+    const who = String(req.headers?.["x-forwarded-for"] ?? req.ip ?? "anon").split(",")[0].trim();
+    if (!allow(leadLimit, `lead:${id}:${who}`)) throw new Refused("Thanks! You've already sent a few messages. The coach will be in touch.", 429);
+    const lead = cleanLead(req.body, new Date(now()).toISOString());
+    if (!lead) throw new Refused("Add your name and an email or phone number so the coach can reach you.");
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    await kv.set(leadsKey(id), [lead, ...leads].slice(0, 2000));
+    void notify(id, { title: "New lead from your website", body: `${lead.name}${lead.goal ? ` · ${lead.goal}` : ""}${lead.message ? `: ${lead.message.slice(0, 100)}` : ""}`, url: "#/trainer", tag: `lead-${lead.id}` });
+    return { ok: true };
+  }));
+  app.get("/api/coach/trainer/leads", auth, wrap(async (req) => ({ leads: cleanLeads(await kv.get(leadsKey(me(req)))) })));
+  app.put("/api/coach/trainer/leads/:lid", auth, wrap(async (req) => {
+    const id = me(req); const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const status = String(req.body?.status) as LeadStatus;
+    const next = req.body?.remove ? leads.filter((l: Lead) => l.id !== req.params.lid) : leads.map((l: Lead) => (l.id === req.params.lid && ["new", "contacted", "won", "lost"].includes(status) ? { ...l, status } : l));
+    await kv.set(leadsKey(id), next);
+    return { leads: next };
+  }));
+  app.post("/api/coach/trainer/site/ai", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!allow(aiLimit, `ai:${id}`)) throw new Refused("That's a lot of AI drafts for one hour. Try again later.", 429);
+    const t = await store.trainer(id); const p = t?.profile;
+    if (!p?.name) throw new Refused("Fill in your listing first (at least your name and a few lines about you), then AI can write your site.");
+    const out = JSON.parse(await callAi(`You write warm, specific, professional website copy for an independent personal trainer. Never invent certifications, numbers, awards or client results. Plain English, no hype words like "ultimate" or "revolutionary". Reply with JSON: {"heroTitle": max 8 words, "heroSub": one sentence, "about": 2 short paragraphs in first person, "services": [{"title", "text": one or two sentences, "price": short text or ""}] (3-5), "faqs": [{"q","a"}] (4-6)}.`,
+      JSON.stringify({ name: p.name, headline: p.headline, bio: p.bio, specialties: p.specialties, certifications: p.certifications, years: p.years, city: p.city, state: p.state, modes: p.modes, prices: p.prices.map((x) => ({ label: x.label, mode: x.mode, dollars: x.cents / 100, per: x.per, sessions: x.sessions })), tone: String(req.body?.tone ?? "").slice(0, 60) })).catch(() => "{}"));
+    const draft = cleanSite({ ...emptySite(), ...out, services: (out?.services ?? []).map((x: any, i: number) => ({ ...x, id: `s${i}` })), faqs: (out?.faqs ?? []).map((x: any, i: number) => ({ ...x, id: `f${i}` })) });
+    if (!draft.heroTitle && !draft.about) throw new Refused("The AI didn't come back with usable copy. Try again.", 502);
+    return { draft: { heroTitle: draft.heroTitle, heroSub: draft.heroSub, about: draft.about, services: draft.services, faqs: draft.faqs } };
+  }));
+
   const decide = (status: "active" | "declined") => wrap(async (req) => {
     const { l } = await linkFor(req, "trainer");
     if (l.status !== "requested") return { ok: true, status: l.status };
@@ -360,7 +551,7 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
     const t = await store.trainer(l.trainerId);
     if (status === "active") {
       if (t?.profile.welcome) await store.addMessage(l.id, l.trainerId, t.profile.welcome);
-      void notify(l.clientId, { title: "You have a trainer", body: `${t?.profile.name || "Your trainer"} accepted. Say hi and check your plan in Arise Fit.`, url: "#/fit", tag: `coach-${l.id}` });
+      void notify(l.clientId, { title: "You have a trainer", body: `${t?.profile.name || "Your trainer"} accepted. Say hi and check your plan in Cooked.`, url: "#/fit", tag: `coach-${l.id}` });
     }
     return { ok: true, status };
   });
@@ -427,7 +618,7 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
     const session = await stripe("POST", "/checkout/sessions", {
       mode: "subscription", client_reference_id: String(id), success_url: `${base}#/trainer?listing={CHECKOUT_SESSION_ID}`, cancel_url: `${base}#/trainer`,
       ...(t.stripeCustomer ? { customer: t.stripeCustomer } : { customer_email: req.user?.email || undefined }),
-      line_items: { 0: { quantity: 1, price_data: { currency: "usd", unit_amount: LISTING.cents, recurring: { interval: "month" }, product_data: { name: LISTING.name, description: "Your profile, prices and reviews in the Arise trainer directory, and the Arise Trainer coaching app." } } } },
+      line_items: { 0: { quantity: 1, price_data: { currency: "usd", unit_amount: LISTING.cents, recurring: { interval: "month" }, product_data: { name: LISTING.name, description: "Your profile, prices and reviews in the Arise trainer directory, and the Cooked PT coaching app." } } } },
       subscription_data: { ...(t.stripeSub ? {} : { trial_period_days: LISTING.trialDays }), metadata: { arise_trainer: String(id) } },
       metadata: { arise_trainer: String(id) },
     });
@@ -454,6 +645,122 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
     const p = await stripe("POST", "/billing_portal/sessions", { customer: t.stripeCustomer, return_url: `${back(req)}#/trainer` });
     return { url: p.url };
   }));
+  // ——— In-app payments (shared/coachPay.ts): Stripe Connect, the trainer's own account, a small Arise fee ———————
+  const connectKey = (t: number) => `coach-connect:${t}`, payKey = (l: string) => `coach-pay:${l}`;
+  type Connect = { account: string; ready: boolean; checked: number };
+  const connectOf = async (t: number): Promise<Connect | null> => { const v = await kv.get(connectKey(t)); return v?.account ? v : null; };
+  /** Asks Stripe whether the trainer can take card payments yet (cached for 10 minutes once ready). */
+  const connectReady = async (t: number): Promise<Connect | null> => {
+    const c = await connectOf(t); if (!c) return null;
+    if (c.ready && now() - c.checked < 10 * 60_000) return c;
+    const a = await stripe("GET", `/accounts/${encodeURIComponent(c.account)}`);
+    const next = { ...c, ready: !!(a?.charges_enabled && a?.payouts_enabled), checked: now() };
+    await kv.set(connectKey(t), next);
+    return next;
+  };
+  app.post("/api/coach/trainer/payouts/setup", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    if (!t?.profile.name) throw new Refused("Fill in your listing first (at least your name).");
+    let c = await connectOf(id);
+    if (!c) {
+      const a = await stripe("POST", "/accounts", { type: "express", country: "US", ...(t.profile.email || req.user?.email ? { email: t.profile.email || req.user?.email } : {}), business_type: "individual",
+        capabilities: { card_payments: { requested: true }, transfers: { requested: true } }, business_profile: { product_description: "Personal training and fitness coaching", mcc: "7997" }, metadata: { arise_trainer: String(id) } });
+      c = { account: String(a.id), ready: false, checked: 0 }; await kv.set(connectKey(id), c);
+    }
+    const base = back(req);
+    const link = await stripe("POST", "/account_links", { account: c.account, type: "account_onboarding", refresh_url: `${base}#/trainer?payouts=retry`, return_url: `${base}#/trainer?payouts=done` });
+    return { url: link.url };
+  }));
+  app.get("/api/coach/trainer/payouts", auth, wrap(async (req) => {
+    const id = me(req);
+    const configured = !!(await (deps.stripeKey?.() ?? Promise.resolve("")).catch(() => ""));
+    const c = configured ? await connectReady(id).catch(() => connectOf(id)) : null;
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status !== "declined");
+    const month = new Date(now()); month.setUTCDate(1); month.setUTCHours(0, 0, 0, 0);
+    const all: (Payment & { client: string; linkId: string })[] = [];
+    if (c) await Promise.all(links.map((l) => settle(l).catch(() => {})));
+    for (const l of links) { const v = await kv.get(payKey(l.id)); if (Array.isArray(v) && v.length) { const name = await first(l.clientId); for (const p of v) all.push({ ...p, client: name, linkId: l.id }); } }
+    all.sort((a, b) => b.at.localeCompare(a.at));
+    return { configured, started: !!c, ready: !!c?.ready, feePct: PLATFORM_FEE_PCT, month: payTotals(all, month.toISOString()), all: payTotals(all), recent: all.slice(0, 30) };
+  }));
+  app.post("/api/coach/trainer/payouts/dashboard", auth, wrap(async (req) => {
+    const c = await connectOf(me(req)); if (!c) throw new Refused("Set up payouts first.");
+    const l = await stripe("POST", `/accounts/${encodeURIComponent(c.account)}/login_links`, {});
+    return { url: l.url };
+  }));
+  /** What the client can pay for, in the trainer's own prices. */
+  app.get("/api/coach/links/:id/pay", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    await settle(l).catch(() => {});
+    const t = await store.trainer(l.trainerId);
+    const c = await connectReady(l.trainerId).catch(() => null);
+    const v = await kv.get(payKey(l.id));
+    return { ready: !!c?.ready && l.status === "active", prices: (t?.profile.prices ?? []).filter(payable), payUrl: t?.profile.payUrl ?? "", payments: Array.isArray(v) ? v : [], feePct: PLATFORM_FEE_PCT };
+  }));
+  const payTries = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.post("/api/coach/links/:id/pay", auth, wrap(async (req) => {
+    const { l, id } = await linkFor(req, "client");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    if (!allow(payTries, `pay:${id}`)) throw new Refused("Too many tries. Wait a little.", 429);
+    const t = await store.trainer(l.trainerId); const price = t?.profile.prices.find((p) => p.id === String(req.body?.priceId));
+    if (!t || !price || !payable(price)) throw new Refused("That price isn't available. Ask your trainer.");
+    const c = await connectReady(l.trainerId);
+    if (!c?.ready) throw new Refused(`${t.profile.name} isn't set up to take card payments in Arise yet.`, 409);
+    const kind = payKind(price); const base = back(req);
+    const meta = { arise_link: l.id, arise_price: price.id, arise_client: String(id) };
+    const name = `${payLabel(price)} with ${t.profile.name}`;
+    const session = await stripe("POST", "/checkout/sessions", {
+      mode: kind === "once" ? "payment" : "subscription", client_reference_id: String(id),
+      success_url: `${base}#/fit?paid={CHECKOUT_SESSION_ID}`, cancel_url: `${base}#/fit`, customer_email: req.user?.email || undefined,
+      line_items: { 0: { quantity: 1, price_data: { currency: "usd", unit_amount: price.cents, product_data: { name }, ...(kind === "once" ? {} : { recurring: { interval: kind === "monthly" ? "month" : "week" } }) } } },
+      ...(kind === "once"
+        ? { payment_intent_data: { application_fee_amount: feeCents(price.cents), transfer_data: { destination: c.account }, metadata: meta, description: name } }
+        : { subscription_data: { application_fee_percent: PLATFORM_FEE_PCT, transfer_data: { destination: c.account }, metadata: meta, description: name } }),
+      metadata: meta,
+    });
+    const pend: { sid: string; at: number }[] = (await kv.get(pendKey(l.id))) ?? [];
+    await kv.set(pendKey(l.id), [{ sid: String(session.id), at: now() }, ...pend].slice(0, 20));
+    return { url: session.url };
+  }));
+  /** Records a finished checkout once and tells the trainer. Returns the payment, or null if not paid (yet). */
+  const pendKey = (l: string) => `coach-paypend:${l}`;
+  async function record(s: any, l: LinkRow): Promise<Payment | null> {
+    if (s?.status !== "complete" || !(s?.payment_status === "paid" || s?.payment_status === "no_payment_required")) return null;
+    const sid = String(s.id);
+    const list: Payment[] = (await kv.get(payKey(l.id))) ?? [];
+    const had = list.find((p) => p.id === sid); if (had) return had;
+    const t = await store.trainer(l.trainerId); const price = t?.profile.prices.find((p) => p.id === s?.metadata?.arise_price);
+    const cents = Number(s?.amount_total) || price?.cents || 0;
+    const pay: Payment = { id: sid, at: new Date(now()).toISOString(), cents, fee: feeCents(cents), label: price ? payLabel(price) : "Training", kind: s?.mode === "subscription" ? (price?.per === "week" ? "weekly" : "monthly") : "once", status: "paid", ...(s?.subscription ? { sub: String(s.subscription) } : {}) };
+    await kv.set(payKey(l.id), [pay, ...list].slice(0, 500));
+    void notify(l.trainerId, { title: "Payment received", body: `${await first(l.clientId)} paid $${(cents / 100).toFixed(2)} for ${pay.label}.`, url: "#/trainer", tag: `pay-${sid}` });
+    return pay;
+  }
+  /** Checkouts started in the last two days that haven't been recorded: asks Stripe about each (so a payment made
+   *  in Safari from the iPhone app still shows up, with no webhook needed). */
+  async function settle(l: LinkRow) {
+    const pend: { sid: string; at: number }[] = (await kv.get(pendKey(l.id))) ?? [];
+    if (!pend.length) return;
+    const keep: typeof pend = [];
+    for (const p of pend) {
+      if (now() - p.at > 2 * 864e5) continue;
+      const s = await stripe("GET", `/checkout/sessions/${encodeURIComponent(p.sid)}`).catch(() => null);
+      if (s && (await record(s, l))) continue;
+      if (s?.status !== "expired") keep.push(p);
+    }
+    await kv.set(pendKey(l.id), keep);
+  }
+  app.post("/api/coach/pay/confirm", auth, wrap(async (req) => {
+    const id = me(req); const sid = String(req.body?.session || "");
+    if (!/^cs_[A-Za-z0-9_]{8,200}$/.test(sid)) throw new Refused("That payment wasn't found.");
+    const s = await stripe("GET", `/checkout/sessions/${sid}`);
+    if (String(s?.metadata?.arise_client) !== String(id)) throw new Refused("That payment belongs to someone else.", 403);
+    const l = await store.link(String(s?.metadata?.arise_link || "")); if (!l || l.clientId !== id) throw new Refused("That payment wasn't found.", 404);
+    const pay = await record(s, l);
+    if (!pay) throw new Refused("The payment hasn't gone through yet.", 409);
+    return { ok: true, payment: pay };
+  }));
+
   // The site owner can list a trainer for free for a while (a founding trainer, a friend, a test).
   app.post("/api/coach/admin/comp", auth, wrap(async (req) => {
     if (!deps.isAdmin?.(req)) throw new Refused("Only the site owner can do that.", 403);
@@ -464,4 +771,300 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
     cache = null;
     return { ok: true };
   }));
+
+  // ── Coach Copilot (shared/coachCopilot.ts): who needs you this week, with a drafted message each ─────────────
+  /** Cooked data trimmed to what this client agreed to share. */
+  const sharedFit = (fit: FitData | null, c: Consent): FitData | null => (fit ? { ...fit, workouts: c.workouts ? fit.workouts : [], weights: c.body ? fit.weights : [], foods: c.food ? fit.foods : [] } : null);
+  const copilotAi = createAttemptLimiter({ max: 12, windowMs: 24 * 60 * 60_000 });
+  app.get("/api/coach/trainer/copilot", auth, wrap(async (req) => {
+    const id = me(req); const at = new Date(now());
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status === "active");
+    const unread = await store.unread(links.map((l) => l.id), id);
+    let items = await Promise.all(links.map(async (l) => {
+      const fit = sharedFit(await fitData(l.clientId).catch(() => null), l.consent);
+      const name = await first(l.clientId);
+      const f = clientFacts({ name, coaching: l.coaching, side: l.clientSide, fit, unread: unread[l.id]?.count ?? 0, kcalTarget: l.consent.profile ? snapshot(fit, l.consent, name, l.createdAt, at).profile?.kcal ?? null : null, checkinDue: checkinDue(l.coaching, l.clientSide, at), sharesWorkouts: l.consent.workouts }, at);
+      const fl = copilotFlags(f);
+      return { linkId: l.id, clientId: l.clientId, name, facts: f, flags: fl, draft: draftFor(f, fl), score: copilotScore(fl), summary: "" };
+    }));
+    items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    let ai = false;
+    if (req.query?.ai === "1" && items.length) {
+      if (!allow(copilotAi, `cp:${id}`)) throw new Refused("Copilot has written a lot today. The plain version still updates.", 429);
+      const t = await store.trainer(id);
+      const top = items.slice(0, 30);
+      const out = await callAi(`You help a personal trainer run their week. For each client you get facts and flags. Write: "summary" (one short plain sentence a busy coach can scan) and "draft" (a warm, specific text message from the coach, 1-3 sentences, first name only, no emojis, no hashtags, never invent numbers or events that aren't in the facts). Coach's name: ${t?.profile.name || "the coach"}. Reply JSON {"clients":[{"linkId","summary","draft"}]}.`,
+        JSON.stringify(top.map((x) => ({ linkId: x.linkId, name: x.name.split(" ")[0], flags: x.flags.map((f) => f.text), facts: { workouts: `${x.facts.workoutsDone}/${x.facts.workoutsDue}`, habits: `${x.facts.habitsDone}/${x.facts.habitsDue}`, daysSinceWorkout: x.facts.daysSinceWorkout, foodDaysLogged: x.facts.foodDays, newBests: x.facts.newPRs } })))).catch(() => "{}");
+      try {
+        const byId = new Map<string, { summary?: string; draft?: string }>((JSON.parse(out)?.clients ?? []).map((c: any) => [String(c.linkId), c]));
+        items = items.map((x) => { const c = byId.get(x.linkId); const sum = typeof c?.summary === "string" ? c.summary.trim().slice(0, 200) : ""; const dr = typeof c?.draft === "string" ? c.draft.trim().slice(0, 600) : ""; if (sum || dr) ai = true; return { ...x, summary: sum, draft: dr || x.draft }; });
+      } catch { /* the plain drafts stand */ }
+    }
+    const count = (lv: string) => items.filter((x) => x.flags.some((f) => f.level === lv)).length;
+    return { at: at.toISOString(), ai, totals: { urgent: count("urgent"), watch: count("watch"), win: count("win"), clients: items.length }, items };
+  }));
+  /** Plan tools: preview, then apply. "reflow" moves missed workouts forward; "progress" writes next targets. */
+  const planTool = (kind: "reflow" | "progress") => wrap(async (req) => {
+    const { l } = await linkFor(req, "trainer");
+    const raw = await fitData(l.clientId).catch(() => null);
+    const fit = sharedFit(raw, l.consent);
+    const at = new Date(now());
+    const days = Array.isArray(req.body?.days) ? req.body.days.map(Number).filter((d: number) => d >= 0 && d <= 6) : [];
+    const r = kind === "reflow" ? reflowPlan(l.coaching, fit?.workouts, at, { days }) : progressPlan(l.coaching, fit?.workouts, raw?.profile.units ?? "lb", at);
+    const changes = "moves" in r ? r.moves : r.bumps;
+    if (req.body?.apply === true && changes.length) {
+      await store.saveLink(touch({ ...l, coaching: { ...l.coaching, assigned: r.assigned } }));
+      void notify(l.clientId, kind === "reflow"
+        ? { title: "Your plan was updated", body: `Your trainer moved ${changes.length} missed ${changes.length === 1 ? "workout" : "workouts"} to the coming days.`, url: "#/fit", tag: `coach-${l.id}` }
+        : { title: "New targets from your trainer", body: "Your next workouts have new weight and rep targets based on your last sessions.", url: "#/fit", tag: `coach-${l.id}` });
+    }
+    return { changes, applied: req.body?.apply === true && changes.length > 0, ...(req.body?.apply === true ? { assigned: r.assigned } : {}) };
+  });
+  app.post("/api/coach/links/:id/reflow", auth, planTool("reflow"));
+  app.post("/api/coach/links/:id/progress", auth, planTool("progress"));
+
+  // ── Moving in and out (shared/coachImport.ts): import from Trainerize/TrueCoach/a spreadsheet, export everything ──
+  app.get("/api/coach/trainer/export", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const links = (await store.linksOf("trainer", id)).filter((l) => l.status !== "declined");
+    const clients = await Promise.all(links.map(async (l) => ({ name: await first(l.clientId), status: l.status, since: l.createdAt, tags: l.coaching.tags, phase: l.coaching.phase ?? "", notes: l.coaching.notes,
+      plan: { assigned: l.coaching.assigned, habits: l.coaching.habits, goals: l.coaching.goals, nutrition: l.coaching.nutrition ?? null, checkin: l.coaching.checkin ?? null, appointments: l.coaching.appts },
+      checkins: l.clientSide.checkins, compliance: compliance(l.coaching, l.clientSide, undefined, new Date(now())) })));
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    return { app: "Cooked PT", exportedAt: new Date(now()).toISOString(), profile: t?.profile ?? null, library: (await store.library(id)) ?? emptyLibrary(), site: cleanSite((await kv.get(siteKey(id))) ?? emptySite()), leads, clients,
+      clientsCsv: clientsCsv(clients.map((c) => ({ ...c, workoutsPct: c.compliance.pct }))) };
+  }));
+  app.post("/api/coach/trainer/import/clients", auth, wrap(async (req) => {
+    const id = me(req);
+    const r = importClients(String(req.body?.csv ?? ""));
+    if (r.problem) throw new Refused(r.problem);
+    if (!r.clients.length) throw new Refused("No clients with a name and an email or phone were found.");
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const known = new Set(leads.flatMap((l) => [l.email, l.phone.replace(/\D/g, "")]).filter(Boolean));
+    const at = new Date(now()).toISOString();
+    const fresh = r.clients.filter((c) => !known.has(c.email) && !known.has(c.phone.replace(/\D/g, "")))
+      .map((c) => cleanLeads([{ name: c.name, email: c.email, phone: c.phone, message: c.note, goal: "", at, source: "import", status: "new", tags: c.tags }])[0]).filter(Boolean);
+    await kv.set(leadsKey(id), [...fresh, ...leads].slice(0, 2000));
+    return { added: fresh.length, already: r.clients.length - fresh.length, skipped: r.skipped, leads: [...fresh, ...leads] };
+  }));
+  app.post("/api/coach/trainer/import/workouts", auth, wrap(async (req) => {
+    const id = me(req); const lib = (await store.library(id)) ?? emptyLibrary();
+    const r = importWorkouts(String(req.body?.csv ?? ""), lib.exercises);
+    if (r.problem) throw new Refused(r.problem);
+    if (!r.workouts.length) throw new Refused("No workouts were found in that file.");
+    const names = new Set(lib.workouts.map((w) => w.name.toLowerCase()));
+    const workouts = r.workouts.map((w) => (names.has(w.name.toLowerCase()) ? { ...w, name: `${w.name} (imported)`.slice(0, 80) } : w));
+    const next = cleanLibrary({ ...lib, workouts: [...lib.workouts, ...workouts], exercises: [...lib.exercises, ...r.exercises] });
+    if (req.body?.apply === true) await store.saveLibrary(id, next);
+    return { workouts: workouts.map((w) => ({ name: w.name, exercises: w.items.length })), matched: r.matched, added: r.added, applied: req.body?.apply === true, ...(req.body?.apply === true ? { library: next } : {}) };
+  }));
+  const mailLimit = createAttemptLimiter({ max: 300, windowMs: 24 * 60 * 60_000 });
+  /** Emails the trainer's invite link to imported (or any) leads that have an email. */
+  app.post("/api/coach/trainer/import/invite", auth, wrap(async (req) => {
+    const id = me(req);
+    if (!deps.sendEmail) throw new Refused("Email isn't set up on this server. Copy your invite link instead.", 503);
+    const t = await store.trainer(id); const coach = t?.profile.name || (await first(id));
+    const wanted = new Set((Array.isArray(req.body?.leadIds) ? req.body.leadIds : []).map(String).slice(0, 300));
+    const leads = cleanLeads(await kv.get(leadsKey(id)));
+    const to = leads.filter((l) => wanted.has(l.id) && l.email);
+    const link = `${SITE}/#/fit?coach=${inviteCode(id)}`;
+    const note = String(req.body?.note ?? "").trim().slice(0, 600);
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    let sent = 0; const done = new Set<string>();
+    for (const l of to) {
+      if (!allow(mailLimit, `mail:${id}`)) break;
+      const html = `<p>Hi ${esc(l.name.split(" ")[0])},</p><p>${note ? esc(note).replace(/\n/g, "<br>") : `I'm moving my coaching to Arise. Your workouts, nutrition and our chat will live in the Cooked app from now on.`}</p><p><a href="${link}" style="display:inline-block;background:#ff5a1f;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Join me in Cooked</a></p><p>See you there,<br>${esc(coach)}</p>`;
+      const r = await deps.sendEmail(l.email, `${coach} invited you to train in Cooked`, html, { fromName: coach, replyTo: t?.profile.email || undefined }).catch(() => ({ sent: false }));
+      if (r.sent) { sent++; done.add(l.id); }
+    }
+    const next = leads.map((l) => (done.has(l.id) && l.status === "new" ? { ...l, status: "contacted" as LeadStatus } : l));
+    await kv.set(leadsKey(id), next);
+    return { sent, skipped: wanted.size - sent, leads: next };
+  }));
+
+  // ── Video form checks (shared/coachFormCheck.ts): the client films a set, the trainer draws on it and replies ──
+  const files = deps.files ?? createSupabaseCoachFiles();
+  const fcKey = (linkId: string) => `coach-fc:${linkId}`;
+  const fcList = async (linkId: string): Promise<FormCheck[]> => { const v = await kv.get(fcKey(linkId)); return Array.isArray(v) ? v : []; };
+  const uploads = createAttemptLimiter({ max: 40, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/links/:id/form-checks/upload", auth, wrap(async (req) => {
+    const { l, id, role } = await linkFor(req, "either");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    const kind = role === "client" ? "video" : "voice";
+    const type = String(req.body?.type ?? "").split(";")[0].toLowerCase();
+    const ext = (kind === "video" ? VIDEO_TYPES : VOICE_TYPES)[type];
+    if (!ext) throw new Refused(kind === "video" ? "Videos can be MP4, MOV or WebM." : "That voice note format isn't supported.");
+    const size = Number(req.body?.size) || 0; const max = (kind === "video" ? FORM_LIMITS.videoMb : FORM_LIMITS.voiceMb) * 1024 * 1024;
+    if (size <= 0 || size > max) throw new Refused(kind === "video" ? "Videos can be up to 100 MB. Trim it to just the set." : "That voice note is too long.");
+    if (!allow(uploads, `fc:${id}`)) throw new Refused("That's a lot of uploads today. Try again tomorrow.", 429);
+    const path = `${l.id}/${kind}-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    return { url: await files.uploadUrl(path), path };
+  }));
+  app.post("/api/coach/links/:id/form-checks", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "client");
+    if (l.status !== "active") throw new Refused("This coaching has ended.", 403);
+    const video = req.body?.video;
+    if (!filePathOk(video, l.id) || !video.includes("/video-")) throw new Refused("Upload the video first.");
+    const list = await fcList(l.id);
+    const fc: FormCheck = { id: Math.random().toString(36).slice(2, 12), at: new Date(now()).toISOString(), exName: String(req.body?.exName ?? "").trim().slice(0, 80) || "A set", note: String(req.body?.note ?? "").trim().slice(0, 600), video, secs: Math.round(Math.min(FORM_LIMITS.videoSecs * 4, Math.max(0, Number(req.body?.secs) || 0)) * 10) / 10, status: "new", feedback: null };
+    const kept = [fc, ...list];
+    const gone = kept.slice(FORM_LIMITS.checks);
+    await kv.set(fcKey(l.id), kept.slice(0, FORM_LIMITS.checks));
+    if (gone.length) void files.remove(gone.flatMap((g) => [g.video, g.feedback?.voice ?? ""]).filter(Boolean)).catch(() => {});
+    void notify(l.trainerId, { title: "Form check", body: `${await first(l.clientId)} sent a video: ${fc.exName}${fc.note ? ` · ${fc.note.slice(0, 80)}` : ""}`, url: "#/trainer", tag: `fc-${fc.id}` });
+    return { check: fc };
+  }));
+  app.get("/api/coach/links/:id/form-checks", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    const list = await fcList(l.id);
+    const urls = await files.viewUrls(list.flatMap((c) => [c.video, c.feedback?.voice ?? ""]).filter(Boolean)).catch(() => ({} as Record<string, string>));
+    return { checks: list.map((c) => ({ ...c, videoUrl: urls[c.video] ?? "", voiceUrl: c.feedback?.voice ? urls[c.feedback.voice] ?? "" : "" })) };
+  }));
+  app.post("/api/coach/links/:id/form-checks/:fid/feedback", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "trainer");
+    const list = await fcList(l.id); const fc = list.find((c) => c.id === req.params.fid);
+    if (!fc) throw new Refused("That video was removed.", 404);
+    const fb = cleanFeedback(req.body?.feedback, l.id, new Date(now()).toISOString(), fc.secs || 3600);
+    if (!fb.text && !fb.marks.length && !fb.voice) throw new Refused("Add a drawing, a note or a voice note first.");
+    if (fc.feedback?.voice && fc.feedback.voice !== fb.voice) void files.remove([fc.feedback.voice]).catch(() => {});
+    const next = { ...fc, status: "reviewed" as const, feedback: fb };
+    await kv.set(fcKey(l.id), list.map((c) => (c.id === fc.id ? next : c)));
+    void notify(l.clientId, { title: "Your trainer reviewed your form", body: `${fc.exName}: ${fb.text.slice(0, 100) || `${fb.marks.length} notes on your video`}`, url: "#/fit", tag: `fc-${fc.id}` });
+    return { check: next };
+  }));
+  app.put("/api/coach/links/:id/form-checks/:fid", auth, wrap(async (req) => {
+    const { l } = await linkFor(req, "either");
+    const list = await fcList(l.id); const fc = list.find((c) => c.id === req.params.fid);
+    if (!fc) throw new Refused("That video was removed.", 404);
+    if (req.body?.remove) { await kv.set(fcKey(l.id), list.filter((c) => c.id !== fc.id)); void files.remove([fc.video, fc.feedback?.voice ?? ""].filter(Boolean)).catch(() => {}); return { ok: true }; }
+    return { check: fc };
+  }));
+
+  // ── Smart matching (shared/coachMatch.ts): six answers in, the best three trainers out, with reasons ──────
+  const matchAi = createAttemptLimiter({ max: 20, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/match", auth, wrap(async (req) => {
+    const need = cleanNeed(req.body?.need);
+    if (!cache || now() - cache.at >= 60_000) {
+      const [rows, ratings] = await Promise.all([store.listed(new Date(now()).toISOString()), store.allRatings()]);
+      cache = { at: now(), list: await Promise.all(rows.filter((t) => !listingProblems(t.profile).length).map((t) => publicOf(t, ratings))) };
+    }
+    const matches = matchTrainers(cache.list, need, 3).map((m) => ({ ...m, why: "" }));
+    const who = Number(req.user?.id) || 0;
+    if (req.body?.ai === true && who && matches.length && allow(matchAi, `m:${who}`)) {
+      const out = await callAi(`You help someone choose a personal trainer. For each trainer write "why": one or two warm, specific sentences on why they fit this person, using only the facts given (never invent results, credentials or prices). No emojis. Reply JSON {"why":[{"id","why"}]}.`,
+        JSON.stringify({ person: { goal: need.goal, level: need.level, ways: need.modes, perWeek: need.perWeek, notes: need.notes }, trainers: matches.map((m) => ({ id: m.trainer.id, name: m.trainer.name, headline: m.trainer.headline, bio: m.trainer.bio.slice(0, 600), specialties: m.trainer.specialties, years: m.trainer.years, reasons: m.reasons })) })).catch(() => "{}");
+      try { const by = new Map<number, string>((JSON.parse(out)?.why ?? []).map((x: any) => [Number(x.id), String(x.why ?? "").trim().slice(0, 300)])); for (const m of matches) m.why = by.get(m.trainer.id) ?? ""; } catch { /* reasons are enough */ }
+    }
+    return { need, matches, total: cache.list.length };
+  }));
+
+  // ── The marketplace (shared/coachMarket.ts): clients post what they need, trainers reply, the client hires ───
+  const MKEY = "coach-market";
+  const listedPublic = async () => {
+    if (!cache || now() - cache.at >= 60_000) {
+      const [rows, ratings] = await Promise.all([store.listed(new Date(now()).toISOString()), store.allRatings()]);
+      cache = { at: now(), list: await Promise.all(rows.filter((t) => !listingProblems(t.profile).length).map((t) => publicOf(t, ratings))) };
+    }
+    return cache.list;
+  };
+  const market = async (): Promise<MarketRequest[]> => { const v = await kv.get(MKEY); return Array.isArray(v) ? v : []; };
+  /** Saves, dropping requests closed or expired for more than 30 days. */
+  const saveMarket = (list: MarketRequest[]) => kv.set(MKEY, list.filter((r) => now() - Date.parse(r.at) < (MARKET.days + 30) * 864e5).slice(0, MARKET.total));
+  const posts = createAttemptLimiter({ max: 6, windowMs: 24 * 60 * 60_000 });
+  app.post("/api/coach/market", auth, wrap(async (req) => {
+    const id = me(req); const need = cleanNeed(req.body?.need);
+    if (!need.goal && !need.notes) throw new Refused("Pick a goal or say what you need.");
+    const all = await market();
+    if (all.filter((r) => r.clientId === id && isOpen(r, now())).length >= MARKET.openPerClient) throw new Refused("You have 3 open requests. Close one or hire a trainer first.");
+    if (!allow(posts, `mk:${id}`)) throw new Refused("That's a lot of requests for one day.", 429);
+    const r: MarketRequest = { id: Math.random().toString(36).slice(2, 12), clientId: id, name: await first(id), at: new Date(now()).toISOString(), need, status: "open", hired: null, replies: [] };
+    await saveMarket([r, ...all]);
+    const tell = whoToTell(await listedPublic(), r);
+    for (const t of tell) void notify(t, { title: "New client request", body: `${r.name.split(" ")[0]} is looking for: ${requestTitle(need)}. Reply in Cooked PT.`, url: "#/trainer", tag: `mk-${r.id}` });
+    return { request: r, told: tell.length };
+  }));
+  app.get("/api/coach/market/mine", auth, wrap(async (req) => {
+    const id = me(req); const list = (await market()).filter((r) => r.clientId === id);
+    const pubs = new Map((await listedPublic()).map((t) => [t.id, t]));
+    return { requests: list.map((r) => ({ ...r, open: isOpen(r, now()), replies: r.replies.map((x) => ({ ...x, trainer: pubs.get(x.trainerId) ?? null })).filter((x) => x.trainer) })) };
+  }));
+  app.put("/api/coach/market/:rid", auth, wrap(async (req) => {
+    const id = me(req); const all = await market(); const r = all.find((x) => x.id === req.params.rid);
+    if (!r || r.clientId !== id) throw new Refused("That request isn't there anymore.", 404);
+    await saveMarket(all.map((x) => (x.id === r.id ? { ...x, status: x.status === "hired" ? "hired" : "closed" } : x)));
+    return { ok: true };
+  }));
+  app.get("/api/coach/trainer/market", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    if (!t || !listedNow(t) || listingProblems(t.profile).length) return { requests: [], problem: "Get listed in Cooked to see and answer client requests." };
+    const pub = (await listedPublic()).find((x) => x.id === id);
+    const list = (await market()).filter((r) => r.clientId !== id && ((isOpen(r, now()) && pub && trainerFits(pub, r)) || r.replies.some((x) => x.trainerId === id)));
+    return { requests: list.map((r) => forTrainer(r, id)), problem: "" };
+  }));
+  app.post("/api/coach/trainer/market/:rid/reply", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    if (!t || !listedNow(t)) throw new Refused("Get listed in Cooked to answer requests.", 403);
+    const all = await market(); const r = all.find((x) => x.id === req.params.rid);
+    const pub = (await listedPublic()).find((x) => x.id === id);
+    if (!r || !isOpen(r, now()) || !pub || !trainerFits(pub, r)) throw new Refused("That request is closed.", 404);
+    const reply = cleanReply(req.body, id, new Date(now()).toISOString());
+    if (!reply) throw new Refused("Write a few words about how you'd help.");
+    const had = r.replies.some((x) => x.trainerId === id);
+    if (!had && r.replies.length >= MARKET.replies) throw new Refused("This request already has plenty of replies.", 409);
+    const next = { ...r, replies: had ? r.replies.map((x) => (x.trainerId === id ? reply : x)) : [...r.replies, reply] };
+    await saveMarket(all.map((x) => (x.id === r.id ? next : x)));
+    if (!had) void notify(r.clientId, { title: "A trainer replied", body: `${t.profile.name}: ${reply.message.slice(0, 120)}`, url: "#/fit", tag: `mk-${r.id}` });
+    return { request: forTrainer(next, id) };
+  }));
+  app.post("/api/coach/market/:rid/hire", auth, wrap(async (req) => {
+    const id = me(req); const all = await market(); const r = all.find((x) => x.id === req.params.rid);
+    if (!r || r.clientId !== id) throw new Refused("That request isn't there anymore.", 404);
+    const tid = Number(req.body?.trainerId);
+    if (!r.replies.some((x) => x.trainerId === tid)) throw new Refused("Pick a trainer who replied.");
+    const t = await store.trainer(tid);
+    if (!t || !listedNow(t)) throw new Refused("That trainer isn't listed right now.", 404);
+    const old = await store.linkBetween(tid, id); const stamp = new Date(now()).toISOString();
+    const link: LinkRow = old && (old.status === "active") ? old : { id: old?.id ?? uuid(), trainerId: tid, clientId: id, status: "active", consent: cleanConsent(req.body?.consent), coaching: old?.coaching ?? emptyCoaching(), clientSide: old?.clientSide ?? emptyClientSide(), createdAt: old?.createdAt ?? stamp, updatedAt: stamp };
+    if (link !== old) { await store.saveLink(link); if (t.profile.welcome) await store.addMessage(link.id, tid, t.profile.welcome); }
+    await saveMarket(all.map((x) => (x.id === r.id ? { ...x, status: "hired", hired: tid } : x)));
+    void notify(tid, { title: "You were hired", body: `${r.name.split(" ")[0]} picked you from the marketplace. Say hi and send their first plan.`, url: "#/trainer", tag: `mk-${r.id}` });
+    return { linkId: link.id, status: link.status };
+  }));
+
+  // ── Branded coaching (shared/coachBrand.ts): the trainer's name, logo and color in Cooked, and their own web app ──
+  const brandKey = (t: number) => `coach-brand:${t}`;
+  const brandOf = async (t: number) => cleanBrand((await kv.get(brandKey(t))) ?? emptyBrand());
+  app.get("/api/coach/trainer/brand", auth, wrap(async (req) => {
+    const id = me(req); const t = await store.trainer(id);
+    const slug = siteSlug(t?.profile.name || "", id);
+    return { brand: await brandOf(id), url: `${SITE}/#/c/${slug}`, slug };
+  }));
+  app.put("/api/coach/trainer/brand", auth, wrap(async (req) => {
+    const id = me(req); const b = cleanBrand(req.body?.brand);
+    if (b.on && !b.appName) throw new Refused("Give your app a name first.");
+    await kv.set(brandKey(id), b);
+    return { brand: b };
+  }));
+  /** Public: what clients' apps need to show the brand (only when it's switched on). */
+  app.get("/api/coach/brand/:tid", wrap(async (req) => {
+    const tid = Number(req.params.tid) || idFromSlug(String(req.params.tid)) || 0;
+    const t = tid ? await store.trainer(tid) : null; const b = tid ? await brandOf(tid) : null;
+    if (!t || !b?.on) throw new Refused("No brand here.", 404);
+    return { trainerId: tid, name: t.profile.name, photo: t.profile.photo, brand: b, invite: inviteCode(tid) };
+  }));
+  app.get("/api/coach/brand/:tid/icon", async (req: any, res: any) => {
+    const b = await brandOf(Number(req.params.tid) || 0).catch(() => null);
+    const m = b?.on && /^data:(image\/(?:png|jpeg));base64,(.+)$/.exec(b.logo);
+    if (!m) return res.status(404).end();
+    res.setHeader("Content-Type", m[1]); res.setHeader("Cache-Control", "public, max-age=3600"); res.end(Buffer.from(m[2], "base64"));
+  });
+  app.get("/api/coach/brand/:tid/manifest.webmanifest", async (req: any, res: any) => {
+    const tid = Number(req.params.tid) || 0; const t = tid ? await store.trainer(tid).catch(() => null) : null; const b = tid ? await brandOf(tid).catch(() => null) : null;
+    if (!t || !b?.on) return res.status(404).end();
+    res.setHeader("Content-Type", "application/manifest+json");
+    res.end(JSON.stringify(brandManifest(b, t.profile.name, `${SITE}/api/coach/brand/${tid}/icon`, `/#/c/${siteSlug(t.profile.name, tid)}`)));
+  });
+
+  // Groups: pages, chat and challenges (server/coachGroups.ts).
+  registerCoachGroupRoutes(app, auth, { store, kv, now, me, wrap, first, notify, refuse: (m, status) => new Refused(m, status) });
 }

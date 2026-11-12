@@ -1,4 +1,4 @@
-// Works out what to write so the database matches the built-in Eye Gazer lessons
+// Works out what to write so the database matches the built-in Arise AAC lessons
 // (shared/eyegaze/lessons.ts). Pure functions; storage.syncEyeGazeLessons does the writing.
 import type { SavedQuestion } from "../shared/eyegaze/lessons";
 

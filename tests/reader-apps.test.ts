@@ -1,4 +1,4 @@
-// The A.R.I.S.E. Reader iPhone apps (students and Educator), built from the shared frontend with
+// The Arise Reader iPhone apps (students and Educator), built from the shared frontend with
 // VITE_NATIVE_APP (client/src/lib/nativeApp.ts), and the server pieces they need.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -19,8 +19,8 @@ test("Apple push devices remember which app they belong to", () => {
 
 test("each Reader app has its own id, icon, workflow and first run", () => {
   const nat = read("client/src/lib/nativeApp.ts");
-  assert.match(nat, /reader: \{ name: "A\.R\.I\.S\.E\. Reader", bundle: "com\.arisereader\.reader"/);
-  assert.match(nat, /educator: \{ name: "A\.R\.I\.S\.E\. Reader Educator", bundle: "com\.arisereader\.educator"/);
+  assert.match(nat, /reader: \{ name: "Arise Reader", bundle: "com\.arisereader\.reader"/);
+  assert.match(nat, /educator: \{ name: "Arise Reader Educator", bundle: "com\.arisereader\.educator"/);
   for (const [f, bundle] of [["reader", "com.arisereader.reader"], ["educator", "com.arisereader.educator"]]) {
     assert.equal(JSON.parse(read(`${f}/ios-app/capacitor.config.json`)).appId, bundle);
     const wf = read(`.github/workflows/${f === "reader" ? "arisereader" : "educator"}-ios.yml`);
@@ -32,7 +32,7 @@ test("each Reader app has its own id, icon, workflow and first run", () => {
   assert.match(read("educator/ios-app/package.json"), /@capacitor\/push-notifications/);
   assert.match(read("reader/ios-app/package.json"), /@capacitor\/local-notifications/);
   assert.match(read(".github/workflows/educator-ios.yml"), /APPLE_ID_AUTH PUSH_NOTIFICATIONS/);
-  assert.match(read("client/src/App.tsx"), /isReaderApp\(\) && user && !isAdminPreview && <ReaderFirstRun/);
+  assert.match(read("client/src/App.tsx"), /isReaderApp\(\) && user && !isAdminPreview && !\(nativeFlavor\(\) === "reader" && !isStudent\) && !readerLocked\(readerPlan\) && <ReaderFirstRun/);
 });
 
 test("the Reader apps stay inside the app and never link to purchases", () => {

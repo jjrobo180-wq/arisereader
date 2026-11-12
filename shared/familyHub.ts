@@ -19,6 +19,9 @@ import { cleanSleepApp, emptySleepApp, type SleepApp } from "./sleepApp";
 import { cleanSleepFinder, emptySleepFinder, type SleepFinder } from "./sleepFinder";
 import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
+
 export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
@@ -58,7 +61,7 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 /** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
  *  menu (the section right before it). Rendering splices this block in after that anchor. */
 /** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
- *  stays in the family's data. Earshot lives on as its own app, Pod+. */
+ *  stays in the family's data. Earshot lives on as its own app, Podster. */
 export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot"];
 export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
@@ -358,10 +361,18 @@ const num = (v: unknown, min: number, max: number, fallback = 0) => {
 };
 const int = (v: unknown, min: number, max: number, fallback = 0) => Math.round(num(v, min, max, fallback));
 const bool = (v: unknown, fallback = false) => (typeof v === "boolean" ? v : fallback);
+// Answers kept (a date's answer never changes): the calendar and reminders ask about the same few days
+// for every event, which made thousands of Date objects in a row and stalled the iPhone app.
+const DAY_OK = new Map<string, boolean>();
 export const isDay = (v: unknown): v is string => {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const known = DAY_OK.get(v);
+  if (known !== undefined) return known;
   const d = new Date(v + "T12:00:00Z");
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  const ok = !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  if (DAY_OK.size > 5000) DAY_OK.clear();
+  DAY_OK.set(v, ok);
+  return ok;
 };
 const day = (v: unknown) => (isDay(v) ? v : "");
 const clock = (v: unknown) => (typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : "");
@@ -392,7 +403,7 @@ export function cleanFamily(input: unknown): Family {
   if (!raw) return emptyFamily();
   const base = emptyFamily();
   const members = rows(raw.members, LIMITS.members, (r) => {
-    const name = str(r.name, 40).trim();
+    const name = typedEnd(str(r.name, 40));
     return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), color: color(r.color, MEMBER_COLORS[0]), kind: oneOf(r.kind, ["adult", "kid"] as const, "kid") } : null;
   });
   const sections: Partial<Record<FamilySection, boolean>> = {};
@@ -414,7 +425,7 @@ export function cleanFamily(input: unknown): Family {
   const ids = (v: unknown, max: number) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === "string" && x && x.length <= 100))].slice(0, max) as string[] : []);
   const calendars = Array.isArray(raw.calendars)
     ? rows(raw.calendars, LIMITS.calendars, (r) => {
-      const name = str(r.name, 40).trim();
+      const name = typedEnd(str(r.name, 40));
       const url = typeof r.url === "string" && /^(https?|webcal):\/\//i.test(r.url) && r.url.length <= 2000 ? r.url : "";
       const syncedAt = url && typeof r.syncedAt === "string" && !Number.isNaN(Date.parse(r.syncedAt)) ? r.syncedAt.slice(0, 40) : "";
       return name ? { id: id(r.id), name, color: color(r.color, "#7566e8"), show: bool(r.show, true), ...(url ? { url, ...(syncedAt ? { syncedAt } : {}) } : {}) } : null;
@@ -422,7 +433,7 @@ export function cleanFamily(input: unknown): Family {
     : base.calendars;
   const budget = Array.isArray(raw.budget)
     ? rows(raw.budget, LIMITS.budget, (r) => {
-      const name = str(r.name, 40).trim();
+      const name = typedEnd(str(r.name, 40));
       return name ? { id: id(r.id), name, limit: num(r.limit, 0, 10_000_000) } : null;
     })
     : base.budget;
@@ -433,7 +444,7 @@ export function cleanFamily(input: unknown): Family {
     layers,
     chorePointsCount: bool(raw.chorePointsCount, true),
     chores: rows(raw.chores, LIMITS.chores, (r) => {
-      const title = str(r.title, 120).trim();
+      const title = typedEnd(str(r.title, 120));
       const days = Array.isArray(r.days) ? [...new Set(r.days.filter((d: unknown) => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6))].sort() as number[] : [];
       return title ? { id: id(r.id), title, memberId: id(r.memberId), rotation: ids(r.rotation, LIMITS.members), days, points: int(r.points, 0, 100, 1) } : null;
     }),
@@ -447,7 +458,7 @@ export function cleanFamily(input: unknown): Family {
     }, true),
     rewards: Array.isArray(raw.rewards)
       ? rows(raw.rewards, LIMITS.rewards, (r) => {
-        const title = str(r.title, 80).trim();
+        const title = typedEnd(str(r.title, 80));
         return title ? { id: id(r.id), title, cost: int(r.cost, 1, 10_000, 10) } : null;
       })
       : base.rewards,
@@ -457,7 +468,7 @@ export function cleanFamily(input: unknown): Family {
     }, true),
     calendars,
     events: rows(raw.events, LIMITS.events, (r) => {
-      const title = str(r.title, 120).trim();
+      const title = typedEnd(str(r.title, 120));
       const date = day(r.date);
       return title && date ? {
         id: id(r.id), title, date, time: clock(r.time), endTime: clock(r.endTime), calendarId: id(r.calendarId),
@@ -466,24 +477,24 @@ export function cleanFamily(input: unknown): Family {
       } : null;
     }),
     trips: rows(raw.trips, LIMITS.trips, (r) => {
-      const name = str(r.name, 100).trim();
+      const name = typedEnd(str(r.name, 100));
       return name ? {
         id: id(r.id), name, destination: str(r.destination, 120), start: day(r.start), end: day(r.end),
         budget: num(r.budget, 0, 10_000_000), notes: str(r.notes, 3000),
         stops: rows(r.stops, 300, (s) => {
-          const title = str(s.title, 160).trim();
+          const title = typedEnd(str(s.title, 160));
           return title ? { id: id(s.id), date: day(s.date), time: clock(s.time), title, cost: num(s.cost, 0, 10_000_000) } : null;
         }),
         packing: rows(r.packing, 400, (p) => {
-          const item = str(p.item, 100).trim();
+          const item = typedEnd(str(p.item, 100));
           return item ? { id: id(p.id), item, memberId: id(p.memberId), packed: bool(p.packed) } : null;
         }),
       } : null;
     }),
     polls: rows(raw.polls, LIMITS.polls, (r) => {
-      const question = str(r.question, 160).trim();
+      const question = typedEnd(str(r.question, 160));
       const options = rows(r.options, 20, (o) => {
-        const label = str(o.label, 100).trim();
+        const label = typedEnd(str(o.label, 100));
         return label ? { id: id(o.id), label } : null;
       });
       const optionIds = new Set(options.map((o) => o.id));
@@ -498,7 +509,7 @@ export function cleanFamily(input: unknown): Family {
       } : null;
     }),
     bills: rows(raw.bills, LIMITS.bills, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       const paid = Array.isArray(r.paid) ? [...new Set(r.paid.filter((m: unknown) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)))].slice(-120) as string[] : [];
       const parts = cleanParts(r.parts);
       return name ? { id: id(r.id), name, amount: num(r.amount, 0, 10_000_000), dueDay: int(r.dueDay, 1, 31, 1), category: str(r.category, 40), autopay: bool(r.autopay), paid, ...(parts ? { parts } : {}) } : null;
@@ -531,7 +542,7 @@ export function cleanFamily(input: unknown): Family {
       return date && r.memberId && cycleLogUsed(log) ? log : null;
     }, true),
     pills: rows(raw.pills, LIMITS.pills, (r) => {
-      const name = str(r.name, 60).trim();
+      const name = typedEnd(str(r.name, 60));
       const times = Array.isArray(r.times) ? [...new Set(r.times.map(clock).filter(Boolean))].sort().slice(0, 8) as string[] : [];
       const days = Array.isArray(r.days) ? [...new Set(r.days.filter((d: unknown) => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6))].sort() as number[] : [0, 1, 2, 3, 4, 5, 6];
       const supply = r.supply === null || r.supply === undefined || r.supply === "" ? null : int(r.supply, 0, 10000, 0);
@@ -550,12 +561,12 @@ export function cleanFamily(input: unknown): Family {
       return date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, mood: int(r.mood, 1, 5, 3), tags, note: str(r.note, 500) } : null;
     }, true),
     goals: rows(raw.goals, LIMITS.goals, (r) => {
-      const title = str(r.title, 120).trim();
+      const title = typedEnd(str(r.title, 120));
       return title ? {
         id: id(r.id), title, why: str(r.why, 500), category: oneOf(r.category, ["personal", "health", "money", "family", "career", "learning", "home"] as const, "personal"),
         memberId: id(r.memberId), due: day(r.due), kind: oneOf(r.kind, ["steps", "number"] as const, "steps"),
         target: num(r.target, 0, 1e9), current: num(r.current, -1e9, 1e9), unit: str(r.unit, 20),
-        milestones: rows(r.milestones, 50, (m) => { const t = str(m.title, 120).trim(); return t ? { id: id(m.id), title: t, done: bool(m.done) } : null; }),
+        milestones: rows(r.milestones, 50, (m) => { const t = typedEnd(str(m.title, 120)); return t ? { id: id(m.id), title: t, done: bool(m.done) } : null; }),
         done: bool(r.done), createdAt: str(r.createdAt, 40), doneAt: str(r.doneAt, 40),
       } : null;
     }),
@@ -567,18 +578,18 @@ export function cleanFamily(input: unknown): Family {
     notify: cleanNotify(raw.notify),
     journal: rows(raw.journal, LIMITS.journal, (r) => {
       const date = day(r.date), body = str(r.body, 20_000);
-      return date && (body.trim() || str(r.title, 120).trim()) ? { id: id(r.id), date, title: str(r.title, 120), body, mood: str(r.mood, 8), createdAt: str(r.createdAt, 40) } : null;
+      return date && (body.trim() || typedEnd(str(r.title, 120))) ? { id: id(r.id), date, title: str(r.title, 120), body, mood: str(r.mood, 8), createdAt: str(r.createdAt, 40) } : null;
     }, true),
     countdowns: rows(raw.countdowns, LIMITS.countdowns, (r) => {
-      const title = str(r.title, 80).trim(), date = day(r.date);
+      const title = typedEnd(str(r.title, 80)), date = day(r.date);
       return title && date ? { id: id(r.id), title, date, emoji: str(r.emoji, 8), color: color(r.color, "#7566e8") } : null;
     }),
     groceries: rows(raw.groceries, LIMITS.groceries, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       return name ? { id: id(r.id), name, qty: str(r.qty, 20), aisle: str(r.aisle, 30), checked: bool(r.checked), price: Math.round(num(r.price, 0, 10000) * 100) / 100 } : null;
     }),
     savedVerses: rows(raw.savedVerses, LIMITS.savedVerses, (r) => {
-      const reference = str(r.reference, 60).trim(), text = str(r.text, 4000).trim();
+      const reference = typedEnd(str(r.reference, 60)), text = typedEnd(str(r.text, 4000));
       return reference && text ? { id: id(r.id), reference, text } : null;
     }),
     meditations: rows(raw.meditations, LIMITS.meditations, (r) => {
@@ -590,18 +601,18 @@ export function cleanFamily(input: unknown): Family {
     ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {
-      const name = str(r.name, 60).trim();
+      const name = typedEnd(str(r.name, 60));
       const items = Array.isArray(r.items) ? r.items.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 100)).slice(0, 200) : [];
       return name && items.length ? { id: id(r.id), name, items } : null;
     }),
     savedWords: rows(raw.savedWords, LIMITS.savedWords, (r) => {
-      const word = str(r.word, 60).trim();
+      const word = typedEnd(str(r.word, 60));
       return word ? { id: id(r.id), word, definition: str(r.definition, 500) } : null;
     }),
     browserMarks: rows(raw.browserMarks, BROWSER_LIMITS.marks, (r) => {
-      const url = str(r.url, BROWSER_LIMITS.url).trim();
+      const url = typedEnd(str(r.url, BROWSER_LIMITS.url));
       if (!/^https?:\/\//i.test(url)) return null;
-      return { id: id(r.id), url, title: str(r.title, BROWSER_LIMITS.title).trim() || hostOf(url) };
+      return { id: id(r.id), url, title: typedEnd(str(r.title, BROWSER_LIMITS.title)) || hostOf(url) };
     }),
     ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
     linkPage: (() => {
@@ -610,14 +621,14 @@ export function cleanFamily(input: unknown): Family {
         title: str(lp.title, 80), bio: str(lp.bio, 300),
         ...(lp.style === "directory" ? { style: "directory" as const } : {}),
         links: rows(lp.links, LIMITS.links, (r) => {
-          const title = str(r.title, 80).trim(), url = str(r.url, 1000).trim();
+          const title = typedEnd(str(r.title, 80)), url = typedEnd(str(r.url, 1000));
           const group = str(r.group, 30).replace(/[\u0000-\u001f]/g, " ").trim();
           return title && /^(https?:\/\/|mailto:|tel:)/i.test(url) ? { id: id(r.id), title, url, emoji: str(r.emoji, 8), ...(group ? { group } : {}) } : null;
         }),
       };
     })(),
     habits: rows(raw.habits, LIMITS.habits, (r) => {
-      const name = str(r.name, 60).trim();
+      const name = typedEnd(str(r.name, 60));
       const days = Array.isArray(r.days) ? [...new Set(r.days.filter(isDay))].sort().slice(-500) as string[] : [];
       return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), color: color(r.color, "#7566e8"), days } : null;
     }),
@@ -628,37 +639,37 @@ export function cleanFamily(input: unknown): Family {
     }, true),
     focusLog: rows(raw.focusLog, LIMITS.focusLog, (r) => { const date = day(r.date); return date ? { id: id(r.id), date, minutes: int(r.minutes, 0, 600) } : null; }, true),
     recipes: rows(raw.recipes, LIMITS.recipes, (r) => {
-      const title = str(r.title, 120).trim();
+      const title = typedEnd(str(r.title, 120));
       const ingredients = Array.isArray(r.ingredients) ? r.ingredients.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 120)).slice(0, 80) : [];
       return title ? { id: id(r.id), title, ingredients, steps: str(r.steps, 8000), tags: str(r.tags, 120), servings: int(r.servings, 0, 100), minutes: int(r.minutes, 0, 2000) } : null;
     }),
     meals: rows(raw.meals, LIMITS.meals, (r) => {
-      const date = day(r.date), text = str(r.text, 120).trim();
+      const date = day(r.date), text = typedEnd(str(r.text, 120));
       return date && (text || r.recipeId) ? { id: id(r.id), date, slot: oneOf(r.slot, ["breakfast", "lunch", "dinner"] as const, "dinner"), text, recipeId: id(r.recipeId), cost: Math.round(num(r.cost, 0, 10000) * 100) / 100, serves: num(r.serves, 0, 100) } : null;
     }, true),
     care: rows(raw.care, LIMITS.care, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       return name ? { id: id(r.id), kind: oneOf(r.kind, ["upkeep", "plants", "car", "pets", "cleaning", "checkups"] as const, "upkeep"), group: str(r.group, 60), name, everyDays: int(r.everyDays, 1, 3650, 30), lastDone: day(r.lastDone), notes: str(r.notes, 500) } : null;
     }),
     birthdays: rows(raw.birthdays, LIMITS.birthdays, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       const month = Number.isInteger(r.month) && r.month >= 1 && r.month <= 12 ? r.month as number : 0, dd = Number.isInteger(r.day) && r.day >= 1 && r.day <= 31 ? r.day as number : 0;
       return name && month && dd ? { id: id(r.id), name, month, day: dd, year: int(r.year, 0, 2200), kind: oneOf(r.kind, ["birthday", "anniversary", "other"] as const, "birthday") } : null;
     }),
     contacts: rows(raw.contacts, LIMITS.contacts, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       return name ? { id: id(r.id), name, role: str(r.role, 60), phone: str(r.phone, 40), email: str(r.email, 120), note: str(r.note, 500), emergency: bool(r.emergency) } : null;
     }),
     subscriptions: rows(raw.subscriptions, LIMITS.subscriptions, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       return name ? { id: id(r.id), name, amount: num(r.amount, 0, 100_000), cycle: oneOf(r.cycle, ["weekly", "monthly", "yearly"] as const, "monthly"), nextDate: day(r.nextDate), category: str(r.category, 40) } : null;
     }),
     jars: rows(raw.jars, LIMITS.jars, (r) => {
-      const name = str(r.name, 60).trim();
+      const name = typedEnd(str(r.name, 60));
       return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), color: color(r.color, "#16a34a"), target: num(r.target, 0, 100_000_000), saved: num(r.saved, -100_000_000, 100_000_000) } : null;
     }),
     collections: rows(raw.collections, LIMITS.collections, (r) => {
-      const title = str(r.title, 160).trim();
+      const title = typedEnd(str(r.title, 160));
       return title ? { id: id(r.id), kind: oneOf(r.kind, ["reading", "watchlist", "bucket", "gifts", "wishlist", "restaurants", "learning", "projects", "loans"] as const, "bucket"), title, sub: str(r.sub, 120), status: str(r.status, 20), rating: int(r.rating, 0, 5), note: str(r.note, 1000), url: /^https?:\/\//i.test(str(r.url, 1000)) ? str(r.url, 1000) : "", price: num(r.price, 0, 1_000_000), doneOn: day(r.doneOn) } : null;
     }),
     weather: (() => { const w = obj(raw.weather) || {}; return { place: str(w.place, 80), unit: oneOf(w.unit, ["F", "C"] as const, "F") }; })(),
@@ -667,24 +678,24 @@ export function cleanFamily(input: unknown): Family {
     sleepFinder: cleanSleepFinder(raw.sleepFinder),
     earshot: cleanEarshot(raw.earshot),
     workouts: rows(raw.workouts, LIMITS.workouts, (r) => {
-      const date = day(r.date), exercise = str(r.exercise, 60).trim();
+      const date = day(r.date), exercise = typedEnd(str(r.exercise, 60));
       return date && exercise ? { id: id(r.id), date, exercise, sets: int(r.sets, 0, 100), reps: int(r.reps, 0, 1000), weight: num(r.weight, 0, 5000), unit: oneOf(r.unit, ["lb", "kg"] as const, "lb") } : null;
     }, true),
     routines: rows(raw.routines, LIMITS.routines, (r) => {
-      const name = str(r.name, 60).trim();
-      const steps = rows(r.steps, 30, (s) => { const text = str(s.text, 100).trim(); return text ? { id: id(s.id), text } : null; });
+      const name = typedEnd(str(r.name, 60));
+      const steps = rows(r.steps, 30, (s) => { const text = typedEnd(str(s.text, 100)); return text ? { id: id(s.id), text } : null; });
       return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), steps, doneDate: day(r.doneDate), doneSteps: ids(r.doneSteps, 30) } : null;
     }),
-    milestones: rows(raw.milestones, LIMITS.milestones, (r) => { const title = str(r.title, 120).trim(), date = day(r.date); return title && date ? { id: id(r.id), who: str(r.who, 60), title, date, note: str(r.note, 1000) } : null; }),
-    ious: rows(raw.ious, LIMITS.ious, (r) => { const person = str(r.person, 60).trim(); return person ? { id: id(r.id), person, amount: num(r.amount, -1_000_000, 1_000_000), note: str(r.note, 200), date: day(r.date), settled: bool(r.settled) } : null; }),
-    allowance: rows(raw.allowance, LIMITS.allowance, (r) => { const who = str(r.who, 60).trim(); return who ? { id: id(r.id), who, amount: num(r.amount, -100_000, 100_000), note: str(r.note, 120), date: day(r.date) } : null; }, true),
-    giftCards: rows(raw.giftCards, LIMITS.giftCards, (r) => { const store = str(r.store, 60).trim(); return store ? { id: id(r.id), store, balance: num(r.balance, 0, 100_000), expires: day(r.expires), note: str(r.note, 200) } : null; }),
-    warranties: rows(raw.warranties, LIMITS.warranties, (r) => { const item = str(r.item, 100).trim(); return item ? { id: id(r.id), item, store: str(r.store, 60), bought: day(r.bought), until: day(r.until), note: str(r.note, 300) } : null; }),
+    milestones: rows(raw.milestones, LIMITS.milestones, (r) => { const title = typedEnd(str(r.title, 120)), date = day(r.date); return title && date ? { id: id(r.id), who: str(r.who, 60), title, date, note: str(r.note, 1000) } : null; }),
+    ious: rows(raw.ious, LIMITS.ious, (r) => { const person = typedEnd(str(r.person, 60)); return person ? { id: id(r.id), person, amount: num(r.amount, -1_000_000, 1_000_000), note: str(r.note, 200), date: day(r.date), settled: bool(r.settled) } : null; }),
+    allowance: rows(raw.allowance, LIMITS.allowance, (r) => { const who = typedEnd(str(r.who, 60)); return who ? { id: id(r.id), who, amount: num(r.amount, -100_000, 100_000), note: str(r.note, 120), date: day(r.date) } : null; }, true),
+    giftCards: rows(raw.giftCards, LIMITS.giftCards, (r) => { const store = typedEnd(str(r.store, 60)); return store ? { id: id(r.id), store, balance: num(r.balance, 0, 100_000), expires: day(r.expires), note: str(r.note, 200) } : null; }),
+    warranties: rows(raw.warranties, LIMITS.warranties, (r) => { const item = typedEnd(str(r.item, 100)); return item ? { id: id(r.id), item, store: str(r.store, 60), bought: day(r.bought), until: day(r.until), note: str(r.note, 300) } : null; }),
     mileage: rows(raw.mileage, LIMITS.mileage, (r) => { const date = day(r.date); return date ? { id: id(r.id), date, miles: num(r.miles, 0, 10_000), purpose: str(r.purpose, 120), route: str(r.route, 120) } : null; }, true),
     mileageRate: num(raw.mileageRate, 0, 10, 0.7),
     clocks: Array.isArray(raw.clocks) ? [...new Set(raw.clocks.filter((z: unknown) => typeof z === "string" && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+){0,2}$/.test(z as string) && (z as string).length <= 60))].slice(0, LIMITS.clocks) as string[] : [],
     medical: rows(raw.medical, LIMITS.medical, (r) => {
-      const person = str(r.person, 60).trim();
+      const person = typedEnd(str(r.person, 60));
       return person ? { id: id(r.id), person, bloodType: str(r.bloodType, 10), allergies: str(r.allergies, 500), conditions: str(r.conditions, 500), medications: str(r.medications, 500), doctor: str(r.doctor, 200), insurance: str(r.insurance, 200), notes: str(r.notes, 1000) } : null;
     }),
     kit: cleanKit(raw.kit),
@@ -758,12 +769,12 @@ export function cleanHealth(input: unknown): Health {
     profiles,
     goals,
     food: rows(raw.food, LIMITS.food, (r) => {
-      const name = str(r.name, 100).trim();
+      const name = typedEnd(str(r.name, 100));
       const date = day(r.date);
       return name && date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, meal: oneOf(r.meal, MEALS, "snacks"), name, servings: num(r.servings, 0.01, 100, 1), ...nutrition(r) } : null;
     }, true),
     exercise: rows(raw.exercise, LIMITS.exercise, (r) => {
-      const name = str(r.name, 80).trim();
+      const name = typedEnd(str(r.name, 80));
       const date = day(r.date);
       return name && date && r.memberId ? { id: id(r.id), memberId: id(r.memberId), date, name, minutes: int(r.minutes, 0, 1440), calories: int(r.calories, 0, 10000) } : null;
     }, true),
@@ -777,7 +788,7 @@ export function cleanHealth(input: unknown): Health {
       return date && r.memberId && weight > 0 ? { id: id(r.id), memberId: id(r.memberId), date, weight } : null;
     }, true),
     foods: rows(raw.foods, LIMITS.foods, (r) => {
-      const name = str(r.name, 100).trim();
+      const name = typedEnd(str(r.name, 100));
       return name ? { id: id(r.id), name, serving: str(r.serving, 60), ...nutrition(r) } : null;
     }),
   };
@@ -807,8 +818,12 @@ export const isOn = (section: FamilySection, f: Pick<Family, "sections">): boole
 
 /** Whether an event (or one of its repeats) falls on a day. */
 export function occursOn(e: FamilyEvent, date: string): boolean {
-  if (!isDay(date) || date < e.date) return false;
-  if (date === e.date) return true;
+  // Same answers as checking the date first, in the cheapest order: a one-off event on another day is a
+  // quick "no" with no Date objects (most events, called for every event on every day shown or planned).
+  if (date === e.date) return isDay(date);
+  if (date < e.date) return false;
+  if (e.repeat !== "weekly" && e.repeat !== "monthly" && e.repeat !== "yearly") return false;
+  if (!isDay(date)) return false;
   const a = fromDay(e.date), b = fromDay(date);
   if (e.repeat === "weekly") return a.getDay() === b.getDay();
   if (e.repeat === "monthly") {

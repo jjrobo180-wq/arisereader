@@ -262,7 +262,7 @@ export const BUILT_IN_BOARD_IDS = BOARDS.map((b) => b.id);
 export const builtInBoard = (id: string) => BOARDS.find((b) => b.id === id);
 
 // ——— Saving and loading safely ————————————————————————————————————————————————————————————————————
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max) : "");
 const PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 export const LIMITS = { boards: 120, buttons: 150, phrases: 600, recent: 60, photo: 90_000, label: 40, say: 300, phrase: 300 } as const;
 

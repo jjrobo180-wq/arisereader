@@ -1,6 +1,6 @@
 {
   "appId": "com.arisereader.reader",
-  "appName": "A.R.I.S.E. Reader",
+  "appName": "Arise Reader",
   "webDir": "www",
   "plugins": {
     "SplashScreen": {

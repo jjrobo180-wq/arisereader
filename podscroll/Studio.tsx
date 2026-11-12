@@ -1,4 +1,4 @@
-// Pod+ Studio: Study Pod+ (study notes → a podcast episode with key points and a quiz) and Meeting Pod
+// Podster Studio: Study Podster (study notes → a podcast episode with key points and a quiz) and Meeting Pod
 // (meeting notes → summary, decisions, action items, open questions and a spoken recap).
 // The words are written by AI on the server (server/podcastStudio.ts); what's made is kept on this
 // device only. Listening uses AI voices only (Orpheus, then Aura); never the phone's robot voice.
@@ -21,7 +21,7 @@ const when = (t: number) => new Date(t).toLocaleDateString(undefined, { month: "
 
 const COPY = {
   study: {
-    name: "Study Pod+", icon: GraduationCap, color: "#6d28d9",
+    name: "Study Podster", icon: GraduationCap, color: "#6d28d9",
     tag: "Turn your study notes into a podcast you can listen to.",
     help: "Paste your class notes, add a PDF or photos of your notes, or record a class. AI writes a short episode that explains it, then gives you the key points and a quick quiz.",
     placeholder: "Paste your notes here…\n\nExample: Photosynthesis happens in the chloroplasts. Light reactions make ATP and NADPH…",
@@ -120,10 +120,10 @@ function useRecorder(api: Api, add: (text: string) => void) {
   const start = async () => {
     if (rec.current) return;
     setNote("");
-    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) { setNote("Recording doesn't work in this browser. Try Safari or Chrome, or the Pod+ app."); return; }
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) { setNote("Recording doesn't work in this browser. Try Safari or Chrome, or the Podster app."); return; }
     let stream: MediaStream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-    catch { setNote("Pod+ needs the microphone to record. Allow it in Settings → Pod+ → Microphone, then try again."); return; }
+    catch { setNote("Podster needs the microphone to record. Allow it in Settings → Podster → Microphone, then try again."); return; }
     rec.current = { stream, recorder: null, cut: null, tick: null, started: Date.now(), texts: [], pending: 0, stopping: false };
     startPiece();
     // Every few minutes the piece so far is sent to be written down, and a new one starts.
@@ -401,7 +401,7 @@ export function StudioView({ kind, api, apiBase, say, onBack, onSwitch }: { kind
         <span className="text-xs text-[#606060]">{notes.length.toLocaleString()} / 20,000</span>
       </div>
       {reading && <p role="status" className="mt-2 inline-flex items-center gap-2 text-sm text-[#3f3f3f]"><Loader2 size={14} className="animate-spin" />{reading}</p>}
-      {recorder.state === "recording" && <p role="status" className="mt-2 flex items-center gap-2 text-sm text-[#3f3f3f]"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#cc0000]" />Recording. Keep Pod+ open; it's written down as you go.</p>}
+      {recorder.state === "recording" && <p role="status" className="mt-2 flex items-center gap-2 text-sm text-[#3f3f3f]"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#cc0000]" />Recording. Keep Podster open; it's written down as you go.</p>}
       {recorder.note && recorder.state !== "recording" && <p role="status" className="mt-2 text-sm text-[#3f3f3f]">{recorder.note}</p>}
       {kind === "study" && <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Choice label="Length" value={length} set={setLength} options={[["quick", "Quick · ~3 min"], ["full", "Full · ~6 min"]]} />

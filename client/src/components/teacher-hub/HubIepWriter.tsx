@@ -3,12 +3,14 @@
 // boxes that adjust to the student, writes the whole IEP in the order of the school's template, and
 // scores it live against the IEP Quality Rubric. The rules and wording are in shared/iepWriter.
 import { useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, ClipboardCopy, Download, FileText, ListChecks, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ClipboardCopy, Download, FileText, ListChecks, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import {
-  DISABILITIES, GOAL_STATUS, IEP_LIMITS, MEASURE_FREQ, NEED_AREAS, accLabel, areaOptions, fieldOptions, fieldShown, first, iepText, newIepDraft, newNeed,
-  needById, scoreRubric, suggestedAcc, visibleSteps, writeIep, type IepDraft, type IepField, type IepNeed, type IepStep, type PriorGoal,
+  DISABILITIES, GOAL_STATUS, IEP_LIMITS, MEASURE_FREQ, NEED_AREAS, accLabel, areaOptions, fieldOptions, fieldShown, first, newIepDraft, newNeed,
+  needById, scoreRubric, suggestedAcc, visibleSteps, writeIep, type IepDraft, type IepSection, type IepField, type IepNeed, type IepStep, type PriorGoal,
 } from "@shared/iepWriter";
 import type { Workspace } from "@shared/teacherHub";
+import { API_BASE } from "@/lib/queryClient";
+import { useHubLinks } from "./HubLinks";
 import { HubModal } from "./HubModal";
 import { Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 
@@ -293,10 +295,37 @@ function RubricView({ score, steps, go }: { score: ReturnType<typeof scoreRubric
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+type Mode = "template" | "ai" | "both";
+type AiSec = { id: string; paragraphs: string[]; bullets: string[] };
+const sectionText = (s: IepSection) => [s.title.toUpperCase(), ...s.paragraphs, ...(s.bullets || []).map((b) => `• ${b}`), ...(s.table || []).map((r) => r.join(" | "))].join("\n");
+
 function Preview({ draft }: { draft: IepDraft }) {
-  const sections = writeIep(draft);
+  const template = writeIep(draft);
+  const token = useHubLinks()?.token ?? null;
+  const [mode, setMode] = useState<Mode>("template");
+  const [ai, setAi] = useState<AiSec[] | null>(null);
+  const [pick, setPick] = useState<Record<string, "template" | "ai">>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const aiOf = (id: string) => ai?.find((a) => a.id === id);
+  /** Which wording a section uses right now. */
+  const use = (id: string): "template" | "ai" => (mode === "template" || !aiOf(id) ? "template" : mode === "ai" ? "ai" : pick[id] || "ai");
+  const sections: IepSection[] = template.map((t) => { const a = aiOf(t.id); return use(t.id) === "ai" && a ? { ...t, paragraphs: a.paragraphs, bullets: a.bullets.length ? a.bullets : undefined } : t; });
+  const writeWithAi = async (next: Mode) => {
+    setMode(next);
+    if (ai || busy) return;
+    setBusy(true); setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/teacher-hub/iep-ai`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ sections: template.map((t) => ({ id: t.id, title: t.title, paragraphs: t.paragraphs, bullets: t.bullets })) }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(j.sections)) throw new Error(j.message || "The AI could not write the IEP. Try again.");
+      setAi(j.sections);
+    } catch (e: any) { setError(e?.message || "The AI could not write the IEP. Try again."); setMode("template"); }
+    setBusy(false);
+  };
   const [copied, setCopied] = useState(false);
-  const copy = async () => { try { await navigator.clipboard.writeText(iepText(draft)); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the browser said no */ } };
+  const copy = async () => { try { await navigator.clipboard.writeText(sections.map(sectionText).join("\n\n")); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the browser said no */ } };
   const download = () => {
     const body = sections.map((s) => `<h2>${esc(s.title)}</h2>${s.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}${s.bullets?.length ? `<ul>${s.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}${s.table ? `<table border="1" cellpadding="4" style="border-collapse:collapse">${s.table.map((r, i) => `<tr>${r.map((c) => (i ? `<td>${esc(c)}</td>` : `<th>${esc(c)}</th>`)).join("")}</tr>`).join("")}</table>` : ""}`).join("");
     const html = `<html><head><meta charset="utf-8"><title>${esc(draft.student)} IEP</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt}h1{font-size:16pt}h2{font-size:13pt;margin-top:14pt}</style></head><body><h1>${esc(draft.a.name || draft.student)}: IEP draft</h1>${body}</body></html>`;
@@ -306,6 +335,18 @@ function Preview({ draft }: { draft: IepDraft }) {
   };
   return (
     <div className="space-y-4" data-testid="iep-preview">
+      <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-3" data-testid="iep-mode">
+        <b className="flex items-center gap-2 text-sm text-slate-900"><Sparkles className="h-4 w-4 text-teal-700" /> How should the IEP be written?</b>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="IEP writing mode">
+          {([["template", "Template", "Your drop boxes, in the school's template"], ["ai", "AI", "Same template, written by AI in warmer wording"], ["both", "Both, then merge", "Pick the template's or the AI's wording for each part"]] as const).map(([id, label, hint]) => (
+            <button key={id} type="button" role="radio" aria-checked={mode === id} disabled={busy} onClick={() => (id === "template" ? setMode("template") : void writeWithAi(id))}
+              className={`min-h-14 rounded-xl border px-3 py-2 text-left text-sm ${mode === id ? "border-teal-700 bg-white ring-2 ring-teal-700" : "border-slate-200 bg-white"}`} data-testid={`iep-mode-${id}`}>
+              <b className="block text-slate-900">{label}</b><span className="text-xs text-slate-600">{hint}</span>
+            </button>))}
+        </div>
+        {busy && <p className="mt-2 flex items-center gap-2 text-sm text-slate-700" role="status"><Loader2 className="h-4 w-4 animate-spin" /> The AI is writing the IEP. This takes about a minute.</p>}
+        {error && <p className="mt-2 text-sm font-medium text-red-700" role="alert">{error}</p>}
+      </div>
       <div className="flex flex-wrap gap-2">
         <PrimaryButton onClick={copy}><ClipboardCopy className="h-4 w-4" /> {copied ? "Copied" : "Copy the whole IEP"}</PrimaryButton>
         <GhostButton onClick={download}><Download className="h-4 w-4" /> Download for Word</GhostButton>
@@ -314,7 +355,12 @@ function Preview({ draft }: { draft: IepDraft }) {
       <article className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 text-[15px] leading-7 text-slate-800 sm:p-6">
         {sections.map((s) => (
           <section key={s.id}>
-            <h3 className="mb-1 border-b border-slate-200 pb-1 text-base font-bold text-slate-900">{s.title}</h3>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-1">
+              <h3 className="text-base font-bold text-slate-900">{s.title}</h3>
+              {mode === "both" && aiOf(s.id) && <span className="inline-flex overflow-hidden rounded-lg border border-slate-200 text-xs font-semibold" role="radiogroup" aria-label={`Wording for ${s.title}`}>
+                {(["template", "ai"] as const).map((w) => <button key={w} type="button" role="radio" aria-checked={use(s.id) === w} onClick={() => setPick((p) => ({ ...p, [s.id]: w }))} className={`min-h-9 px-3 ${use(s.id) === w ? "bg-teal-700 text-white" : "bg-white text-slate-700"}`}>{w === "ai" ? "AI" : "Template"}</button>)}
+              </span>}
+            </div>
             {s.paragraphs.map((p, i) => <p key={i} className="mt-2">{p}</p>)}
             {s.bullets?.length ? <ul className="mt-2 list-disc space-y-1 pl-5">{s.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul> : null}
             {s.table && <div className="mt-2 overflow-x-auto"><table className="w-full min-w-[480px] text-left text-sm"><thead><tr>{s.table[0].map((c) => <th key={c} className="border-b border-slate-200 py-1 pr-3 font-semibold">{c}</th>)}</tr></thead><tbody>{s.table.slice(1).map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className="border-b border-slate-100 py-1 pr-3 align-top">{c}</td>)}</tr>)}</tbody></table></div>}

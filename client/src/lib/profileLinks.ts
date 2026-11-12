@@ -31,7 +31,8 @@ export const linksApi = (token: string | null) => ({
   leave: (ownerId: number, id: string) => call<{ ok: true }>(token, `/api/profile-links/from/${ownerId}/${id}/leave`, { method: "POST" }),
   /** A LifeHub app someone shares with you: their copy of it (shared/sharedApps.ts). */
   appGet: (ownerId: number, section: string) => call<{ access: "view" | "edit"; owner: string; members: any[]; slice: Record<string, unknown>; updatedAt: string | null }>(token, `/api/profile-links/from/${ownerId}/app/${encodeURIComponent(section)}`),
-  appPut: (ownerId: number, section: string, slice: Record<string, unknown>) => call<{ ok: true; updatedAt: string; slice: Record<string, unknown> }>(token, `/api/profile-links/from/${ownerId}/app/${encodeURIComponent(section)}`, { method: "PUT", body: JSON.stringify({ slice }) }),
+  /** base: their copy as it was when you loaded it, so only your changes go in and theirs since then are kept. */
+  appPut: (ownerId: number, section: string, slice: Record<string, unknown>, base?: Record<string, unknown>) => call<{ ok: true; updatedAt: string; slice: Record<string, unknown> }>(token, `/api/profile-links/from/${ownerId}/app/${encodeURIComponent(section)}`, { method: "PUT", body: JSON.stringify(base ? { slice, base } : { slice }) }),
   lifeView: (ownerId: number, item: string, today: string) => call<{ view: any; today: string; owner: string }>(token, `/api/profile-links/from/${ownerId}/life/${encodeURIComponent(item)}?today=${today}`),
 });
 

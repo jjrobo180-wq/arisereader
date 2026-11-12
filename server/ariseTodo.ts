@@ -55,6 +55,15 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
   return true;
 }
 
+/** Only when the saved copy last changed. A few bytes, where reading the copy itself can be hundreds of
+ *  kilobytes: the "anything newer?" check every open phone makes, and every save, need nothing more. */
+export async function readUpdatedAt(userId: number): Promise<string | null> {
+  const { data, error } = await getAdminSupabase().from(TABLE).select("updated_at")
+    .eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data ? String(data.updated_at) : null;
+}
+
 export async function readWorkspace(userId: number) {
   const { data, error } = await getAdminSupabase().from(TABLE).select("workspace, updated_at")
     .eq("user_id", userId).maybeSingle();
@@ -124,7 +133,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
       return res.status(429).json({ message: "Too many sign-up attempts. " + waitWords(wait) + " remaining." });
     }
     signupLimits.fail(address);
-    const username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    let username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    // No username typed (the apps' sign-up asks only for name, email and password): one is made from the
+    // email. People sign in with their email.
+    const typedEmail = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    if (!username && validEmail(typedEmail)) {
+      const base = (typedEmail.split("@")[0].replace(/[^a-z0-9_-]/g, "") || "arise").slice(0, 20).padEnd(3, "0");
+      username = base;
+      for (let i = 0; i < 20 && (await storage.getUserByUsername(username)); i++) username = `${base}${Math.floor(100 + Math.random() * 9900)}`;
+    }
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
     if (!/^[a-z0-9_-]{3,30}$/.test(username)) {
@@ -154,7 +171,7 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
         // behind a code they never received. The address stays on the account, unconfirmed.
         if (issued.ok) await signup.codes.forget(userId).catch(() => {});
         await signup.turnOn(userId).catch(() => {});
-        return res.status(201).json({ success: true, confirmEmail: false, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
+        return res.status(201).json({ success: true, confirmEmail: false, username, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
       }
       return res.status(201).json({ success: true, confirmEmail: true, username, message: `We sent a 6-digit code to ${email}. Enter it to finish.` });
     } catch (error: any) {
@@ -220,15 +237,64 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
   app.get("/api/arise-todo/workspace", authMiddleware, async (req: any, res) => {
     if (rejectPreview(req, res)) return;
     try {
-      const row = await readWorkspace(Number(req.user.id));
+      const userId = Number(req.user.id);
       res.set("Cache-Control", "no-store");
-      if (row && typeof req.query?.since === "string" && row.updatedAt === req.query.since) {
-        return res.json({ unchanged: true, updatedAt: row.updatedAt });
+      // "Anything newer than the copy I have?" is answered from the date alone; the copy itself is
+      // read only when it really is newer.
+      if (typeof req.query?.since === "string" && req.query.since) {
+        const updatedAt = await readUpdatedAt(userId);
+        if (updatedAt && updatedAt === req.query.since) return res.json({ unchanged: true, updatedAt });
       }
+      const row = await readWorkspace(userId);
       return res.json(row || { workspace: null, updatedAt: null });
     } catch (error: any) {
       console.error("[arise-todo] read:", error?.message);
       return res.status(503).json({ message: "Your cloud tasks are temporarily unavailable. Nothing has been replaced." });
+    }
+  });
+
+  // Setup and the walkthrough show once per ACCOUNT, not once per device (signing in on a new phone,
+  // the Mac or after signing out used to show them again). Kept in the settings table, one row per
+  // account: "seen:<id>" = {"setup":true,"walkthrough":true}. Accounts from before this change that
+  // already have a saved workspace count as having seen both.
+  const SEEN_SINCE = Date.parse("2026-11-11T22:30:00Z");
+  const SEEN_WHAT = ["setup", "walkthrough"] as const;
+  const readSeen = async (userId: number): Promise<Record<string, boolean>> => {
+    try { const v = JSON.parse((await storage.getSetting(`seen:${userId}`)) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+  };
+  app.get("/api/arise-todo/seen", authMiddleware, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId)) return res.status(401).json({ message: "Sign in first." });
+    try {
+      let seen = await readSeen(userId);
+      if (!SEEN_WHAT.every((k) => seen[k])) {
+        const user: any = await storage.getUser(userId).catch(() => null);
+        const made = Date.parse(String(user?.createdAt || ""));
+        if (Number.isFinite(made) && made < SEEN_SINCE && (await readUpdatedAt(userId).catch(() => null))) {
+          seen = { ...seen, setup: true, walkthrough: true };
+          await storage.upsertSetting(`seen:${userId}`, JSON.stringify(seen)).catch(() => {});
+        }
+      }
+      return res.json({ setup: !!seen.setup, walkthrough: !!seen.walkthrough });
+    } catch (e: any) {
+      console.error("[arise-todo] seen read:", e?.message);
+      return res.status(503).json({ message: "Couldn't check right now." });
+    }
+  });
+  app.post("/api/arise-todo/seen", authMiddleware, async (req: any, res) => {
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId)) return res.status(401).json({ message: "Sign in first." });
+    const what = SEEN_WHAT.filter((k) => req.body?.[k] === true);
+    if (!what.length) return res.status(400).json({ message: "Nothing to save." });
+    try {
+      const seen = await readSeen(userId);
+      for (const k of what) seen[k] = true;
+      await storage.upsertSetting(`seen:${userId}`, JSON.stringify({ setup: !!seen.setup, walkthrough: !!seen.walkthrough }));
+      return res.json({ success: true });
+    } catch (e: any) {
+      console.error("[arise-todo] seen save:", e?.message);
+      return res.status(503).json({ message: "Couldn't save right now." });
     }
   });
 
@@ -247,7 +313,9 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     if (overwrite !== undefined && overwrite !== true && overwrite !== false) return res.status(400).json({ message: "Invalid overwrite option." });
     const userId = Number(req.user.id);
     try {
-      const previous = await readWorkspace(userId);
+      // Only the date of the saved copy is needed to check this save against it.
+      const previousAt = await readUpdatedAt(userId);
+      const previous = previousAt ? { updatedAt: previousAt } : null;
       const conflict = () => res.status(409).json({
         code: HUB_CONFLICT,
         message: "Your to-dos changed on another device. Choose which copy to keep.",

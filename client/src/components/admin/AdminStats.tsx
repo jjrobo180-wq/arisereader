@@ -200,7 +200,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
   const growthConfig: ChartConfig = { totalStudents: { label: "Students", color: COLORS.violet }, totalTeachers: { label: "Teachers", color: COLORS.cyan }, totalParents: { label: "Parents", color: COLORS.amber } };
   const newConfig: ChartConfig = { newStudents: { label: "Students", color: COLORS.violet }, newTeachers: { label: "Teachers", color: COLORS.cyan }, newParents: { label: "Parents", color: COLORS.amber } };
   const activityConfig: ChartConfig = { activeStudents: { label: "Active students", color: COLORS.emerald }, studentLogins: { label: "Student sign-ins", color: COLORS.blue }, staffLogins: { label: "Teacher & parent sign-ins", color: COLORS.slate } };
-  const quizConfig: ChartConfig = { bookQuizzes: { label: "Book quizzes", color: COLORS.violet }, eyeGazeQuizzes: { label: "Eye Gazer quizzes", color: COLORS.fuchsia }, assessments: { label: "Reading checks", color: COLORS.cyan }, passed: { label: "Passed", color: COLORS.emerald } };
+  const quizConfig: ChartConfig = { bookQuizzes: { label: "Book quizzes", color: COLORS.violet }, eyeGazeQuizzes: { label: "Arise AAC quizzes", color: COLORS.fuchsia }, assessments: { label: "Reading checks", color: COLORS.cyan }, passed: { label: "Passed", color: COLORS.emerald } };
   const pointsConfig: ChartConfig = { points: { label: "Points", color: COLORS.amber } };
   const hourConfig: ChartConfig = { count: { label: "Students", color: COLORS.blue } };
   const dayConfig: ChartConfig = { count: { label: "Student visits", color: COLORS.emerald } };
@@ -212,7 +212,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-black sm:text-2xl">Stats</h1>
-          <p className="mt-1 text-sm text-muted-foreground">How A.R.I.S.E Reader is growing and how students are using it.</p>
+          <p className="mt-1 text-sm text-muted-foreground">How Arise Reader is growing and how students are using it.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load(true)} disabled={loading} className="gap-2" data-testid="stats-refresh">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />

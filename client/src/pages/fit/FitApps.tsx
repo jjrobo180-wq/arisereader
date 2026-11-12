@@ -1,4 +1,4 @@
-// Arise Fit apps (shared/fitApps.ts): the Apps tab (the apps you've added, and the tab bar), the Arise
+// Cooked apps (shared/fitApps.ts): the Apps tab (the apps you've added, and the tab bar), the Arise
 // Fit app library, and the apps that are new screens: Yoga, Breathe, Mobility, Intervals (with your own
 // interval timers), Couch to 5K, Water, Steps, Recovery and Friends. Strength, Food, Fasting, Run,
 // Sleep and the rest are the screens they always were (FitApp.tsx opens them).
@@ -70,7 +70,7 @@ export function AppsTab({ data, update, say, onOpen }: { data: FitData; update: 
   return <Sheet inline title="Plugins" onClose={() => {}} testId="fit-apps">
     {/* What plugins are, in three steps (can be hidden once read). */}
     {help ? <Card className="!p-4" testId="fit-apps-help">
-      <p className="text-[19px] leading-tight" style={display}>Plugins add tools to Arise Fit</p>
+      <p className="text-[19px] leading-tight" style={display}>Plugins add tools to Cooked</p>
       <p className="mt-1 text-[14px] leading-snug" style={{ color: C.dim }}>Yoga, Water, Steps, Intervals and more. Only add what you'll use: the app stays simple.</p>
       <ol className="mt-3 space-y-2.5">{([[Plus, "Add a plugin", "Browse the list and tap Add."], [Play, "Open it", "Tap it in Your plugins below, or on Today."], [Pin, "Pin your favorites", `Turn on "Tab bar" to put up to ${TAB_MAX} at the bottom of the screen for one tap.`]] as const).map(([Ic, t, d], n) =>
         <li key={t} className="flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: C.tint, color: C.lime }}><Ic className="h-4 w-4" /></span>
@@ -131,7 +131,7 @@ function StoreRow({ app, added, pinned, onAdd, onOpen, onPin }: { app: FitApp; a
     </div></div></Card>;
 }
 
-/** The Arise Fit app library. */
+/** The Cooked app library. */
 export function AppStore({ data, update, say, onClose, onOpen }: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onOpen: (id: FitAppId) => void }) {
   const a = appsOf(data.apps);
   const [q, setQ] = useState("");
@@ -344,7 +344,7 @@ export function StepsApp({ data, update, say, inline, onClose }: { data: FitData
   return <Sheet title="Steps" onClose={onClose} inline={inline} testId="fit-steps-app">
     {!linked || !native ? <Card className="!p-5 text-center"><Footprints className="mx-auto h-10 w-10" style={{ color: "#22c55e" }} />
       <p className="mt-2 text-[26px] leading-none" style={display}>Steps from Apple Health</p>
-      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>{native ? "Your iPhone and Apple Watch count your steps. Connect Apple Health to see them here." : "Steps come from Apple Health in the Arise Fit iPhone app."}</p>
+      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>{native ? "Your iPhone and Apple Watch count your steps. Connect Apple Health to see them here." : "Steps come from Apple Health in the Cooked iPhone app."}</p>
       {native && <Btn className="mt-4 w-full" onClick={() => void connect()} disabled={busy}>{busy ? "Connecting…" : "Connect Apple Health"}</Btn>}</Card>
       : <Card className="!p-5"><div className="flex items-center gap-5">
           <Ring value={steps} goal={goal} size={130} stroke={12} color="#22c55e"><div><p className="text-[30px] leading-none tabular-nums" style={display}>{fmtNum(steps)}</p><p className="mt-0.5 text-[10px] uppercase tracking-[.08em]" style={{ color: C.dim }}>steps</p></div></Ring>

@@ -13,8 +13,8 @@ const read = (p: string) => readFileSync(p, "utf8");
 
 test("it's its own app: Arise Notes, com.arisereader.notes, opening to sign-in and then Notes", () => {
   const nat = read("client/src/lib/nativeApp.ts");
-  assert.match(nat, /\| "notes"( \| "talk")?;/);
-  assert.match(nat, /\|\| f === "notes"( \|\| f === "talk")? \? f : "todo"/);
+  assert.match(nat, /\| "notes"( \| "talk")?( \| "undercover")?;/);
+  assert.match(nat, /\|\| f === "notes"( \|\| f === "talk")?( \|\| f === "undercover")? \? f : "todo"/);
   assert.match(nat, /notes: \{ name: "Arise Notes", bundle: "com\.arisereader\.notes", api: "https:\/\/arisetodo\.com" \}/);
   assert.match(nat, /export const isNotesApp = \(\): boolean => isNativeApp\(\) && nativeFlavor\(\) === "notes";/);
 
@@ -41,7 +41,8 @@ test("no plans are sold inside the iPhone app (App Review 3.1.1)", () => {
   assert.match(s, /import \{ NATIVE_NO_PURCHASE, isNativeApp \} from "@\/lib\/nativeApp";/);
   assert.match(s, /const native = isNativeApp\(\);/);
   assert.match(s, /if \(!native\) notesApi\.billing\(\)/, "billing isn't even loaded in the app");
-  assert.match(s, /\{native \? <Notice>\{NATIVE_NO_PURCHASE\}<\/Notice> : !bill \? <Spinner \/> : <>/, "no prices, buy buttons or billing links");
+  // In the app: the All Access offer (Apple's in-app purchase, or the website link where Apple allows it), never Stripe.
+  assert.match(s, /\{native \? <AllAccessOffer note=\{NATIVE_NO_PURCHASE\}.*?\/> : !bill \? <Spinner \/> : <>/, "no Stripe prices, buy buttons or billing links");
 });
 
 test("the iOS project: light, the microphone with a reason, live updates from our own server", () => {
@@ -70,7 +71,8 @@ test("the iOS project: light, the microphone with a reason, live updates from ou
   writeFileSync(fit, '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>UIUserInterfaceStyle</key><string>Dark</string></dict></plist>');
   execFileSync("python3", [".github/scripts/configure_fit_app.py", fit, "fit"]);
   assert.doesNotMatch(read(fit), /UIUserInterfaceStyle/);
-  assert.doesNotMatch(read(fit), /NSMicrophoneUsageDescription/);
+  // Fit asks for the microphone only for the sound of a form-check video (shared/coachFormCheck.ts).
+  assert.match(read(fit), /<key>NSMicrophoneUsageDescription<\/key>\s*<string>Cooked uses the microphone for the sound of a video you film to send your trainer for a form check\.<\/string>/);
 
   // The icon is a 1024×1024 PNG with no transparency (color type 2), as App Store Connect requires.
   const png = readFileSync("client/public/app-icons/notes-1024.png");

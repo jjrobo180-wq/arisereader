@@ -46,10 +46,10 @@ test("the parent gets one email that explains the program, the parent account an
   assert.equal(s.sent.length, 1);
   const mail = s.sent[0];
   assert.equal(mail.to, "mom.flores@example.com");
-  assert.equal(mail.subject, "Ms. Lee invited you to follow Dennis Flores's reading on A.R.I.S.E. Reader");
+  assert.equal(mail.subject, "Ms. Lee invited you to follow Dennis Flores's reading on Arise Reader");
   assert.deepEqual(mail.options, { fromName: "Ms. Lee", replyTo: "lee@school.example" }, "it comes in the teacher's name and a reply goes to the teacher");
   for (const part of [
-    "Ms. Lee uses A.R.I.S.E. Reader with Dennis Flores",
+    "Ms. Lee uses Arise Reader with Dennis Flores",
     "Dennis already has a student account. To follow along you will need a free parent account",
     "What it is", "A score of 70% or higher earns that book's points",
     "What a parent account does", "quiz history and reading growth", "Parent Proctor Code", "parent controls", `It is free, and one parent account can follow up to ${PLANS.parentMaxChildren} children`,
@@ -154,10 +154,10 @@ test("a family whose child has no account gets one email on how the child, then 
   assert.equal(s.sent.length, 1);
   const mail = s.sent[0];
   assert.equal(mail.to, "new.mom@example.com");
-  assert.equal(mail.subject, "Ms. Lee invited your family to A.R.I.S.E. Reader");
+  assert.equal(mail.subject, "Ms. Lee invited your family to Arise Reader");
   assert.deepEqual(mail.options, { fromName: "Ms. Lee", replyTo: "lee@school.example" });
   for (const part of [
-    "Your family is invited to read with us", "Ms. Lee invited you and Jordan Reyes to join A.R.I.S.E. Reader", "It is free. Jordan will need a student account, and you will need a parent account.",
+    "Your family is invited to read with us", "Ms. Lee invited you and Jordan Reyes to join Arise Reader", "It is free. Jordan will need a student account, and you will need a parent account.",
     "What it is", "A score of 70% or higher earns that book's points",
     "What you get as a parent", "See Jordan's quiz history and reading growth", "Parent Proctor Code", `follow up to ${PLANS.parentMaxChildren} children`,
     "How to sign up", "Jordan makes a student account.", ">Lincoln Elementary</strong> as the school, pick the grade, then choose", ">Ms. Lee</strong> as the teacher", "My teacher isn't listed",
@@ -255,10 +255,10 @@ test("the invitation can be copied into the teacher's own email, with the studen
   const s = site({ configured: false });
   const reply = await inviteTemplate(s.deps, teacher, { studentId: 5 }, ORIGIN + "/");
   assert.equal(reply.status, 200, "it works even when the site's own email is off");
-  assert.equal(reply.body.subject, "Follow Dennis Flores's reading on A.R.I.S.E. Reader");
+  assert.equal(reply.body.subject, "Follow Dennis Flores's reading on Arise Reader");
   const text = String(reply.body.text);
   for (const part of [
-    "Hello,\n\nI use A.R.I.S.E. Reader with Dennis Flores, and I'd like to invite you to follow along.", "Dennis already has a student account. You will need a free parent account, which takes about two minutes to make.",
+    "Hello,\n\nI use Arise Reader with Dennis Flores, and I'd like to invite you to follow along.", "Dennis already has a student account. You will need a free parent account, which takes about two minutes to make.",
     "WHAT IT IS\n- Dennis picks a book and reads it.", "A score of 70% or higher earns that book's points.",
     "WHAT A PARENT ACCOUNT DOES\n- See Dennis's quiz history and reading growth.", "Parent Proctor Code", `- It is free, and one parent account can follow up to ${PLANS.parentMaxChildren} children.`,
     "1. Open this link. Dennis's code is already filled in:\n   https://www.arisereader.com/#/parent-signup?code=AB12-CD34-EF56-7890-0005\n",
@@ -285,10 +285,10 @@ test("the new-family invitation can be copied too", async () => {
   const s = site();
   const reply = await inviteTemplate(s.deps, teacher, { childName: "  Jordan   Reyes " }, ORIGIN);
   assert.equal(reply.status, 200);
-  assert.equal(reply.body.subject, "Your family is invited to A.R.I.S.E. Reader");
+  assert.equal(reply.body.subject, "Your family is invited to Arise Reader");
   const text = String(reply.body.text);
   for (const part of [
-    "I'd like to invite you and Jordan Reyes to join A.R.I.S.E. Reader", "It is free. Jordan will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.",
+    "I'd like to invite you and Jordan Reyes to join Arise Reader", "It is free. Jordan will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.",
     "- Jordan picks a book and reads it.", "- See Jordan's quiz history and reading growth.", `- One parent account can follow up to ${PLANS.parentMaxChildren} children.`,
     "1. Jordan makes a student account here:\n   https://www.arisereader.com/#/register\n   On that page, choose Lincoln Elementary as the school, pick the grade, then choose me (Ms. Lee) as the teacher.",
     `tap "My teacher isn't listed" and type the name.`, `2. Jordan logs in and opens Profile. Under "Parent Sign-Up Letter", tap "Print / View My Parent Code".`,
@@ -303,7 +303,7 @@ test("the new-family invitation can be copied too", async () => {
   assert.deepEqual(s.log(), {});
   // A name can't break the message into extra lines, and the two versions say the same steps.
   const odd = parentProgramText({ studentName: "Maya\nTorres\t ", senderName: " Mr.  R\n", signupUrl: "https://x.example/#/parent-signup?code=A", code: "A" });
-  assert.ok(odd.text.includes("with Maya Torres, and") && odd.text.endsWith("Thank you,\nMr. R") && odd.subject === "Follow Maya Torres's reading on A.R.I.S.E. Reader");
+  assert.ok(odd.text.includes("with Maya Torres, and") && odd.text.endsWith("Thank you,\nMr. R") && odd.subject === "Follow Maya Torres's reading on Arise Reader");
   const page = parentProgramEmail({ studentName: "Dennis Flores", senderName: "Ms. Lee", signupUrl: "https://x.example/s", code: "A", maxChildren: 5 });
   const words = parentProgramText({ studentName: "Dennis Flores", senderName: "Ms. Lee", signupUrl: "https://x.example/s", code: "A", maxChildren: 5 }).text;
   for (const shared of ["A score of 70% or higher earns that book's points.", "Dennis picks a book and reads it.", "See Dennis's quiz history and reading growth.", "Use parent controls for games and access.", "choose a username and a password", "Already have a parent account? Log in and enter the code on your dashboard to add Dennis."]) assert.ok(page.includes(shared) && words.includes(shared), shared);
@@ -335,8 +335,8 @@ test("the emails the site sends carry the logo and the three pictures", async ()
   await sendParentInvite(s.deps, teacher, { studentId: 5, email: "mom@example.com" }, ORIGIN);
   await sendFamilyInvite(s.deps, teacher, { email: "dad@example.com", childName: "Jordan" }, ORIGIN);
   for (const mail of s.sent) {
-    assert.ok(mail.html.includes('<img src="https://www.arisereader.com/icon-192.png" width="48" height="48" alt="A.R.I.S.E. Reader logo"'), "the logo, loaded from the site");
-    for (const part of ["A.R.I.S.E. Reader</div>", "Read a book. Take a quiz. Earn points.", "📖", "Read a book</div>", "✅", "Pass the quiz</div>", "⭐", "Earn points</div>"]) assert.ok(mail.html.includes(part), part);
+    assert.ok(mail.html.includes('<img src="https://www.arisereader.com/icon-192.png" width="48" height="48" alt="Arise Reader logo"'), "the logo, loaded from the site");
+    for (const part of ["Arise Reader</div>", "Read a book. Take a quiz. Earn points.", "📖", "Read a book</div>", "✅", "Pass the quiz</div>", "⭐", "Earn points</div>"]) assert.ok(mail.html.includes(part), part);
     assert.equal(mail.html.split("<img ").length - 1, 1, "one image only, so the email stays light");
   }
 });

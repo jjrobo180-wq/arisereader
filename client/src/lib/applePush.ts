@@ -61,6 +61,13 @@ export async function startApplePush(ask = false): Promise<boolean> {
   }
 }
 
+/** Someone just signed in (or the app opened signed in): hand the server this iPhone's token for that
+ *  account, if notifications are already allowed. Asks nothing. */
+export async function syncApplePush(): Promise<void> {
+  if (lastToken || !isNativeApp() || !applePushAvailable()) return;
+  await startApplePush(false);
+}
+
 /** True once this iPhone has handed the server its Apple device token in this launch. */
 export const applePushReady = (): boolean => !!lastToken;
 

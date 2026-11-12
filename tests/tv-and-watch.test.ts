@@ -1,7 +1,7 @@
 // The Apple TV and Apple Watch apps (November 2026).
 // - arisetodo.com/tv, the sign-in page the Arise Duo TV app sends you to, opened the home page instead: the
 //   app's pages live after the "#", and nothing sent the bare address there.
-// - Arise Fit on Apple TV showed its title over an empty screen: native/fit-tv/sessions.json, the workouts it
+// - Cooked on Apple TV showed its title over an empty screen: native/fit-tv/sessions.json, the workouts it
 //   plays, had been committed empty.
 // - Arise Duo on Apple TV now has the phone's layout, so the TV's summary carries everything the phone's Home shows.
 // Run with: npx tsx --test tests/tv-and-watch.test.ts
@@ -72,7 +72,7 @@ test("a part switched off on the phone stays off on the TV", () => {
   assert.equal(s.billsPaid, null);
 });
 
-test("Arise Fit's TV and watch apps have every guided session to play", () => {
+test("Cooked's TV and watch apps have every guided session to play", () => {
   const file = JSON.parse(read("native/fit-tv/sessions.json"));
   assert.ok(file.length > 0, "sessions.json isn't empty");
   assert.deepEqual(file, JSON.parse(JSON.stringify(SESSIONS)), "sessions.json matches shared/fitSessions.ts (npx tsx script/exportFitSessions.ts)");
@@ -107,7 +107,7 @@ test("the Duo TV app reads the new summary fields as optional, so an older serve
   assert.match(tv, /DuoQR\.image\("https:\/\/arisetodo\.com\/tv\?code=\\\(code\)"\)/);
 });
 
-// ——— November 2026, round two: Arise Fit's TV app gets the phone's features and a coach's voice; Arise
+// ——— November 2026, round two: Cooked's TV app gets the phone's features and a coach's voice; Arise
 // Duo's gets the Work/Life switch and the LifeHub apps.
 import { tvWorkSummary } from "../server/tvLink";
 import { fitTvSummary, strengthSession } from "../server/fitTv";
@@ -142,7 +142,7 @@ test("the TV's LifeHub apps: grocery, meals, countdowns, birthdays, habits and r
   assert.equal(s.apps.habits, null, "Habits is off, so the TV has no page for it");
 });
 
-test("Arise Fit on the TV: today's numbers, the program day played set by set, routines, timers and history", () => {
+test("Cooked on the TV: today's numbers, the program day played set by set, routines, timers and history", () => {
   const prog = PROGRAMS[0];
   const s = fitTvSummary({ v: 1, profile: { units: "lb", goal: "lose", activity: 1.4, waterGoalMl: 2400, stepsGoal: 8000 }, workouts: [{ id: "w", date: "2026-11-06T10:00:00Z", name: "Push day", secs: 2400, exercises: [] }],
     routines: [{ id: "r", name: "Leg day", exercises: [{ exId: "squat", name: "Squat", sets: 3, reps: "8", rest: 90 }] }], program: { id: prog.id, started: "2026-11-01", done: [] },
@@ -164,7 +164,7 @@ test("the Fit TV app has the built-in timers before anyone signs in, a coach's v
   for (const wf of [".github/workflows/fit-ios.yml", ".github/workflows/companions-sim.yml"]) assert.match(read(wf), /--name FitTV [^\n]*native\/fit-tv\/timers\.json/, wf);
   const tv = read("native/fit-tv/FitTVApp.swift");
   assert.match(tv, /final class FitVoice/);
-  assert.match(tv, /AVSpeechSynthesizer\(\)/);
+  assert.match(tv, /final class FitVoice: NSObject, AVAudioPlayerDelegate/, "the AI voice, played from the server");
   assert.match(tv, /FitVoice\.shared\.say\("\\\(left\)", interrupt: true\)/, "counts down the last three seconds out loud");
   assert.match(tv, /Text\(clock\(left\)\)\.font\(\.system\(size: 210, weight: \.heavy/);
   assert.match(tv, /JSONSerialization\.data\(withJSONObject: \["app": "fit"\]\)/, "signs in with a TV code");
@@ -187,4 +187,17 @@ test("no number in the watch apps overflows a 32-bit Apple Watch (Series 8 and o
     // Nanoseconds made from plain Ints (the multiply happens before UInt64 sees it): crashes on a 32-bit watch.
     assert.doesNotMatch(read(f), /UInt64\(\([^)]*\)\s*\*\s*1_000_000_000\)/, f);
   }
+});
+
+test("Cooked on Apple TV: the AI coach voice (never the TV's robot voice) and each exercise's how-to video", async () => {
+  const { strengthSession } = await import("../server/fitTv");
+  const s = strengthSession("x", "Push day", "", [{ exId: "bench-press", sets: 2, reps: "8", rest: 60 }]);
+  const set = s.phases.find((p) => p.kind === "work")!;
+  assert.equal(set.video?.id, "4Y2ZdHCOXok");
+  const tv = read("native/fit-tv/FitTVApp.swift");
+  assert.match(tv, /\/api\/voice\/say/);
+  assert.match(tv, /"voice": "troy"/);
+  assert.doesNotMatch(tv, /AVSpeechSynthesizer|AVSpeechUtterance/);
+  assert.match(tv, /youtube:\/\/watch\//);
+  assert.match(tv, /FitVideoCard\(video: v, compact: true\)/);
 });

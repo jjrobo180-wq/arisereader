@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Copy, Download, FlipHorizontal, FlipVertical, Image as ImageIcon, ImagePlus, Italic, Layers, LayoutTemplate,
-  Lock, Minus, PaintBucket, Plus, Search, Shapes, Sparkles, Trash2, Type, Underline, Unlock, Upload, X, CaseUpper, Maximize2, ChevronUp, ChevronDown, Wand2,
+  Lock, Minus, PaintBucket, Plus, Search, Shapes, Sparkles, Trash2, Type, Underline, Unlock, Upload, X, CaseUpper, ChevronUp, ChevronDown, Wand2,
 } from "lucide-react";
 import { Redo2, Undo2, BringToFront, SendToBack } from "./icons";
 import { useAuth } from "@/context/AuthContext";
@@ -87,7 +87,8 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
   const [areaSize, setAreaSize] = useState({ w: 800, h: 600 });
   useLayoutEffect(() => { const el = area.current; if (!el) return; const ro = new ResizeObserver(() => setAreaSize({ w: el.clientWidth, h: el.clientHeight })); ro.observe(el); setAreaSize({ w: el.clientWidth, h: el.clientHeight }); return () => ro.disconnect(); }, []);
   const [zoom, setZoom] = useState<"fit" | number>("fit");
-  const pad = areaSize.w < 640 ? 16 : 56;
+  // Room around the page, so it reads as a page and its handles can be grabbed at the edges.
+  const pad = areaSize.w < 640 ? 44 : 72;
   const fit = Math.max(0.02, Math.min((areaSize.w - pad) / design.w, (areaSize.h - pad) / design.h));
   const scale = zoom === "fit" ? fit : zoom;
 
@@ -293,17 +294,20 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
   const shownSel = shownPage.elements.filter((e) => sel.includes(e.id));
   const hs = (isTouch() ? 18 : 12) / scale;
 
-  return <div className="flex h-full min-h-0 flex-col bg-[#f1f2f6] text-slate-900" data-testid="design-editor">
+  return <div className="flex h-full min-h-0 flex-col bg-[#eef0f5] text-slate-900" data-testid="design-editor">
     {/* Top bar */}
-    <header className="flex h-14 shrink-0 items-center gap-1.5 bg-gradient-to-r from-[#7c3aed] via-[#6d28d9] to-[#db2777] px-2 text-white sm:gap-2 sm:px-3">
-      <button type="button" onClick={async () => { finishEdit(); await doc.flush(); onBack(); }} aria-label="Back to designs" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl hover:bg-white/15"><ArrowLeft size={20} /></button>
-      <input value={doc.name} onChange={(e) => doc.setName(e.target.value)} aria-label="Design name" data-testid="design-name" className="min-w-0 max-w-[38vw] flex-1 rounded-lg bg-transparent px-2 py-1 text-[15px] font-bold placeholder-white/60 outline-none hover:bg-white/10 focus:bg-white/15 sm:max-w-xs sm:flex-none" />
-      <button type="button" onClick={() => setDialog("resize")} className="hidden h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold hover:bg-white/15 md:inline-flex" data-testid="design-resize"><Maximize2 size={16} />{sizeOf(design.size)?.name || `${design.w} × ${design.h}`}</button>
-      <span className="ml-auto hidden text-xs text-white/75 lg:inline">{saveLabel(doc.state)}</span>
-      <button type="button" onClick={undo} disabled={!past.current.length} aria-label="Undo" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl hover:bg-white/15 disabled:opacity-40"><Undo2 size={18} /></button>
-      <button type="button" onClick={redo} disabled={!future.current.length} aria-label="Redo" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl hover:bg-white/15 disabled:opacity-40"><Redo2 size={18} /></button>
-      <button type="button" onClick={() => setPanel("magic")} className="hidden h-9 shrink-0 items-center gap-1.5 rounded-xl bg-white/15 px-3 text-sm font-bold hover:bg-white/25 sm:inline-flex"><Wand2 size={16} />Magic</button>
-      <button type="button" onClick={() => { finishEdit(); setDialog("download"); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 text-sm font-black text-violet-700 shadow-sm hover:bg-violet-50" data-testid="design-download"><Download size={17} /><span className="hidden sm:inline">Download</span></button>
+    {/* A clean white bar (the page is the colorful part): back, the name and how it's saving, undo, Download. */}
+    <header className="flex h-14 shrink-0 items-center gap-1 border-b border-slate-200/80 bg-white px-1.5 text-slate-900 sm:gap-2 sm:px-3">
+      <button type="button" onClick={async () => { finishEdit(); await doc.flush(); onBack(); }} aria-label="Back to designs" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100"><ArrowLeft size={21} /></button>
+      <div className="min-w-0 flex-1 sm:flex-none">
+        <input value={doc.name} onChange={(e) => doc.setName(e.target.value)} aria-label="Design name" data-testid="design-name" className="block w-full min-w-0 rounded-md bg-transparent px-1.5 text-[15.5px] font-bold leading-tight outline-none hover:bg-slate-100 focus:bg-slate-100 sm:w-64" />
+        <button type="button" onClick={() => setDialog("resize")} className="block max-w-full truncate px-1.5 text-left text-[11.5px] font-semibold text-slate-500 hover:text-violet-700" data-testid="design-resize">{sizeOf(design.size)?.name || `${design.w} × ${design.h}`} · {saveLabel(doc.state)}</button>
+      </div>
+      <span className="hidden flex-1 sm:block" />
+      <button type="button" onClick={undo} disabled={!past.current.length} aria-label="Undo" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:text-slate-300"><Undo2 size={19} /></button>
+      <button type="button" onClick={redo} disabled={!future.current.length} aria-label="Redo" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:text-slate-300"><Redo2 size={19} /></button>
+      <button type="button" onClick={() => setPanel("magic")} className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold text-violet-700 hover:bg-violet-50 sm:inline-flex"><Wand2 size={16} />Magic</button>
+      <button type="button" onClick={() => { finishEdit(); setDialog("download"); }} aria-label="Download" className="ml-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-violet-600 text-sm font-bold text-white shadow-sm hover:bg-violet-700 sm:w-auto sm:px-4" data-testid="design-download"><Download size={18} /><span className="hidden sm:inline">Download</span></button>
     </header>
 
     <div className="relative flex min-h-0 flex-1">
@@ -344,7 +348,7 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
           onPointerDown={(e) => { if (e.target === e.currentTarget) { if (editing) finishEdit(); setSel([]); } }} data-testid="design-area">
           <div className="flex min-h-full min-w-full items-center justify-center" style={{ padding: pad / 2, width: zoom === "fit" ? undefined : design.w * scale + pad, height: zoom === "fit" ? undefined : design.h * scale + pad }}
             onPointerDown={(e) => { if (e.target === e.currentTarget) { if (editing) finishEdit(); setSel([]); } }}>
-            <div className="relative shadow-[0_4px_24px_rgba(15,23,42,.14)]" data-testid="design-page">
+            <div className="relative rounded-[3px] shadow-[0_1px_2px_rgba(15,23,42,.08),0_12px_32px_rgba(15,23,42,.14)]" data-testid="design-page">
               <PageView design={design} page={shownPage} scale={scale} onBgDown={(e) => { if (editing) finishEdit(); if (e.target === e.currentTarget || (e.target as HTMLElement).parentElement === e.currentTarget) setSel([]); }}
                 onElDown={onElDown} onElDouble={(el) => (el.type === "text" ? startEdit(el) : el.type === "image" ? void addPicture(el) : undefined)} editingId={editing} editRef={editRef} frameHints>
                 {guides.v.map((x, i) => <div key={`v${i}`} className="pointer-events-none absolute top-0 bg-pink-500" style={{ left: x - 0.5 / scale, width: 1 / scale, height: design.h }} />)}
@@ -366,7 +370,7 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
           </div>
         </div>
         {/* Pages and zoom */}
-        <div className="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-white px-2 py-1.5">
+        <div className="flex shrink-0 items-center gap-2 bg-[#eef0f5] px-3 pb-2 pt-1">
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1 [scrollbar-width:thin]" data-testid="design-pages">
             {design.pages.map((p, i) => <div key={p.id} className="group relative shrink-0">
               <button type="button" onClick={() => { finishEdit(); setPi(i); setSel([]); }} aria-label={`Page ${i + 1}`} aria-current={i === pageIndex} className={`block overflow-hidden rounded-md ring-2 ${i === pageIndex ? "ring-violet-500" : "ring-transparent hover:ring-slate-300"}`}>
@@ -380,7 +384,7 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
                 <button type="button" onClick={() => delPage(i)} aria-label="Delete page" className="grid h-5 w-5 place-items-center rounded-full bg-white text-rose-600 shadow ring-1 ring-slate-200"><Trash2 size={10} /></button>
               </span>}
             </div>)}
-            <button type="button" onClick={() => addPage()} aria-label="Add a page" className="grid h-11 w-11 shrink-0 place-items-center rounded-md border-2 border-dashed border-slate-300 text-slate-500 hover:border-violet-400 hover:text-violet-600" data-testid="design-add-page"><Plus size={18} /></button>
+            <button type="button" onClick={() => addPage()} aria-label="Add a page" className="inline-flex h-10 shrink-0 items-center gap-1 rounded-full bg-white px-3 text-[12.5px] font-bold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-violet-700" data-testid="design-add-page"><Plus size={16} />Page</button>
           </div>
           <div className="hidden shrink-0 items-center gap-1 sm:flex">
             <button type="button" onClick={() => setZoom(clamp(+(scale / 1.2).toFixed(3), 0.05, 4))} aria-label="Zoom out" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-slate-100"><Minus size={15} /></button>
@@ -389,9 +393,10 @@ function Studio({ doc, onBack }: { doc: Handle; onBack: () => void }) {
           </div>
         </div>
         {/* Tools on phones */}
-        <nav className="flex shrink-0 justify-around border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Design tools">
+        <nav className="flex shrink-0 justify-around border-t border-slate-200/80 bg-white px-1 pt-1 lg:hidden" aria-label="Design tools">
           {PANELS.map((p) => <button key={p.id} type="button" onClick={() => setPanel(panel === p.id ? null : p.id)} aria-pressed={panel === p.id} data-testid={`design-tab-${p.id}`}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10.5px] font-semibold ${panel === p.id ? "text-violet-700" : "text-slate-600"}`}>{p.icon}<span className="truncate">{p.label}</span></button>)}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 py-1.5 text-[10.5px] font-semibold ${panel === p.id ? "text-violet-700" : "text-slate-500"}`}>
+            <span className={`grid h-8 w-12 place-items-center rounded-full transition ${panel === p.id ? "bg-violet-100" : ""}`}>{p.icon}</span><span className="truncate">{p.label}</span></button>)}
         </nav>
       </main>
     </div>

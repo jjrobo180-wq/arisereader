@@ -31,7 +31,7 @@ export default function BookCatalog({ request, openPage }: { request: (path: str
 
   const field = "min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900";
   return <Card title={`Book catalog${books ? ` (${books.length.toLocaleString()} books)` : ""}`}>
-    <p className="mt-3 text-sm text-slate-600">Every book in A.R.I.S.E. Reader that students can take a quiz on. Search by title or author, or narrow it by grade band and points. Students see the books for their own grade band.</p>
+    <p className="mt-3 text-sm text-slate-600">Every book in Arise Reader that students can take a quiz on. Search by title or author, or narrow it by grade band and points. Students see the books for their own grade band.</p>
     <div className="mt-3 flex flex-wrap gap-2">
       <label className="relative min-w-[220px] flex-1">
         <span className="sr-only">Search books</span>

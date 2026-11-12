@@ -1,4 +1,4 @@
-// What the Pod+ widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed widget for
+// What the Podster widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed widget for
 // each slot. Pure, so it's tested. The widgets themselves are listed in podscroll/ios-app/widgets.json.
 import type { Earshot } from "@shared/earshot";
 import type { WidgetSlot } from "./widgets";
@@ -14,7 +14,7 @@ export function podWidgetSlots(es: Earshot, now: PodNow, wiki: WikiNow): WidgetS
 
   slots.push(now
     ? { id: "pod.now", title: "Now playing", value: now.live ? "Live" : now.playing ? "Playing" : "Paused", detail: `${now.title}${now.show ? ` · ${now.show}` : ""}`, tint: TINT, lines: [now.title, now.show].filter(Boolean) }
-    : { id: "pod.now", title: "Now playing", value: "Nothing yet", detail: "Open Pod+ and pick an episode", tint: TINT });
+    : { id: "pod.now", title: "Now playing", value: "Nothing yet", detail: "Open Podster and pick an episode", tint: TINT });
 
   const later = es.saved;
   slots.push({ id: "pod.later", title: "Listen later", value: String(later.length), detail: later[0] ? `Next: ${later[0].title}` : "Save an episode to find it here", tint: "#3ea6ff",
@@ -40,7 +40,7 @@ export function podWidgetSlots(es: Earshot, now: PodNow, wiki: WikiNow): WidgetS
     : { id: "pod.wiki", title: "Wiki podcast", value: "Listen", detail: "Any Wikipedia article, read by an AI voice", tint: "#64748b" });
 
   const topGenre = Object.entries(es.taste).sort((a, b) => b[1] - a[1])[0]?.[0];
-  slots.push({ id: "pod.taste", title: "Your Pod+", value: es.genres.length ? plural(es.genres.length, "interest") : "Set up", detail: topGenre ? `Most into ${topGenre}` : "Pick what you like", tint: "#eab308",
+  slots.push({ id: "pod.taste", title: "Your Podster", value: es.genres.length ? plural(es.genres.length, "interest") : "Set up", detail: topGenre ? `Most into ${topGenre}` : "Pick what you like", tint: "#eab308",
     lines: es.genres.slice(0, 8) });
 
   return slots;

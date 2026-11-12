@@ -1,5 +1,5 @@
 /**
- * Arise Fit for Apple TV (native/fit-tv), signed in with a code like Arise Duo (server/tvLink.ts, app "fit"):
+ * Cooked for Apple TV (native/fit-tv), signed in with a code like Arise Duo (server/tvLink.ts, app "fit"):
  *   GET  /api/fit/tv?day=YYYY-MM-DD&tz=<minutes>  what the TV shows: today's numbers (the same as the Fit
  *        widgets), the program's next day and your saved routines as follow-along sessions, the interval
  *        timers (built in and yours), the last workouts and the week.
@@ -11,6 +11,7 @@ import type { Express, RequestHandler } from "express";
 import { CATALOG_BY_ID, PROGRAM_BY_ID, cleanFit, nextProgramDay, type FitData, type Routine } from "../shared/fit";
 import { TIMER_PRESETS, cleanTimers, timerSession } from "../shared/fitTimers";
 import type { Phase, Session } from "../shared/fitSessions";
+import { FIT_VIDEOS } from "../shared/fitVideos";
 import { fitWidgetSlots } from "../client/src/lib/fitWidgets";
 
 type Store = { get(userId: number): Promise<unknown | null>; set(userId: number, data: unknown): Promise<void> };
@@ -35,7 +36,8 @@ export function strengthSession(id: string, name: string, blurb: string, items: 
     const exName = (it.name || ex?.name || "Exercise").slice(0, 60);
     const sets = Math.max(1, Math.min(10, Number(it.sets) || 3));
     for (let s = 1; s <= sets; s++) {
-      phases.push({ name: exName, secs: setSecs(String(it.reps || "10"), ex?.timed), kind: "work",
+      const v = FIT_VIDEOS[it.exId];
+      phases.push({ name: exName, secs: setSecs(String(it.reps || "10"), ex?.timed), kind: "work", ...(v ? { video: { id: v.id, title: v.title.slice(0, 100) } } : {}),
         cue: [`Set ${s} of ${sets}`, it.reps ? `${it.reps}${/\d$/.test(String(it.reps)) ? " reps" : ""}` : "", ex?.cues?.[0] || ""].filter(Boolean).join(" · ") });
       const last = s === sets && i === items.length - 1;
       if (!last) {
@@ -55,13 +57,13 @@ export function fitTvSummary(raw: unknown, day: string, name: string, now: numbe
   const slots = fitWidgetSlots(data, latestKg, now).filter((s) => ["fit.calories", "fit.water", "fit.workouts", "fit.protein", "fit.streak", "fit.weight"].includes(s.id))
     .map((s) => ({ id: s.id, title: s.title, value: s.value, detail: s.detail || "", tint: s.tint || "#ff6b2c", progress: typeof s.progress === "number" ? Math.max(0, Math.min(1.5, s.progress)) : null, lines: (s.lines || []).slice(0, 5) }));
   const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined;
-  let program = null as null | { name: string; blurb: string; dayName: string; week: number; weeks: number; done: number; session: Session; exercises: { name: string; sets: number; reps: string }[] };
+  let program = null as null | { name: string; blurb: string; dayName: string; week: number; weeks: number; done: number; session: Session; exercises: { name: string; sets: number; reps: string; video?: { id: string; title: string } }[] };
   if (prog && data.program) {
     const next = nextProgramDay(prog, data.program.done);
     program = {
       name: prog.name, blurb: prog.blurb, dayName: next.day.name, week: next.week, weeks: prog.weeks, done: data.program.done.length,
       session: strengthSession(`program-${prog.id}-${next.index}`, `${prog.name}: ${next.day.name}`, prog.blurb, next.day.items),
-      exercises: next.day.items.map((it) => ({ name: CATALOG_BY_ID.get(it.exId)?.name || it.exId, sets: it.sets, reps: it.reps })),
+      exercises: next.day.items.map((it) => ({ name: CATALOG_BY_ID.get(it.exId)?.name || it.exId, sets: it.sets, reps: it.reps, ...(FIT_VIDEOS[it.exId] ? { video: { id: FIT_VIDEOS[it.exId].id, title: FIT_VIDEOS[it.exId].title.slice(0, 100) } } : {}) })),
     };
   }
   const routines = data.routines.slice(0, 12).map((r: Routine) => strengthSession(`routine-${r.id}`, r.name, `${r.exercises.length} exercises`, r.exercises));
@@ -80,7 +82,7 @@ export function registerFitTvRoutes(app: Express, auth: RequestHandler, store: S
     const tz = Number(req.query?.tz);
     const shift = Number.isFinite(tz) && Math.abs(tz) <= 840 ? (new Date().getTimezoneOffset() - tz) * 60_000 : 0;
     try { res.json(fitTvSummary(await store.get(Number(req.user.id)), dayOf(req.query?.day), String(req.user.displayName || ""), Date.now() + shift)); }
-    catch { res.status(503).json({ message: "Arise Fit couldn't load your data. Try again in a moment." }); }
+    catch { res.status(503).json({ message: "Cooked couldn't load your data. Try again in a moment." }); }
   });
   app.post("/api/fit/tv/workout", auth, async (req: any, res) => {
     const name = String(req.body?.name || "").trim().slice(0, 80), secs = Math.round(Number(req.body?.secs));

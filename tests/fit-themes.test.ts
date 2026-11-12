@@ -1,4 +1,4 @@
-// Arise Fit's color themes: nine accents, each readable in Light and Dark, plus true black for Dark.
+// Cooked's color themes: nine accents, each readable in Light and Dark, plus true black for Dark.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";

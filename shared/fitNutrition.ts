@@ -1,5 +1,5 @@
-// Arise Fit nutrition plans, Arise Points and intermittent fasting (shared by the app and tests).
-// Arise Points are Arise Fit's own formula (not any other company's): calories count, fat counts a
+// Cooked nutrition plans, Arise Points and intermittent fasting (shared by the app and tests).
+// Arise Points are Cooked's own formula (not any other company's): calories count, fat counts a
 // little extra and protein earns some back, on a scale where a typical day is about 20 to 40 points.
 
 export type DietPlan = { id: string; name: string; blurb: string; split: { p: number; c: number; f: number }; carbCap?: number; tips: string[] };

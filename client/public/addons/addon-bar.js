@@ -76,7 +76,7 @@
       '<div class="ab-eyebrow">' + name + "</div><h2>" + (b.access ? "Keep " + name : name + " needs a plan") + "</h2>" +
       "<p>" + (b.access ? "Here’s how to keep going." : name + " needs " + (role === "parent" ? "the Learning Bundle." : role === "student" ? "your teacher or a parent to add it." : "its class add-on.")) + "</p>" +
       '<div class="ab-apps">' + apps.map(function (a) { return '<a href="' + a[0] + '" class="' + (a[0] === PAGE ? "on" : "") + '">' + a[1] + "<span>" + a[2] + "</span></a>"; }).join("") + "</div>" +
-      '<div class="ab-actions">' + action + (closable ? '<button class="ab-ghost" data-ab="close">Not now</button>' : '<a class="ab-ghost" href="/">Back to A.R.I.S.E. Reader</a>') +
+      '<div class="ab-actions">' + action + (closable ? '<button class="ab-ghost" data-ab="close">Not now</button>' : '<a class="ab-ghost" href="/">Back to Arise Reader</a>') +
       (!d.payment && (role === "parent" || role === "teacher") ? '<p class="ab-note">Online payment isn’t open yet. Please check back soon.</p>' : "") + "</div></div></div>");
     node.addEventListener("click", function (e) {
       var t = e.target.closest("[data-ab]");

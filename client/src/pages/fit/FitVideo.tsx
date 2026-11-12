@@ -1,4 +1,4 @@
-// Arise Fit's how-to videos (shared/fitVideos.ts): a still with a play button that turns into YouTube's
+// Cooked's how-to videos (shared/fitVideos.ts): a still with a play button that turns into YouTube's
 // player when tapped, and small video stills for lists. Videos only ever play here, inside the app:
 // the player is sandboxed with no pop-ups and no top-level navigation, so nothing in it (YouTube's logo,
 // its title, the end screen) can leave the app or open the YouTube app. The player runs through /fit-video.html on

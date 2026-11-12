@@ -1,4 +1,4 @@
-// Pod+ Stand-up (server/podcastStandup.ts): only stand-up, never interviews.
+// Podster Stand-up (server/podcastStandup.ts): only stand-up, never interviews.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { looksLikeSet, standupService } from "../server/podcastStandup";

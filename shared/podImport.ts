@@ -1,4 +1,4 @@
-// Pod+ "Bring your shows" (server/podcastImport.ts, podscroll/Import.tsx): reading another app's list
+// Podster "Bring your shows" (server/podcastImport.ts, podscroll/Import.tsx): reading another app's list
 // of shows, and telling whether a directory result is the same show.
 
 export type ImportItem = { title?: string; feed?: string; appleId?: string; spotify?: string };

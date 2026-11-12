@@ -1,4 +1,4 @@
-// Arise Fit for Apple TV: the phone app on the big screen, in its dark Ember look.
+// Cooked for Apple TV: the phone app on the big screen, in its dark Ember look.
 //   Today     your numbers (calories left, water, workouts this week, streak, protein, weight, the same as the
 //             Fit widgets), your week, the program's next day, today's pick, and water added from the couch
 //   Workouts  every guided session (treadmill HIIT, Couch to 5K, yoga, mobility, breathing) and your routines
@@ -9,7 +9,11 @@
 // A session plays phase by phase: a big countdown ring you can read from across the room, what to do now and
 // what's next, the treadmill speed and incline, and a coach who says each step out loud (and counts down the
 // last three seconds). Play/Pause on the remote pauses; swipe left or right to skip; Menu ends it.
-// A finished session goes into your Arise Fit workout log when you're signed in.
+// The coach speaks in the phone app's AI voice ("troy", POST /api/voice/say), never the TV's robot voice:
+// every line of a session is fetched before it's needed. A strength set shows its how-to video (the same
+// YouTube tutorial as the phone, shared/fitVideos.ts): Apple TV can't play YouTube inside another app (tvOS
+// has no web view), so pressing it opens the YouTube app at that video and pauses the session until you're back.
+// A finished session goes into your Cooked workout log when you're signed in.
 // Signing in takes a code, like Arise Duo: arisetodo.com/tv on your phone (server/tvLink.ts, server/fitTv.ts).
 // Sessions and the built-in timers come with the app (sessions.json, timers.json: script/exportFitSessions.ts).
 import SwiftUI
@@ -32,6 +36,8 @@ struct FitTVApp: App {
 
 // MARK: - Sessions
 
+struct FitVideoRef: Decodable, Hashable { let id: String; let title: String }
+
 struct FitPhase: Decodable, Hashable {
     let name: String
     let secs: Int
@@ -39,6 +45,8 @@ struct FitPhase: Decodable, Hashable {
     let cue: String?
     let speed: Double?
     let incline: Double?
+    /** The exercise's how-to video (strength sets). */
+    let video: FitVideoRef?
 }
 
 struct FitSession: Decodable, Identifiable, Hashable {
@@ -70,7 +78,7 @@ struct FitLenient: Decodable {
     init(from decoder: Decoder) throws { session = try? FitSession(from: decoder) }
 }
 
-/** Arise Fit's own colors (the phone app's dark Ember look). */
+/** Cooked's own colors (the phone app's dark Ember look). */
 enum FitColor {
     static let bg = Color(red: 0x15 / 255, green: 0x17 / 255, blue: 0x1b / 255)
     static let deep = Color(red: 0x0b / 255, green: 0x0c / 255, blue: 0x0f / 255)
@@ -94,12 +102,12 @@ let fitCategories: [FitCategory] = [
     FitCategory(id: "meditation", name: "Breathe & meditate", symbol: "wind", tint: .blue),
 ]
 
-// MARK: - Your Arise Fit (GET /api/fit/tv)
+// MARK: - Your Cooked (GET /api/fit/tv)
 
 struct FitTVSummary: Decodable {
     struct Slot: Decodable, Identifiable { let id: String; let title: String; let value: String; let detail: String; let tint: String; let progress: Double?; let lines: [String] }
     struct Program: Decodable { let name: String; let blurb: String; let dayName: String; let week: Int; let weeks: Int; let done: Int; let session: FitSession; let exercises: [Ex] }
-    struct Ex: Decodable, Identifiable { var id: String { name + reps }; let name: String; let sets: Int; let reps: String }
+    struct Ex: Decodable, Identifiable { var id: String { name + reps }; let name: String; let sets: Int; let reps: String; let video: FitVideoRef? }
     struct Past: Decodable, Identifiable { var id: String { date + name + String(mins) }; let name: String; let date: String; let mins: Int; let sets: Int }
     struct Day: Decodable, Identifiable { var id: String { day }; let day: String; let mins: Int }
     let name: String
@@ -140,9 +148,9 @@ final class FitTVModel: ObservableObject {
             let (data, res) = try await URLSession.shared.data(for: req)
             let status = (res as? HTTPURLResponse)?.statusCode ?? 0
             if status == 401 { signOut(); return }
-            guard status == 200 else { error = "Arise Fit isn't reachable right now."; return }
+            guard status == 200 else { error = "Cooked isn't reachable right now."; return }
             me = try JSONDecoder().decode(FitTVSummary.self, from: data); error = nil
-        } catch { self.error = "Can't reach Arise Fit. Check the TV's internet connection." }
+        } catch { self.error = "Can't reach Cooked. Check the TV's internet connection." }
     }
 
     private func post(_ path: String, _ body: [String: Any]) async -> Bool {
@@ -178,7 +186,7 @@ final class FitTVModel: ObservableObject {
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let c = obj["code"] as? String, let p = obj["poll"] as? String else {
-            error = "Can't reach Arise Fit. Check the TV's internet connection."; return
+            error = "Can't reach Cooked. Check the TV's internet connection."; return
         }
         code = c; poll = p
         while token == nil, poll == p, signingIn {
@@ -367,7 +375,7 @@ struct FitSignInCard: View {
                 HStack(spacing: 30) {
                     Image(systemName: "person.crop.circle.badge.plus").font(.system(size: 70)).foregroundStyle(FitColor.ember)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Sign in to Arise Fit").font(.system(size: 40, weight: .black)).foregroundStyle(.white)
+                        Text("Sign in to Cooked").font(.system(size: 40, weight: .black)).foregroundStyle(.white)
                         Text(why).font(.system(size: 24)).foregroundStyle(FitColor.dim)
                     }
                     Spacer()
@@ -396,7 +404,7 @@ struct FitTVToday: View {
     var body: some View {
         FitPage {
             FitHeader(eyebrow: Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), title: greeting, sub: model.me == nil ? "Follow-along workouts. Pick one and press play." : nil)
-            if FitSession.all.isEmpty { Text("The workouts didn't load. Update Arise Fit from the App Store on this Apple TV.").font(.system(size: 28, weight: .bold)).foregroundStyle(FitColor.ember) }
+            if FitSession.all.isEmpty { Text("The workouts didn't load. Update Cooked from the App Store on this Apple TV.").font(.system(size: 28, weight: .bold)).foregroundStyle(FitColor.ember) }
             if let me = model.me {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 26), count: 3), spacing: 26) {
                     ForEach(me.slots) { s in
@@ -594,7 +602,7 @@ struct FitTVWorkouts: View {
     let play: (FitSession) -> Void
     var body: some View {
         FitPage {
-            FitHeader(eyebrow: "Arise Fit", title: "Follow-along workouts", sub: "Pick one and press play. Play/Pause pauses; swipe to skip a step; Menu ends it.")
+            FitHeader(eyebrow: "Cooked", title: "Follow-along workouts", sub: "Pick one and press play. Play/Pause pauses; swipe to skip a step; Menu ends it.")
             if let r = model.me?.routines, !r.isEmpty { FitRow(title: "Your routines", symbol: "dumbbell.fill", tint: FitColor.ember, items: r, play: play) }
             ForEach(fitCategories) { cat in
                 FitRow(title: cat.name, symbol: cat.symbol, tint: cat.tint, items: FitSession.all.filter { $0.category == cat.id }, play: play)
@@ -605,6 +613,7 @@ struct FitTVWorkouts: View {
 
 struct FitTVProgram: View {
     @EnvironmentObject var model: FitTVModel
+    @State private var noYouTube = false
     let play: (FitSession) -> Void
     let go: (FitTab) -> Void
     var body: some View {
@@ -621,14 +630,20 @@ struct FitTVProgram: View {
                 }
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 24), count: 3), spacing: 24) {
                     ForEach(Array(p.exercises.enumerated()), id: \.offset) { pair in
-                        Button { } label: {
+                        // Pressing an exercise plays its how-to video in the YouTube app.
+                        Button { if let v = pair.element.video { FitVideoCard.open(v.id) { noYouTube = true } } } label: {
                             HStack(spacing: 20) {
                                 Text("\(pair.offset + 1)").font(.system(size: 34, weight: .black)).foregroundStyle(FitColor.ember).frame(width: 60)
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(pair.element.name).font(.system(size: 28, weight: .bold)).foregroundStyle(.white).lineLimit(2)
                                     Text("\(pair.element.sets) sets × \(pair.element.reps)").font(.system(size: 22)).foregroundStyle(FitColor.dim)
+                                    if pair.element.video != nil { Label("Watch how", systemImage: "play.rectangle.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(.red) }
                                 }
                                 Spacer(minLength: 0)
+                                if let v = pair.element.video {
+                                    AsyncImage(url: URL(string: "https://i.ytimg.com/vi/\(v.id)/mqdefault.jpg")) { img in img.resizable().aspectRatio(16 / 9, contentMode: .fill) } placeholder: { Color.white.opacity(0.08) }
+                                        .frame(width: 150, height: 84).clipShape(RoundedRectangle(cornerRadius: 10))
+                                }
                             }
                             .padding(28).frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
                             .background(FitColor.card, in: RoundedRectangle(cornerRadius: 26))
@@ -636,9 +651,9 @@ struct FitTVProgram: View {
                         .buttonStyle(FitLift(radius: 26))
                     }
                 }
-                Text("Each set is timed for you, with your program's rest between sets. Log the weights on your phone afterwards.").font(.system(size: 22)).foregroundStyle(FitColor.faint)
+                Text(noYouTube ? "Get the YouTube app from the App Store to watch the how-to videos here." : "Each set is timed for you, with your program's rest between sets. Press an exercise to watch how it's done (it opens in YouTube). Log the weights on your phone afterwards.").font(.system(size: 22)).foregroundStyle(noYouTube ? .yellow : FitColor.faint)
             } else if model.me != nil {
-                FitHeader(eyebrow: "Program", title: "No program yet", sub: "Pick a strength program in Arise Fit on your phone (Train → Programs), and its next day is here, ready to play.")
+                FitHeader(eyebrow: "Program", title: "No program yet", sub: "Pick a strength program in Cooked on your phone (Train → Programs), and its next day is here, ready to play.")
                 Button { go(.workouts) } label: { Label("Browse workouts", systemImage: "play.rectangle.fill").font(.system(size: 28, weight: .bold)).padding(.horizontal, 34).padding(.vertical, 18).background(FitColor.card, in: Capsule()) }.buttonStyle(FitLift(radius: 40))
             } else {
                 FitHeader(eyebrow: "Program", title: "Your strength program")
@@ -653,7 +668,7 @@ struct FitTVTimers: View {
     let play: (FitSession) -> Void
     var body: some View {
         FitPage {
-            FitHeader(eyebrow: "Interval timers", title: "Timers", sub: "Work, rest and rounds, called out for you. Make your own in Arise Fit on your phone.")
+            FitHeader(eyebrow: "Interval timers", title: "Timers", sub: "Work, rest and rounds, called out for you. Make your own in Cooked on your phone.")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 3), spacing: 30) {
                 ForEach(model.timers) { t in
                     Button { play(t) } label: {
@@ -770,6 +785,7 @@ struct FitTVPlayer: View {
     @State private var finished = false
     @State private var active = 0
     @State private var saved: Bool?
+    @Environment(\.scenePhase) private var scene
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var phase: FitPhase? { session.phases.indices.contains(index) ? session.phases[index] : nil }
@@ -786,10 +802,14 @@ struct FitTVPlayer: View {
             left = phase?.secs ?? 0
             UIApplication.shared.isIdleTimerDisabled = true
             FitVoice.shared.prepare()
+            // Every line of the session, fetched now in the AI voice, so each one is ready when its step starts.
+            FitVoice.shared.preload(session.phases.indices.map { line(for: $0) } + ["Paused.", "Let's go.", "Workout saved. Nice work.", "Workout complete. Great job!", "Ten seconds.", "Halfway."] + (1...3).map { "\($0)" })
             announce()
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; FitVoice.shared.stop() }
         .onReceive(tick) { _ in step() }
+        // Off to the YouTube app (a how-to video): paused until you come back.
+        .onChange(of: scene) { _, now in if now != .active && !finished { paused = true } }
         .onPlayPauseCommand { if !finished { paused.toggle(); if voiceOn { FitVoice.shared.say(paused ? "Paused." : "Let's go.") } } }
         .onMoveCommand { dir in
             guard !finished else { return }
@@ -827,6 +847,7 @@ struct FitTVPlayer: View {
                 VStack(alignment: .leading, spacing: 26) {
                     Text(p.name).font(.system(size: 96, weight: .black)).foregroundStyle(.white).lineLimit(2).minimumScaleFactor(0.5)
                     if let cue = p.cue, !cue.isEmpty { Text(cue).font(.system(size: 38, weight: .medium)).foregroundStyle(.white.opacity(0.9)).lineLimit(4) }
+                    if let v = p.video { FitVideoCard(video: v, compact: true) }
                     if p.speed != nil || p.incline != nil {
                         HStack(spacing: 24) {
                             if let s = p.speed { chip(String(format: "%.1f mph", s), "speedometer", tint) }
@@ -865,7 +886,7 @@ struct FitTVPlayer: View {
             Image(systemName: "checkmark.seal.fill").font(.system(size: 150)).foregroundStyle(.green)
             Text("Workout done!").font(.system(size: 80, weight: .black)).foregroundStyle(.white)
             Text("\(session.name) · \(clock(active))").font(.system(size: 34)).foregroundStyle(.white.opacity(0.75))
-            if let saved { Text(saved ? "Saved to your Arise Fit workout log." : "Couldn't save it to your log just now.").font(.system(size: 28, weight: .semibold)).foregroundStyle(saved ? .green : .orange) }
+            if let saved { Text(saved ? "Saved to your Cooked workout log." : "Couldn't save it to your log just now.").font(.system(size: 28, weight: .semibold)).foregroundStyle(saved ? .green : .orange) }
             else if model.token == nil { Text("Sign in on the Today screen to save workouts to your log.").font(.system(size: 26)).foregroundStyle(.white.opacity(0.6)) }
             Button("Back to workouts") { dismiss() }.font(.system(size: 30, weight: .bold))
         }
@@ -882,7 +903,7 @@ struct FitTVPlayer: View {
         if left > 1 {
             left -= 1
             if left <= 3 {
-                if voiceOn { FitVoice.shared.say("\(left)", interrupt: true) } else if chimeOn { FitChime.shared.beep(final: false) }
+                if voiceOn && FitVoice.shared.has("\(left)") { FitVoice.shared.say("\(left)", interrupt: true) } else if chimeOn { FitChime.shared.beep(final: false) }
             } else if voiceOn && left == 10 && p.kind == "work" && p.secs >= 30 {
                 FitVoice.shared.say("Ten seconds.")
             } else if voiceOn && p.secs >= 90 && left == p.secs / 2 {
@@ -900,13 +921,19 @@ struct FitTVPlayer: View {
     }
 
     /** "Sprint. 30 seconds. Push the pace." */
-    private func announce() {
-        guard voiceOn, let p = phase else { return }
+    private func line(for i: Int) -> String {
+        let p = session.phases[i]
         var words = [p.name, duration(p.secs)]
-        if let s = p.speed { words.append(String(format: "Speed %.1f.", s)) }
-        if let i = p.incline, i > 0 { words.append(String(format: "Incline %g.", i)) }
-        if let cue = p.cue, !cue.isEmpty { words.append(cue) }
-        FitVoice.shared.say(words.joined(separator: ". "), interrupt: true)
+        if let s = p.speed { words.append(String(format: "Speed %.1f", s)) }
+        if let inc = p.incline, inc > 0 { words.append(String(format: "Incline %g", inc)) }
+        if let cue = p.cue, !cue.isEmpty { words.append(cue.replacingOccurrences(of: " · ", with: ". ")) }
+        return words.joined(separator: ". ")
+    }
+    private func announce() {
+        guard voiceOn, phase != nil else { return }
+        FitVoice.shared.say(line(for: index), interrupt: true)
+        // The steps after this one, so they're ready too.
+        FitVoice.shared.preload((index + 1..<min(session.phases.count, index + 4)).map { line(for: $0) })
     }
 
     private func finish(early: Bool) async {
@@ -937,30 +964,144 @@ struct FitTVPlayer: View {
     }
 }
 
-/** The coach's voice: the TV's own speech, over whatever else is playing (which dips while it talks). */
+/** The coach's voice: the phone app's AI voice ("troy"), from the server (POST /api/voice/say), never the
+ *  TV's built-in robot voice. Lines are fetched ahead and kept; one that isn't ready in time is skipped
+ *  (a countdown number becomes the chime), so the coach is never late or out of step. */
 @MainActor
-final class FitVoice {
+final class FitVoice: NSObject, AVAudioPlayerDelegate {
     static let shared = FitVoice()
-    private let synth = AVSpeechSynthesizer()
-    private lazy var voice: AVSpeechSynthesisVoice? = {
-        let lang = AVSpeechSynthesisVoice.currentLanguageCode()
-        let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == lang }
-        return voices.first { $0.quality == .premium } ?? voices.first { $0.quality == .enhanced } ?? AVSpeechSynthesisVoice(language: lang)
-    }()
+    private var ready: [String: Data] = [:]
+    private var loading: [String: Task<Data?, Never>] = [:]
+    private var player: AVAudioPlayer?
+    private var queue: [String] = []
+    private var turn = 0
+    /** The voice couldn't be reached (shown in You). */
+    private(set) var unreachable = false
+
     func prepare() {
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .mixWithOthers])
         try? s.setActive(true)
     }
-    func say(_ text: String, interrupt: Bool = false) {
-        if interrupt && synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
-        let u = AVSpeechUtterance(string: text)
-        u.voice = voice
-        u.rate = AVSpeechUtteranceDefaultSpeechRate * 1.02
-        u.volume = 1
-        synth.speak(u)
+
+    static func clean(_ text: String) -> String { text.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+
+    private func fetch(_ text: String) -> Task<Data?, Never> {
+        if let t = loading[text] { return t }
+        let t = Task<Data?, Never> { [weak self] in
+            for attempt in 0..<3 {
+                if attempt > 0 { try? await Task.sleep(nanoseconds: UInt64(attempt) * 1_200_000_000) }
+                var req = URLRequest(url: fitAPI.appending(path: "/api/voice/say"))
+                req.httpMethod = "POST"
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                req.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "voice": "troy"])
+                req.timeoutInterval = 20
+                guard let (data, res) = try? await URLSession.shared.data(for: req) else { continue }
+                let status = (res as? HTTPURLResponse)?.statusCode ?? 0
+                if status == 200, data.count > 100 { self?.ready[text] = data; self?.unreachable = false; return data }
+                if status != 429 && status < 500 { break }
+            }
+            self?.loading[text] = nil
+            self?.unreachable = true
+            return nil
+        }
+        loading[text] = t
+        return t
     }
-    func stop() { synth.stopSpeaking(at: .immediate) }
+
+    /** Fetches lines now (a few at a time), so they play the moment they're needed. */
+    func preload(_ lines: [String]) {
+        let want = Array(NSOrderedSet(array: lines.map(Self.clean).filter { !$0.isEmpty && ready[$0] == nil && loading[$0] == nil })) as? [String] ?? []
+        guard !want.isEmpty else { return }
+        Task { [weak self] in
+            var i = 0
+            while i < want.count {
+                guard let self else { return }
+                let batch = want[i..<min(want.count, i + 3)].map { self.fetch($0) }
+                for t in batch { _ = await t.value }
+                i += 3
+            }
+        }
+    }
+
+    /** Whether a line is ready to play right now. */
+    func has(_ text: String) -> Bool { ready[Self.clean(text)] != nil }
+
+    /** Says a line (cutting off what's playing when `interrupt`); late lines are dropped, not played out of step. */
+    func say(_ text: String, interrupt: Bool = false) {
+        let t = Self.clean(text)
+        guard !t.isEmpty else { return }
+        if interrupt { turn += 1; queue.removeAll(); player?.stop(); player = nil }
+        let mine = turn
+        if let d = ready[t] { play(d, text: t); return }
+        Task { [weak self] in
+            guard let self else { return }
+            let started = Date()
+            guard let d = await self.fetch(t).value, self.turn == mine, Date().timeIntervalSince(started) < 4 else { return }
+            self.play(d, text: t)
+        }
+    }
+
+    private func play(_ data: Data, text: String) {
+        if let p = player, p.isPlaying { queue.append(text); return }
+        guard let p = try? AVAudioPlayer(data: data) else { return }
+        p.delegate = self
+        p.volume = 1
+        player = p
+        p.play()
+    }
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
+            self.player = nil
+            while !self.queue.isEmpty {
+                let next = self.queue.removeFirst()
+                if let d = self.ready[next] { self.play(d, text: next); return }
+            }
+        }
+    }
+
+    func stop() { turn += 1; queue.removeAll(); player?.stop(); player = nil }
+}
+
+/** An exercise's how-to video: its picture and title; pressing it opens the YouTube app at that video
+ *  (tvOS has no web view, so YouTube can't play inside another app). */
+struct FitVideoCard: View {
+    let video: FitVideoRef
+    var compact = false
+    @State private var missing = false
+    var body: some View {
+        Button { Self.open(video.id) { missing = true } } label: {
+            HStack(spacing: 22) {
+                ZStack {
+                    AsyncImage(url: URL(string: "https://i.ytimg.com/vi/\(video.id)/hqdefault.jpg")) { img in img.resizable().aspectRatio(16 / 9, contentMode: .fill) } placeholder: { Color.white.opacity(0.1) }
+                        .frame(width: compact ? 240 : 320, height: compact ? 135 : 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    Image(systemName: "play.fill").font(.system(size: compact ? 34 : 44, weight: .bold)).foregroundStyle(.white)
+                        .padding(compact ? 18 : 22).background(Color.red, in: Circle())
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("WATCH HOW").font(.system(size: 20, weight: .heavy)).tracking(3).foregroundStyle(FitColor.ember)
+                    Text(video.title).font(.system(size: compact ? 26 : 30, weight: .semibold)).foregroundStyle(.white).lineLimit(2)
+                    Text(missing ? "Get the YouTube app from the App Store to watch it here." : "Opens in YouTube. The workout waits.").font(.system(size: 20)).foregroundStyle(missing ? .yellow : .white.opacity(0.6))
+                }
+                .frame(maxWidth: 560, alignment: .leading)
+            }
+            .padding(14)
+        }
+        .buttonStyle(.card)
+    }
+    /** Opens the YouTube app at a video; `missing` runs when there's no YouTube app on this TV. */
+    static func open(_ id: String, missing: @escaping @MainActor () -> Void) {
+        guard let app = URL(string: "youtube://watch/\(id)") else { return }
+        UIApplication.shared.open(app) { ok in
+            if ok { return }
+            Task { @MainActor in
+                guard let web = URL(string: "https://www.youtube.com/watch?v=\(id)") else { missing(); return }
+                UIApplication.shared.open(web) { ok2 in if !ok2 { Task { @MainActor in missing() } } }
+            }
+        }
+    }
 }
 
 /** A short tone between phases (and a tick for the last three seconds), made on the fly. */
