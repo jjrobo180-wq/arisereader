@@ -253,3 +253,16 @@
 .pp-move button:hover { background: color-mix(in srgb, var(--an-ink) 6%, transparent); }
 .pp-move svg { width: 1.1rem; height: 1.1rem; color: var(--pp-accent, #3a3a3c); }
 .pp-move-new { color: var(--pp-accent, #3a3a3c); }
+
+/* Recently Deleted: quiet rows like the rest of the list (gray icons, no red), and a plain Empty. */
+.pp-trash-row { display: flex; align-items: center; gap: .35rem; padding: .6rem .5rem; border-radius: 8px; }
+.pp-trash-row:hover { background: color-mix(in srgb, var(--an-ink) 4%, transparent); }
+.pp-trash-row .pp-row-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; font-weight: 600; }
+.pp-trash-row > button { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 7px; color: var(--an-faint); }
+.pp-trash-row > button:hover { background: color-mix(in srgb, var(--an-ink) 8%, transparent); color: var(--an-ink); }
+.pp-trash-row > button svg { width: 1rem; height: 1rem; }
+.pp-empty-trash { flex: none; padding: .3rem .6rem; border-radius: 7px; font-size: .84rem; font-weight: 600; color: var(--an-muted); }
+.pp-empty-trash:hover { background: color-mix(in srgb, var(--an-ink) 7%, transparent); color: var(--an-ink); }
+/* The You circle on the light bar: dark circle, light letter (it was white on white). */
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tab-menu"] > span { background: var(--an-faint) !important; color: #fff !important; }
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tab-menu"][aria-current="page"] > span { background: var(--an-ink) !important; }

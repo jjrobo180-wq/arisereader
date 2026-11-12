@@ -6,10 +6,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SwipeItem } from "./SwipeItem";
 import type { ListNote } from "../api";
-import { AudioLines, CheckCircle2, Circle, FolderInput, PinOff, X, Upload, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, SquarePen, Trash2 } from "lucide-react";
+import { AudioLines, CheckCircle2, Circle, FolderInput, PinOff, X, Upload, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings as SettingsIcon, Settings2, MessageCircle, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
-import { Btn, IconBtn, Notice, Sheet, Spinner, Toggle, shortDate, useToast } from "../ui";
+import { Btn, Notice, Sheet, Spinner, Toggle, shortDate, useToast } from "../ui";
 import type { AppCtx } from "../NotesApp";
 import PageScreen from "./PageScreen";
 import { drafts } from "./drafts";
@@ -184,6 +184,9 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
     <ul className="pp-group">
       <FolderRow on={false} icon={<Upload />} label="Upload a recording" onClick={() => ctx.go({ name: "upload" })} testId="pages-upload" />
       <FolderRow on={false} icon={<LayoutGrid />} label="Apps" onClick={() => ctx.go({ name: "apps" })} testId="pages-apps" />
+      {/* On a computer there's no bottom bar, so Ask and Settings sit here, like Apple Notes' sidebar. */}
+      {wide && <FolderRow on={false} icon={<MessageCircle />} label="Ask" onClick={() => ctx.go({ name: "undercover" })} testId="pages-side-ask" />}
+      {wide && <FolderRow on={false} icon={<SettingsIcon />} label="Settings" onClick={() => ctx.go({ name: "settings" })} testId="pages-side-settings" />}
     </ul>
     <ul className="pp-group">
       <FolderRow on={on({ kind: "all" })} icon={<FileText />} label="All notes" count={live.length} onClick={() => pick({ kind: "all" })} testId="pages-folder-all" />
@@ -237,7 +240,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
         <button type="button" className="pp-quick" onClick={() => setSheet("new")} data-testid="pages-templates"><LayoutTemplate className="h-4 w-4" />Templates</button>
       </div>}
       {filter.kind === "trash" && <div className="flex items-center gap-2 text-[13px] text-[var(--an-muted)]"><span className="flex-1">Notes stay here {TRASH_DAYS} days, then they're deleted for good.</span>
-        {shown.length > 0 && <Btn kind="danger" onClick={async () => { if (!window.confirm(`Delete ${shown.length} note${shown.length === 1 ? "" : "s"} for good? This can't be undone.`)) return; try { await sync.forever(shown.map((m) => m.id)); say("Deleted for good."); } catch (e: any) { say(e.message); } }}>Empty</Btn>}</div>}
+        {shown.length > 0 && <button type="button" className="pp-empty-trash" data-testid="pages-empty-trash" onClick={async () => { if (!window.confirm(`Delete ${shown.length} note${shown.length === 1 ? "" : "s"} for good? This can't be undone.`)) return; try { await sync.forever(shown.map((m) => m.id)); say("Deleted for good."); } catch (e: any) { say(e.message); } }}>Empty</button>}</div>}
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-44" style={{ WebkitOverflowScrolling: "touch" }}>
       {state === "loading" && !metas.length ? <Spinner /> : shown.length === 0 ? <Empty filter={filter} q={q} onNew={() => create(PAGE_TEMPLATES[0])} />
@@ -290,7 +293,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
   const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
 
   return <div className="pp-min flex h-[100dvh] min-h-0 flex-col" data-testid="pages-view">
-    {(!openId || wide) && !(wide && full && openId) && tabs}
+    {!wide && !openId && tabs}
     <div className="flex min-h-0 flex-1">
       {wide ? <>
         {!(full && openId) && <aside ref={sideRef} style={{ overscrollBehavior: "contain" }} className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>}
@@ -358,9 +361,10 @@ function PageCard({ m, i, grid, on, folder, trash, selecting, selected, onSelect
   const check = selecting && <span className="pp-check" aria-hidden>{selected ? <CheckCircle2 /> : <Circle />}</span>;
   if (trash && selecting) return <li><button type="button" className="pp-row" data-on={selected} onClick={(e) => onOpen(e)} onContextMenu={context} aria-pressed={selected} data-testid="pages-card">{check}
     <span className="min-w-0 flex-1"><span className="pp-row-title">{title}</span>{meta}</span></button></li>;
-  if (trash) return <li className="flex items-center gap-3 p-3" onContextMenu={context}>
-    <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold">{title}</span>{meta}</span>
-    <IconBtn label="Restore" onClick={onRestore}><RotateCcw className="h-5 w-5" /></IconBtn><IconBtn label="Delete for good" onClick={onForever}><Trash2 className="h-5 w-5 text-[#c2283a]" /></IconBtn>
+  if (trash) return <li className="pp-trash-row" onContextMenu={context}>
+    <span className="min-w-0 flex-1"><span className="pp-row-title">{title}</span>{meta}</span>
+    <button type="button" title="Restore" aria-label="Restore" onClick={onRestore}><RotateCcw /></button>
+    <button type="button" title="Delete for good" aria-label="Delete for good" onClick={onForever}><Trash2 /></button>
   </li>;
   const kindIcon = m.locked ? <Lock /> : m.kind === "ink" ? <PenLine /> : <FileText />;
   if (grid) return <li><SwipeItem pinned={m.pinned} onDelete={onTrash} onPin={onPin} radius={18}><button type="button" onClick={(e) => onOpen(e)} onContextMenu={context} aria-pressed={selecting ? selected : undefined} data-testid="pages-card" className="pp-card" data-on={selecting ? selected : on}>{check}
