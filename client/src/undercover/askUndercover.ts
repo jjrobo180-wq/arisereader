@@ -11,15 +11,21 @@ const here = (): Promise<{ lat: number; lon: number } | null> => new Promise((do
   navigator.geolocation.getCurrentPosition((p) => { clearTimeout(t); done({ lat: p.coords.latitude, lon: p.coords.longitude }); }, () => { clearTimeout(t); done(null); }, { maximumAge: 30 * 60_000, timeout: 4000 });
 });
 
+/** Inside Arise Notes: looks the question up in the person's own notes (null outside Notes, or when it finds nothing). */
+let notesLookup: ((question: string) => Promise<string | null>) | null = null;
+export function setNotesLookup(fn: ((question: string) => Promise<string | null>) | null) { notesLookup = fn; }
+
 export async function askAi(theme: UndercoverTheme, messages: UndercoverMsg[], prefs: { city: string; unit: "F" | "C"; context?: string }): Promise<string> {
   const token = apiAuthToken();
   const q = messages[messages.length - 1]?.content || "";
   const coords = wantsWeather(q) && !prefs.city && !weatherPlaceFrom(q) ? await here() : null;
+  // The AI answers from the person's own notes and from the web together: what the notes say goes in with the question.
+  const fromNotes = notesLookup && q.trim().length >= 3 ? await Promise.race([notesLookup(q).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 9000))]) : null;
   const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; } })();
   const res = await fetch(`${API_BASE}/api/undercover/chat`, {
     method: "POST", cache: "no-store",
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ theme, messages, tz, place: prefs.city, unit: prefs.unit, ...(prefs.context ? { context: prefs.context.slice(0, 8000) } : {}), ...(coords || {}) }),
+    body: JSON.stringify({ theme, messages, tz, place: prefs.city, unit: prefs.unit, ...(prefs.context ? { context: prefs.context.slice(0, 8000) } : {}), ...(fromNotes ? { notes: fromNotes.slice(0, 3000) } : {}), ...(coords || {}) }),
   }).catch(() => null);
   if (!res) throw new Error("You seem to be offline.");
   const d = await res.json().catch(() => null);

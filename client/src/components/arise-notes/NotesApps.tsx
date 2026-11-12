@@ -52,13 +52,13 @@ export function AppsScreen({ ctx }: { ctx: AppCtx }) {
 }
 
 // ─── One app ───
-export function AppScreen({ ctx, id }: { ctx: AppCtx; id: string }) {
+export function AppScreen({ ctx, id, ask }: { ctx: AppCtx; id: string; /** Opened from the Ask button: only the chat, and back goes straight to Notes. */ ask?: boolean }) {
   const app = notesAppOf(id);
   const { installed, toggle, loaded } = useNotesApps();
   // Opening an app from a link adds it, so it's on Home next time.
   useEffect(() => { if (app && loaded && !installed.includes(app.id)) toggle(app.id); }, [app, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   // Undercover fills the whole screen (it has to look like texting or a doc); its own settings have "Back to Arise Notes".
-  if (app?.id === "undercover") return <Suspense fallback={<Spinner />}><UndercoverApp onExit={() => ctx.go({ name: "pages" })} /></Suspense>;
+  if (app?.id === "undercover") return <Suspense fallback={<Spinner />}><UndercoverApp onExit={() => ctx.go({ name: "pages" })} ask={!!ask} /></Suspense>;
   if (!app) return <><TopBar ctx={ctx} title="App Gallery" back={() => ctx.go({ name: "apps" })} /><main className="mx-auto max-w-3xl px-4 pt-8"><p className="an-card p-6 text-center text-[15px] text-[var(--an-muted)]">That app isn't in the App Gallery.</p></main></>;
   const office = app.id === "sheets" || app.id === "slides" || app.id === "docs" || app.id === "design";
   return <>

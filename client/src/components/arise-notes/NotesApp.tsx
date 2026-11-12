@@ -12,6 +12,7 @@ import { startApplePush } from "@/lib/applePush";
 import { isNotesApp, nativeCall } from "@/lib/nativeApp";
 import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
+import { setNotesLookup } from "@/undercover/askUndercover";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { newPageId, pagesSyncFor } from "./pages/pagesSync";
@@ -28,7 +29,6 @@ import "./notes-themes.css";
 const RecordScreen = lazy(() => import("./RecordScreen"));
 const UploadScreen = lazy(() => import("./UploadScreen"));
 const NoteScreen = lazy(() => import("./NoteScreen"));
-const AskScreen = lazy(() => import("./AskScreen"));
 const MemoScreen = lazy(() => import("./MemoScreen"));
 import { AppsStrip } from "./notesAppsCatalog";
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
@@ -121,6 +121,17 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const tokenRef = useRef(token);
   tokenRef.current = token;
   useEffect(() => { setNotesToken(() => tokenRef.current); }, []);
+  // Every AI in Notes answers from the person's notes and the web together (askUndercover.ts).
+  useEffect(() => {
+    setNotesLookup(async (question) => {
+      const day = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+      const r = await notesApi.ask(question, day);
+      if (!r?.found || !r.answer) return null;
+      const titles = [...new Set((r.cites || []).map((c) => c.title).filter(Boolean))].slice(0, 4).join("; ");
+      return `${r.answer.replace(/\[\d{1,2}\]/g, "").trim()}${titles ? ` (from: ${titles})` : ""}`;
+    });
+    return () => setNotesLookup(null);
+  }, []);
   // The Notes iPhone app: notifications (80% of the minutes used, out of minutes, and messages from
   // the rest of Arise to this account). iOS asks once.
   useEffect(() => { if (isNotesApp() && user) void startApplePush(true); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -154,6 +165,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const go = useCallback<Go>((r) => {
     if (guard.current && !guard.current()) return;
     guard.current = null;
+    // "home" was the Recordings page, which is gone: every back button lands on the Notes page (with its own look).
+    if (r.name === "home") r = { name: "pages" };
     setRoute(r);
     if (mode === "standalone") { if (window.location.hash !== hashOf(r)) window.history.pushState(null, "", hashOf(r)); }
     window.scrollTo({ top: 0 });
@@ -232,7 +245,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const look = s?.night ? nightLook(themeOf(s?.theme)) : themeOf(s?.theme);
   // The Notes tab (typed and handwritten notes) always has a plain, professional look: neutral surfaces,
   // the system's own type and real folders. Dark when the look or night mode is dark.
-  const pro = (route.name === "pages" || route.name === "page") && !s?.contrast;
+  // Every screen has the same plain look (Ask paints its own, in the look chosen in Undercover).
+  const pro = route.name !== "ask" && route.name !== "undercover" && !s?.contrast;
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
   // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
   // page: their colors and type replace the neutral ones there (notes-suite.css).
@@ -244,26 +258,36 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
+  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : route.name === "pages" || route.name === "page" ? "#ffffff" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
+  // Ask (Undercover) paints its own top strip in its look's color, so the app doesn't paint over it.
+  const bare = route.name === "ask" || route.name === "undercover";
   useEffect(() => {
+    if (bare) return;
     const html = document.documentElement, body = document.body;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const before = [html.style.background, body.style.background, meta?.content];
-    html.style.background = backdrop;
-    body.style.background = backdrop;
-    if (meta) meta.content = backdrop;
+    // The strip behind the status bar takes the page's own painted color, so the top of the app runs all the way up.
+    let paint = backdrop;
+    try {
+      const root = document.querySelector<HTMLElement>('[data-testid="arise-notes"]');
+      const c = root ? getComputedStyle(root).backgroundColor : "";
+      if (c && !/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)|transparent/i.test(c)) paint = c;
+    } catch { /* keep the guess */ }
+    html.style.background = paint;
+    body.style.background = paint;
+    if (meta) meta.content = paint;
     // The page doesn't stretch past its ends, so the bottom bar and the top stay put.
     const overscroll = [html.style.overscrollBehavior, body.style.overscrollBehavior];
     html.style.overscrollBehavior = "none";
     body.style.overscrollBehavior = "none";
     if (isNotesApp()) {
-      void nativeCall(/ariseondevice/i, "AriseOnDevice", "setBackdrop", { color: backdrop }).catch(() => {});
+      void nativeCall(/ariseondevice/i, "AriseOnDevice", "setBackdrop", { color: paint }).catch(() => {});
       void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: darkBackdrop ? "DARK" : "LIGHT" }).catch(() => {});
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
-  }, [backdrop, darkBackdrop]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark", proLook && `an-prolook${archClass(look)}`, proLook && look.dark && "an-prolook-dark"].filter(Boolean).join(" ");
+  }, [backdrop, darkBackdrop, route.name, bare]);
+  const rootClass = ["an-root min-h-[100dvh]", bare && "an-bare", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark", proLook && `an-prolook${archClass(look)}`, proLook && look.dark && "an-prolook-dark"].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : suite || proLook ? suiteVars(look) : undefined;
   // The safety net: any words that end up the same color as what is behind them are switched to one that reads.
   useContrastGuard(true, `${rootClass}|${route.name}`, themed || suite || proLook ? [look.ink, look.bg] : []);
@@ -279,8 +303,9 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "record": return <RecordScreen ctx={ctx} />;
       case "upload": return <UploadScreen ctx={ctx} />;
       case "note": return <NoteScreen key={route.id} ctx={ctx} id={route.id} at={route.t} />;
-      case "ask": return <AskScreen ctx={ctx} />;
-      case "undercover": return <AppScreen key="undercover" ctx={ctx} id="undercover" />;
+      // Ask is only the chat or note in the look chosen in Undercover: no toggles, no suggestion buttons.
+      case "ask": return <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
+      case "undercover": return <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
       case "memo": return <MemoScreen ctx={ctx} />;
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
@@ -295,7 +320,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
     {/* Notes has no tutorial: the All Access pop-up comes once, a little after the first open (iPhone app only). */}
-    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Fit and Podster." />}
+    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Cooked Fitness by Arise and Podster." />}
   </div>;
 }
 
@@ -313,7 +338,6 @@ export function TopBar({ ctx, title, back, right }: { ctx: AppCtx; title?: React
       {back ? <IconBtn label="Back" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn> : <Logo size={34} />}
       <div className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight">{title ?? "Arise Notes"}</div>
       {right}
-      <MinutesPill ctx={ctx} />
     </div>
   </header>;
 }
@@ -349,7 +373,7 @@ export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | 
   // One bar in every look: Arise To Duo's floating pill (NotesDock.tsx). The look still colors the + button.
   return <NotesDock on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} go={{
     home: () => ctx.go({ name: "home" }), notes: () => ctx.go({ name: "pages" }), record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }),
-    memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), menu: () => ctx.go({ name: "settings" }),
+    memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "undercover" }), menu: () => ctx.go({ name: "settings" }),
     newNote: () => { try { sessionStorage.setItem("arise-notes-new", "1"); } catch { /* the list opens without the sheet */ } ctx.go({ name: "pages" }); window.dispatchEvent(new Event("arise-notes-new")); },
   }} />;
 }

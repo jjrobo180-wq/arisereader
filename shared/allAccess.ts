@@ -9,7 +9,7 @@ export const ALL_ACCESS = {
   perks: [
     "To Duo Unlimited: every plugin and AI",
     "Arise Notes Plus: 1,500 minutes a month",
-    "Cooked+, with a guest pass for a friend",
+    "Cooked Fitness by Arise: Premium All in one Health & Fitness App, with a guest pass for a friend",
     "Ad-free listening in Podster",
   ],
 } as const;

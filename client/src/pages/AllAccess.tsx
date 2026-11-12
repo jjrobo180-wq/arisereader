@@ -14,7 +14,7 @@ type Status = { live: boolean; admin: boolean; source?: "stripe" | "admin" | "ap
 const PERKS: [string, string][] = [
   ["Arise To Duo Unlimited", "Every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
   ["Arise Notes Plus", "1,500 minutes a month, speaker labels, IEP mode and rollover."],
-  ["Cooked+", "Every Fit+ feature, plus a free guest pass for one friend."],
+  ["Cooked Fitness by Arise: Premium All in one Health & Fitness App", "Every premium feature, plus a free guest pass for one friend."],
   ["Ad-free Podster", "Ads are found and skipped in the episodes you play."],
 ];
 

@@ -54,9 +54,9 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
       { tint: "#3b82f6", icon: <LineChart className="h-[22px] w-[22px]" />, title: "Real progress", text: "Strength, volume, weight and streaks over time." },
     ] },
-  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Cooked).", create: "Create a free account",
+  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Cooked Fitness by Arise).", create: "Create a free account",
     features: [
-      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Cooked workouts, food and health data come to you." },
+      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Cooked Fitness by Arise workouts, food and health data come to you." },
       { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
       { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
     ] },
@@ -235,7 +235,7 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked Fitness by Arise and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         {(!signingUp || eyeGazer) && <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />}

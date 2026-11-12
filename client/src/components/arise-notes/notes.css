@@ -187,3 +187,6 @@ textarea.an-input { padding: .7rem .9rem; line-height: 1.5; }
 
 /* The look previews draw no status-bar strip (it showed as a dark band across the top). */
 .an-root.pl-preview::before { display: none; }
+
+/* Ask (Undercover) fills the screen in its own look, so no app strip sits over its top. */
+.an-root.an-bare::before { display: none !important; }

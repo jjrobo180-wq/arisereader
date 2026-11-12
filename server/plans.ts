@@ -1060,7 +1060,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { live: grantLive(grant, now()), admin: false, grant };
   };
   const ALL_ACCESS_NAME = "Arise All Access";
-  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked+ with a guest pass, and ad-free Podster.";
+  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass, and ad-free Podster.";
   /** Opens Stripe's payment page for All Access. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;
@@ -1512,10 +1512,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
-      if (buyer.isAdmin) throw new Refused("The admin account already has Cooked+.", 409);
+      if (buyer.isAdmin) throw new Refused("The admin account already has Cooked Fitness by Arise Premium.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind: PlanKind = "fit_plus";
-      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Cooked+. Use Manage billing to change it.", 409, "has_plan");
+      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Cooked Fitness by Arise Premium. Use Manage billing to change it.", 409, "has_plan");
       // Fit+ is sold as All Access now (Fit+ and its guest pass are part of it).
       req.body = { ...(req.body || {}), returnPath: "/fit" };
       return void res.json({ url: await allAccessCheckout(req) });
@@ -1525,7 +1525,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const user: AnyUser = req.user;
       const grant = await current("fit_plus", user.id);
-      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Cooked+.", 409);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Cooked Fitness by Arise Premium.", 409);
       if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: (req.body = { ...(req.body || {}), returnPath: "/fit" }, addonReturn(req)).back });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);

@@ -4,18 +4,18 @@
 .an-root.an-pro {
   --an-bg: #f2f2f7 !important; --an-card: #ffffff !important; --an-line: rgba(60,60,67,.16) !important;
   --an-ink: #1c1c1e !important; --an-muted: #5f5f66 !important; --an-faint: #8a8a91 !important;
-  --an-violet: #1d5fd1 !important; --an-violet-ink: #1a55bd !important; --an-violet-soft: #e8f0fd !important; --an-on-accent: #ffffff !important;
+  --an-violet: #3a3a3c !important; --an-violet-ink: #2c2c2e !important; --an-violet-soft: #ececf0 !important; --an-on-accent: #ffffff !important;
   --an-coral: #d93a3a !important; --an-coral-soft: #fdecec !important;
-  --pp-accent: #1d5fd1; --pp-row-on: #e3ecfb; --pp-icon: #1d5fd1; --pp-shadow: 0 1px 2px rgba(0,0,0,.04);
+  --pp-accent: #3a3a3c; --pp-accent-2: #48484a; --pp-row-on: #e5e5ea; --pp-icon: #636366; --pp-shadow: 0 1px 2px rgba(0,0,0,.04);
   background: var(--an-bg) !important; color: var(--an-ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif !important;
 }
 .an-root.an-pro.an-pro-dark {
   --an-bg: #0f0f11 !important; --an-card: #1c1c1f !important; --an-line: rgba(235,235,245,.13) !important;
   --an-ink: #f2f2f4 !important; --an-muted: #a5a5ad !important; --an-faint: #85858d !important;
-  --an-violet: #4d8ef7 !important; --an-violet-ink: #7aaaf9 !important; --an-violet-soft: #18263d !important; --an-on-accent: #ffffff !important;
+  --an-violet: #636366 !important; --an-violet-ink: #d1d1d6 !important; --an-violet-soft: #2a2a2e !important; --an-on-accent: #ffffff !important;
   --an-coral: #ff6161 !important; --an-coral-soft: #3a1c1c !important;
-  --pp-accent: #6aa0f8; --pp-row-on: #1b2a44; --pp-icon: #6aa0f8; --pp-shadow: none;
+  --pp-accent: #636366; --pp-accent-2: #48484a; --pp-row-on: #2a2a2e; --pp-icon: #aeaeb2; --pp-shadow: none;
   color-scheme: dark;
 }
 .an-pro .an-display, .an-pro h1, .an-pro h2, .an-pro h3 { font-family: inherit !important; }
@@ -109,7 +109,7 @@
 .an-pro-dark [data-testid="pages-rich-body"] th, .an-pro-dark [data-testid="pages-rich-body"] td { border-color: #3a3a3f !important; }
 
 /* ── Premium list (v2): richer rows, elevated cards, a glowing new-note button, swipe actions ── */
-.an-pro { --pp-accent-2: #7c5cff; }
+.an-pro { --pp-accent-2: #48484a; }
 .an-pro .pp-title { font-size: 2.15rem; font-weight: 800; letter-spacing: -.035em; }
 .an-pro .an-search input { height: 2.85rem !important; font-size: 16px; }
 .an-pro .pp-quick { height: 2.25rem; padding: 0 .95rem; border-radius: 999px; box-shadow: none; background: color-mix(in srgb, var(--pp-accent) 11%, var(--an-card)); color: var(--an-ink); }
@@ -152,12 +152,12 @@
 /* Nothing sits behind a note until it is swiped, so no color can show around its edges. */
 .pp-swipe-under[aria-hidden="true"] { display: none; }
 
-/* @arise replies: the prompt and Arise's answer sit together in a soft purple quote block. */
+/* @arise replies stay discreet: a plain, faint block that reads like part of the note, no color and no icon. */
 [data-testid="pages-rich-body"] blockquote[data-arise] {
-  margin: .6rem 0; padding: .55rem .85rem; border-left: 3px solid var(--an-violet, #7c3aed);
-  background: color-mix(in srgb, var(--an-violet, #7c3aed) 9%, transparent); border-radius: 0 12px 12px 0;
+  margin: .6rem 0; padding: .45rem .8rem; border-left: 2px solid var(--an-line, rgba(60,60,67,.2));
+  background: color-mix(in srgb, currentColor 4%, transparent); border-radius: 0 8px 8px 0; font-style: normal;
 }
-[data-testid="pages-rich-body"] blockquote[data-arise] > p:first-child { opacity: .75; font-size: .92em; margin-top: 0; }
+[data-testid="pages-rich-body"] blockquote[data-arise] > p:first-child { opacity: .6; font-size: .92em; margin-top: 0; }
 
 /* ── Minimal (v3): one quiet surface. No cards or tinted tiles: plain rows on the page, hairlines
    between them, small type, one accent color, and nothing shown that has nothing in it. ── */
@@ -251,5 +251,32 @@
 .pp-move { list-style: none; margin: 0; padding: 0; }
 .pp-move button { display: flex; width: 100%; align-items: center; gap: .7rem; min-height: 2.9rem; padding: 0 .6rem; border-radius: 10px; font-size: .95rem; font-weight: 500; text-align: left; }
 .pp-move button:hover { background: color-mix(in srgb, var(--an-ink) 6%, transparent); }
-.pp-move svg { width: 1.1rem; height: 1.1rem; color: var(--pp-accent, #1d5fd1); }
-.pp-move-new { color: var(--pp-accent, #1d5fd1); }
+.pp-move svg { width: 1.1rem; height: 1.1rem; color: var(--pp-accent, #3a3a3c); }
+.pp-move-new { color: var(--pp-accent, #3a3a3c); }
+
+/* Recently Deleted: quiet rows like the rest of the list (gray icons, no red), and a plain Empty. */
+.pp-trash-row { display: flex; align-items: center; gap: .35rem; padding: .6rem .5rem; border-radius: 8px; }
+.pp-trash-row:hover { background: color-mix(in srgb, var(--an-ink) 4%, transparent); }
+.pp-trash-row .pp-row-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; font-weight: 600; }
+.pp-trash-row > button { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 7px; color: var(--an-faint); }
+.pp-trash-row > button:hover { background: color-mix(in srgb, var(--an-ink) 8%, transparent); color: var(--an-ink); }
+.pp-trash-row > button svg { width: 1rem; height: 1rem; }
+.pp-empty-trash { flex: none; padding: .3rem .6rem; border-radius: 7px; font-size: .84rem; font-weight: 600; color: var(--an-muted); }
+.pp-empty-trash:hover { background: color-mix(in srgb, var(--an-ink) 7%, transparent); color: var(--an-ink); }
+/* The You circle on the light bar: dark circle, light letter (it was white on white). */
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tab-menu"] > span { background: var(--an-faint) !important; color: #fff !important; }
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tab-menu"][aria-current="page"] > span { background: var(--an-ink) !important; }
+
+/* The strip behind the clock and the page are always one color: on the Notes page the whole app
+   (root, the clock strip and the list) is plain white in light mode, with no tint or gradient. */
+.an-root.an-pro:not(.an-pro-dark):has(.pp-min) { --an-bg: #ffffff !important; background: #ffffff !important; background-image: none !important; }
+.an-root.an-pro.an-pro-dark:has(.pp-min) { background-image: none !important; }
+.an-root.an-pro { background-image: none !important; }
+.an-root.an-pro::before { background: var(--an-bg) !important; background-image: none !important; }
+html:has(.an-root.an-pro), body:has(.an-root.an-pro) { background: #f2f2f7 !important; background-image: none !important; }
+html:has(.an-root.an-pro:not(.an-pro-dark) .pp-min), body:has(.an-root.an-pro:not(.an-pro-dark) .pp-min) { background: #ffffff !important; }
+html:has(.an-root.an-pro-dark), body:has(.an-root.an-pro-dark) { background: #0f0f11 !important; }
+/* The + menu matches the plain look: a white card with dark words (dark gray in dark mode). */
+.an-root.an-pro [data-testid="notes-dock-menu"] { background: var(--an-card) !important; color: var(--an-ink) !important; box-shadow: 0 0 0 1px var(--an-line), 0 18px 40px -12px rgba(0,0,0,.25) !important; }
+.an-root.an-pro [data-testid="notes-dock-menu"] button:hover { background: color-mix(in srgb, var(--an-ink) 6%, transparent) !important; }
+.an-root.an-pro [data-testid="notes-dock-menu"] button > span { background: color-mix(in srgb, var(--an-ink) 7%, transparent) !important; color: var(--an-ink); }
