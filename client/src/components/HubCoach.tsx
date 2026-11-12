@@ -4,7 +4,7 @@
 //   1. Press and hold a widget on Home: Home starts to jiggle (teacher-hub/HubHomeEdit.tsx).
 //   2. Drag it somewhere, then tap Done: the jiggle stops.
 //   3. Switch between WorkHub and LifeHub with the switch at the top.
-//   4. Tap Apps, then App Gallery: the App Gallery opens.
+//   4. Tap Apps, then Plugin Gallery: the Plugin Gallery opens.
 // The step is remembered (per person, on this phone), so it carries on in the other hub after the
 // switch. Shown once, in the iPhone app; Skip ends it.
 import { useEffect, useRef, useState } from "react";
@@ -21,8 +21,8 @@ const steps = (hub: "life" | "work"): Step[] => [
   { target: "[data-home-part]", gesture: "hold", title: "Make Home yours", body: "Press and hold any widget until Home starts to wiggle.", when: () => exists(".hub-jiggle") },
   { target: ".hub-jiggle", gesture: "drag", title: "Drag it anywhere", body: "Move it where you want it, then tap Done at the top.", when: () => !exists(".hub-jiggle") },
   { target: '[data-testid="hub-todo-switch"]', gesture: "tap", title: hub === "life" ? "Switch to WorkHub" : "Switch to LifeHub", body: hub === "life" ? "Your work lives in WorkHub. Tap its icon here to go there, and the same switch brings you back." : "Your home life lives in LifeHub. Tap its icon here to go there, and the same switch brings you back." },
-  { target: '[data-testid$="tab-apps"], [data-testid="life-apps-open"]', gesture: "tap", title: "Every app is in Apps", body: "Tap Apps to see everything in this hub.", when: () => exists('[data-testid="life-apps"], [data-testid="hub-apps"]') },
-  { target: '[data-testid="hub-app-store"], [data-testid="life-app-app-store"]', gesture: "tap", title: "Then the App Gallery", body: "Tap App Gallery to add more, like a budget, habits or meal planning.", when: () => exists('[data-testid="plugin-store"]') },
+  { target: '[data-testid$="tab-apps"], [data-testid="life-apps-open"]', gesture: "tap", title: "Every plugin is in Plugins", body: "Tap Plugins to see everything in this hub.", when: () => exists('[data-testid="life-apps"], [data-testid="hub-apps"]') },
+  { target: '[data-testid="hub-app-store"], [data-testid="life-app-app-store"]', gesture: "tap", title: "Then the Plugin Gallery", body: "Tap Plugin Gallery to add more, like a budget, habits or meal planning.", when: () => exists('[data-testid="plugin-store"]') },
 ];
 
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };

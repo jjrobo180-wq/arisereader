@@ -1,0 +1,14 @@
+{
+  "name": "arise-carplay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Podster in the car (CarPlay), with the native Podster player the Apple Watch and Apple TV apps share.",
+  "main": "index.js",
+  "files": ["Package.swift", "ios/Sources", "index.js"],
+  "capacitor": {
+    "ios": { "src": "ios" }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

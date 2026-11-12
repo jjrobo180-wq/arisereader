@@ -1,18 +1,25 @@
 // Settings: plan and minutes (with upgrades and billing), the Family plan, audio and privacy
 // (including deleting everything), accessibility, and defaults.
+import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
-import { Check, Crown, Eye, LogOut, Shield, Trash2, Type, Users } from "lucide-react";
-import { NOTES_PLANS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
+import { Blocks, Check, ChevronRight, Crown, Eye, LayoutGrid, LogOut, Palette, Shield, Trash2, Type, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
-import { notesApi, type Billing } from "./api";
+import { checkForUpdateNow } from "@/lib/nativeApp";
+import { api, notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
 import { Btn, Notice, Section, Spinner, Toggle, useToast } from "./ui";
-import { TopBar, type AppCtx } from "./NotesApp";
+import { TabBar, TopBar, openSplit, type AppCtx } from "./NotesApp";
+import LookPicker from "@/components/looks/LookPicker";
+import { AppIcon, NOTES_APPS, useNotesApps } from "./notesAppsCatalog";
+import AllAccessOffer from "@/components/AllAccessOffer";
+import "./pages/pages-pro.css";
 
-type Tab = "plan" | "family" | "privacy" | "access";
+type Tab = "plan" | "look" | "family" | "privacy" | "access";
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
 const FEATURES: Record<NotesPlanId, string[]> = {
   free: ["60 minutes a month", "Recordings up to 30 minutes", "Transcripts with times", "AI summaries"],
@@ -21,32 +28,78 @@ const FEATURES: Record<NotesPlanId, string[]> = {
   family: ["2,000 minutes shared by up to 4 people", "Plus features for everyone", "Share notes with the family"],
 };
 
-export default function SettingsScreen({ ctx, tab: start }: { ctx: AppCtx; tab?: Tab }) {
-  const [tab, setTab] = useState<Tab>(start ?? "plan");
-  const tabs: [Tab, string][] = [["plan", "Plan & minutes"], ["family", "Family"], ["privacy", "Privacy"], ["access", "Accessibility"]];
+const TITLES: Record<Tab, string> = { plan: "Plan & minutes", look: "Appearance", family: "Family", privacy: "Privacy & data", access: "Accessibility" };
+
+/** Settings is the app's menu: you and your minutes, every place in Notes, and each setting on its own page. */
+export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab }) {
+  if (!tab) return <MenuHome ctx={ctx} />;
   return <>
-    <TopBar ctx={ctx} title="Settings" back={() => ctx.go({ name: "home" })} />
-    <main className="mx-auto max-w-3xl space-y-4 px-4 pb-24 pt-4 sm:px-5">
-      <div role="tablist" className="an-scroll -mx-1 flex gap-2 overflow-x-auto px-1">{tabs.map(([k, label]) => <button key={k} role="tab" type="button" aria-selected={tab === k} aria-pressed={tab === k} className="an-chip" onClick={() => setTab(k)}>{label}</button>)}</div>
+    <TopBar ctx={ctx} title={TITLES[tab]} back={() => ctx.go({ name: "settings" })} />
+    <main className="mx-auto max-w-3xl space-y-4 px-4 pb-28 pt-4 sm:px-5" data-testid={`notes-settings-${tab}`}>
       {tab === "plan" && <PlanTab ctx={ctx} />}
       {tab === "family" && <FamilyTab ctx={ctx} />}
       {tab === "privacy" && <PrivacyTab ctx={ctx} />}
+      {tab === "look" && <LookTab ctx={ctx} />}
       {tab === "access" && <AccessTab ctx={ctx} />}
-      {ctx.mode === "standalone" && <SignOut ctx={ctx} />}
     </main>
   </>;
 }
 
-// The Notes app on its own (the iPhone app and /notes/) signs out here. Inside Arise To Duo, To Duo's
-// own sign-out is used. Signing out also stops notifications to this phone (AuthContext.logout).
-function SignOut({ ctx }: { ctx: AppCtx }) {
+function Row({ label, detail, onClick, danger, testId }: { icon?: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
+  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2.5 text-left transition active:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
+    <span className="min-w-0 flex-1"><span className="block text-[16px] leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block break-words text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
+    <ChevronRight className="h-4 w-4 shrink-0 opacity-40" style={{ color: "var(--an-muted)" }} aria-hidden />
+  </button>;
+}
+/** The App Gallery and the apps you've added (notesAppsCatalog.tsx). */
+function AppsGroup({ ctx }: { ctx: AppCtx }) {
+  const { installed } = useNotesApps();
+  const mine = NOTES_APPS.filter((a) => installed.includes(a.id));
+  return <Group title="Apps">
+    <Row icon={<Blocks />} label="All apps" detail="Add or remove apps" onClick={() => ctx.go({ name: "apps" })} testId="notes-menu-apps" />
+    {mine.map((a) => <Row key={a.id} icon={<AppIcon app={a} size={22} />} label={a.name.replace(/^A\.R\.I\.S\.E\. /, "")} detail={a.tagline} onClick={() => ctx.go({ name: "app", id: a.id })} />)}
+  </Group>;
+}
+const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
+  <h2 className="mb-1 px-4 text-[12px] font-medium" style={{ color: "var(--an-muted)" }}>{title}</h2>
+  <div className="divide-y divide-[var(--an-line)] overflow-hidden border-y border-[var(--an-line)] bg-[var(--an-card)]">{children}</div>
+</section>;
+
+function MenuHome({ ctx }: { ctx: AppCtx }) {
   const { logout } = useAuth();
-  return <Section title="Account" icon={<LogOut className="h-4 w-4" />}>
-    <div className="flex flex-wrap items-center gap-3">
-      <p className="min-w-0 flex-1 text-[14px] text-[var(--an-muted)]">Signed in as <b className="text-[var(--an-ink)]">{ctx.me.user.name || "you"}</b>.</p>
-      <Btn kind="soft" onClick={() => { logout(); window.location.hash = "#/"; }} data-testid="notes-sign-out"><LogOut className="h-4 w-4" />Sign out</Btn>
-    </div>
-  </Section>;
+  const u = ctx.me.usage, s = ctx.me.settings;
+  const name = ctx.me.user.name || "You";
+  const pct = Math.min(100, u.pct);
+  const look = NOTES_THEMES.find((t) => t.id === s.theme);
+  const [updateMsg, setUpdateMsg] = useState("");
+  return <>
+    <header className="an-noprint pt-[var(--sat,env(safe-area-inset-top,0px))]"><h1 className="mx-auto max-w-2xl px-4 pb-1 pt-5 text-[30px] font-bold tracking-tight sm:px-5" style={{ color: "var(--an-ink)" }}>Settings</h1></header>
+    <main className="mx-auto max-w-2xl space-y-6 pb-32 pt-3" data-testid="notes-menu">
+      <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} data-testid="notes-menu-minutes" className="block w-full border-y border-[var(--an-line)] bg-[var(--an-card)] px-4 py-3.5 text-left">
+        <div className="flex items-center justify-between gap-3"><span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-semibold" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)" }}>{name.trim().charAt(0).toUpperCase()}</span><span className="truncate text-[16px]" style={{ color: "var(--an-ink)" }}>{name}</span></span><p className="shrink-0 text-[13px]" style={{ color: "var(--an-muted)" }}>{ctx.me.planName}{u.pooled ? " · family" : ""}</p></div>
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-ink) 9%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1.5)}%`, background: "var(--an-ink)", opacity: .7 }} /></div>
+        <p className="mt-2 text-[13px]" style={{ color: "var(--an-muted)" }}>{u.left.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} minutes left · resets {dayWords(u.resetOn)}</p>
+      </button>
+
+      <Group title="Preferences">
+        <Row icon={<Palette />} label="Appearance" detail={s.contrast ? "High contrast is on" : `${look?.label ?? "Classic"} look`} onClick={() => ctx.go({ name: "settings", tab: "look" })} testId="notes-menu-look" />
+        <Row icon={<Eye />} label="Accessibility" detail="Text size, simple text, read-aloud voice" onClick={() => ctx.go({ name: "settings", tab: "access" })} testId="notes-menu-access" />
+      </Group>
+      <Group title="Account">
+        <Row icon={<Crown />} label="Plan & minutes" detail={ctx.me.planName} onClick={() => ctx.go({ name: "settings", tab: "plan" })} testId="notes-menu-plan" />
+        <Row icon={<Users />} label="Family" detail={ctx.me.family ? `${ctx.me.family.people.length} people` : "Share minutes with up to 4 people"} onClick={() => ctx.go({ name: "settings", tab: "family" })} />
+        <Row icon={<Shield />} label="Privacy & data" detail="Audio, reminders, delete everything" onClick={() => ctx.go({ name: "settings", tab: "privacy" })} />
+        <Row icon={<Shield />} label="Student data privacy" detail="FERPA and COPPA" onClick={() => ctx.go({ name: "privacy" })} />
+      </Group>
+      <AppsGroup ctx={ctx} />
+      <Group title="More">
+        <Row label="Check for updates" detail={updateMsg || "Get the newest version now"} onClick={() => { setUpdateMsg("Checking…"); void checkForUpdateNow().then(setUpdateMsg); }} testId="notes-check-update" />
+        <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
+        {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
+      </Group>
+    </main>
+    <TabBar ctx={ctx} on="menu" />
+  </>;
 }
 
 // The Notes iPhone app: the privacy mode new recordings start in (each recording can change it).
@@ -75,6 +128,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
   // Plans aren't sold inside the iPhone app (App Review Guideline 3.1.1): it shows the minutes and
   // what's on the account, with no prices, buy buttons or billing links.
   const native = isNativeApp();
+  const { token: authToken } = useAuth();
   useEffect(() => { if (!native) notesApi.billing().then(setBill).catch((e) => say(e.message)); if (ctx.me.user.admin) notesApi.adminUsage().then((r) => setAdmin(r.people)).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const returnPath = ctx.mode === "embedded" ? "/arise-notes" : "/notes/";
   const choose = async (p: NotesProduct) => {
@@ -97,9 +151,11 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Minutes used"><div className={`h-full rounded-full ${u.warn === 100 ? "bg-[var(--an-coral)]" : u.warn === 80 ? "bg-[#f5a524]" : "bg-[var(--an-violet)]"}`} style={{ width: `${pct}%` }} /></div>
       <p className="mt-3 text-[13px] leading-relaxed text-[var(--an-muted)]">You're on <b>{ctx.me.planName}</b>{u.pooled ? " (your family's shared minutes)" : ""}. Every minute of audio counts, recorded or uploaded, rounded up per recording. One recording can be up to {u.maxSecs >= 7200 ? "2 hours" : `${Math.round(u.maxSecs / 60)} minutes`}.{u.warn ? " You'll get a heads-up at 80% and at 100%." : ""}</p>
     </Section>
-    {native ? <Notice>{NATIVE_NO_PURCHASE}</Notice> : !bill ? <Spinner /> : <>
+    {native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={authToken} onBought={() => void ctx.refreshMe()} /> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
+      {!bill.paidOnline && <AllAccessCard ctx={ctx} bill={bill} returnPath={returnPath} />}
+      {bill.paidOnline && <>
       <div className="flex items-center justify-center gap-2 text-[14px]"><span>Plus billed</span><button type="button" className="an-chip" aria-pressed={!yearly} onClick={() => setYearly(false)}>Monthly</button><button type="button" className="an-chip" aria-pressed={yearly} onClick={() => setYearly(true)}>Yearly · save 17%</button></div>
       <div className="grid gap-3 sm:grid-cols-2">
         {(["free", "basic", "plus", "family"] as NotesPlanId[]).map((id) => {
@@ -117,9 +173,39 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       </div>
       {bill.canManage && <Btn kind="plain" className="w-full" busy={busy === "portal"} onClick={() => void manage()}>Manage billing, receipts or cancel</Btn>}
       <p className="text-center text-[12px] text-[var(--an-faint)]">Payments by Stripe. Changing plans takes effect right away; the difference is charged or credited.</p>
+      </>}
     </>}
     {admin && <Section title="Heavy users this month (admin)"><table className="w-full text-left text-[13px]"><thead><tr className="text-[var(--an-muted)]"><th>Account</th><th>Minutes</th><th>Jobs</th><th>Est. cost</th></tr></thead><tbody>{admin.map((r, i) => <tr key={i} className="border-t border-[var(--an-line)]"><td className="py-1.5">{r.name}</td><td>{r.minutes}</td><td>{r.jobs}</td><td>${(r.costCents / 100).toFixed(2)}</td></tr>)}</tbody></table>{!admin.length && <p className="text-[13px] text-[var(--an-muted)]">No usage yet this month.</p>}</Section>}
   </div>;
+}
+
+// New Notes plans are sold as Arise All Access ($10 a month: Notes Plus, To Duo Unlimited, Fit+ and
+// ad-free Podster). People already paying for a Notes plan keep theirs and change it above.
+type AllAccess = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean };
+function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; returnPath: string }) {
+  const say = useToast();
+  const [all, setAll] = useState<AllAccess | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api<AllAccess>("all-access").then(setAll).catch(() => setAll(null)); }, []);
+  const go = async (path: string) => {
+    setBusy(true);
+    try { const r = await api<{ url: string }>(path, { body: { returnPath } }); window.location.assign(r.url); }
+    catch (e: any) { say(e.message); setBusy(false); }
+  };
+  const price = money(all?.priceCents ?? 1000);
+  const perks: [string, string][] = [["Arise Notes", "Plus: 1,500 minutes a month, every AI feature"], ["Arise To Duo", "Unlimited: every plugin and AI"], ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, with a free guest pass for a friend"], ["Podster", "Ad-free listening"]];
+  return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
+    <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise All Access</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
+    <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>
+    <ul className="mt-3 space-y-2.5">{perks.map(([app, detail]) => <li key={app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--an-green)]" aria-hidden /><span className="min-w-0"><span className="block text-[14px] font-semibold leading-snug">{app}</span><span className="block text-[12px] leading-snug opacity-65">{detail}</span></span></li>)}</ul>
+    {all?.live
+      ? (all.canManage ? <Btn kind="plain" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/portal")}>Manage billing, receipts or cancel</Btn>
+        : <p className="mt-4 text-[13px] text-[var(--an-muted)]">{all.admin ? "The admin account always has All Access." : "All Access is on your account."}</p>)
+      : bill.canBuy && bill.payment
+        ? <Btn kind="primary" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/checkout")} data-testid="notes-buy-all-access">Get All Access · {price} a month</Btn>
+        : null}
+    <p className="mt-3 text-[12px] text-[var(--an-faint)]">One plan for every Arise app. Cancel any time. Payments by Stripe.{ctx.me.plan === "free" ? " The free plan stays free." : ""}</p>
+  </section>;
 }
 
 function FamilyTab({ ctx }: { ctx: AppCtx }) {
@@ -207,6 +293,16 @@ function PrivacyTab({ ctx }: { ctx: AppCtx }) {
         </div>}
     </Section>
   </div>;
+}
+
+function LookTab({ ctx }: { ctx: AppCtx }) {
+  const save = useSettings(ctx);
+  const s = ctx.me.settings;
+  return <Section title="Choose your look">
+    <p className="mb-3 text-[14px] text-[var(--an-muted)]">{s.contrast ? "High contrast is on, so it replaces your look until you turn it off in Accessibility." : "Pick the one you like. It changes right away and follows your account."}</p>
+    <div className="mb-3 an-card rounded-2xl p-3" data-testid="notes-night"><AppearanceSwitch /></div>
+    <LookPicker current={s.theme} onPick={(id) => void save({ theme: id as NotesSettings["theme"] })} testPrefix="notes-look" accent="#5b4fe0" />
+  </Section>;
 }
 
 function AccessTab({ ctx }: { ctx: AppCtx }) {

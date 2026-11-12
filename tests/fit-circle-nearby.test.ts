@@ -1,4 +1,4 @@
-// Arise Fit: workout buddies (guests), gyms and healthy food near you, recipes, and Siri links.
+// Cooked: workout buddies (guests), gyms and healthy food near you, recipes, and Siri links.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -19,7 +19,7 @@ const set = (weight: number, reps = 8) => ({ reps, weight, done: true });
 const workout = (id: string, date: string, weight = 100): Workout => ({ id, date, name: "Push", secs: 2700, exercises: [{ exId: "bench-press", name: "Bench Press", sets: [set(weight), set(weight), set(weight)] }] });
 const withWorkouts = (ws: Workout[]): FitData => ({ ...emptyFit(), workouts: ws });
 
-test("codes: easy to read aloud, cleaned when typed, and links that open Arise Fit", () => {
+test("codes: easy to read aloud, cleaned when typed, and links that open Cooked", () => {
   for (let i = 0; i < 50; i++) { const c = makeCode(); assert.equal(c.length, 6); assert.doesNotMatch(c, /[01ILO]/); assert.equal(cleanCode(c.toLowerCase()), c); }
   assert.equal(cleanCode("ABC12"), null);
   assert.equal(circleLink("https://arisetodo.com/app", "ABCDEF"), "https://arisetodo.com/app#/fit?circle=ABCDEF");
@@ -285,10 +285,11 @@ test("Siri and links: actions and invites, in the app and on the website", () =>
   assert.match(plist, /CFBundleURLSchemes": \["arisefit"\]/);
 });
 
-test("wired in: circle, Fit+, near me and recipes on Today, Siri in Settings, eat out in Food, gyms in Train", () => {
+test("wired in: circle and buddy in the Friends app, Fit+, near me and recipes as apps, Siri in Settings, eat out in Food, gyms in Train", () => {
   const read = (f: string) => readFileSync(new URL(`../client/src/pages/fit/${f}`, import.meta.url), "utf8");
   const app = read("FitApp.tsx");
-  for (const s of ["<CircleCard", "<CircleSheet", "<PlusProvider", "<NearbyGyms", "<EatOut", "<RecipesSheet", "<SiriSheet", "useDeepLinks(", "fit-open-siri", "smartWorkoutNow("]) assert.ok(app.includes(s), s);
+  for (const s of ["<FriendsApp", "<CircleSheet", "<PlusProvider", "<NearbyGyms", "<EatOut", "<RecipesSheet", "<SiriSheet", "useDeepLinks(", "fit-open-siri", "smartWorkoutNow("]) assert.ok(app.includes(s), s);
+  assert.ok(read("FitApps.tsx").includes("<CircleCard") && read("FitApps.tsx").includes("<BuddyCard"));
   assert.ok(read("FitFood.tsx").includes("fit-food-eat-out"));
   assert.ok(read("FitTrain.tsx").includes("fit-train-gyms"));
 });

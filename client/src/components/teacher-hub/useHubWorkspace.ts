@@ -11,10 +11,48 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
 import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
-import { recallHub, rememberHub } from "@/lib/hubMemory";
+import { markHubOpen, prefetchHub, recallHub, rememberHub } from "@/lib/hubMemory";
 import { HUB_REQUIRED } from "@shared/plans";
 import { workspaceBytes } from "@shared/hubSave";
 import { emptyWorkspace, normalizeWorkspace, type Workspace } from "@shared/teacherHub";
+import { isNativeApp } from "@/lib/nativeApp";
+
+// The iPhone app keeps the last copy of WorkHub on the phone, so it opens with no signal (it used to
+// stop at "Could not load Arise WorkHub"). Changes made with no signal are kept with it and saved, and
+// merged with anything another device saved, once the signal is back. Only in the app: a browser on a
+// shared school computer keeps nothing. Signing out removes it.
+const copyKey = (id: number) => `arise-workhub-copy-v1:${id}`;
+type DeviceCopy = { workspace: Workspace; saved: Workspace; updatedAt: string; seats: number | null };
+function readDeviceCopy(userId: number | undefined): DeviceCopy | null {
+  if (!userId || !isNativeApp()) return null;
+  try {
+    const kept = JSON.parse(localStorage.getItem(copyKey(userId)) || "null");
+    if (!kept || typeof kept.updatedAt !== "string" || !kept.workspace || typeof kept.workspace !== "object" || Array.isArray(kept.workspace)) return null;
+    const workspace = normalizeWorkspace(kept.workspace);
+    const seats = typeof kept.seats === "number" ? kept.seats : null;
+    if (kept.dirty !== true) return { workspace, saved: workspace, updatedAt: kept.updatedAt, seats };
+    // Unsaved changes are only usable with the account copy they were made on.
+    if (!kept.base || typeof kept.base !== "object" || Array.isArray(kept.base)) return null;
+    return { workspace, saved: normalizeWorkspace(kept.base), updatedAt: kept.updatedAt, seats };
+  } catch { return null; }
+}
+function writeDeviceCopy(userId: number | undefined, instance: HubSaver<Workspace>, seats: number | null): void {
+  if (!userId || !isNativeApp()) return;
+  const updatedAt = instance.baseUpdatedAt;
+  if (typeof updatedAt !== "string") return;
+  const dirty = instance.hasUnsaved();
+  try {
+    localStorage.setItem(copyKey(userId), JSON.stringify({ workspace: instance.current(), dirty, ...(dirty ? { base: instance.saved } : {}), updatedAt, seats }));
+  } catch {
+    // No room for both copies (a very large Hub): keep the saved one, so the Hub still opens with no
+    // signal. If even that doesn't fit, keep nothing rather than an old copy.
+    try { localStorage.setItem(copyKey(userId), JSON.stringify({ workspace: instance.saved, dirty: false, updatedAt, seats })); }
+    catch { try { localStorage.removeItem(copyKey(userId)); } catch { /* nothing kept */ } }
+  }
+}
+if (typeof window !== "undefined") window.addEventListener("arise-logout", () => {
+  try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith("arise-workhub-copy-v1:")) localStorage.removeItem(k); } } catch { /* nothing to remove */ }
+});
 
 export type HubSync = {
   workspace: Workspace;
@@ -50,6 +88,18 @@ function workspaceFrom(data: any): Workspace {
   return normalizeWorkspace(data.workspace);
 }
 
+/** WorkHub's copy, fetched in the background while LifeHub is open, so switching over is instant. */
+export function prefetchWorkHub(userId: number | undefined, token: string | null): Promise<void> {
+  return prefetchHub<Workspace>("work", userId, async () => {
+    if (!token) return null;
+    const r = await fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(token), cache: "no-store" });
+    if (!r.ok) return null;
+    const data = await r.json().catch(() => null);
+    const start = workspaceFrom(data);
+    return { workspace: start, updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null, extra: { seats: typeof data.seats === "number" ? data.seats : null } };
+  });
+}
+
 export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; token: string | null; userId?: number }): HubSync {
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
   const [loaded, setLoaded] = useState(false);
@@ -70,6 +120,17 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
   const seatsRef = useRef(seats);
   seatsRef.current = seats;
   const checkRef = useRef<() => Promise<void>>(async () => {});
+  const copyTimer = useRef<number | null>(null);
+  /** Writes the phone's copy now (turning a whole Hub into text takes a moment, so it waits for a pause in typing). */
+  const keepCopy = useCallback(() => {
+    if (copyTimer.current !== null) { window.clearTimeout(copyTimer.current); copyTimer.current = null; }
+    if (saver.current) writeDeviceCopy(userRef.current, saver.current, seatsRef.current);
+  }, []);
+  const keepCopySoon = useCallback(() => {
+    if (!isNativeApp()) return;
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(keepCopy, 1200);
+  }, [keepCopy]);
 
   const makeSaver = useCallback((start: Workspace, updatedAt: string | null, isLive: () => boolean) => new HubSaver<Workspace>(
     {
@@ -84,10 +145,18 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         });
         return { status: res.status, body: await res.json().catch(() => null) };
       },
-      onView: (next) => { if (isLive()) setView(next); },
+      onView: (next) => { if (isLive()) { setView(next); if (next.kind === "saved") keepCopySoon(); } },
       onSaved: ({ bytes: size }) => { if (isLive()) setBytes(size); announceSaved("workhub", userRef.current); },
       setTimer: (run, ms) => window.setTimeout(run, ms),
       clearTimer: (handle) => window.clearTimeout(handle as number),
+      // Two devices saved at once: both sets of changes are merged and saved, no "which copy?" question.
+      fetchLatest: async () => {
+        const r = await fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(tokenRef.current), cache: "no-store" });
+        const data = await r.json().catch(() => null);
+        if (!r.ok) throw new Error("not reached");
+        return { workspace: workspaceFrom(data), updatedAt: typeof data?.updatedAt === "string" ? data.updatedAt : null };
+      },
+      onMerged: (merged) => { if (isLive()) { const clean = normalizeWorkspace(merged); setWorkspace(clean); setBytes(workspaceBytes(clean)); } },
     },
     { workspace: start, updatedAt },
   ), []);
@@ -97,11 +166,14 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
     if (!enabled || !token) return;
     let cancelled = false;
     const live = () => !cancelled;
+    markHubOpen("work", userId, true);
     setLoadError("");
     setNeedsPlan(false);
     // Coming back from LifeHub (or anywhere else on this page): show the copy kept in memory at once
     // and catch up with the server in the background — no "Opening your Arise WorkHub…" screen.
-    const memo = recallHub<Workspace>("work", userId);
+    // Opening the app fresh: the copy kept on the phone shows the same way, signal or not.
+    const kept = recallHub<Workspace>("work", userId) ? null : readDeviceCopy(userId);
+    const memo = recallHub<Workspace>("work", userId) ?? (kept ? { workspace: kept.workspace, saved: kept.saved, updatedAt: kept.updatedAt, extra: { seats: kept.seats }, pending: undefined as Promise<void> | undefined } : null);
     if (memo) {
       setWorkspace(memo.workspace);
       setBytes(workspaceBytes(memo.workspace));
@@ -118,7 +190,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         saver.current.change(memo.pending ? workspaceRef.current : memo.workspace);
         window.setTimeout(() => { if (!cancelled) { lastCheck.current = 0; void checkRef.current(); } }, 60);
       })();
-      return () => { cancelled = true; leave(); };
+      return () => { cancelled = true; leave(); markHubOpen("work", userId, false); };
     }
     setLoaded(false);
     fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(token), cache: "no-store" })
@@ -139,22 +211,24 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         setBytes(workspaceBytes(start));
         setView({ kind: "saved" });
         setLoaded(true);
+        keepCopySoon();
       })
       .catch((err) => {
         if (cancelled) return;
         setLoadError(err?.message || "Could not load Arise WorkHub.");
         setLoaded(true);
       });
-    return () => { cancelled = true; leave(); };
+    return () => { cancelled = true; leave(); markHubOpen("work", userId, false); };
   }, [enabled, token, userId, round]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every change goes to the saver — once a real copy is showing. (On an instant open the saver can
   // exist before the remembered copy has rendered; the empty placeholder must never be handed over.)
-  useEffect(() => { if (loaded) saver.current?.change(workspace); }, [workspace, loaded]);
+  useEffect(() => { if (loaded && saver.current) { saver.current.change(workspace); keepCopySoon(); } }, [workspace, loaded, keepCopySoon]);
 
   /** Leaving WorkHub (for LifeHub, say): what is waiting is saved first, and the copy is kept in
    *  memory so coming back is instant. Not after signing out (there is no token by then). */
   function leave() {
+    keepCopy();
     const instance = saver.current;
     saver.current = null;
     if (!instance) return;
@@ -187,6 +261,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
       current.rebase(next, typeof data.updatedAt === "string" ? data.updatedAt : null);
       setWorkspace(next);
       setBytes(workspaceBytes(next));
+      keepCopySoon();
     } catch {
       /* offline: nothing to refresh */
     }
@@ -194,7 +269,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
   checkRef.current = check;
 
   useEffect(() => {
-    const save = () => { void saver.current?.flush(); };
+    const save = () => { keepCopy(); void saver.current?.flush(); };
     const onVisibility = () => { if (document.visibilityState === "hidden") save(); else void check(); };
     const onOnline = () => { saver.current?.retryNow(); void check(); };
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -216,7 +291,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.clearInterval(timer);
     };
-  }, [check]);
+  }, [check, keepCopy]);
 
   const useNewest = useCallback(async () => {
     const key = tokenRef.current;

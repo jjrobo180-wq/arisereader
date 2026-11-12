@@ -1,7 +1,7 @@
-// The eight LifeHub plugins from the Plugin Store: off until added, data kept safely, feeds read right.
+// The eight LifeHub plugins from the Plugin Gallery: off until added, data kept safely, feeds read right.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ADD_ON_SECTIONS, TOGGLEABLE, cleanFamily, emptyFamily, isCurrentFamily, isOn } from "../shared/familyHub";
+import { ADD_ON_SECTIONS, RETIRED_SECTIONS, TOGGLEABLE, cleanFamily, emptyFamily, isCurrentFamily, isOn } from "../shared/familyHub";
 import { PLUGINS, lifeInstalled, setLifePlugin } from "../shared/pluginStore";
 import { VERSES, QUOTES, cleanReference, daysUntil, forDay, guessAisle, parseMostRead, parseOnThisDay, parseTrendsRss, safeUrl } from "../shared/lifePlugins";
 
@@ -9,7 +9,8 @@ test("the new sections start off, and adding one from the store turns it on", ()
   const f = emptyFamily();
   // The Calorie counter (health) comes added for everyone (Oct 30, 2026); the rest start off.
   assert.equal(isOn("health", f), true, "the Calorie counter starts added");
-  for (const s of ADD_ON_SECTIONS.filter((x) => x !== "health")) {
+  // Retired apps (Earshot) are never in the store and never on.
+  for (const s of ADD_ON_SECTIONS.filter((x) => x !== "health" && !RETIRED_SECTIONS.includes(x))) {
     assert.ok(TOGGLEABLE.includes(s), s);
     assert.equal(isOn(s, f), false, `${s} starts off`);
     const p = PLUGINS.find((q) => q.target.kind === "section" && q.target.section === s);

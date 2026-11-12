@@ -1,3 +1,6 @@
+
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // Arise LifeHub · Sleep: what the Sleep app saves, and the small pieces of logic around it.
 // Kept apart from the content (sleepContent.ts, sleepScripts.ts) so the family data module,
 // which every screen and the server use, stays light. The nightly sleep log itself (bedtime,
@@ -118,7 +121,7 @@ export function cleanSleepApp(input: unknown): SleepApp {
   };
   const p = obj(raw.plan) || {};
   const checklist = Array.isArray(p.checklist)
-    ? p.checklist.slice(0, SLEEP_LIMITS.checklist).map((r: unknown) => { const o = obj(r); const text = str(o?.text, 80).trim(); return o && text ? { id: str(o.id, 60) || text.slice(0, 20), text } : null; }).filter((x: { id: string; text: string } | null): x is { id: string; text: string } => !!x)
+    ? p.checklist.slice(0, SLEEP_LIMITS.checklist).map((r: unknown) => { const o = obj(r); const text = typedEnd(str(o?.text, 80)); return o && text ? { id: str(o.id, 60) || text.slice(0, 20), text } : null; }).filter((x: { id: string; text: string } | null): x is { id: string; text: string } => !!x)
     : null;
   const checkedNight = isDay(p.checkedNight) ? p.checkedNight : "";
   const plan: SleepPlan = {
@@ -140,7 +143,7 @@ export function cleanSleepApp(input: unknown): SleepApp {
     return text.trim() && isDay(r.night) ? { id: str(r.id, 100), night: r.night, kind: oneOf(r.kind, JOURNAL_KINDS, "free"), text, at: str(r.at, 40) } : null;
   });
   const parked = newest(raw.parked, SLEEP_LIMITS.parked, (r) => {
-    const text = str(r.text, 300).trim();
+    const text = typedEnd(str(r.text, 300));
     return text && isDay(r.night) ? { id: str(r.id, 100), night: r.night, text, prayed: bool(r.prayed, false), done: bool(r.done, false) } : null;
   });
   const favorites = Array.isArray(raw.favorites) ? [...new Set(raw.favorites.map(toolId).filter(Boolean))].slice(0, SLEEP_LIMITS.favorites) as string[] : [];

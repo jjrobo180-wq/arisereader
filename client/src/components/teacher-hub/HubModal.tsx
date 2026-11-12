@@ -4,6 +4,7 @@
 import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -27,16 +28,7 @@ export function HubModal({
   closeRef.current = onClose;
 
   // The page behind stops scrolling while this is open (iPhone included).
-  useEffect(() => {
-    const { overflow, paddingRight } = document.body.style;
-    const gap = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-    return () => {
-      document.body.style.overflow = overflow;
-      document.body.style.paddingRight = paddingRight;
-    };
-  }, []);
+  useEffect(() => lockPageScroll(), []);
 
   // Focus goes in, and back to where it was.
   useEffect(() => {
@@ -82,7 +74,7 @@ export function HubModal({
         onKeyDown={onKeyDown}
         className={size === "full" ? "flex h-[100dvh] w-full flex-col overflow-hidden bg-white text-slate-900 outline-none" : `flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white text-slate-900 shadow-2xl outline-none sm:max-h-[90dvh] sm:rounded-3xl ${width}`}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5" style={size === "full" ? { paddingTop: "max(0.75rem, env(safe-area-inset-top))" } : undefined}>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5" style={size === "full" ? { paddingTop: "max(0.75rem, var(--sat, env(safe-area-inset-top, 0px)))" } : undefined}>
           <h2 className="min-w-0 break-words text-lg font-bold text-slate-950">{title}</h2>
           {onClose && !hideClose && (
             <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-950">

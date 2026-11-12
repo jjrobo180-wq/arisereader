@@ -1,4 +1,4 @@
-// Pod+: an episode that "ends" the moment it starts (a jump landed at its end) plays from the top
+// Podster: an episode that "ends" the moment it starts (a jump landed at its end) plays from the top
 // instead of stopping on "That episode is over", and Play on a finished episode always plays.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -16,6 +16,9 @@ test("the player recovers instead of getting stuck", () => {
   const p = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotPlayer.tsx", import.meta.url), "utf8");
   assert.match(p, /if \(listened\.current < 8 && ca && it\?\.ep && !plainPlay\.current\.has\(it\.ep\.id\)\)/);
   assert.match(p, /if \(a\.ended \|\| \(Number\.isFinite\(D\) && D > 0 && a\.currentTime >= D - 2\)\) \{ plainPlay\.current\.add\(it\.ep\.id\); try \{ a\.currentTime = 0;/);
-  assert.match(p, /if \(plainPlay\.current\.has\(epId\) \|\| !safeTo\(a, ad\.e\)\) return;/);
+  // A skip never lands in the last seconds; an ad that runs to the very end (a post-roll found in the
+  // audio itself) ends the episode where it starts instead.
+  assert.match(p, /if \(plainPlay\.current\.has\(epId\)\) return;\n\s*if \(!safeTo\(a, ad\.e\)\) \{/);
+  assert.match(p, /ad\.e >= D - 15 && ad\.s > 60 && safeTo\(a, ad\.s\)/);
   assert.match(p, /safeTo\(a!, to\)\) a!\.currentTime = to;/);
 });

@@ -1,9 +1,9 @@
--- Creators for Pod+ (Podscroll) and Earshot (LifeHub): email sign-in for Pod+ creators, listening
--- stats for episodes people made, LivePod sessions, and the Pod+ Rise waitlist. Adds to
+-- Creators for Podster (Podscroll) and Earshot (LifeHub): email sign-in for Podster creators, listening
+-- stats for episodes people made, LivePod sessions, and the Podster Rise waitlist. Adds to
 -- migrations/podcast_social.sql and podcast_social_v2.sql; nothing is removed.
 -- Only the server's service role may use these tables.
 
--- Pod+ has no accounts for listening. Creators sign in with an email code; the account keeps the
+-- Podster has no accounts for listening. Creators sign in with an email code; the account keeps the
 -- device id their profile was made on, so their profile, posts and followers come with them.
 create table if not exists public.podcast_accounts (
   id bigserial primary key,

@@ -1,4 +1,4 @@
-// Ask the episode and Catch me up (Pod+ and Earshot), answered by AI from the episode's transcript.
+// Ask the episode and Catch me up (Podster and Earshot), answered by AI from the episode's transcript.
 //
 // - POST {prefix}/ask      { showId, episodeId, q, play? }        → { answer, moments: [{ t, label }], readTo, partial }
 //   A question about the episode. The answer names the moments it comes from, so the app can jump there.

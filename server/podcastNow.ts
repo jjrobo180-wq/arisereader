@@ -1,4 +1,4 @@
-// Up to the Minute News (a Pod+ hub): only news episodes published in the last few hours, newest
+// Up to the Minute News (a Podster hub): only news episodes published in the last few hours, newest
 // first. Older ones drop out on their own as the clock moves.
 //
 // Where the episodes come from: hourly and daily news shows (NPR News Now, CBS News Roundup, BBC...)

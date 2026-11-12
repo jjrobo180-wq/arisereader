@@ -101,7 +101,7 @@ test("cleaning keeps what's good and drops the rest", () => {
   assert.deepEqual(c.uses.map((u) => [u.id, u.tool, u.at]), [["u1", "sound:brown", "22:40"], ["u5", "breathe:sigh", ""]]);
   assert.deepEqual(c.reviews.map((r) => [r.id, r.fell, r.helped]), [["r1", "ok", ["sound:brown"]]]);
   assert.deepEqual(c.journal.map((j) => [j.id, j.kind]), [["j1", "free"]]);
-  assert.deepEqual(c.parked.map((p) => [p.id, p.text, p.prayed, p.done]), [["p1", "Call the dentist", false, true]]);
+  assert.deepEqual(c.parked.map((p) => [p.id, p.text, p.prayed, p.done]), [["p1", "Call the dentist ", false, true]]);
   assert.deepEqual(c.favorites, ["script:night-train", "passage:ps4"]);
 });
 
@@ -391,7 +391,7 @@ test("LifeHub's Sleep section opens the Sleep app, and the store lists it", () =
   // LifeHub opens its plain apps from one shared map (also used by Para Team's team apps).
   const page = read("client/src/pages/AriseTodo.tsx");
   const views = read("client/src/components/family-hub/lifeApps.tsx");
-  assert.match(page, /LIFE_VIEWS\[shown\] \? LIFE_VIEWS\[shown\]!\(common\)/);
+  assert.match(page, /LIFE_VIEWS\[shown\] \? LIFE_VIEWS\[shown\]!\((common|appProps)\)/);
   assert.match(views, /import SleepApp from "@\/components\/family-hub\/sleep\/SleepApp";/);
   assert.match(views, /sleep: \(p\) => <SleepApp \{\.\.\.p\} \/>/);
   assert.doesNotMatch(page, /SleepLog/);

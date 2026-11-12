@@ -1,4 +1,4 @@
-// Arise Fit+ in the app (shared/fitPlus.ts): who has it, the upgrade sheet, and the guest pass.
+// Cooked+ in the app (shared/fitPlus.ts): who has it, the upgrade sheet, and the guest pass.
 // Fit+ is bought on the website only. The iPhone app never shows a price or a way to pay (App Review
 // 3.1.1): it says Fit+ is on the account when it is, and a guest pass works anywhere.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -12,14 +12,15 @@ import { CODE_LEN, cleanCode } from "@shared/fitCircle";
 import { PASS_SWITCH_DAYS, PLUS_FEATURES, PLUS_NAME, PLUS_REQUIRED, freeStatus, passLink, type PlusFeature, type PlusStatus } from "@shared/fitPlus";
 import { fitApi } from "./fitStore";
 import { Btn, C, Card, Sheet, Title, display, haptic, inputCls, inputStyle } from "./fitUi";
+import AllAccessOffer from "@/components/AllAccessOffer";
 
 type Ctx = { status: PlusStatus; loaded: boolean; plus: boolean; reload: () => Promise<void>; ask: (f?: PlusFeature) => void };
 const PlusCtx = createContext<Ctx>({ status: freeStatus(), loaded: false, plus: false, reload: async () => {}, ask: () => {} });
 export const usePlus = () => useContext(PlusCtx);
 /** True when a server answer says the person needs Fit+ (the app then opens the upgrade sheet). */
-export const isPlusError = (e: any) => e?.code === PLUS_REQUIRED || /part of Arise Fit\+/.test(String(e?.message || ""));
+export const isPlusError = (e: any) => e?.code === PLUS_REQUIRED || /part of Cooked(\+| Fitness)/.test(String(e?.message || ""));
 
-/** Wraps Arise Fit: knows whether this person has Fit+, and opens the upgrade sheet when asked. */
+/** Wraps Cooked: knows whether this person has Fit+, and opens the upgrade sheet when asked. */
 export function PlusProvider({ children, say, passCode, onPassShown }: { children: ReactNode; say: (m: string) => void; passCode?: string; onPassShown?: () => void }) {
   const { token } = useAuth();
   const [status, setStatus] = useState<PlusStatus>(freeStatus);
@@ -35,7 +36,7 @@ export function PlusProvider({ children, say, passCode, onPassShown }: { childre
     const paid = new URLSearchParams(window.location.search).get("paid");
     if (!paid || !token) return;
     fetch(`${API_BASE}/api/billing/confirm`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: paid }) }).catch(() => {}).finally(() => {
-      void reload().then(() => say("Welcome to Arise Fit+!"));
+      void reload().then(() => say("Welcome to Cooked Fitness by Arise Premium!"));
       try { const u = new URL(window.location.href); u.searchParams.delete("paid"); history.replaceState(null, "", u.toString()); } catch { /* keep the address */ }
     });
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -56,7 +57,7 @@ export function useNeedsPlus() {
 /** A small "Fit+" tag beside things that need it, for people who don't have it. */
 export function PlusTag() {
   const { plus } = usePlus();
-  return plus ? null : <span className="ml-1.5 inline-flex items-center rounded-full px-1.5 py-[1px] align-middle text-[10px] font-bold tracking-wide" style={{ background: C.lime, color: "#0b0b0c" }}>FIT+</span>;
+  return plus ? null : <span className="ml-1.5 inline-flex items-center rounded-full px-1.5 py-[1px] align-middle text-[10px] font-bold tracking-wide" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>FIT+</span>;
 }
 
 export function PlusSheet({ status, feature, passCode, reload, say, onClose }: { status: PlusStatus; feature?: PlusFeature; passCode?: string; reload: () => Promise<void>; say: (m: string) => void; onClose: () => void }) {
@@ -75,28 +76,30 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
   const redeem = async () => {
     const c = cleanCode(code);
     if (!c) { setErr(`Guest pass codes are ${CODE_LEN} letters and numbers.`); return; }
-    if (await call("/pass/redeem", { code: c })) { haptic("success"); await reload(); say("You have Arise Fit+ now. Enjoy!"); setCode(""); }
+    if (await call("/pass/redeem", { code: c })) { haptic("success"); await reload(); say("You have Cooked Fitness by Arise Premium now. Enjoy!"); setCode(""); }
   };
   const share = async () => {
     const r = status.pass.code ? { code: status.pass.code } : await call<{ code: string }>("/pass/code");
     if (!r?.code) return;
     await reload();
     const link = passLink(TODO_APP, r.code);
-    const text = `I'm sharing my Arise Fit+ with you, free. Open ${link} or enter guest pass code ${r.code} in Arise Fit › Fit+.`;
-    try { if (navigator.share) { await navigator.share({ title: "Arise Fit+ guest pass", text }); return; } } catch (e: any) { if (e?.name === "AbortError") return; }
+    const text = `I'm sharing my Cooked Fitness by Arise Premium with you, free. Open ${link} or enter guest pass code ${r.code} in Cooked Fitness by Arise › Premium.`;
+    try { if (navigator.share) { await navigator.share({ title: "Cooked Fitness by Arise Premium guest pass", text }); return; } } catch (e: any) { if (e?.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); say("Guest pass copied. Paste it in a text."); } catch { say(`Your guest pass code is ${r.code}`); }
   };
   const end = async (who: string) => { if (window.confirm(who)) { if (await call("/pass/end")) { await reload(); say("Guest pass updated."); } } };
   const p = status.pass;
   const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" }) : "");
-  return <Sheet title="Arise Fit+" onClose={onClose} testId="fit-plus">
+  return <Sheet title="Premium" onClose={onClose} testId="fit-plus">
+    <p className="mb-3 px-1 text-center text-[15px] font-semibold" style={{ color: C.text }} data-testid="fit-plus-name">Cooked Fitness by Arise: Premium All in one Health & Fitness App</p>
     {status.plus ? <Card className="!p-4" testId="fit-plus-on"><div className="flex items-center gap-3"><Crown className="h-7 w-7 shrink-0" style={{ color: C.lime }} />
       <div><p className="text-[22px] leading-none" style={display}>You have Fit+</p>
         <p className="mt-1 text-[13px]" style={{ color: C.steel }}>{status.via === "guest-pass" ? `Shared with you by ${p.owner?.name} with their guest pass.` : status.via === "admin" ? "On your account." : status.endsAt ? `Renews or ends ${date(status.endsAt)}.` : "On your account."}</p></div></div>
       {status.canManage && !native && <Btn kind="soft" className="mt-3 w-full" onClick={() => void manage()} disabled={!!busy}>Manage billing</Btn>}
     </Card> : <>
-      {feature && <p className="px-1 text-[15px]" style={{ color: C.steel }}><b style={{ color: C.text }}>{PLUS_NAME[feature]}</b> is part of Arise Fit+.</p>}
+      {feature && <p className="px-1 text-[15px]" style={{ color: C.steel }}><b style={{ color: C.text }}>{PLUS_NAME[feature]}</b> is part of Cooked Fitness by Arise Premium.</p>}
       <p className="mt-1 px-1 text-[40px] leading-none" style={display}>{status.price}</p>
+      <p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>Fit+ comes with Arise All Access: one plan that also unlocks To Duo Unlimited, Arise Notes Plus and ad-free Podster.</p>
     </>}
 
     <Title>{status.plus ? "Included" : "What you get"}</Title>
@@ -106,9 +109,9 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
       <p className="mt-3 text-[12px]" style={{ color: C.dim }}>Workouts, programs, food, fasting, runs, recipes and your workout circle stay free.</p></Card>
 
     {!status.plus && (native
-      ? <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>{NATIVE_NO_PURCHASE}</p>
+      ? <AllAccessOffer className="mt-3" note={NATIVE_NO_PURCHASE} authToken={token} onBought={() => void reload()} />
       : status.payment
-        ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get Fit+ · {status.price}</Btn>
+        ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get All Access · {status.price}</Btn>
         : <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Payments aren't switched on for this site yet.</p>)}
 
     <Title>Guest pass</Title>

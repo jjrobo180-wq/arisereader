@@ -19,7 +19,7 @@ export function Avatar({ t, size = 64 }: { t: { name: string; photo: string }; s
   const initials = t.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
   return t.photo
     ? <img src={t.photo} alt="" className="shrink-0 rounded-[14px] object-cover" style={{ width: size, height: size }} />
-    : <span className="grid shrink-0 place-items-center rounded-[14px]" style={{ width: size, height: size, background: "linear-gradient(150deg, #ff5a1f, #8a2a07)", ...display, fontSize: size * 0.38, color: "#0b0b0c" }} aria-hidden>{initials}</span>;
+    : <span className="grid shrink-0 place-items-center rounded-[14px]" style={{ width: size, height: size, background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", ...display, fontSize: size * 0.38, color: "var(--fit-on-accent)" }} aria-hidden>{initials}</span>;
 }
 
 const place = (t: PublicTrainer) => [t.city, t.state].filter(Boolean).join(", ");
@@ -46,7 +46,7 @@ export function TrainerCard({ t, onOpen, k = 0 }: { t: PublicTrainer; onOpen: ()
 }
 
 /** Search, filters and sorting over the listed trainers. */
-export function Directory({ onOpen, intro }: { onOpen: (t: PublicTrainer) => void; intro?: React.ReactNode }) {
+export function Directory({ onOpen, intro, after }: { onOpen: (t: PublicTrainer) => void; intro?: React.ReactNode; after?: React.ReactNode }) {
   const { data, err } = usePoll(() => coachApi<{ trainers: PublicTrainer[] }>(null, "/trainers").then((r) => r.trainers), [], 0);
   const [f, setF] = useState<Filter>({});
   const [sort, setSort] = useState<Sort>("best");
@@ -55,11 +55,12 @@ export function Directory({ onOpen, intro }: { onOpen: (t: PublicTrainer) => voi
   const count = [f.state, f.specialty, f.maxCents, f.minStars, f.accepting].filter(Boolean).length;
   return <div data-testid="coach-directory">
     {intro}
+    {after}
     <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
       <input value={f.q ?? ""} onChange={(e) => setF({ ...f, q: e.target.value })} placeholder="Name, specialty, city" className={`${inputCls} pl-10`} style={inputStyle} aria-label="Search trainers" data-testid="coach-search" /></div>
     <div className="mt-3"><Chips label="How you train" value={(f.mode ?? "") as Mode | ""} onChange={(m) => setF({ ...f, mode: m })} items={[{ id: "" as const, label: "Any way" }, ...MODES.map((m) => ({ id: m, label: MODE_LABEL[m] }))]} /></div>
     <div className="mt-2 flex items-center gap-2">
-      <button type="button" onClick={() => setMore(true)} className="flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold" style={{ background: count ? C.lime : C.card, color: count ? "#0b0b0c" : C.text }} data-testid="coach-filters"><SlidersHorizontal className="h-4 w-4" />Filters{count ? ` · ${count}` : ""}</button>
+      <button type="button" onClick={() => setMore(true)} className="flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold" style={{ background: count ? C.lime : C.card, color: count ? "var(--fit-on-accent)" : C.text }} data-testid="coach-filters"><SlidersHorizontal className="h-4 w-4" />Filters{count ? ` · ${count}` : ""}</button>
       <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort" className="h-10 min-w-0 flex-1 rounded-[10px] px-3 text-[15px] outline-none" style={inputStyle} data-testid="coach-sort">
         {(Object.keys(SORT_LABEL) as Sort[]).map((s) => <option key={s} value={s}>{SORT_LABEL[s]}</option>)}</select>
     </div>
@@ -73,7 +74,7 @@ export function Directory({ onOpen, intro }: { onOpen: (t: PublicTrainer) => voi
         <Field label="Specialty"><select value={f.specialty ?? ""} onChange={(e) => setF({ ...f, specialty: e.target.value })} className={inputCls} style={inputStyle}><option value="">Any specialty</option>{SPECIALTIES.map((s) => <option key={s}>{s}</option>)}</select></Field>
         <Field label="Most I'd pay (per session or month)"><select value={f.maxCents ?? 0} onChange={(e) => setF({ ...f, maxCents: Number(e.target.value) || undefined })} className={inputCls} style={inputStyle}><option value={0}>Any price</option>{[2500, 5000, 7500, 10000, 15000, 20000, 30000].map((c) => <option key={c} value={c}>Up to {money(c)}</option>)}</select></Field>
         <Field label="Rating"><select value={f.minStars ?? 0} onChange={(e) => setF({ ...f, minStars: Number(e.target.value) || undefined })} className={inputCls} style={inputStyle}><option value={0}>Any rating</option><option value={4}>4 stars and up</option><option value={4.5}>4.5 stars and up</option></select></Field>
-        <label className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}><input type="checkbox" checked={!!f.accepting} onChange={(e) => setF({ ...f, accepting: e.target.checked })} className="h-5 w-5 accent-[#ff5a1f]" /><span className="font-semibold">Taking new clients now</span></label>
+        <label className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}><input type="checkbox" checked={!!f.accepting} onChange={(e) => setF({ ...f, accepting: e.target.checked })} className="h-5 w-5 accent-[var(--fit-accent)]" /><span className="font-semibold">Taking new clients now</span></label>
       </div>
       <div className="mt-6 grid grid-cols-2 gap-2"><Btn kind="soft" onClick={() => setF({ q: f.q, mode: f.mode })}>Clear</Btn><Btn onClick={() => setMore(false)}>Show {shown.length}</Btn></div>
     </Sheet>}
@@ -95,7 +96,7 @@ export function TrainerPage({ id, onClose, action, preview }: { id: number; onCl
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
         {([[t.years ? `${t.years} yr` : "—", "experience"], [String(t.clients || "—"), "clients now"], [place(t) || "Online", "based in"]] as const).map(([v, l], k) => <Card key={l} className="!px-1 !py-3" style={stagger(k, 0.06, 0.1)}><p className="truncate px-1 text-[20px] leading-none" style={display}>{v}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l}</p></Card>)}
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">{t.specialties.map((s) => <span key={s} className="rounded-full px-3 py-1 text-[12px] font-semibold" style={{ background: "rgba(255,90,31,.12)", color: C.lime }}>{s}</span>)}</div>
+      <div className="mt-3 flex flex-wrap gap-1.5">{t.specialties.map((s) => <span key={s} className="rounded-full px-3 py-1 text-[12px] font-semibold" style={{ background: "rgba(var(--fit-accent-rgb),.12)", color: C.lime }}>{s}</span>)}</div>
       <Title>About</Title><Card><p className="whitespace-pre-line text-[15px] leading-relaxed">{t.bio}</p>
         {t.languages.length > 0 && <p className="mt-3 flex items-center gap-2 text-[13px]" style={{ color: C.dim }}><Languages className="h-4 w-4" />{t.languages.join(", ")}</p>}</Card>
       <Title>Prices</Title>
@@ -142,7 +143,7 @@ export function Chat({ token, linkId, me, other, quick = [], disabled }: { token
     <div className="flex-1 space-y-2 pb-3">
       {!list.length && <p className="py-10 text-center text-[14px]" style={{ color: C.dim }}>{err || `Messages with ${other} show up here.`}</p>}
       {list.map((m: Message) => { const mine = m.from === me; return <div key={m.id} className={`fit-in flex ${mine ? "justify-end" : "justify-start"}`}>
-        <div className="max-w-[80%] rounded-[16px] px-3.5 py-2.5" style={mine ? { background: C.lime, color: "#0b0b0c", borderBottomRightRadius: 4 } : { background: C.card2, borderBottomLeftRadius: 4 }}>
+        <div className="max-w-[80%] rounded-[16px] px-3.5 py-2.5" style={mine ? { background: C.lime, color: "var(--fit-on-accent)", borderBottomRightRadius: 4 } : { background: C.card2, borderBottomLeftRadius: 4 }}>
           {m.img && <img src={m.img} alt="" className="mb-1.5 max-h-64 rounded-[10px] object-cover" />}
           {m.body && <p className="whitespace-pre-line text-[15px] leading-snug">{m.body}</p>}
           <p className="mt-1 text-[10px] opacity-60">{when(m.at)}{mine && m.read ? " · Read" : ""}</p>
@@ -156,7 +157,7 @@ export function Chat({ token, linkId, me, other, quick = [], disabled }: { token
         <label className="grid h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-full" style={{ background: C.card }} aria-label="Send a photo"><Camera className="h-5 w-5" />
           <input type="file" accept="image/*" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { try { await go(text, await shrinkImage(f, 1100)); } catch (er: any) { setProblem(er.message); } } }} /></label>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder={`Message ${other}`} className="max-h-32 min-h-12 min-w-0 flex-1 resize-none rounded-[22px] px-4 py-3 text-[17px] outline-none" style={inputStyle} aria-label="Message" data-testid="coach-chat-input" />
-        <button type="submit" disabled={busy || !text.trim()} aria-label="Send" className="grid h-12 w-12 shrink-0 place-items-center rounded-full disabled:opacity-40" style={{ background: C.lime, color: "#0b0b0c" }} data-testid="coach-chat-send"><Send className="h-5 w-5" /></button>
+        <button type="submit" disabled={busy || !text.trim()} aria-label="Send" className="grid h-12 w-12 shrink-0 place-items-center rounded-full disabled:opacity-40" style={{ background: C.lime, color: "var(--fit-on-accent)" }} data-testid="coach-chat-send"><Send className="h-5 w-5" /></button>
       </form>
     </div>}
   </div>;

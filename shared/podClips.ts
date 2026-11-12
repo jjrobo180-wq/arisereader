@@ -1,4 +1,4 @@
-// Pod+ Clips: TikTok videos that play inside Pod+ through TikTok's embed player. One shared list,
+// Podster Clips: TikTok videos that play inside Podster through TikTok's embed player. One shared list,
 // set by the site owner (server/podcastClips.ts), that everyone sees on the Clips page.
 
 /** How many clips the list holds at most. */

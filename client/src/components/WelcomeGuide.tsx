@@ -134,7 +134,7 @@ export default function WelcomeGuide() {
             <div className="flex-1 overflow-y-auto overscroll-contain p-5 pb-3 sm:p-6 sm:pb-3">
               <button type="button" onClick={closeIt} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
               <div className="flex items-center gap-3 pr-10">
-                <img src="/icon-192.png?v=seam1" alt="" className="h-14 w-14 rounded-2xl shadow" />
+                <img src="/icon-192.png?v=reader2" alt="" className="h-14 w-14 rounded-2xl shadow" />
                 <div>
                   <h2 id="welcome-title" className="text-xl font-black leading-tight">Welcome{name ? `, ${name}` : ""}!</h2>
                   <p className="text-sm text-slate-600">Two quick things make A.R.I.S.E. work like a real app.</p>

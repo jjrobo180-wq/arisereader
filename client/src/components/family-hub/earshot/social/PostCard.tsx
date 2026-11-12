@@ -41,7 +41,7 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
   const big = !!detail;
 
   return <article className={`${detail ? "" : "hov cursor-pointer"} border-b line px-4 pb-1.5 pt-3`} onClick={open}>
-    {post.recommended && !detail && <div className="sx-post-recommended"><Sparkles size={14} /><strong>Recommended by Pod+</strong><span>· Official podcast pick</span></div>}
+    {post.recommended && !detail && <div className="sx-post-recommended"><Sparkles size={14} /><strong>Recommended by Podster</strong><span>· Official podcast pick</span></div>}
     {plain && <p className="muted -mt-0.5 mb-1 flex items-center gap-2 pl-7 text-[13px] font-bold"><Repeat2 size={15} /><button type="button" className="hover:underline" onClick={(e) => { e.stopPropagation(); ctx.openProfile(post.author.handle); }}>{post.mine ? "You" : post.author.name} reposted</button></p>}
     <div className="flex gap-3">
       {!big && <Avatar p={p.author} size={40} onClick={() => ctx.openProfile(p.author.handle)} />}
@@ -67,7 +67,7 @@ export function PostCard({ post, ctx, onChange, onGone, detail }: { post: Post; 
     </div>
     {menu && <ActionSheet onClose={() => setMenu(false)} items={[
       ...(post.mine ? [{ label: "Delete post", icon: <Trash2 size={18} />, danger: true, onClick: remove }] : []),
-      { label: "Copy link", icon: <Link2 size={18} />, onClick: () => shareOrCopy(linkTo(`post/${p.id}`), "Pod+", ctx.say) },
+      { label: "Copy link", icon: <Link2 size={18} />, onClick: () => shareOrCopy(linkTo(`post/${p.id}`), "Podster", ctx.say) },
       ...(!p.mine ? [
         { label: `Block @${p.author.handle}`, icon: <Ban size={18} />, danger: true, onClick: block },
         { label: "Report post", icon: <Flag size={18} />, danger: true, onClick: report },
@@ -161,7 +161,7 @@ export function Lightbox({ media, start, onClose }: { media: Media[]; start: num
   const m = media[i];
   return <Layer><div className="fade absolute inset-0 z-[90] flex items-center justify-center bg-black/95" onClick={onClose} role="dialog" aria-label="Photo"
     onTouchStart={(e) => { touch.current = e.touches[0].clientX; }} onTouchEnd={(e) => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (dx < -50) setI((n) => Math.min(media.length - 1, n + 1)); if (dx > 50) setI((n) => Math.max(0, n - 1)); }}>
-    <button type="button" onClick={onClose} aria-label="Close" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white"><X size={22} /></button>
+    <button type="button" onClick={onClose} aria-label="Close" className="absolute left-3 top-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))] z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white"><X size={22} /></button>
     {m.type === "video" ? <video src={m.url} controls autoPlay playsInline className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()} />
       : <img src={m.url} alt={m.alt || ""} className="max-h-full max-w-full object-contain" onClick={(e) => e.stopPropagation()} />}
     {i > 0 && <button type="button" onClick={(e) => { e.stopPropagation(); setI(i - 1); }} aria-label="Previous" className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white"><ChevronLeft size={22} /></button>}

@@ -1,4 +1,4 @@
-// Arise Fit: your gym. The equipment a gym really has (gear), what every exercise needs, typical
+// Cooked: your gym. The equipment a gym really has (gear), what every exercise needs, typical
 // equipment for the big gym chains, and a short guide to each machine (what it works, how to set it up,
 // common mistakes). Used by "My gym" (workouts built only from what you have), "Scan a machine" (a
 // machine's QR code or a photo of it) and swapping exercises during a workout.
@@ -54,6 +54,9 @@ export const GEAR: Gear[] = [
   G("pull-up-bar", "Pull-up bar", "station", "", ["back", "biceps", "abs"], ["Grip just wider than your shoulders.", "Pull until your chin is over the bar, then lower all the way."], ["Kipping or swinging.", "Half reps."], ["pull up bar", "chin up bar", "pullup"]),
   G("dip-station", "Dip station / captain's chair", "station", "", ["triceps", "chest", "abs"], ["Hold the handles with straight arms.", "Dips: lower until your upper arms are level, then press up.", "Leg raises: back against the pad, lift your knees or legs."], ["Going so deep your shoulders hurt.", "Swinging your legs."], ["dip bars", "captain's chair", "vkr", "knee raise station", "power tower"]),
   G("bands", "Resistance bands", "small", "", ["full body"], ["Anchor the band securely or stand on it.", "Move slowly both ways: the band pulls hardest at the end."], ["Using a band with nicks or tears."], ["resistance band", "band", "loop band"]),
+  G("stability-ball", "Stability ball", "small", "", ["abs", "full body"], ["Pick a size where your knees bend about 90° when you sit on it.", "Keep it pumped firm and use it on a flat, non-slip floor.", "Move slowly: brace your core so the ball doesn't roll away."], ["Using an under-inflated ball.", "Fast, jerky moves."], ["exercise ball", "swiss ball", "yoga ball", "physio ball", "balance ball", "fitness ball"]),
+  G("foam-roller", "Foam roller", "small", "", ["full body"], ["Roll slowly over a muscle, pausing on tight spots for a few breaths.", "Keep it off your joints and lower back."], ["Rolling straight over bones or joints."], ["roller"]),
+  G("yoga-mat", "Exercise mat", "small", "", ["full body"], ["Lay it flat on a non-slip floor.", "Use it for floor work, stretching and core."], ["Using a worn mat that slides."], ["yoga mat", "mat", "floor mat"]),
   G("ab-wheel", "Ab wheel", "small", "", ["abs"], ["Kneel, hands on the wheel under your shoulders.", "Roll out only as far as you can keep your back flat, then pull back."], ["Letting your lower back sag."], ["ab roller"]),
   G("plyo-box", "Plyo box / step", "small", "", ["quads", "glutes"], ["Start with a low box.", "Land softly with bent knees and step down."], ["Jumping down instead of stepping."], ["box", "step", "plyo"]),
   G("jump-rope", "Jump rope", "small", "", ["cardio", "calves"], ["Handles at hip height, turn the rope with your wrists.", "Small jumps on the balls of your feet."], ["Jumping too high."], ["skipping rope", "rope"]),
@@ -160,7 +163,7 @@ const norm = (s: string) => s.toLowerCase().replace(/%20|[-_+./=?&#:]+/g, " ").r
 /**
  * Which machine a QR code (or any text: a label, a URL) is about. Gym chains put QR codes on their
  * machines that open their own app; the code's text usually names the machine, so it's matched against
- * every machine's names. Arise Fit's own tags read "arisefit:gear:<id>". null when nothing matches.
+ * every machine's names. Cooked's own tags read "arisefit:gear:<id>". null when nothing matches.
  */
 export function gearFromText(text: string): Gear | null {
   const own = /arisefit:gear:([a-z0-9-]+)/i.exec(text);

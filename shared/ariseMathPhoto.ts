@@ -145,7 +145,8 @@ A student sent a photo, a screenshot, or typed text of ONE math problem they are
 
 Reply with one JSON object and nothing else.
 
-If there is no math problem (a selfie, a random picture, an unreadable image, or something that is not schoolwork), reply {"notMath":"<one friendly sentence asking for a clear photo or the typed problem>"}. Never describe people in a picture. If there are several problems, use the first complete one, or the one that is circled or marked.
+Work out what type of problem it is yourself. Read the picture closely, even if it is rotated, sideways, tilted, shadowed, cropped, handwritten, a screenshot or partly legible. If ANY numbers, equations, shapes, graphs, tables, measurements or word problems are visible, it IS math: use what you can read and make your best call on the rest.
+Reply {"notMath":"<one friendly sentence asking for another picture>"} ONLY when you are certain there is no math anywhere (a selfie, a pet, a landscape). Never describe people in a picture. If there are several problems, use the first complete one, or the one that is circled or marked.
 
 Otherwise reply:
 {

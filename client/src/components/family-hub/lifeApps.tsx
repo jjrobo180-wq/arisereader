@@ -52,6 +52,7 @@ import Routines from "@/components/family-hub/Routines";
 import SavingsJars from "@/components/family-hub/SavingsJars";
 import SleepApp from "@/components/family-hub/sleep/SleepApp";
 import SleepFinder from "@/components/family-hub/SleepFinder";
+import BundleApp from "@/components/family-hub/BundleApp";
 import Earshot from "@/components/family-hub/earshot/Earshot";
 import Subscriptions from "@/components/family-hub/Subscriptions";
 import TipCalculator from "@/components/family-hub/TipCalculator";
@@ -64,6 +65,15 @@ import WorkoutLog from "@/components/family-hub/WorkoutLog";
 import WorldClock from "@/components/family-hub/WorldClock";
 
 export const LIFE_VIEWS: Partial<Record<FamilySection, (props: SectionProps) => ReactNode>> = {
+  healthlite: (p) => <BundleApp bundleId="healthlite" {...p} />,
+  inspire: (p) => <BundleApp bundleId="inspire" {...p} />,
+  kitchen: (p) => <BundleApp bundleId="kitchen" {...p} />,
+  moneyhub: (p) => <BundleApp bundleId="moneyhub" {...p} />,
+  homehub: (p) => <BundleApp bundleId="homehub" {...p} />,
+  datehub: (p) => <BundleApp bundleId="datehub" {...p} />,
+  dailyhub: (p) => <BundleApp bundleId="dailyhub" {...p} />,
+  listhub: (p) => <BundleApp bundleId="listhub" {...p} />,
+  focushub: (p) => <BundleApp bundleId="focushub" {...p} />,
   chores: (p) => <Chores {...p} />,
   behavior: (p) => <Behavior {...p} />,
   health: (p) => <Health {...p} />,

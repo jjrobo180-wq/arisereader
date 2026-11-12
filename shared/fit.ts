@@ -1,6 +1,6 @@
-// Arise Fit: training and nutrition in one app (client/src/pages/fit/). Everything here is shared by
+// Cooked: training and nutrition in one app (client/src/pages/fit/). Everything here is shared by
 // the app and the server: the data saved for each person, the built-in exercise catalog and
-// programs (written for Arise Fit), and the math (estimated one-rep max, plates, progression,
+// programs (written for Cooked), and the math (estimated one-rep max, plates, progression,
 // calorie and macro goals). Exercise photos come from wger's open library (server/fit.ts).
 
 export type Units = "lb" | "kg";
@@ -8,9 +8,11 @@ export type Goal = "lose" | "maintain" | "gain";
 export type Meal = "breakfast" | "lunch" | "dinner" | "snack";
 export type FitSet = { reps: number; weight: number; done: boolean; warm?: boolean; rpe?: number };
 export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: number; target?: string; note?: string };
-export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string };
+export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string;
+  /** The pre-workout check-in (shared/fitReadyMode.ts): readiness then, food, caffeine, warm-up, and whether Ready Mode adjusted it. */
+  check?: { ready: number; food: "meal" | "snack" | "fasted"; stim: "none" | "coffee" | "preworkout"; stretched: boolean; adapted: boolean } };
 export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
-export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string };
+export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string; note?: string };
 /** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
 export type SavedMeal = { id: string; name: string; items: Omit<FoodEntry, "id" | "date" | "meal">[] };
 export type Profile = { sex?: "m" | "f"; birthYear?: number; heightCm?: number; goal: Goal; activity: number; units: Units; kcalGoal?: number; macroSplit?: { p: number; c: number; f: number }; waterGoalMl: number; stepsGoal: number;
@@ -42,6 +44,24 @@ export type FitData = {
   vacation?: Vacation;
   /** The rest of a workout saved part-way through, to finish later (shared/fitVacation.ts). */
   splitLeft?: SplitLeft;
+  /** The Cooked apps they've added and the ones on the tab bar (shared/fitApps.ts). */
+  apps?: FitApps;
+  /** Interval timers they've made (shared/fitTimers.ts). */
+  timers?: IntervalTimer[];
+  /** Medicines and vitamins, their doses and the log (shared/fitMeds.ts). */
+  meds?: Meds;
+  /** Period tracker: logged days (shared/fitCycle.ts). */
+  cycle?: FitCycle;
+  /** Foods starred to add again in one tap. */
+  favFoods?: Omit<FoodEntry, "id" | "date" | "meal">[];
+  /** A note for the day's eating, by date. */
+  foodNotes?: Record<string, string>;
+  /** Meal prep: the week planned ahead (shared/fitMealPrep.ts). Same shape as the diary. */
+  prep?: { start: string; foods: FoodEntry[] };
+  /** Items on the "Finish your day" checklist ticked by hand, by date (shared/fitChecklist.ts). */
+  checks?: Record<string, string[]>;
+  /** The grocery list (shared/fitMealPrep.ts). */
+  grocery?: { made: string; from: string; items: { id: string; name: string; qty: string; aisle: string; done: boolean }[] };
 };
 
 import { DIET_BY_ID, cleanFasting, type Fasting } from "./fitNutrition";
@@ -49,6 +69,11 @@ import { cleanRuns, type Run } from "./fitRun";
 import { cleanGym, type MyGym } from "./fitGym";
 import { cleanSleep, type Sleep } from "./fitSleep";
 import { cleanSplit, cleanVacation, type SplitLeft, type Vacation } from "./fitVacation";
+import { cleanApps, type FitApps } from "./fitApps";
+import { cleanTimers, type IntervalTimer } from "./fitTimers";
+import { cleanMeds, type Meds } from "./fitMeds";
+import { cleanCycle, type FitCycle } from "./fitCycle";
+import { cleanChecks } from "./fitChecklist";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -88,13 +113,18 @@ export function cleanFit(raw: any): FitData {
   d.workouts = (Array.isArray(raw.workouts) ? raw.workouts : []).slice(-LIMITS.workouts).filter((w: any) => w && w.id && w.date).map((w: any): Workout => ({
     id: str(w.id, 40), date: str(w.date, 30), name: str(w.name, 80) || "Workout", ...(w.programId ? { programId: str(w.programId, 40) } : {}), ...(w.dayId ? { dayId: str(w.dayId, 40) } : {}),
     secs: num(w.secs, 0, 86400), exercises: (Array.isArray(w.exercises) ? w.exercises : []).slice(0, 40).map(ex), ...(w.note ? { note: str(w.note, 500) } : {}),
+    ...(w.check && typeof w.check === "object" ? { check: { ready: num(w.check.ready, 0, 100), food: (["meal", "snack", "fasted"].includes(w.check.food) ? w.check.food : "snack"), stim: (["none", "coffee", "preworkout"].includes(w.check.stim) ? w.check.stim : "none"), stretched: !!w.check.stretched, adapted: !!w.check.adapted } } : {}),
   }));
   d.routines = (Array.isArray(raw.routines) ? raw.routines : []).slice(0, LIMITS.routines).map((r: any): Routine => ({ id: str(r?.id, 40), name: str(r?.name, 60) || "Routine",
     exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any) => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90) })) }));
   if (raw.program?.id) d.program = { id: str(raw.program.id, 40), started: str(raw.program.started, 30), done: (Array.isArray(raw.program.done) ? raw.program.done : []).slice(-500).map((x: unknown) => str(x, 60)) };
-  const food = (f: any) => ({ name: str(f?.name, 120) || "Food", kcal: num(f?.kcal, 0, 10000), p: num(f?.p, 0, 1000), c: num(f?.c, 0, 1500), f: num(f?.f, 0, 1000), servings: num(f?.servings, 0.05, 50, 1), ...(f?.serving ? { serving: str(f.serving, 60) } : {}) });
+  const food = (f: any) => ({ name: str(f?.name, 120) || "Food", kcal: num(f?.kcal, 0, 10000), p: num(f?.p, 0, 1000), c: num(f?.c, 0, 1500), f: num(f?.f, 0, 1000), servings: num(f?.servings, 0.05, 50, 1), ...(f?.serving ? { serving: str(f.serving, 60) } : {}), ...(f?.note ? { note: str(f.note, 300) } : {}) });
   d.foods = (Array.isArray(raw.foods) ? raw.foods : []).slice(-LIMITS.foods).filter((f: any) => f?.id && day(f?.date)).map((f: any) => ({ id: str(f.id, 40), date: day(f.date), meal: MEALS.includes(f.meal) ? f.meal : "snack", ...food(f) }));
   d.recentFoods = (Array.isArray(raw.recentFoods) ? raw.recentFoods : []).slice(0, LIMITS.recent).map(food);
+  if (Array.isArray(raw.favFoods) && raw.favFoods.length) d.favFoods = raw.favFoods.slice(0, 100).map(food);
+  if (raw.foodNotes && typeof raw.foodNotes === "object") { const n: Record<string, string> = {}; for (const [k, v] of Object.entries(raw.foodNotes).slice(-400)) if (day(k) && typeof v === "string" && v.trim()) n[k] = str(v, 600); if (Object.keys(n).length) d.foodNotes = n; }
+  if (raw.prep && typeof raw.prep === "object" && day(raw.prep.start)) d.prep = { start: day(raw.prep.start), foods: (Array.isArray(raw.prep.foods) ? raw.prep.foods : []).slice(0, 400).filter((f: any) => f?.id && day(f?.date)).map((f: any) => ({ id: str(f.id, 40), date: day(f.date), meal: MEALS.includes(f.meal) ? f.meal : "snack", ...food(f) })) };
+  if (raw.grocery && typeof raw.grocery === "object" && Array.isArray(raw.grocery.items)) d.grocery = { made: str(raw.grocery.made, 30), from: str(raw.grocery.from, 40), items: raw.grocery.items.slice(0, 200).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: str(x.id, 40), name: str(x.name, 80), qty: str(x.qty, 40), aisle: str(x.aisle, 30) || "Other", done: !!x.done })) };
   for (const [k, v] of Object.entries(raw.water && typeof raw.water === "object" ? raw.water : {})) if (day(k)) d.water[k] = num(v, 0, 20000);
   d.weights = (Array.isArray(raw.weights) ? raw.weights : []).slice(-LIMITS.weights).filter((w: any) => day(w?.date)).map((w: any) => ({ date: day(w.date), kg: num(w.kg, 20, 400) }));
   if (raw.onboarded) d.onboarded = true;
@@ -111,6 +141,16 @@ export function cleanFit(raw: any): FitData {
   if (splitLeft) d.splitLeft = splitLeft;
   const runs = cleanRuns(raw.runs);
   if (runs.length) d.runs = runs;
+  const apps = cleanApps(raw.apps);
+  if (apps) d.apps = apps;
+  const timers = cleanTimers(raw.timers);
+  if (timers.length) d.timers = timers;
+  const meds = cleanMeds(raw.meds);
+  if (meds) d.meds = meds;
+  const cycle = cleanCycle(raw.cycle);
+  if (cycle) d.cycle = cycle;
+  const checks = cleanChecks(raw.checks);
+  if (checks) d.checks = checks;
   return d;
 }
 
@@ -248,7 +288,7 @@ export function weeklySets(workouts: Workout[], muscleOf: (exId: string) => stri
   return out;
 }
 
-// ——— The built-in exercise catalog (written for Arise Fit) ———————————————————————————————————————
+// ——— The built-in exercise catalog (written for Cooked) ———————————————————————————————————————
 
 export type Muscle = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms" | "abs" | "quads" | "hamstrings" | "glutes" | "calves" | "full body" | "cardio";
 export type Equipment = "barbell" | "dumbbell" | "machine" | "cable" | "bodyweight" | "kettlebell" | "band" | "bench" | "pull-up bar" | "cardio machine" | "other";
@@ -376,7 +416,7 @@ export const CATALOG: CatalogExercise[] = [
 ];
 export const CATALOG_BY_ID = new Map(CATALOG.map((e) => [e.id, e]));
 
-// ——— Programs (written for Arise Fit; standard training structures) ————————————————————————
+// ——— Programs (written for Cooked; standard training structures) ————————————————————————
 
 export type ProgramDay = { id: string; name: string; items: { exId: string; sets: number; reps: string; rest: number }[] };
 export type Program = { id: string; name: string; blurb: string; level: "Beginner" | "Intermediate" | "Advanced"; goal: string; daysPerWeek: number; weeks: number; equipment: string; premium?: boolean; days: ProgramDay[] };

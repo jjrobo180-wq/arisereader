@@ -1,8 +1,9 @@
-// Pod+ home: a browse layout (top search bar, side menu, topic chips, a grid of episodes). Picking an
+// Podster home: a browse layout (top search bar, side menu, topic chips, a grid of episodes). Picking an
 // episode opens the swipe feed on it, so listening always happens there. Everything shown is real:
 // shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useAutoHideHeader } from "../client/src/hooks/useAutoHideHeader";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
 import { StandupHub } from "./Standup";
@@ -11,12 +12,12 @@ import { ImportView } from "./Import";
 import { ArrowDownToLine } from "lucide-react";
 import { Briefcase, GraduationCap } from "lucide-react";
 import { AccountSheet } from "./Account";
-import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
+import { Bell, BookOpen, Check, LogOut, PlusCircle, ShieldCheck, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, Monitor, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Music as MusicIcon, Search, Sparkles, GalleryVertical, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { NewsStationsView, RadioBar, RadioView, type Station } from "./Radio";
 import { NEWS_RADIO_ID, NEWS_RADIO_NAME } from "../client/src/components/family-hub/earshot/newsRadio";
 import { MusicBar, MusicView, type Listening } from "./Music";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
-import type { NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
+import { prepareClean, setPrepareApi, type NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
@@ -67,7 +68,7 @@ function parseHash(): View {
   if (a === "meeting") return { kind: "meeting" };
   if (a === "import") return { kind: "import" };
   if (a === "wiki") return { kind: "wiki" };
-  // Clips was taken out of Pod+ (October 2026); old links open the home page.
+  // Clips was taken out of Podster (October 2026); old links open the home page.
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
@@ -115,7 +116,7 @@ const TAGS = ["Phone down. Podcast on.", "Video killed the radio star.", "Screen
 const WHY: { h: string; p: string }[] = [
   { h: "Video killed the radio star.", p: "Audio's back, and it doesn't need your screen." },
   { h: "Lock your phone. It keeps playing.", p: "On YouTube that takes Premium. Here it's free." },
-  { h: "No ads stacked on ads.", p: "No unskippable pre-rolls, no break every few minutes. We don't add a single ad of our own." },
+  { h: "Free to listen.", p: "Podster is free, with ads. We don't add any ads of our own, and Arise All Access skips the ones in the shows." },
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
   { h: "Get the hours back.", p: "The people getting things done aren't scrolling. They're listening while they do it." },
   { h: "No algorithm bait.", p: "Popular gets you started; after that your feed follows your taste, not view counts. The thing you need might come from a show with one follower." },
@@ -432,6 +433,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [side, setSide] = useState(true);
   // The slide-out menu (phones and tablets; on wide screens the menu button shows/hides the side panel).
   const [drawer, setDrawer] = useState(false);
+  const headerHidden = useAutoHideHeader(visible && !drawer);
+  // While the menu is open the page behind it stays put (on iPhone it scrolled and dragged along).
+  useEffect(() => { if (!drawer) return; const b = document.body.style, o = b.overflow; b.overflow = "hidden"; return () => { b.overflow = o; }; }, [drawer]);
   useEffect(() => { if (!drawer) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [drawer]);
   const toggleMenu = () => { if (typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches) setSide((x) => !x); else setDrawer((d) => !d); };
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
@@ -449,6 +453,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     return () => clearInterval(t);
   }, [searching, narrow]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
+  // Episodes shown here are made ad-free before they're tapped (EarshotPlayer prepareClean).
+  useEffect(() => { setPrepareApi(api); }, [api]);
   const openEp = useCallback((e: PodEpisode, next?: PodEpisode[]) => {
     // A tap teaches the feed too (a small nudge toward that show's genre).
     const g = (e as { genre?: string }).genre || showGenre.current.get(e.showId);
@@ -463,13 +469,13 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }, [view, onOpenFeed]);
 
   const header = (
-    <header className="sticky top-0 z-30 bg-white pt-[env(safe-area-inset-top,0px)]">
+    <header className={`sticky top-0 z-30 bg-white pt-[var(--sat,env(safe-area-inset-top,0px))] transition-transform duration-300 ease-out motion-reduce:transition-none ${headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="pod-header" data-header-hidden={headerHidden ? "true" : undefined}>
       <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <button onClick={toggleMenu} aria-label="Menu" aria-expanded={drawer} className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><Menu size={22} strokeWidth={1.8} /></button>
-        <button onClick={() => { setChip("all"); go({ kind: "home" }); }} aria-label="Pod+ home" className="inline-flex items-center gap-1.5 px-1 py-2">
+        <button onClick={() => { setChip("all"); go({ kind: "home" }); }} aria-label="Podster home" className="inline-flex items-center gap-1.5 px-1 py-2">
           <svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill={ACCENT} /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>
-          <span className="text-[20px] font-bold tracking-[-0.04em]">Pod+</span>
+          <span className="text-[20px] font-bold tracking-[-0.04em]">Podster</span>
         </button>
       </div>
       <form role="search" className="flex min-w-0 max-w-[640px] flex-1 items-center" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 2) go({ kind: "search", q: t }); }}>
@@ -484,15 +490,14 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
               className={`flex h-8 items-center justify-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-colors ${theme === value ? "bg-[#ff6a1f] text-white" : "text-[#606060] hover:bg-[#f2f2f2]"}`}><Icon size={15} strokeWidth={1.9} /><span>{label}</span></button>
           ))}
         </div>
-        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
-        {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
+        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><GalleryVertical size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro
           ? <button onClick={onSignIn} aria-label="Sign in" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-2 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff] min-[420px]:px-3"><UserCircle size={19} strokeWidth={1.8} /><span className="hidden min-[420px]:inline">Sign in</span></button>
           : <span className="relative">
             <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{email ? email.slice(0, 1).toUpperCase() : <UserCircle size={20} />}</button>
             {acctOpen && <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl">
               <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
-              <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
+              <p className="px-3 pb-2 text-xs text-[#606060]">Podster Member</p>
               <button onClick={() => { setAcctOpen(false); setPrivacyOpen(true); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ShieldCheck size={16} />Account & privacy</button>
               <button onClick={() => { const on = !smartDownloadsOn(); setSmartDownloads(on); setAcctOpen(false); say(on ? "Smart downloads are on." : "Smart downloads are off."); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><ArrowDownToLine size={16} />Smart downloads: {smartDownloadsOn() ? "on" : "off"}</button>
               <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
@@ -509,7 +514,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   );
   const menuBody = <>
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
-      {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      {navItem("Swipe feed",<GalleryVertical size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       {navItem("Open Mic", <Mic size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "openmic"))}
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
@@ -521,7 +526,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Audiobooks", <BookOpen size={22} strokeWidth={1.8} />, view.kind === "books" || view.kind === "book", () => go({ kind: "books" }))}
       {navItem("Wiki podcasts", <Library size={22} strokeWidth={1.8} />, view.kind === "wiki", () => go({ kind: "wiki" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
-      {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => go({ kind: "study" }))}
+      {navItem("Study Podster", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => go({ kind: "study" }))}
       {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => go({ kind: "meeting" }))}
       {navItem(live.length ? `Live · ${live.length}` : "Live", <span className="grid h-[22px] w-[22px] place-items-center"><span className={`h-2.5 w-2.5 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-50"}`} /></span>, view.kind === "live", () => go({ kind: "live" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
@@ -556,15 +561,15 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => setPrivacyOpen(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
-        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped, and your show can earn.</p>
+        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Podster Member.</b> Your show can earn, and your place is kept on every device.</p>
         : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
-          <p className="text-sm font-semibold">Pod+ Membership</p>
-          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free. Members skip the ads and get paid for their own show.</p>
+          <p className="text-sm font-semibold">Podster Membership</p>
+          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free, with ads. Arise All Access skips the ads and lets you get paid for your own show.</p>
           <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
         </div>}
   </>;
   const sidebar = side && view.kind !== "watch" && (
-    <nav aria-label="Library" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] hidden max-h-[calc(100vh-56px-env(safe-area-inset-top,0px))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
+    <nav aria-label="Library" className="sticky top-[calc(3.5rem+var(--sat,env(safe-area-inset-top,0px)))] hidden max-h-[calc(100vh-56px-var(--sat,env(safe-area-inset-top,0px)))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {menuBody}
     </nav>
   );
@@ -628,7 +633,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     const more = !topic && chip !== "all" && !genres.includes(chip) ? extra[chip] : null;
     const shown = chip === "all" ? feed : Array.isArray(more) ? more : cardsOf(chip, pools?.[chip] || []);
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
-      <section aria-label="Why Pod+" className="ps-keep relative mb-5 mt-3 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
+      <section aria-label="Why Podster" className="ps-keep relative mb-5 mt-3 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <style>{"@keyframes ps-tag{0%{opacity:0;transform:translateY(70%);filter:blur(3px)}60%{filter:blur(0)}100%{opacity:1;transform:translateY(0)}}.ps-tag{animation:ps-tag .6s cubic-bezier(.2,.8,.2,1) both}@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick,.ps-tag{animation:none}}"}</style>
         <span className="ps-keep relative z-10 flex h-full w-[11.5rem] shrink-0 items-center overflow-hidden bg-[#0f0f0f] pl-4 pr-2 text-[13px] font-semibold text-[#ff8a3d] sm:w-[13.5rem]" aria-live="off"><span key={tag} className="ps-tag block truncate">{TAGS[tag]}</span></span>
         <div className="ps-strip relative h-full min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
@@ -650,16 +655,16 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ContinueListening nowPod={nowPod} visible={visible} onToggle={onPodToggle} onOpenNow={onPodOpen}
         onResume={(id, sp) => onOpenFeed({ showId: sp.showId, episodeId: id })} />}
-      {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
+      {chip === "all" && !pro && <section aria-label="Podster Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
-            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Hear the show, not the ads.</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Podster Membership</p>
+            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Make your show pay.</h2>
             <ul className="mt-3 grid gap-x-6 gap-y-1.5 text-[14px] text-white/80 sm:grid-cols-2">
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Ads skipped for you, automatically</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Get paid for your own show</li>
               <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your place saved on every device</li>
-              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Listening stays free either way</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your Pod Modes and likes everywhere</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Free to listen, with ads (All Access skips them)</li>
             </ul>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -671,7 +676,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
-      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member={pro} onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
+      {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light member onJoin={onJoin} onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} onNewsRadio={() => onOpenFeed(undefined, undefined, { id: NEWS_RADIO_ID, index: 0 })} onNewsStations={() => go({ kind: "newsstations" })} />}
 
 
@@ -690,10 +695,11 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     {dark && <style>{DARK_CSS}</style>}
     {header}
     {drawer && <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-label="Menu">
-      <div className="ps-fade absolute inset-0 bg-black/45" onClick={() => setDrawer(false)} />
-      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] flex-col gap-0.5 overflow-y-auto bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] shadow-2xl">
-        <div className="mb-2 flex h-12 items-center justify-between pl-2">
-          <span className="inline-flex items-center gap-1.5"><svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg><span className="text-[19px] font-bold tracking-[-0.04em]">Pod+</span></span>
+      <div className="ps-fade absolute inset-0 touch-none bg-black/45" onClick={() => setDrawer(false)} />
+      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] touch-pan-y flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-0 shadow-2xl">
+        {/* Stays at the top while the list scrolls, so items never slide up under the clock. */}
+        <div className="sticky top-0 z-10 -mx-3 mb-2 flex shrink-0 items-center justify-between bg-white pb-1 pl-5 pr-3 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.5rem)]">
+          <span className="inline-flex items-center gap-1.5"><svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg><span className="text-[19px] font-bold tracking-[-0.04em]">Podster</span></span>
           <button onClick={() => setDrawer(false)} aria-label="Close menu" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={22} /></button>
         </div>
         {menuBody}
@@ -708,29 +714,29 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           </div>
         </div>
         {pro
-          ? <button onClick={() => { setDrawer(false); onSignOut(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={22} strokeWidth={1.8} />Sign out{email ? ` (${email})` : ""}</button>
+          ? <button onClick={() => { setDrawer(false); onSignOut(); }} className="flex min-h-10 w-full items-center gap-6 rounded-[10px] px-3 py-1.5 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={22} strokeWidth={1.8} className="shrink-0" /><span className="min-w-0 flex-1"><span className="block">Sign out</span>{email && <span className="block truncate text-xs opacity-60">{email}</span>}</span></button>
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
       </nav>
     </div>}
     <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1 pb-24 lg:pb-0">{content}</main></div>
     {/* Phones: a floating tab bar (Home, Swipe feed, Create, You), like the iPhone's own apps. It
         sits above whatever is playing at the bottom. The full menu is still behind ☰. */}
-    {view.kind !== "watch" && <nav aria-label="Pod+ tabs" className="ps-keep fixed left-1/2 z-[45] flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between rounded-full bg-[#121212]/90 p-1.5 text-white shadow-[0_10px_40px_rgba(0,0,0,.35)] ring-1 ring-white/10 backdrop-blur-xl lg:hidden"
+    {view.kind !== "watch" && <nav aria-label="Podster tabs" className="ps-keep fixed left-1/2 z-[45] flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between rounded-full bg-[#121212]/90 p-1.5 text-white shadow-[0_10px_40px_rgba(0,0,0,.35)] ring-1 ring-white/10 backdrop-blur-xl lg:hidden"
       style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "5.25rem" : "0.75rem"})` }}>
       {([
         ["home", "Home", <HomeIcon key="h" size={24} strokeWidth={1.9} />, view.kind === "home" && !tabSheet, () => { setTabSheet(null); setChip("all"); go({ kind: "home" }); }],
-        ["feed", "Swipe feed", <Sparkles key="f" size={24} strokeWidth={1.9} />, false, () => { setTabSheet(null); onOpenFeed(); }],
+        ["feed", "Swipe feed", <GalleryVertical key="f" size={24} strokeWidth={1.9} />, false, () => { setTabSheet(null); onOpenFeed(); }],
         ["create", "Create", <PlusCircle key="c" size={28} strokeWidth={1.7} />, tabSheet === "create", () => setTabSheet((t) => (t === "create" ? null : "create"))],
         ["you", "You", pro && email ? <span key="y" className="grid h-8 w-8 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold">{email.slice(0, 1).toUpperCase()}</span> : <UserCircle key="y" size={26} strokeWidth={1.8} />, tabSheet === "you", () => setTabSheet((t) => (t === "you" ? null : "you"))],
       ] as const).map(([id, label, icon, on, act]) => <button key={id} type="button" onClick={act} aria-label={label} aria-pressed={on} data-testid={`pod-tab-${id}`}
-        className={`flex h-12 flex-1 items-center justify-center rounded-full transition ${on ? "bg-white/15" : "active:bg-white/10"}`}>{icon}</button>)}
+        className={`flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full transition ${on ? "bg-white/15" : "active:bg-white/10"}`}>{icon}<span className="text-[10px] font-semibold leading-none text-white/80">{id === "feed" ? "Swipe" : label}</span></button>)}
     </nav>}
     {tabSheet && <div role="dialog" aria-modal="true" aria-label={tabSheet === "create" ? "Create" : "You"} onClick={(e) => { if (e.target === e.currentTarget) setTabSheet(null); }}
       className="fixed inset-0 z-[44] flex items-end bg-black/40 px-3 lg:hidden" style={{ paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "10rem" : "5.5rem"})` }}>
       <div className="max-h-[70dvh] w-full overflow-y-auto rounded-3xl bg-white p-2 text-[#0f0f0f] shadow-2xl">
         {tabSheet === "create" ? <>
           <p className="px-3 pb-1 pt-2 text-sm font-semibold text-[#606060]">Create</p>
-          {navItem("Study Pod+", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => { setTabSheet(null); go({ kind: "study" }); })}
+          {navItem("Study Podster", <GraduationCap size={22} strokeWidth={1.8} />, view.kind === "study", () => { setTabSheet(null); go({ kind: "study" }); })}
           {navItem("Meeting Pod", <Briefcase size={22} strokeWidth={1.8} />, view.kind === "meeting", () => { setTabSheet(null); go({ kind: "meeting" }); })}
           {navItem("Post on Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); onOpenFeed(undefined, "social"); })}
           {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => { setTabSheet(null); setGoLive(true); })}
@@ -739,7 +745,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         </> : <>
           <div className="flex items-center gap-3 px-3 py-2">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#ff6a1f] text-lg font-bold text-white">{pro && email ? email.slice(0, 1).toUpperCase() : <UserCircle size={24} />}</span>
-            <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{pro ? email || "Pod+ Member" : "Listening without an account"}</span><span className="block text-xs text-[#606060]">{pro ? "Pod+ Member" : "Sign in to keep your place on every device"}</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{pro ? email || "Podster Member" : "Listening without an account"}</span><span className="block text-xs text-[#606060]">{pro ? "Podster Member" : "Sign in to keep your place on every device"}</span></span>
             {!pro && <button type="button" onClick={() => { setTabSheet(null); onSignIn(); }} className="h-9 shrink-0 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Sign in</button>}
           </div>
           <div className="my-1 h-px bg-[#e5e5e5]" />
@@ -815,6 +821,8 @@ const MoreCtx = createContext<((e: PodEpisode) => void) | null>(null);
 const HiddenCtx = createContext<{ shows: Set<string>; eps: Set<string> }>({ shows: new Set(), eps: new Set() });
 
 function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
+  // The first ones shown are made ad-free before they're tapped.
+  useEffect(() => { prepareClean(list.slice(0, 6)); }, [list]);
   const onMore = useContext(MoreCtx);
   const hidden = useContext(HiddenCtx);
   return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]">

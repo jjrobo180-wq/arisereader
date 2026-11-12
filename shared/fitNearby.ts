@@ -1,4 +1,4 @@
-// Arise Fit: what's near you. Gyms (with what each chain usually costs and when gyms are usually
+// Cooked: what's near you. Gyms (with what each chain usually costs and when gyms are usually
 // busy), and restaurants and fast food with the healthier things to order at each chain.
 // Places come from OpenStreetMap through Overpass (server/fit.ts asks; the phone can't). Prices and
 // menu numbers are typical figures, not quotes: every location sets its own prices, and chains change

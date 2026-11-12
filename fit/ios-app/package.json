@@ -2,7 +2,7 @@
   "name": "fit-ios",
   "private": true,
   "version": "1.0.0",
-  "description": "Arise Fit iPhone app (built from the shared frontend with VITE_NATIVE_APP=fit)",
+  "description": "Cooked iPhone app (built from the shared frontend with VITE_NATIVE_APP=fit)",
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",
@@ -21,7 +21,9 @@
     "@capgo/capacitor-health": "^8.7.0",
     "@capacitor/local-notifications": "8.0.0",
     "@capacitor/push-notifications": "^8.0.0",
-    "arise-widgets": "file:../../native/arise-widgets"
+    "arise-widgets": "file:../../native/arise-widgets",
+    "arise-watch": "file:../../native/arise-watch",
+    "arise-store": "file:../../native/arise-store"
   },
   "devDependencies": {
     "@capacitor/cli": "8.0.0"

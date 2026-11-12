@@ -1,6 +1,6 @@
 // Run with: npx tsx --test tests/connect-admin-invite.test.ts
 // An admin adds students to A.R.I.S.E. Connect, picks their career path, and the student is told in
-// their A.R.I.S.E. Reader bell; tapping it opens Connect (same sign-in) on that path.
+// their Arise Reader bell; tapping it opens Connect (same sign-in) on that path.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

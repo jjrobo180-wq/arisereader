@@ -71,7 +71,7 @@ export function HubChat({ hub, token, accent, lift = false, raiseRem = 0 }: { hu
     {open && <div className="fixed inset-0 kb-sheet z-[650] flex items-end justify-end bg-slate-950/20 sm:bg-transparent sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
       <section role="dialog" aria-modal="true" aria-label="AI assistant" data-testid="hub-chat"
         className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(640px,85vh)] sm:w-[400px] sm:rounded-3xl sm:border sm:border-slate-200">
-        <header className="flex items-center gap-3 border-b border-slate-100 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <header className="flex items-center gap-3 border-b border-slate-100 px-4 pb-3 pt-[max(0.75rem,var(--sat,env(safe-area-inset-top,0px)))]">
           <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-white ${accent}`}><Sparkles className="h-5 w-5" /></span>
           <div className="min-w-0 flex-1"><p className="text-sm font-bold text-slate-900">AI assistant</p><p className="text-xs text-slate-500">{NAME[hub]} · answers can be wrong, so check what matters</p></div>
           {turns.length > 0 && <button type="button" onClick={() => { setTurns([]); setError(""); }} aria-label="Clear the chat" className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><Trash2 className="h-4 w-4" /></button>}

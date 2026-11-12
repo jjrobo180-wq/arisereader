@@ -1,4 +1,4 @@
-// Pod+ Live News Radio (client/src/components/family-hub/earshot/newsRadio.ts) and Live news
+// Podster Live News Radio (client/src/components/family-hub/earshot/newsRadio.ts) and Live news
 // stations (podscroll/Radio.tsx), the separate all-news radio feed.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -32,12 +32,12 @@ test("it never runs dry: new episodes first, else the latest headlines again", (
   assert.deepEqual(refill(all, new Set(["a", "b"]), NOW).map((e) => e.id), ["a", "b"]);
 });
 
-test("Pod+ Home, the menu and Up to the Minute News start it; the player plays it live", () => {
+test("Podster Home, the menu and Up to the Minute News start it; the player plays it live", () => {
   const home = read("podscroll/Home.tsx"), hubs = read("podscroll/Hubs.tsx"), player = read("client/src/components/family-hub/earshot/EarshotPlayer.tsx");
   assert.match(home, /onNewsRadio=\{\(\) => onOpenFeed\(undefined, undefined, \{ id: NEWS_RADIO_ID, index: 0 \}\)\}/);
   assert.match(home, /navItem\(NEWS_RADIO_NAME/);
-  assert.match(hubs, /Pod\+ Live News Radio/);
-  assert.match(read("podscroll/Endless.tsx"), /Listen to Pod\+ Live News Radio/);
+  assert.match(hubs, /Podster Live News Radio/);
+  assert.match(read("podscroll/Endless.tsx"), /Listen to Podster Live News Radio/);
   assert.match(player, /playMode\.id === NEWS_RADIO_ID\) \{ void startNewsRadio\(\)/);
   assert.match(player, /\$\{NEWS_RADIO_NAME\} · On air/);
   assert.match(player, /\/api\/earshot\/now\/station/);
@@ -56,7 +56,7 @@ test("Live news stations: a separate feed of stations that are news all day", ()
   assert.match(read("podscroll/Home.tsx"), /<NewsStationsView onPlay=\{playStation\}/);
 });
 
-test("national networks' streams aren't played in Pod+ Radio; local stations are", () => {
+test("national networks' streams aren't played in Podster Radio; local stations are", () => {
   const radio = read("podscroll/Radio.tsx");
   const re = new RegExp(radio.match(/const NETWORKS = \/(.+)\/i;/)![1], "i");
   for (const n of ["CNN", "CNN International", "Fox News Radio", "MSNBC", "BBC World Service", "Bloomberg Radio", "C-SPAN Radio", "NPR News"]) assert.ok(re.test(n), n);

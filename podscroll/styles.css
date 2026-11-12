@@ -11,7 +11,7 @@ html { background: #120e14; }
 html, body, button, a, input, select, textarea, [role="button"] { touch-action: manipulation; }
 @media (max-width: 1024px) { input, textarea, select, [contenteditable="true"] { font-size: 16px !important; } }
 body { margin: 0; background: transparent; color: #fff; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-/* Cover art: eases in from a slight zoom as it loads (Pod+ home, search, modes). */
+/* Cover art: eases in from a slight zoom as it loads (Podster home, search, modes). */
 @keyframes pz-art-in { from { opacity: 0; transform: scale(1.14); } to { opacity: 1; transform: scale(1); } }
 .pz-art { opacity: 0; }
 .pz-art.pz-in { animation: pz-art-in .75s cubic-bezier(.2,.8,.2,1) both; }
@@ -28,3 +28,11 @@ body { margin: 0; background: transparent; color: #fff; font-family: ui-sans-ser
 .pz-eq { height: 30%; animation: pz-eq .9s ease-in-out infinite; }
 .pz-fill { width: 0; animation: pz-fill linear both; }
 @media (prefers-reduced-motion: reduce) { .pz-art { opacity: 1; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* Phones: text boxes at 16px or more, so iPhone never zooms in when you tap one (and gets stuck). */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select { font-size: max(16px, 1rem) !important; }
+}
+
+/* The phone's own clock space (lib/deviceInsets.ts), where the web view reports no safe area at the top. */
+html.pod-native { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 0px)); }

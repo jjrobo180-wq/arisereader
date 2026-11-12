@@ -1,7 +1,7 @@
 // Account & privacy: the Privacy Policy, Terms of Use, Support, and deleting your own account
 // (App Store Guidelines 5.1.1(i) and 5.1.1(v)). Opened from the More menu in Arise LifeHub and
 // Arise WorkHub, on the website and in the Arise To Duo iPhone app, and from the account button in
-// the two A.R.I.S.E. Reader iPhone apps. An account made with Sign in with Apple confirms with Apple.
+// the two Arise Reader iPhone apps. An account made with Sign in with Apple confirms with Apple.
 import { useState } from "react";
 import { FileText, LifeBuoy, Loader2, ShieldCheck, Trash2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -50,7 +50,7 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
   const row = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium text-slate-800 hover:bg-slate-50";
   const input = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-rose-500";
   return <div role="dialog" aria-modal="true" aria-labelledby="acct-privacy-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    className="fixed inset-0 kb-sheet z-[120] flex items-end justify-center bg-slate-950/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] sm:items-center" data-testid="account-privacy">
+    className="fixed inset-0 kb-sheet z-[120] flex items-end justify-center bg-slate-950/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] sm:items-center" data-testid="account-privacy">
     <div className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
       <h2 id="acct-privacy-title" className="pr-12 text-xl font-bold text-slate-950">Account & privacy</h2>
@@ -66,7 +66,7 @@ export default function AccountPrivacy({ onClose }: { onClose: () => void }) {
         <p className="mt-1 text-sm leading-snug text-rose-900/80">{nativeFlavor() === "talk"
           ? "This removes your Arise account and its backup of your Arise Talk words, phrases and settings (they stay on this phone). Cancel Premium first if you have it. It can't be undone."
           : nativeFlavor() === "trainer"
-          ? "This removes your Arise account and everything in it: your trainer listing, reviews, client plans, workouts you built and messages, plus Arise Fit with the same account. Cancel your listing plan first. It can't be undone."
+          ? "This removes your Arise account and everything in it: your trainer listing, reviews, client plans, workouts you built and messages, plus Cooked with the same account. Cancel your listing plan first. It can't be undone."
           : nativeFlavor() === "fit"
           ? "This removes your Arise account and everything in it: your workouts, programs, food diary and weight, plus anything in Arise To Duo with the same account. It can't be undone."
           : nativeFlavor() === "todo"

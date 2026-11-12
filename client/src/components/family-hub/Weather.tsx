@@ -1,4 +1,4 @@
-// Weather (a Plugin Store add-on): right now and the next 7 days for your town (Open-Meteo).
+// Weather (a Plugin Gallery add-on): right now and the next 7 days for your town (Open-Meteo).
 import { useState, type FormEvent } from "react";
 import { CloudSun, Droplets, MapPin, RefreshCw, Wind } from "lucide-react";
 import { weatherCode, type Forecast } from "@shared/lifePlugins";

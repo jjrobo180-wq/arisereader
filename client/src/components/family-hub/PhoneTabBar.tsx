@@ -1,5 +1,5 @@
 // Arise To Duo on a phone: a floating tab bar along the bottom (Home, Tasks, Add, Apps, You), the same
-// shape as the one in Pod+. Apps opens the full app drawer (PhoneMenu); You opens a sheet with the
+// shape as the one in Podster. Apps opens the full app drawer (PhoneMenu); You opens a sheet with the
 // account and every setting. On a computer (lg and up) the sidebar is used instead, so this hides.
 import { useEffect, type ReactNode } from "react";
 import { CheckSquare, Home, LayoutGrid, Plus, X } from "lucide-react";
@@ -31,14 +31,14 @@ export function PhoneTabBar({ home, tasks, addOpen, onHome, onTasks, onAdd, name
   const tab = (active: boolean) => `relative flex min-h-12 min-w-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold transition active:scale-90 ${active ? "text-white" : "text-white/60"}`;
   return <>
     <nav aria-label={work ? "WorkHub" : "Arise To Duo"} data-testid={id("tab-bar")}
-      className={`fixed inset-x-3 z-[45] mx-auto flex max-w-md items-center gap-1 rounded-full ${work ? "bg-slate-950/95" : "bg-[#1d1a33]/95"} px-2 py-1.5 shadow-[0_12px_32px_#16152a55] ring-1 ring-white/10 backdrop-blur ${phoneOnly} ${raise ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]" : "bottom-[max(0.75rem,env(safe-area-inset-bottom))]"}`}>
+      className={`fixed inset-x-3 z-[45] mx-auto flex max-w-md items-center gap-1 rounded-full bg-[#1d1a33] px-2 py-1.5 shadow-[0_12px_32px_#16152a55] ring-1 ring-white/10 ${phoneOnly} ${raise ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]" : "bottom-[max(0.75rem,env(safe-area-inset-bottom))]"}`}>
       <button type="button" onClick={onHome} aria-current={home ? "page" : undefined} className={tab(home)} data-testid={id("tab-home")}><Home className="h-[22px] w-[22px]" />Home</button>
       <button type="button" onClick={onTasks} aria-current={tasks ? "page" : undefined} className={tab(tasks)} data-testid={id("tab-tasks")}><CheckSquare className="h-[22px] w-[22px]" />Tasks</button>
       <button type="button" onClick={onAdd} aria-label="Add" aria-haspopup="menu" aria-expanded={addOpen} data-add-toggle data-testid={id("tab-add")}
-        className={`mx-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${work ? "bg-teal-600" : "bg-[#7968e5]"} text-white shadow-md transition active:scale-90`}>
+        className={`mx-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#7968e5] text-white shadow-md transition active:scale-90`}>
         <Plus className={`h-6 w-6 transition-transform ${addOpen ? "rotate-45" : ""}`} />
       </button>
-      <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_APPS_EVENT))} className={tab(false)} data-testid={id("tab-apps")}><LayoutGrid className="h-[22px] w-[22px]" />Apps</button>
+      <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_APPS_EVENT))} className={tab(false)} data-testid={id("tab-apps")}><LayoutGrid className="h-[22px] w-[22px]" />Plugins</button>
       <button type="button" onClick={() => setYouOpen(true)} aria-haspopup="dialog" aria-expanded={youOpen} className={tab(youOpen)} data-testid={id("tab-you")}>
         <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-black text-[#1d1a33]">{initial}</span>You
       </button>

@@ -1,4 +1,4 @@
-// Habit tracker (a Plugin Store add-on): tap to check off each habit each day, see the week at a
+// Habit tracker (a Plugin Gallery add-on): tap to check off each habit each day, see the week at a
 // glance, and grow a streak.
 import { useState, type FormEvent } from "react";
 import { Check, Flame, Repeat, Trash2 } from "lucide-react";

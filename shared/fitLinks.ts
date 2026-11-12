@@ -1,8 +1,8 @@
-// Arise Fit links: what Siri shortcuts and buddy invites open (client/src/pages/fit/FitSiri.tsx).
+// Cooked links: what Siri shortcuts and buddy invites open (client/src/pages/fit/FitSiri.tsx).
 //   arisefit://do/<action>   and   …/#/fit?do=<action>     do something (start a workout, log water…)
 //   arisefit://circle/<CODE> and   …/#/fit?circle=<CODE>   join a friend's workout circle
-//   arisefit://pass/<CODE>   and   …/#/fit?pass=<CODE>     use someone's Arise Fit+ guest pass
-export type SiriAction = "workout" | "water" | "fast-start" | "fast-end" | "run" | "meal" | "scan" | "gyms" | "recipes" | "circle";
+//   arisefit://pass/<CODE>   and   …/#/fit?pass=<CODE>     use someone's Cooked+ guest pass
+export type SiriAction = "workout" | "water" | "fast-start" | "fast-end" | "run" | "meal" | "scan" | "gyms" | "recipes" | "circle" | "sleep-start" | "sleep-end" | "sleep" | "yoga" | "breathe" | "meds" | "period";
 export const SIRI_ACTIONS: { id: SiriAction; phrase: string; does: string }[] = [
   { id: "workout", phrase: "Start my workout", does: "Starts your next program day, or today's workout built for you" },
   { id: "water", phrase: "Log water", does: "Adds a glass of water (8 oz or 250 ml)" },
@@ -14,6 +14,13 @@ export const SIRI_ACTIONS: { id: SiriAction; phrase: string; does: string }[] = 
   { id: "gyms", phrase: "Find a gym", does: "Gyms near you, prices and busy times" },
   { id: "recipes", phrase: "What should I eat", does: "Recipes that fit what's left today" },
   { id: "circle", phrase: "Check my circle", does: "Your workout circle's week" },
+  { id: "sleep-start", phrase: "Going to sleep", does: "Starts tracking tonight's sleep" },
+  { id: "sleep-end", phrase: "I'm awake", does: "Ends last night's sleep and saves it" },
+  { id: "sleep", phrase: "How did I sleep", does: "Opens Sleep with last night's score" },
+  { id: "yoga", phrase: "Start yoga", does: "Opens Yoga with a flow for right now" },
+  { id: "breathe", phrase: "Help me breathe", does: "Opens Breathe for a quick calm-down" },
+  { id: "meds", phrase: "My medicine", does: "Opens Medicine with today's doses to tick off" },
+  { id: "period", phrase: "Log my period", does: "Opens the Period tracker on today" },
 ];
 const IDS = new Set<string>(SIRI_ACTIONS.map((a) => a.id));
 

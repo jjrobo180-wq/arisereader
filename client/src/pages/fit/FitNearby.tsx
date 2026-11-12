@@ -1,4 +1,4 @@
-// Arise Fit: near you, and what to eat.
+// Cooked: near you, and what to eat.
 // - Gyms near me: every gym around you (OpenStreetMap), what each chain usually costs, when gyms are
 //   usually busy, and what people there say right now ("it's packed"). Set one as My gym.
 // - Eat out: fast food and restaurants nearby with the healthier things to order at each chain, logged
@@ -91,6 +91,18 @@ function useNearby(kind: NearbyKind) {
   return { list, crowd, setCrowd, busy, bar, token };
 }
 
+/** Warm the caches for the last-used place so Gyms and Eat open with results already on screen. */
+export function prefetchNearby(token: string | null | undefined) {
+  const p = lastPlace(); if (!p) return;
+  (["gyms", "food"] as NearbyKind[]).forEach((kind, i) => window.setTimeout(() => {
+    const ck = `arise-fit-near:${kind}:${nearbyCell(kind, p.ll[0], p.ll[1]).join(",")}`;
+    try { const v = JSON.parse(localStorage.getItem(ck) || "null"); if (v?.r && Date.now() - v.at < 6 * 36e5) return; } catch { /* refetch */ }
+    fitApi<any>(token as any, `/nearby?${new URLSearchParams({ kind, lat: String(p.ll[0]), lng: String(p.ll[1]) })}`)
+      .then((r) => { try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), r })); } catch { /* storage full */ } })
+      .catch(() => { /* the screen fetches it itself */ });
+  }, 800 + i * 600));
+}
+
 // ——— Gyms near me ———————————————————————————————————————————————————————————————————————————————
 export function NearbyGyms({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
   const { list, crowd, setCrowd, busy, bar, token } = useNearby("gyms");
@@ -147,7 +159,7 @@ function GymDetail({ p, crowd, data, onClose, onSet, onReport, token }: { p: Pla
       <p className="text-[15px]"><b>{REPORT_WORDS[crowd.level]} right now</b><span style={{ color: C.dim }}> · {crowd.n === 1 ? "1 member said so" : `${crowd.n} members said so`} {crowd.mins} min ago</span></p></Card>}
     <Title>Usually busy</Title>
     <Card className="!p-4">
-      <div className="mb-3 flex gap-1 overflow-x-auto">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <button key={d} type="button" onClick={() => setDay(i)} aria-pressed={day === i} className="h-8 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={day === i ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }}>{d}</button>)}</div>
+      <div className="mb-3 flex gap-1 overflow-x-auto">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <button key={d} type="button" onClick={() => setDay(i)} aria-pressed={day === i} className="h-8 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={day === i ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.text }}>{d}</button>)}</div>
       <div className="flex h-28 items-end gap-[3px]" role="img" aria-label={`How busy gyms usually are on ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day]}`}>
         {hours.map((h) => { const v = curve[h]; const nowBar = isToday && h === now.getHours(); return <div key={h} className="flex-1 rounded-t-[3px]" style={{ height: `${Math.max(4, v)}%`, background: nowBar ? C.lime : LEVEL_COLOR[busyLevel(v)], opacity: nowBar ? 1 : 0.55 }} title={`${hourWords(h)}: ${BUSY_WORDS[busyLevel(v)].toLowerCase()}`} />; })}
       </div>
@@ -210,7 +222,7 @@ function EatFilters({ goal, setGoal, lim, setLim }: { goal: Goal; setGoal: (g: G
   const row = (label: string, value: string, el: ReactNode) => <label className="block"><span className="flex items-center justify-between text-[13px]"><span style={{ color: C.dim }}>{label}</span><b className="tabular-nums">{value}</b></span>{el}</label>;
   const on = lim.maxKcal < NO_LIMITS.maxKcal || lim.minP > 0 || lim.maxC < NO_LIMITS.maxC;
   return <div className="mt-3">
-    <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Match a goal">{GOALS.map((g) => <button key={g.id} type="button" onClick={() => setGoal(g.id)} aria-pressed={goal === g.id} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={goal === g.id ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }} data-testid={`fit-eat-goal-${g.id}`}>{g.label}</button>)}</div>
+    <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Match a goal">{GOALS.map((g) => <button key={g.id} type="button" onClick={() => setGoal(g.id)} aria-pressed={goal === g.id} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={goal === g.id ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.text }} data-testid={`fit-eat-goal-${g.id}`}>{g.label}</button>)}</div>
     <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-1 inline-flex items-center gap-1.5 px-1 text-[13px] font-semibold" style={{ color: C.lime }}><SlidersHorizontal className="h-4 w-4" />Adjust{on ? " (on)" : ""}</button>
     {open && <Card className="mt-2 space-y-3 !p-4">
       {row("Most calories", lim.maxKcal >= NO_LIMITS.maxKcal ? "No limit" : `${lim.maxKcal}`, <input type="range" min={200} max={NO_LIMITS.maxKcal} step={50} value={lim.maxKcal} onChange={(e) => setLim({ ...lim, maxKcal: Number(e.target.value) })} className="mt-1 w-full" style={{ accentColor: C.lime }} />)}
@@ -228,7 +240,7 @@ function PickRow({ name, m, serving, logName, update, say }: { name: string; m: 
   useEffect(() => { if (!added) return; const t = window.setTimeout(() => setAdded(false), 2500); return () => window.clearTimeout(t); }, [added]);
   return <div className="flex items-center gap-3 rounded-[10px] p-2.5" style={{ background: C.card2 }}>
     <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold leading-snug">{name}</p><p className="mt-0.5 text-[12px] tabular-nums" style={{ color: C.dim }}>about {amountText(m, pts ? "points" : "calories")} · P {Math.round(m.p)}g · C {Math.round(m.c)}g · F {Math.round(m.f)}g</p></div>
-    <button type="button" onClick={() => { logFood(update, { name: logName, kcal: m.kcal, p: m.p, c: m.c, f: m.f, serving }); setAdded(true); say(`Added to ${mealNow()}.`); }} aria-label={added ? `${name} added` : `Add ${name}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full transition-transform active:scale-90" style={{ background: added ? C.card : C.lime, color: added ? C.lime : "#0b0b0c" }} data-testid="fit-log-pick">{added ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}</button>
+    <button type="button" onClick={() => { logFood(update, { name: logName, kcal: m.kcal, p: m.p, c: m.c, f: m.f, serving }); setAdded(true); say(`Added to ${mealNow()}.`); }} aria-label={added ? `${name} added` : `Add ${name}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full transition-transform active:scale-90" style={{ background: added ? C.card : C.lime, color: added ? C.lime : "var(--fit-on-accent)" }} data-testid="fit-log-pick">{added ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}</button>
   </div>;
 }
 
@@ -398,7 +410,7 @@ export function RecipesSheet({ data, update, onClose, say }: { data: FitData; up
       </form>
       {err && <p className="mt-2 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
     </Card>
-    <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{tags.map((x) => <button key={x} type="button" onClick={() => setTag(x)} aria-pressed={tag === x} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={tag === x ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.text }}>{x === "all" ? "Best for now" : TAG_NAME[x]}</button>)}</div>
+    <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{tags.map((x) => <button key={x} type="button" onClick={() => setTag(x)} aria-pressed={tag === x} className="h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold" style={tag === x ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.text }}>{x === "all" ? "Best for now" : TAG_NAME[x]}</button>)}</div>
     <div className="mt-2 space-y-2">{[...made, ...list].map((r) => <Card key={r.id} onClick={() => setOpen(r)} className="flex items-center gap-3 !p-3" testId={`fit-recipe-${r.id}`}>
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] " style={{ background: C.card2 }} aria-hidden><RecipeIcon id={r.id} tags={r.tags} className="h-6 w-6" /></span>
       <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-semibold">{r.name}</p><p className="text-[12px] tabular-nums" style={{ color: C.dim }}>{amountText(r, pts ? "points" : "calories")} · P {r.p}g · {r.mins} min{r.id.startsWith("ai-") ? " · made for you" : ""}</p></div>
@@ -415,7 +427,7 @@ function RecipeDetail({ r, onClose, onLog }: { r: Recipe; onClose: () => void; o
     <Title>Ingredients</Title>
     <Card className="!p-4"><ul className="space-y-1.5">{r.ingredients.map((i, k) => <li key={k} className="text-[15px]">• {i}</li>)}</ul></Card>
     <Title>Steps</Title>
-    <Card className="!p-4"><ol className="space-y-2.5">{r.steps.map((s, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{k + 1}</span>{s}</li>)}</ol></Card>
+    <Card className="!p-4"><ol className="space-y-2.5">{r.steps.map((s, k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{k + 1}</span>{s}</li>)}</ol></Card>
     <Btn className="mt-4 w-full" onClick={onLog} testId="fit-recipe-log"><Utensils className="h-5 w-5" />Log 1 serving</Btn>
     {r.id.startsWith("ai-") && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Made by AI: the numbers are estimates.</p>}
   </Sheet>;

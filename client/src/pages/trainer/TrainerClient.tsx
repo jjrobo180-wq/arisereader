@@ -1,24 +1,27 @@
-// One client in Arise Trainer. Overview comes straight from their Arise Fit (what they chose to share);
+// One client in Cooked PT. Overview comes straight from their Cooked (what they chose to share);
 // everything else is the trainer's plan for them, saved as it's changed.
 import { useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Timer, Trash2, Trophy } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Copy, Dumbbell, Flag, Footprints, Lock, Pencil, Plus, Sparkles, Timer, Trash2, Trophy } from "lucide-react";
+import { AiBuilderSheet } from "./TrainerTemplates";
 import { MODES, MODE_LABEL, expandProgram, type Appointment, type Assigned, type Coaching, type Habit, type Library, type Mode } from "@shared/coach";
 import { fromKg, records } from "@shared/fit";
 import { Chat } from "../coach/CoachUi";
 import { coachApi, dayKeyOf, post, put, shortDate, usePoll, when, type ClientDetail } from "../coach/coachApi";
 import { Btn, C, Card, Chips, Columns, Field, Ring, Sheet, Spark, Title, display, fmtDur, fmtNum, inputCls, inputStyle, stagger } from "../fit/fitUi";
 import { DEFAULT_FORM, FormBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
+import { PlanTools } from "./TrainerCopilot";
+import { TrainerFormChecks } from "../coach/FormCheck";
 
-type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "sessions" | "photos" | "notes";
+type Tab = "overview" | "calendar" | "habits" | "nutrition" | "checkins" | "chat" | "form" | "sessions" | "photos" | "notes";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Overview" }, { id: "calendar", label: "Calendar" }, { id: "chat", label: "Chat" }, { id: "habits", label: "Habits & goals" }, { id: "nutrition", label: "Nutrition" },
+  { id: "overview", label: "Overview" }, { id: "calendar", label: "Calendar" }, { id: "chat", label: "Chat" }, { id: "form", label: "Form" }, { id: "habits", label: "Habits & goals" }, { id: "nutrition", label: "Nutrition" },
   { id: "checkins", label: "Check-ins" }, { id: "sessions", label: "Sessions" }, { id: "photos", label: "Photos" }, { id: "notes", label: "Notes" },
 ];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const addDays = (d: string, n: number) => { const x = new Date(`${d}T12:00:00`); x.setDate(x.getDate() + n); return dayKeyOf(x); };
 const weekStart = (d: string) => { const x = new Date(`${d}T12:00:00`); x.setDate(x.getDate() - x.getDay()); return dayKeyOf(x); };
 
-export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, quick }: { token: string | null; me: number; linkId: string; name: string; lib: Library; saveLib: (l: Library) => void; onClose: () => void; quick: string[] }) {
+export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, quick, say }: { token: string | null; me: number; linkId: string; name: string; lib: Library; saveLib: (l: Library) => void; onClose: () => void; quick: string[]; say: (m: string) => void }) {
   const { data, err, setData } = usePoll(() => coachApi<ClientDetail>(token, `/links/${linkId}/client`), [linkId, token], 30_000);
   const [tab, setTab] = useState<Tab>("overview");
   const [saving, setSaving] = useState("");
@@ -34,8 +37,10 @@ export function ClientSheet({ token, me, linkId, name, lib, saveLib, onClose, qu
     <Chips label="Section" value={tab} onChange={setTab} items={TABS} />
     <div key={tab} className="fit-in mt-4">
       {tab === "overview" && <Overview d={data} />}
-      {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} />}
+      {tab === "calendar" && data.status === "active" && <PlanTools token={token} linkId={linkId} name={name} say={say} onApplied={(assigned) => setData((d) => (d ? { ...d, coaching: { ...d.coaching, assigned } } : d))} />}
+      {tab === "calendar" && <Calendar c={data.coaching} lib={lib} save={save} saveLib={saveLib} token={token} say={say} name={name} />}
       {tab === "chat" && <Chat token={token} linkId={linkId} me={me} other={name} quick={quick} disabled={data.status !== "active"} />}
+      {tab === "form" && <TrainerFormChecks token={token} linkId={linkId} name={name} say={say} />}
       {tab === "habits" && <Habits c={data.coaching} save={save} side={data.clientSide} />}
       {tab === "nutrition" && <Nutrition d={data} save={save} />}
       {tab === "checkins" && <Checkins d={data} lib={lib} save={save} saveLib={saveLib} />}
@@ -50,7 +55,7 @@ function Request({ token, linkId, name, data, onDone }: { token: string | null; 
   const shared = Object.entries(data.consent).filter(([, v]) => v).map(([k]) => k);
   return <div className="mt-2">
     <Card><p className="text-[26px] leading-none" style={display}>{name} wants you to coach them</p>
-      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>When you accept, their Arise Fit {shared.length ? shared.join(", ") : "profile"} come to you automatically. Your welcome message goes to them.</p></Card>
+      <p className="mt-2 text-[14px]" style={{ color: C.steel }}>When you accept, their Cooked {shared.length ? shared.join(", ") : "profile"} come to you automatically. Your welcome message goes to them.</p></Card>
     <div className="mt-4 grid grid-cols-2 gap-2"><Btn kind="soft" onClick={async () => { await post(token, `/links/${linkId}/decline`); onDone(); }} testId="tr-decline">Decline</Btn><Btn onClick={async () => { await post(token, `/links/${linkId}/accept`); onDone(); }} testId="tr-accept">Accept</Btn></div>
   </div>;
 }
@@ -84,13 +89,14 @@ function Overview({ d }: { d: ClientDetail }) {
     <Title>Food · 7-day average</Title>
     {s.food ? <Card><div className="grid grid-cols-4 gap-2 text-center">{([["kcal", "cal"], ["p", "protein"], ["c", "carbs"], ["f", "fat"]] as const).map(([k, l]) => <div key={k}><p className="text-[22px] leading-none" style={display}>{fmtNum(avg(k))}</p><p className="mt-1 text-[11px] uppercase" style={{ color: C.dim }}>{l}</p></div>)}</div>
       <div className="mt-3"><Columns items={food7.map((x) => ({ label: x.date.slice(8), value: x.kcal }))} color={C.orange} /></div></Card> : <Locked what="food" />}
-    <Title>Steps</Title>{d.consent.health ? (steps.length ? <Card><Columns items={steps.map(([k, v]) => ({ label: k.slice(8), value: v }))} /><p className="mt-2 flex items-center gap-1 text-[12px]" style={{ color: C.dim }}><Footprints className="h-3.5 w-3.5" />From Apple Health, when they open Arise Fit</p></Card> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>No steps yet (they come from Apple Health on their iPhone).</p>) : <Locked what="steps" />}
+    <Title>Steps</Title>{d.consent.health ? (steps.length ? <Card><Columns items={steps.map(([k, v]) => ({ label: k.slice(8), value: v }))} /><p className="mt-2 flex items-center gap-1 text-[12px]" style={{ color: C.dim }}><Footprints className="h-3.5 w-3.5" />From Apple Health, when they open Cooked</p></Card> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>No steps yet (they come from Apple Health on their iPhone).</p>) : <Locked what="steps" />}
     {s.fasting && <><Title>Fasting</Title><Card className="flex items-center gap-3 !p-3"><Timer className="h-5 w-5" style={{ color: C.lime }} /><p className="text-[14px]">{s.fasting.active ? `Fasting now · started ${when(s.fasting.active)}` : "Not fasting"} · {s.fasting.protocol} · {s.fasting.log.length} fasts logged</p></Card></>}
     {s.runs && s.runs.length > 0 && <><Title>Runs</Title><Card className="!p-2">{s.runs.slice(-6).reverse().map((r, k) => <div key={r.date} className="flex justify-between px-2 py-2 text-[14px]" style={k ? { borderTop: `1px solid ${C.line}` } : undefined}><span className="capitalize">{r.trail ?? r.kind} · {shortDate(r.date)}</span><span style={{ color: C.dim }}>{(r.meters / 1609.344).toFixed(2)} mi · {fmtDur(r.secs)}</span></div>)}</Card></>}
   </div>;
 }
 
-function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: (c: Coaching) => void; saveLib: (l: Library) => void }) {
+function Calendar({ c, lib, save, saveLib, token, say, name }: { c: Coaching; lib: Library; save: (c: Coaching) => void; saveLib: (l: Library) => void; token: string | null; say: (m: string) => void; name: string }) {
+  const [aiFor, setAiFor] = useState<string | null>(null);
   const [start, setStart] = useState(weekStart(dayKeyOf()));
   const [adding, setAdding] = useState<string | null>(null);
   const [editing, setEditing] = useState<Assigned | null>(null);
@@ -104,15 +110,16 @@ function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: 
       <p className="text-[18px]" style={display}>{shortDate(start)} – {shortDate(addDays(start, 6))}</p>
       <button type="button" aria-label="Next week" onClick={() => setStart(addDays(start, 7))} className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card }}><ChevronRight className="h-5 w-5" /></button></div>
     <div className="mt-3 space-y-2">{days.map((day, k) => { const list = c.assigned.filter((a) => a.date === day); const today = day === dayKeyOf();
-      return <Card key={day} className="!p-3" style={{ ...stagger(k, 0.04), ...(today ? { boxShadow: "inset 0 0 0 1px #ff5a1f" } : {}) }}>
+      return <Card key={day} className="!p-3" style={{ ...stagger(k, 0.04), ...(today ? { boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : {}) }}>
         <div className="flex items-center gap-2"><span className="w-12 text-[14px] font-bold" style={{ color: today ? C.lime : C.dim }}>{DOW[new Date(`${day}T12:00:00`).getDay()]} {day.slice(8)}</span>
-          <div className="min-w-0 flex-1 space-y-1">{list.map((a) => <button key={a.id} type="button" onClick={() => setEditing(a)} className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left" style={{ background: a.done ? "rgba(255,90,31,.16)" : C.card2 }}>
+          <div className="min-w-0 flex-1 space-y-1">{list.map((a) => <button key={a.id} type="button" onClick={() => setEditing(a)} className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left" style={{ background: a.done ? "rgba(var(--fit-accent-rgb),.16)" : C.card2 }}>
             {a.done ? <Check className="h-4 w-4 shrink-0" style={{ color: C.lime }} strokeWidth={3} /> : <Dumbbell className="h-4 w-4 shrink-0" style={{ color: C.dim }} />}<span className="truncate text-[14px] font-semibold">{a.name}</span></button>)}
             {!list.length && <span className="text-[13px]" style={{ color: C.dim }}>Rest</span>}</div>
-          <button type="button" aria-label={`Add a workout on ${day}`} onClick={() => setAdding(day)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "#0b0b0c" }} data-testid={`tr-add-${day}`}><Plus className="h-5 w-5" /></button></div></Card>; })}</div>
+          <button type="button" aria-label={`Add a workout on ${day}`} onClick={() => setAdding(day)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.lime, color: "var(--fit-on-accent)" }} data-testid={`tr-add-${day}`}><Plus className="h-5 w-5" /></button></div></Card>; })}</div>
     <div className="mt-3 grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={copyWeek}><Copy className="h-4 w-4" />Copy to next week</Btn><Btn kind="soft" className="!text-[15px]" onClick={() => setProgram(true)} testId="tr-assign-program"><CalendarDays className="h-4 w-4" />Assign a program</Btn></div>
     {adding && <Sheet title={`Add to ${shortDate(adding)}`} onClose={() => setAdding(null)}>
-      <Btn className="w-full" onClick={() => { setBuilding(adding); setAdding(null); }} testId="tr-new-workout"><Plus className="h-5 w-5" />Build a new workout</Btn>
+      <div className="grid grid-cols-2 gap-2"><Btn kind="soft" className="!text-[15px]" onClick={() => { setBuilding(adding); setAdding(null); }} testId="tr-new-workout"><Plus className="h-5 w-5" />Build one</Btn>
+        <Btn className="!text-[15px]" onClick={() => { setAiFor(adding); setAdding(null); }} testId="tr-ai-workout"><Sparkles className="h-5 w-5" />With AI</Btn></div>
       <Title>From your library</Title>
       {lib.workouts.length ? <div className="space-y-2">{lib.workouts.map((w) => <Card key={w.id} onClick={() => { put1({ ...w, id: newId(), date: adding }); setAdding(null); }} className="!p-3"><p className="font-semibold">{w.name}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{w.items.map((i) => i.name).join(", ")}</p></Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Workouts you save to your library show up here.</p>}
     </Sheet>}
@@ -123,6 +130,7 @@ function Calendar({ c, lib, save, saveLib }: { c: Coaching; lib: Library; save: 
         <input type="date" value={editing.date} onChange={(e) => e.target.value && setEditing({ ...editing, date: e.target.value })} className={inputCls} style={inputStyle} aria-label="Date" />
         <Btn kind="danger" onClick={() => { save({ ...c, assigned: c.assigned.filter((x) => x.id !== editing.id) }); setEditing(null); }}><Trash2 className="h-4 w-4" />Remove</Btn></div>}
       onSave={(w) => { put1({ ...editing, ...w, id: editing.id, date: editing.date }); setEditing(null); }} />}
+    {aiFor && <AiBuilderSheet token={token} lib={lib} saveLib={saveLib} say={say} only="workout" clientName={name} onClose={() => setAiFor(null)} onWorkout={(w) => put1({ ...w, id: newId(), date: aiFor })} />}
     {program && <AssignProgram lib={lib} onClose={() => setProgram(false)} onAssign={(list, phase) => { save({ ...c, phase, assigned: [...c.assigned, ...list] }); setProgram(false); }} />}
   </div>;
 }
@@ -146,13 +154,13 @@ function Habits({ c, save, side }: { c: Coaching; save: (c: Coaching) => void; s
     <Title>Daily habits</Title>
     <div className="space-y-2">{c.habits.map((h) => <Card key={h.id} className="!p-3"><div className="flex items-center gap-2"><p className="min-w-0 flex-1 truncate font-semibold">{h.name}</p><span className="text-[12px]" style={{ color: C.dim }}>{streakOf(h)} in a row</span>
       <button type="button" aria-label="Remove habit" onClick={() => save({ ...c, habits: c.habits.filter((x) => x.id !== h.id) })} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button></div>
-      <div className="mt-2 grid grid-cols-7 gap-1">{DOW.map((d, i) => { const on = !h.days.length || h.days.includes(i); return <button key={d} type="button" onClick={() => { const days = (h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6]); const next = on ? days.filter((x) => x !== i) : [...days, i].sort(); save({ ...c, habits: c.habits.map((x) => (x.id === h.id ? { ...x, days: next.length === 7 ? [] : next } : x)) }); }} className="h-8 rounded-[6px] text-[11px] font-bold" style={on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2, color: C.dim }}>{d[0]}</button>; })}</div></Card>)}</div>
+      <div className="mt-2 grid grid-cols-7 gap-1">{DOW.map((d, i) => { const on = !h.days.length || h.days.includes(i); return <button key={d} type="button" onClick={() => { const days = (h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6]); const next = on ? days.filter((x) => x !== i) : [...days, i].sort(); save({ ...c, habits: c.habits.map((x) => (x.id === h.id ? { ...x, days: next.length === 7 ? [] : next } : x)) }); }} className="h-8 rounded-[6px] text-[11px] font-bold" style={on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2, color: C.dim }}>{d[0]}</button>; })}</div></Card>)}</div>
     <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { save({ ...c, habits: [...c.habits, { id: newId(), name: name.trim().slice(0, 80), days: [] }] }); setName(""); } }}>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 10,000 steps, 3 L water, 8 h sleep" className={inputCls} style={inputStyle} data-testid="tr-habit-name" /><Btn type="submit" disabled={!name.trim()}><Plus className="h-5 w-5" /></Btn></form>
     <div className="mt-2 flex flex-wrap gap-1.5">{["Hit protein goal", "10,000 steps", "Drink 3 L water", "Sleep 8 hours", "Log every meal", "Stretch 10 minutes"].filter((x) => !c.habits.some((h) => h.name === x)).map((x) => <button key={x} type="button" onClick={() => save({ ...c, habits: [...c.habits, { id: newId(), name: x, days: [] }] })} className="h-8 rounded-full px-3 text-[12px] font-semibold" style={{ background: C.card }}>+ {x}</button>)}</div>
     <Title>Goals</Title>
     <Card className="!p-2">{c.goals.map((g, k) => <div key={g.id} className="flex items-center gap-2 px-1 py-1.5" style={k ? { borderTop: `1px solid ${C.line}` } : undefined}>
-      <button type="button" aria-label={g.done ? "Not done" : "Done"} onClick={() => save({ ...c, goals: c.goals.map((x) => (x.id === g.id ? { ...x, done: !x.done } : x)) })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={g.done ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{g.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Flag className="h-4 w-4" style={{ color: C.dim }} />}</button>
+      <button type="button" aria-label={g.done ? "Not done" : "Done"} onClick={() => save({ ...c, goals: c.goals.map((x) => (x.id === g.id ? { ...x, done: !x.done } : x)) })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={g.done ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{g.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Flag className="h-4 w-4" style={{ color: C.dim }} />}</button>
       <span className="min-w-0 flex-1 text-[15px]">{g.text}</span>{g.due && <span className="text-[12px]" style={{ color: C.dim }}>{shortDate(g.due)}</span>}
       <button type="button" aria-label="Remove goal" onClick={() => save({ ...c, goals: c.goals.filter((x) => x.id !== g.id) })} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button></div>)}
       {!c.goals.length && <p className="p-2 text-[14px]" style={{ color: C.dim }}>No goals yet.</p>}</Card>
@@ -170,7 +178,7 @@ function Nutrition({ d, save }: { d: ClientDetail; save: (c: Coaching) => void }
   return <div>
     <Title>Targets</Title>
     <Card><div className="grid grid-cols-2 gap-2">{([["kcal", "Calories"], ["p", "Protein (g)"], ["c", "Carbs (g)"], ["f", "Fat (g)"], ["waterL", "Water (L)"]] as const).map(([k, l]) => <Field key={k} label={l}><input inputMode="decimal" value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value.replace(/[^\d.]/g, "").slice(0, 5) })} className={inputCls} style={inputStyle} data-testid={`tr-nut-${k}`} /></Field>)}</div>
-      {kcalFromMacros > 0 && <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Macros add up to {fmtNum(kcalFromMacros)} calories.{d.snapshot.profile ? ` Arise Fit's estimate for them: ${fmtNum(d.snapshot.profile.kcal)}.` : ""}</p>}
+      {kcalFromMacros > 0 && <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Macros add up to {fmtNum(kcalFromMacros)} calories.{d.snapshot.profile ? ` Cooked's estimate for them: ${fmtNum(d.snapshot.profile.kcal)}.` : ""}</p>}
       <Field label="Meal plan or notes"><textarea value={v.note} onChange={(e) => setV({ ...v, note: e.target.value.slice(0, 800) })} rows={5} placeholder="Breakfast: 4 eggs, oats… or any guidance" className="mt-2 w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} /></Field>
       <Btn className="mt-3 w-full" onClick={() => save({ ...c, nutrition: { kcal: Number(v.kcal) || undefined, p: Number(v.p) || undefined, c: Number(v.c) || undefined, f: Number(v.f) || undefined, waterL: Number(v.waterL) || undefined, note: v.note || undefined } })} testId="tr-nut-save">Save targets</Btn></Card>
     <Title>What they ate</Title>
@@ -206,7 +214,7 @@ function Sessions({ c, save }: { c: Coaching; save: (c: Coaching) => void }) {
   const upcoming = c.appts.filter((a) => a.status === "booked" && Date.parse(a.at) > Date.now() - 3600e3);
   const past = c.appts.filter((a) => !upcoming.includes(a)).slice(-12).reverse();
   const local = (iso: string) => { const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
-  const row = (a: Appointment) => <Card key={a.id} onClick={() => setEdit(a)} className="!p-3" style={a.requested && a.status === "booked" ? { boxShadow: "inset 0 0 0 1px #ff5a1f" } : undefined}>
+  const row = (a: Appointment) => <Card key={a.id} onClick={() => setEdit(a)} className="!p-3" style={a.requested && a.status === "booked" ? { boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : undefined}>
     <p className="font-semibold">{when(a.at)}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{MODE_LABEL[a.mode]} · {a.mins} min{a.requested ? " · they asked for this" : ""}{a.status !== "booked" ? ` · ${a.status}` : ""}{a.place ? ` · ${a.place}` : ""}</p></Card>;
   return <div>
     <Btn className="w-full" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); setEdit({ id: newId(), at: d.toISOString(), mins: 60, mode: "virtual", place: "", note: "", status: "booked" }); }} testId="tr-session-new"><CalendarDays className="h-5 w-5" />Book a session</Btn>
@@ -215,7 +223,7 @@ function Sessions({ c, save }: { c: Coaching; save: (c: Coaching) => void }) {
     {edit && <Sheet title="Session" onClose={() => setEdit(null)}>
       <div className="mt-2 space-y-3">
         <Field label="When"><input type="datetime-local" value={local(edit.at)} onChange={(e) => e.target.value && setEdit({ ...edit, at: new Date(e.target.value).toISOString() })} className={inputCls} style={inputStyle} /></Field>
-        <Field label="How"><div className="grid grid-cols-3 gap-2">{MODES.map((m: Mode) => <button key={m} type="button" onClick={() => setEdit({ ...edit, mode: m })} className="h-11 rounded-[10px] text-[13px] font-semibold" style={edit.mode === m ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }}>{MODE_LABEL[m]}</button>)}</div></Field>
+        <Field label="How"><div className="grid grid-cols-3 gap-2">{MODES.map((m: Mode) => <button key={m} type="button" onClick={() => setEdit({ ...edit, mode: m })} className="h-11 rounded-[10px] text-[13px] font-semibold" style={edit.mode === m ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }}>{MODE_LABEL[m]}</button>)}</div></Field>
         <Field label="Minutes"><input inputMode="numeric" value={edit.mins} onChange={(e) => setEdit({ ...edit, mins: Number(e.target.value.replace(/\D/g, "")) || 60 })} className={inputCls} style={inputStyle} /></Field>
         <Field label={edit.mode === "inPerson" ? "Where" : "Video link (Zoom, FaceTime, Meet)"}><input value={edit.place} onChange={(e) => setEdit({ ...edit, place: e.target.value.slice(0, 200) })} placeholder={edit.mode === "inPerson" ? "Gym, address" : "https://"} className={inputCls} style={inputStyle} /></Field>
         <Field label="Note"><input value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value.slice(0, 400) })} className={inputCls} style={inputStyle} /></Field>
@@ -246,6 +254,6 @@ function Notes({ c, save, token, linkId, name, onEnded }: { c: Coaching; save: (
     <div className="mt-3"><Field label="Tags (only you see these, for sorting clients)"><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="online, beginner, wedding" className={inputCls} style={inputStyle} /></Field></div>
     <div className="mt-3"><Field label="Private notes (never shown to your client)"><textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 8000))} rows={10} placeholder="Injuries, preferences, what's working…" className="w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} data-testid="tr-notes" /></Field></div>
     <Btn className="mt-3 w-full" onClick={() => save({ ...c, notes, phase: phase || undefined, tags: tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10) }, false)} testId="tr-notes-save">Save</Btn>
-    <button type="button" onClick={async () => { if (window.confirm(`Stop coaching ${name}? Their Arise Fit data stops coming to you.`)) { await post(token, `/links/${linkId}/end`); onEnded(); } }} className="mt-8 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Stop coaching {name}</button>
+    <button type="button" onClick={async () => { if (window.confirm(`Stop coaching ${name}? Their Cooked data stops coming to you.`)) { await post(token, `/links/${linkId}/end`); onEnded(); } }} className="mt-8 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Stop coaching {name}</button>
   </div>;
 }

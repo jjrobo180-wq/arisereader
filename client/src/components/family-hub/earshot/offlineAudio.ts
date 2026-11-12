@@ -1,15 +1,18 @@
 // Downloads for listening without a connection. The player shared with Arise's Earshot only asks
-// this registry; Pod+ plugs in the real downloader (podscroll/downloads.ts). With nothing plugged in
+// this registry; Podster plugs in the real downloader (podscroll/downloads.ts). With nothing plugged in
 // (Arise), there are no download buttons and every episode streams as before.
 import { useEffect, useState } from "react";
 import type { SavedEpisode } from "@shared/earshot";
 
 export type DownloadState = { status: "none" | "saving" | "saved" | "error"; pct: number; error?: string };
-export type DownloadedEpisode = { kind: "episode"; id: string; ep: SavedEpisode; bytes: number; savedAt: number };
+/** clean: the episode's ad-free copy was saved (its time is show time; server/podcastClean.ts). */
+export type DownloadedEpisode = { kind: "episode"; id: string; ep: SavedEpisode; bytes: number; savedAt: number; clean?: boolean };
 
 export type OfflineAudio = {
   /** A playable copy on this device, or null. Synchronous: the player asks while picking a source. */
   url: (key: string) => string | null;
+  /** The saved copy is the episode's ad-free copy. */
+  isClean?: (key: string) => boolean;
   state: (key: string) => DownloadState;
   /** Members only; others are asked to join (the downloader does that). */
   saveEpisode: (ep: SavedEpisode) => Promise<void>;

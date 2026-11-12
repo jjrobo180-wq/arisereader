@@ -1,4 +1,4 @@
-// Arise Trainer's builders: workouts (from Arise Fit's exercise catalog plus the trainer's own exercises
+// Cooked PT's builders: workouts (from Cooked's exercise catalog plus the trainer's own exercises
 // with their video links), multi-week programs made of those workouts, and check-in forms.
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, PlayCircle, Plus, Search, Trash2 } from "lucide-react";
@@ -43,7 +43,7 @@ export function WorkoutBuilder({ initial, lib, title = "Workout", onSave, onClos
     </div>
     {extra}
     <div className="mt-4 space-y-2">{w.items.map((it, i) => <Card key={i} className="!p-3">
-      <div className="flex items-center gap-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "#0b0b0c" }}>{i + 1}</span>
+      <div className="flex items-center gap-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{i + 1}</span>
         <p className="min-w-0 flex-1 truncate text-[18px] leading-none" style={display}>{it.name}</p>
         <button type="button" aria-label="Move up" onClick={() => move(i, -1)} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><ArrowUp className="h-4 w-4" /></button>
         <button type="button" aria-label="Move down" onClick={() => move(i, 1)} className="grid h-9 w-9 place-items-center" style={{ color: C.dim }}><ArrowDown className="h-4 w-4" /></button>

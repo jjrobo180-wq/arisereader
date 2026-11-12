@@ -1,4 +1,4 @@
-// Arise Fit, the Fitbod-style rebuild: muscle recovery from the sets you log, today's workout built
+// Cooked, the Fitbod-style rebuild: muscle recovery from the sets you log, today's workout built
 // for you from your freshest muscles, the body map, designed cover art and the Light/Dark themes.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -79,7 +79,8 @@ test("swapping an exercise offers the same muscle with your equipment", () => {
 test("the rebuilt Today and Train: built-for-you workout, recovery card, week strip, body map", () => {
   const app = read("client/src/pages/fit/FitApp.tsx"), train = read("client/src/pages/fit/FitTrain.tsx"), smart = read("client/src/pages/fit/FitSmart.tsx");
   assert.match(app, /<SmartWorkoutCard data=\{data\} list=\{list\} onStart=\{onStart\} testId="fit-today-smart" \/>/);
-  assert.match(app, /testId="fit-today-recovery"/);
+  assert.match(app, /testId="fit-today-readiness"/);
+  assert.match(read("client/src/pages/fit/FitApps.tsx"), /testId="fit-recovery-body"/);
   assert.match(app, /<WeekStrip /);
   assert.match(train, /<SmartWorkoutCard data=\{data\} list=\{list\} onStart=\{onStart\} testId="fit-train-smart" \/>/);
   for (const k of ["-options", "-shuffle", "-swap-", "-start"]) assert.ok(smart.includes(`\${testId}${k}`), k);
@@ -97,13 +98,13 @@ test("designed cover art instead of video stills, words under the art, never on 
   assert.doesNotMatch(train, /videoThumb\(/, "no YouTube stills as covers");
 });
 
-test("themes: Light, Dark and Auto in Settings (and in Arise Trainer); the iPhone clock follows", () => {
+test("themes: Light, Dark and Auto in Settings (and in Cooked PT); the iPhone clock follows", () => {
   const ui = read("client/src/pages/fit/fitUi.tsx");
   assert.match(ui, /export function ThemePicker/);
   assert.match(read("client/src/pages/fit/FitApp.tsx"), /<ThemePicker \/>/);
   assert.match(read("client/src/pages/trainer/TrainerApp.tsx"), /<ThemePicker testId="tr-theme" \/>/);
   assert.match(ui, /nativeCall\(\/statusbar\/i, "StatusBar", "setStyle", \{ style: t === "light" \? "LIGHT" : "DARK" \}\)/);
-  assert.match(ui, /if \(--themeUsers === 0\) document\.documentElement\.removeAttribute\("data-fit-theme"\)/, "leaving Fit on the website gives the page back");
+  assert.match(ui, /if \(--themeUsers === 0\) \{ const r = document\.documentElement; r\.removeAttribute\("data-fit-theme"\); r\.removeAttribute\("data-fit-palette"\); r\.removeAttribute\("data-fit-black"\)/, "leaving Fit on the website gives the page back");
   for (const app of ["fit", "trainer"]) {
     assert.equal(JSON.parse(read(`${app}/ios-app/package.json`)).dependencies["@capacitor/status-bar"], "8.0.0", app);
     const cfg = JSON.parse(read(`${app}/ios-app/capacitor.config.json`));

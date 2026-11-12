@@ -74,7 +74,7 @@ app.use((req, res, next) => {
 });
 
 // The Arise To Duo custom domain gets the educator marketing page at its root.
-// Keep the existing A.R.I.S.E. Reader homepage unchanged on its own hostname.
+// Keep the existing Arise Reader homepage unchanged on its own hostname.
 // The HTML is a self-contained public page; static assets and API routes are unaffected.
 app.get("/", (req, res, next) => {
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
@@ -85,7 +85,7 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
-// The A.R.I.S.E. Reader homepage. Visitors who aren't signed in (and search engines) get the real
+// The Arise Reader homepage. Visitors who aren't signed in (and search engines) get the real
 // landing page as the page itself — before, "/" was the app shell with the landing page inside a
 // frame, so search engines saw an almost empty homepage. Anyone with a sign-in cookie still gets
 // the app at "/" exactly as before; the landing page itself sends app links (/#/signin and the
@@ -95,9 +95,54 @@ app.get("/", (req, res, next) => {
   if (host !== "arisereader.com" && host !== "www.arisereader.com") return next();
   res.setHeader("Vary", "Cookie");
   if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  // A sign-in code from the iPhone app (?signin=…, opened in Safari by a plan button) goes straight to the
+  // app, which signs the person in. The landing page would flash first and then lose the code.
+  if (typeof req.query.signin === "string" && req.query.signin) return next();
   const page = process.env.NODE_ENV === "production"
     ? path.resolve(__dirname, "public", "reader-landing.html")
     : path.resolve(process.cwd(), "client", "public", "reader-landing.html");
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").sendFile(page);
+});
+
+// The Arise Notes homepage. arisetodo.com/notes/ shows the Notes landing page to visitors who aren't
+// signed in (and to search engines). Anyone with a sign-in cookie gets the app as before, and so does
+// /notes/?app (the landing page's Sign in buttons, the installed app and app links), so links into
+// the app keep working. Only the exact address /notes/ is matched: /notes without the slash still
+// goes to the static handler, which adds the slash.
+app.get("/notes/", (req, res, next) => {
+  if (!req.originalUrl.split("?")[0].endsWith("/notes/")) return next();
+  res.setHeader("Vary", "Cookie");
+  if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  if (req.query.app !== undefined || (typeof req.query.signin === "string" && req.query.signin)) return next();
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", "notes-landing.html")
+    : path.resolve(process.cwd(), "client", "public", "notes-landing.html");
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").sendFile(page);
+});
+
+// Cooked Fitness by Arise and Cooked PT homepages. Signed-out visitors (and search engines) get the
+// landing page; anyone already signed in goes straight into the app. /cooked and /cooked-pt without
+// the slash land on the page too.
+const COOKED_SITES: Record<string, { file: string; app: string }> = {
+  "/cooked/": { file: "cooked-landing.html", app: "/app#/fit" },
+  "/cooked-pt/": { file: "cooked-pt-landing.html", app: "/app#/trainer" },
+};
+app.get(["/cooked", "/cooked-pt"], (req, res, next) => {
+  const p = req.originalUrl.split("?")[0];
+  if (p !== "/cooked" && p !== "/cooked-pt") return next();
+  const q = req.originalUrl.indexOf("?");
+  res.redirect(301, p + "/" + (q >= 0 ? req.originalUrl.slice(q) : ""));
+});
+app.get(["/cooked/", "/cooked-pt/"], (req, res, next) => {
+  const site = COOKED_SITES[req.originalUrl.split("?")[0]];
+  if (!site) return next();
+  res.setHeader("Vary", "Cookie");
+  if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return res.redirect(302, site.app);
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", site.file)
+    : path.resolve(process.cwd(), "client", "public", site.file);
   res.setHeader("Cache-Control", "no-store");
   res.type("html").sendFile(page);
 });
@@ -123,7 +168,7 @@ app.get("/app", (req, res, next) => {
   res.type("html").sendFile(appIndex);
 });
 
-// The Eye Gazer home page lives at /eyegaze/. Its first address, /eye-gaze/, and /eyegaze without
+// The Arise AAC home page lives at /eyegaze/. Its first address, /eye-gaze/, and /eyegaze without
 // the slash land there too, so links already shared keep working. (Only these exact pages: the
 // app's /api/eye-gaze/... data routes are untouched.)
 // Matched on the exact address: Express treats "/eyegaze" and "/eyegaze/" as the same route,
@@ -152,6 +197,8 @@ declare module "http" {
 }
 
 app.use("/api/eye-gaze/talker-state", express.json({ limit: "2mb" }));
+// Wren documents: boards and settings, or one added picture (each under 260 KB).
+app.use("/api/eye-gaze/wren", express.json({ limit: "400kb" }));
 // Build Zone worlds can be a few hundred kilobytes once they're full of builds.
 app.use("/api/city/build", express.json({ limit: "600kb" }));
 
@@ -186,7 +233,7 @@ app.use(/^\/api\/para-teams\/[^/]+\/apps\/data$/, express.json({ limit: "3mb" })
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
 // Arise Office files and premium-app data: big workbooks and documents are saved here whole.
 app.use("/api/docs", express.json({ limit: "11mb" }));
-// Pod+ Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
+// Podster Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
 // meetings (raw audio, a few minutes at a time). Before the global JSON parser, for their size.
 app.use(/^\/api\/(podscroll|earshot)\/studio\/read$/, express.json({ limit: "14mb" }));
 app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: "*/*", limit: "26mb" }));
@@ -206,10 +253,16 @@ app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
-// Arise Fit: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),
+// Cooked: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),
 // and the whole Fit diary, which passes 100 KB after a few months of food, workouts and runs.
 app.use("/api/fit/identify", express.json({ limit: "8mb" }));
 app.use("/api/fit/data", express.json({ limit: "5mb" }));
+// Trainer websites carry up to 8 photos (each under 400 KB, shared/coachSite.ts).
+app.use("/api/coach/trainer/site", express.json({ limit: "4mb" }));
+// Group posts can carry a photo (under 300 KB, shared/coachGroups.ts).
+app.use("/api/coach/groups", express.json({ limit: "1mb" }));
+// Importing a client list or workout spreadsheet (CSV, shared/coachImport.ts).
+app.use("/api/coach/trainer/import", express.json({ limit: "3mb" }));
 // Apple Health apps can send a couple of months of readings in one post.
 app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
@@ -217,6 +270,8 @@ app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
 // Arise Math "Snap a problem": a photo or screenshot of one math problem (shrunk on the device first).
 app.use("/api/math/photo-help", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "8mb" }));
+// Arise Math "Test Prep": up to 6 photos of practice sheets in one request (each shrunk on the device first).
+app.use(/^\/api\/math\/prep$/, (req, res, next) => { if (req.method !== "POST") return next(); authMiddleware(req, res, next).catch(next); }, express.json({ limit: "26mb" }));
 
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
 // its last events with sendBeacon (plain text) while it is closing.

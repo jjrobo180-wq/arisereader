@@ -1,4 +1,4 @@
-// Countdowns (a Plugin Store add-on): days until birthdays, trips, holidays and anything else.
+// Countdowns (a Plugin Gallery add-on): days until birthdays, trips, holidays and anything else.
 import { useState, type FormEvent } from "react";
 import { Hourglass, Trash2 } from "lucide-react";
 import { daysUntil } from "@shared/lifePlugins";

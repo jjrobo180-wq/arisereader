@@ -19,6 +19,7 @@ import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from ".
 import { localDay } from "./HubImport";
 import { FIT_WORDS, cleanWeekly, fitOption, type Fit, type FreeWindow } from "@shared/availability";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
+import { lockPageScroll } from "@/lib/scrollLock";
 
 type PollView = {
   id: string; title: string; location: string; message: string; hubMeetingId: string; senderName: string; sendVia: "site" | "mailbox" | "self"; sendText: boolean; status: "open" | "booked"; chosenOption: string | null; best: string | null;
@@ -191,9 +192,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
     if (embedded) return;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", key);
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
+    const unlock = lockPageScroll();
+    return () => { window.removeEventListener("keydown", key); unlock(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const draftKey = initial.meetingId || "new";
   const saved = DRAFTS.get(draftKey);
@@ -282,7 +282,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
       // Remember the choice for next time.
       setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo },
         guides: meeting ? prev.guides.map((g) => (g.student === meeting.student ? rememberParents(g, guests) : g)) : prev.guides }));
-      const fell = data.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader instead. Reconnect your email in the box above." : "";
+      const fell = data.mailboxProblem ? " Your connected email could not send, so these went out from Arise Reader instead. Reconnect your email in the box above." : "";
       if (via === "self") return onSent("Your poll is ready. Send each person their link from the window that just opened, or later with “Send links” on the poll.", data.poll);
       onSent((data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`) + fell);
     } catch (e: any) { setError(e?.message || "Could not send."); }
@@ -386,7 +386,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             why="One click sends everyone their message from your real address. It shows in your Sent folder and replies land in your inbox, so people trust it."
             keep={mailboxReady ? "Uses your own email account, so your provider's daily sending limit applies." : "Connect your email in the box above first."} />
           <Way id="site" checked={via === "site"} onPick={() => { setSendVia("site"); setPickedVia(true); }}
-            title="Send from A.R.I.S.E. Reader"
+            title="Send from Arise Reader"
             why="Fastest: one click, nothing to set up, and the site sends reminders for you."
             keep="People may not recognize the sender, and it can land in junk, so let them know to watch for it. Your name shows on it and replies go to the address you choose." />
         </div>
@@ -450,7 +450,7 @@ function PollCard({ poll, token, senderName, contacts, onBooked, onChanged, setN
   }
   const remind = () => run(async () => {
     const r = await call(token, "POST", `/api/teacher-hub/polls/${poll.id}/remind`);
-    setNotice(`Reminder sent to ${r.sent} ${r.sent === 1 ? "person" : "people"}${r.failed ? `; ${r.failed} did not go through` : ""}.${r.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader. Reconnect it above." : ""}`);
+    setNotice(`Reminder sent to ${r.sent} ${r.sent === 1 ? "person" : "people"}${r.failed ? `; ${r.failed} did not go through` : ""}.${r.mailboxProblem ? " Your connected email could not send, so these went out from Arise Reader. Reconnect it above." : ""}`);
   });
   const choose = (option: PollView["options"][number]) => run(async () => {
     const r = await call(token, "POST", `/api/teacher-hub/polls/${poll.id}/choose`, { optionId: option.id, notify });
@@ -658,7 +658,7 @@ function MailboxRow({ token, box, onChanged, setNotice }: { token: string | null
     } catch (e: any) { setNotice(e?.message || "Could not start connecting."); setBusy(false); }
   }
   async function disconnect() {
-    if (!window.confirm("Disconnect your email? Polls you already sent keep working, and new ones will come from A.R.I.S.E. Reader.")) return;
+    if (!window.confirm("Disconnect your email? Polls you already sent keep working, and new ones will come from Arise Reader.")) return;
     setBusy(true);
     try { await call(token, "POST", "/api/teacher-hub/mailbox/disconnect", {}); onChanged(); setNotice("Your email was disconnected."); }
     catch (e: any) { setNotice(e?.message || "Could not disconnect."); }
@@ -682,7 +682,7 @@ function MailboxRow({ token, box, onChanged, setNotice }: { token: string | null
       ) : connected ? (
         <div className="space-y-2">
           <div className="font-semibold text-amber-700">Your email ({connected.email}) needs to be connected again.</div>
-          <p className="text-xs text-slate-500">Until then, poll emails go out from A.R.I.S.E. Reader.</p>
+          <p className="text-xs text-slate-500">Until then, poll emails go out from Arise Reader.</p>
           {buttons}
         </div>
       ) : anyAvailable ? (
@@ -691,7 +691,7 @@ function MailboxRow({ token, box, onChanged, setNotice }: { token: string | null
           {buttons}
         </div>
       ) : (
-        <div className="text-slate-500">Sending from your own email isn't set up on the site yet. Poll emails come from A.R.I.S.E. Reader, with replies going to the address you choose.</div>
+        <div className="text-slate-500">Sending from your own email isn't set up on the site yet. Poll emails come from Arise Reader, with replies going to the address you choose.</div>
       )}
     </div>
   );

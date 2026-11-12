@@ -5,7 +5,7 @@ export function generateCertificate(studentName: string, bookTitle: string, poin
     <!DOCTYPE html>
     <html>
     <head>
-      <title>A.R.I.S.E Reader Certificate</title>
+      <title>Arise Reader Certificate</title>
       <style>
         @page { size: landscape; margin: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }

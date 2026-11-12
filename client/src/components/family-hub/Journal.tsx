@@ -1,4 +1,4 @@
-// Journal (a Plugin Store add-on): a daily journal with a prompt for each day. Saved to the account.
+// Journal (a Plugin Gallery add-on): a daily journal with a prompt for each day. Saved to the account.
 import { useMemo, useState } from "react";
 import { NotebookPen, Pencil, Search, Trash2 } from "lucide-react";
 import { JOURNAL_MOODS, JOURNAL_PROMPTS, forDay } from "@shared/lifePlugins";

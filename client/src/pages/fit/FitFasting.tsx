@@ -1,4 +1,4 @@
-// Arise Fit intermittent fasting: pick a protocol, start and end fasts, a live ring with the stage the
+// Cooked intermittent fasting: pick a protocol, start and end fasts, a live ring with the stage the
 // body is in, and a history with your streak. Kept in FitData.fasting (shared/fitNutrition.ts).
 import { useEffect, useState } from "react";
 import { Flame, Square, Timer } from "lucide-react";
@@ -83,7 +83,7 @@ export function FastingSheet({ data, update, onClose, inline }: { data: FitData;
     </div>
     <Title>Protocol</Title>
     <div className="grid grid-cols-2 gap-2">{FASTING_PROTOCOLS.map((p) => <button key={p.id} type="button" onClick={() => update((d) => ({ ...d, fasting: { ...(d.fasting ?? emptyFasting()), protocol: p.id } }))} aria-pressed={f.protocol === p.id}
-      className="rounded-[10px] p-3 text-left" style={f.protocol === p.id ? { background: "linear-gradient(180deg, rgba(255,90,31,.25), rgba(255,90,31,.08))", boxShadow: "inset 0 0 0 1px #ff5a1f" } : { background: C.card }} data-testid={`fit-fast-${p.id}`}>
+      className="rounded-[10px] p-3 text-left" style={f.protocol === p.id ? { background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.25), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : { background: C.card }} data-testid={`fit-fast-${p.id}`}>
       <span className="block text-[20px] leading-none" style={display}>{p.name}</span><span className="mt-1 block text-[12px] leading-snug" style={{ color: C.dim }}>{p.blurb}</span></button>)}</div>
     {f.log.length > 0 && <><Title>History</Title><div className="space-y-2">{f.log.slice(-14).reverse().map((x) => {
       const ms = Date.parse(x.end) - Date.parse(x.start); const hit = ms >= x.goalH * 3_600_000;

@@ -1,5 +1,5 @@
 name: App Store screens
-# Phone-size screenshots of Arise To Duo and Pod+ to check layouts, buttons and colors before a release.
+# Phone-size screenshots of Arise To Duo and Podster to check layouts, buttons and colors before a release.
 # Run it from the Actions tab (Run workflow); the pictures are in the run's "app-store-screens" artifact.
 on:
   workflow_dispatch:
@@ -7,6 +7,9 @@ on:
     paths:
       - '.github/workflows/app-store-screens.yml'
       - 'script/appStoreScreens.mjs'
+      - 'script/notesLooksPreview.*'
+      - 'script/notesPagesPreview.*'
+      - 'client/src/components/arise-notes/pages/**'
 permissions:
   contents: write
 jobs:
@@ -20,10 +23,21 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build Arise and Pod+
+      - name: Build Arise and Podster
         run: |
           npx vite build
           npx vite build --config podscroll/vite.config.ts
+      - name: Build the Arise Notes looks preview (Notes needs an account, so its looks are drawn here)
+        run: |
+          mkdir -p dist/public/notes-looks
+          npx esbuild script/notesLooksPreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --alias:@=./client/src --alias:@shared=./shared --outfile=dist/public/notes-looks/main.js
+          # The app's own stylesheet (its utility classes) goes in too, as in the app.
+          CSS=$( (grep -o 'href="[^"]*\.css"' dist/public/index.html | sed 's/^href=//; s/"//g'; ls -S dist/public/assets/*.css | head -1 | sed 's#^dist/public##') | sort -u | sed 's#.*#<link rel=\"stylesheet\" href=\"&\">#' | tr -d '\n')
+          echo "Stylesheets: $CSS"
+          sed "s#<link rel=\"stylesheet\" href=\"./main.css\">#$CSS<link rel=\"stylesheet\" href=\"./main.css\">#" script/notesLooksPreview.html > dist/public/notes-looks/index.html
+          mkdir -p dist/public/notes-pages
+          npx esbuild script/notesPagesPreview.tsx --bundle --format=esm --jsx=automatic --loader:.css=css --define:process.env.NODE_ENV='"production"' --alias:@=./client/src --alias:@shared=./shared --outfile=dist/public/notes-pages/main.js
+          cp dist/public/notes-looks/index.html dist/public/notes-pages/index.html
       - name: Install a browser
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.1

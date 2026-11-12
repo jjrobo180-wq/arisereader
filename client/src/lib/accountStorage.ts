@@ -1,5 +1,5 @@
 // Each account keeps its own things on this device. Almost everything the apps remember on the phone
-// (settings, layouts, Pod+ progress, Study Pods, reminders switches, drafts) is kept in the browser's
+// (settings, layouts, Podster progress, Study Pods, reminders switches, drafts) is kept in the browser's
 // storage (localStorage). Without this, signing into a second account on the same phone showed the
 // first account's things. Now every key is kept under the signed-in account ("u:<account>:<key>"),
 // except the few that belong to the device itself (the saved sign-in, which account is signed in).
@@ -12,7 +12,7 @@ type Options = { accountKey: string; deviceWide: (key: string) => boolean };
 type Raw = { get: (k: string) => string | null; set: (k: string, v: string) => void; remove: (k: string) => void; keys: () => string[] };
 
 const PREFIX = "u:";
-let state: { who: string; opts: Options; raw: Raw } | null = null;
+let state: { who: string; opts: Options; raw: Raw; signedInThisLoad: boolean } | null = null;
 
 /** Wraps localStorage so each account's keys are kept apart. Call once, first thing. */
 export function installAccountStorage(opts: Options): void {
@@ -28,7 +28,8 @@ export function installAccountStorage(opts: Options): void {
     keys: () => { const out: string[] = []; for (let i = 0; i < store.length; i++) { const k = key.call(store, i); if (k != null) out.push(k); } return out; },
   };
   const deviceWide = (k: string) => k === opts.accountKey || k.startsWith(PREFIX) || opts.deviceWide(k);
-  state = { who: raw.get(opts.accountKey) || "", opts: { ...opts, deviceWide }, raw };
+  const who = raw.get(opts.accountKey) || "";
+  state = { who, opts: { ...opts, deviceWide }, raw, signedInThisLoad: !!who };
   const ns = (k: string) => (state && state.who && !deviceWide(k) ? `${PREFIX}${state.who}:${k}` : k);
   proto.getItem = function (this: Storage, k: string) { return this === store ? get.call(this, ns(String(k))) : get.call(this, k); };
   proto.setItem = function (this: Storage, k: string, v: string) { return this === store ? set.call(this, ns(String(k)), v) : set.call(this, k, v); };
@@ -62,5 +63,16 @@ export function setAccount(id: string | number | null | undefined): void {
   const was = state.who;
   state.who = next;
   // Signing out just stops using that account's things; signing in (as anyone) starts the page fresh.
-  if (next && typeof window !== "undefined") { if (was !== next) window.location.reload(); }
+  if (next && typeof window !== "undefined") {
+    // A page that was signed out the whole time has nothing from another account in memory, so signing in
+    // (a new account, or the sign-in Safari gets from the app) just carries on: no reload, no blank flash.
+    const fresh = !was && !state.signedInThisLoad;
+    state.signedInThisLoad = true;
+    if (was !== next && !fresh) {
+      // A different account is a fresh start: nothing from the last one's open screens, chats or tours
+      // (kept in sessionStorage, which outlives the reload) carries over. Sample-mode keys stay.
+      if (was) { try { for (const k of Object.keys(sessionStorage)) if (!/^(arise_sample|sample)/i.test(k)) sessionStorage.removeItem(k); } catch { /* fine */ } }
+      window.location.reload();
+    }
+  }
 }

@@ -42,8 +42,8 @@ export function ShowPage({ show, load, hideTeasers = true, following, onFollow, 
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] text-white [scrollbar-width:none]" role="dialog" aria-label={full.name}>
     <div className="relative">
       <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-[20%] bg-cover bg-center opacity-30 blur-3xl" style={{ backgroundImage: `url("${art}")` }} /><div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0e0d10]" /></div>
-      <div className="relative flex flex-col items-center px-5 pb-6 pt-[calc(env(safe-area-inset-top,0px)+4rem)] text-center">
-        <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] grid h-10 w-10 place-items-center rounded-full text-white/80 hover:bg-white/10"><ChevronLeft size={22} /></button>
+      <div className="relative flex flex-col items-center px-5 pb-6 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+4rem)] text-center">
+        <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)] grid h-10 w-10 place-items-center rounded-full text-white/80 hover:bg-white/10"><ChevronLeft size={22} /></button>
         <img src={art} alt={`${full.name} cover art`} referrerPolicy="no-referrer" className="aspect-square w-[min(72vw,320px)] rounded-2xl object-cover shadow-[0_24px_50px_-20px_rgba(0,0,0,.9)]" />
         <h2 className="mt-6 text-[22px] font-semibold leading-tight tracking-tight">{full.name}</h2>
         <p className="mt-1 text-sm text-white/45">{[full.author, eps?.length ? `${eps.length} episodes` : ""].filter(Boolean).join(" · ")}</p>
@@ -106,7 +106,7 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
     onClick={() => { if (dl?.status === "saved" || dl?.status === "saving") void offline.remove(episodeKey(ep.id)).then(() => say(dl.status === "saved" ? "Download removed." : "Download stopped.")); else void offline.saveEpisode(toSaved(ep)); }}
     icon={dl?.status === "saving" ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} strokeWidth={1.8} />}
     title={dl?.status === "saved" ? "Downloaded" : dl?.status === "saving" ? `Downloading… ${Math.round(dl.pct * 100)}%` : "Download"}
-    sub={dl?.status === "saved" ? "Plays without a connection · tap to remove" : dl?.status === "saving" ? "Tap to stop" : dl?.status === "error" ? dl.error || "Try again" : "Pod+ Membership · listen offline"} /> : null;
+    sub={dl?.status === "saved" ? "Plays without a connection · tap to remove" : dl?.status === "saving" ? "Tap to stop" : dl?.status === "error" ? dl.error || "Try again" : "Podster Membership · listen offline"} /> : null;
   const inMode = (m: PodMode) => m.episodes.some((x) => x.id === ep.id);
   const toggle = (id: string) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id !== id ? m : inMode(m) ? { ...m, episodes: m.episodes.filter((x) => x.id !== ep.id) } : { ...m, episodes: [toSaved(ep), ...m.episodes].slice(0, 150) })) }));
   const allIn = es.modes.every(inMode);
@@ -185,8 +185,8 @@ export function ModeView({ mode, update, onPlay, onClose }: { mode: PodMode; upd
   const del = () => { update((e) => ({ ...e, modes: e.modes.filter((m) => m.id !== mode.id) })); onClose(); };
   const th = hubTheme(mode); const ink = inkOn(th.bg); const font = HUB_FONTS[th.font];
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] [scrollbar-width:none]" role="dialog" aria-label={mode.name}>
-    <div className="relative px-5 pb-6 pt-[calc(env(safe-area-inset-top,0px)+4rem)]" style={{ background: th.bg, color: ink }}>
-      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] grid h-10 w-10 place-items-center rounded-full opacity-80 hover:opacity-100"><ChevronLeft size={22} /></button>
+    <div className="relative px-5 pb-6 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+4rem)]" style={{ background: th.bg, color: ink }}>
+      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)] grid h-10 w-10 place-items-center rounded-full opacity-80 hover:opacity-100"><ChevronLeft size={22} /></button>
       <span className="grid h-12 w-12 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={mode} size={22} /></span>
       <h2 className="mt-4 text-[32px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{mode.name}</h2>
       <p className="mt-1 text-sm opacity-60">{mode.episodes.length} episode{mode.episodes.length === 1 ? "" : "s"}{total ? ` · ${durationWords(total)}` : ""}</p>

@@ -81,7 +81,7 @@ export type LifePlan = {
 export const PLAN_LIMITS = { vision: 600, summary: 1800, pillars: 6, reminders: 40, title: 80, why: 320, log: 1200, busy: 20 } as const;
 export const SNOOZE_CHOICES = [{ minutes: 10, label: "10 min" }, { minutes: 30, label: "30 min" }, { minutes: 60, label: "1 hour" }, { minutes: 180, label: "3 hours" }] as const;
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trimStart().replace(/ {2,}$/, "").slice(0, max) : "");
 const isDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 export const toMinutes = (hm: string): number | null => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ""); if (!m) return null; const h = Number(m[1]), mm = Number(m[2]); return h < 24 && mm < 60 ? h * 60 + mm : null; };
 export const fromMinutes = (n: number): string => { const v = ((Math.round(n) % 1440) + 1440) % 1440; return `${String(Math.floor(v / 60)).padStart(2, "0")}:${String(v % 60).padStart(2, "0")}`; };
@@ -216,6 +216,24 @@ export const PLAN_FOCUSES = [
   { id: "read", label: "Read more", emoji: "📚" },
   { id: "career", label: "Grow at work", emoji: "🎯" },
   { id: "water", label: "Drink more water", emoji: "💧" },
+  { id: "mornings", label: "Better mornings", emoji: "🌅" },
+  { id: "screens", label: "Less phone time", emoji: "📵" },
+  { id: "gratitude", label: "Be more grateful", emoji: "🙌" },
+  { id: "journal", label: "Journal", emoji: "📔" },
+  { id: "meds", label: "Never miss medications", emoji: "💊" },
+  { id: "stretch", label: "Stretch & ease pain", emoji: "🤸" },
+  { id: "outside", label: "Get outside more", emoji: "🌳" },
+  { id: "cook", label: "Cook at home more", emoji: "🍳" },
+  { id: "friends", label: "See friends more", emoji: "🫂" },
+  { id: "partner", label: "Closer relationship", emoji: "💑" },
+  { id: "kids", label: "Quality time with kids", emoji: "🧸" },
+  { id: "learn", label: "Learn a new skill", emoji: "💡" },
+  { id: "create", label: "Make something creative", emoji: "🎨" },
+  { id: "drinkless", label: "Drink less alcohol", emoji: "🚫" },
+  { id: "home", label: "A cleaner home", emoji: "🧽" },
+  { id: "selfcare", label: "Take care of me", emoji: "🛁" },
+  { id: "goals", label: "Hit a big goal", emoji: "🏆" },
+  { id: "giveback", label: "Help others", emoji: "🤝" },
 ] as const;
 export type PlanFocus = (typeof PLAN_FOCUSES)[number]["id"];
 const FOCUS_IDS = PLAN_FOCUSES.map((f) => f.id) as string[];
@@ -226,7 +244,7 @@ export function cleanPlanRequest(raw: unknown): PlanRequest {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const focuses = (Array.isArray(r.focuses) ? r.focuses : []).filter((f): f is PlanFocus => typeof f === "string" && FOCUS_IDS.includes(f));
   const workDays = Array.isArray(r.workDays) ? days(r.workDays) : [1, 2, 3, 4, 5];
-  return { vision: str(r.vision, PLAN_LIMITS.vision), focuses: [...new Set(focuses)].slice(0, 8), wake: clock(r.wake, "07:00"), bed: clock(r.bed, "22:30"), workDays: Array.isArray(r.workDays) && r.workDays.length === 0 ? [] : workDays, busy: cleanBusy(r.busy) };
+  return { vision: str(r.vision, PLAN_LIMITS.vision), focuses: [...new Set(focuses)].slice(0, 12), wake: clock(r.wake, "07:00"), bed: clock(r.bed, "22:30"), workDays: Array.isArray(r.workDays) && r.workDays.length === 0 ? [] : workDays, busy: cleanBusy(r.busy) };
 }
 
 // ─── The built-in planner (used when the AI isn't available) ──────────────────
@@ -288,6 +306,75 @@ const SEEDS: Record<PlanFocus, { pillar: string; why: string; area: PlanArea; se
     { title: "Glass of water", emoji: "💧", at: (w) => w + 5, area: "food", opens: "health", why: "Your body goes all night without water; a glass first thing is an easy win." },
     { title: "Water break", emoji: "💧", at: () => 10 * 60 + 30, area: "food", opens: "health", why: "Spacing water through the day is easier than catching up at night." },
     { title: "Water break", emoji: "💧", at: () => 15 * 60, area: "food", opens: "health", why: "Mid-afternoon tiredness is often thirst; a drink can help more than a snack." },
+  ] },
+  mornings: { pillar: "Own your mornings", area: "mind", why: "A short, repeatable morning routine cuts the number of decisions you make before the day starts.", seeds: [
+    { title: "Morning routine", emoji: "🌅", at: (w) => w + 10, area: "mind", opens: "routines", why: "Doing the same few steps in the same order turns them automatic within weeks." },
+    { title: "Make your bed", emoji: "🛏️", at: (w) => w + 5, area: "home", why: "A tiny finished task first thing gives a sense of progress that carries into the day." },
+  ] },
+  screens: { pillar: "Take your time back from your phone", area: "mind", why: "Heavy phone use is linked to worse sleep and mood; putting it out of reach is the simplest fix.", seeds: [
+    { title: "Phone in another room for an hour", emoji: "📵", at: () => 19 * 60, area: "mind", why: "Just having your phone in sight pulls at your attention; distance works better than willpower." },
+    { title: "No phone for the first 30 minutes", emoji: "⏰", at: (w) => w, area: "mind", why: "Starting the day on your own plan, not your notifications, lowers stress." },
+  ] },
+  gratitude: { pillar: "Notice what's good", area: "mind", why: "Writing down a few things you're grateful for is linked in studies to better mood and sleep.", seeds: [
+    { title: "Three good things", emoji: "🙌", at: (_w, b) => b - 25, area: "mind", opens: "gratitude", why: "Naming three good things each night trains attention toward the positive, with effects that build over weeks." },
+    { title: "Thank someone", emoji: "💌", at: () => 12 * 60, days: [3], area: "family", why: "Expressing thanks to someone lifts both their mood and yours." },
+  ] },
+  journal: { pillar: "Write it out", area: "mind", why: "Writing about your thoughts helps sort them and is linked to lower stress.", seeds: [
+    { title: "Journal for 5 minutes", emoji: "📔", at: (_w, b) => b - 40, area: "mind", opens: "journal", why: "A few minutes of writing gets worries out of your head and onto paper, which can make sleep easier." },
+  ] },
+  meds: { pillar: "Take medications on time", area: "body", why: "Tying medication to a daily cue is one of the best ways not to miss doses.", seeds: [
+    { title: "Morning medications", emoji: "💊", at: (w) => w + 15, area: "body", opens: "pills", why: "Taking them with breakfast every day makes it a habit you don't have to think about." },
+    { title: "Evening medications", emoji: "💊", at: (_w, b) => b - 30, area: "body", opens: "pills", why: "Pairing evening doses with your bedtime routine keeps them from being forgotten." },
+    { title: "Refill check", emoji: "📦", at: () => 10 * 60, days: [6], area: "body", opens: "pills", why: "A weekly check prevents running out on a weekend when pharmacies are closed." },
+  ] },
+  stretch: { pillar: "Move freely, hurt less", area: "body", why: "Regular gentle stretching and breaks from sitting can ease stiffness and back pain.", seeds: [
+    { title: "5-minute stretch", emoji: "🤸", at: (w) => w + 25, area: "body", opens: "workouts", why: "Gentle morning movement loosens stiff muscles and joints after a night still." },
+    { title: "Stand up and stretch", emoji: "🧍", at: () => 15 * 60 + 30, days: "work", area: "body", why: "Breaking up long sitting is linked to less back pain and better energy." },
+  ] },
+  outside: { pillar: "Get outside", area: "body", why: "Time in nature is linked to lower stress and better mood; about two hours a week makes a difference in studies.", seeds: [
+    { title: "Step outside for 15 minutes", emoji: "🌳", at: () => 12 * 60 + 15, area: "body", why: "Daylight and fresh air at midday lift energy and help your body clock." },
+    { title: "Weekend time outdoors", emoji: "🥾", at: (w) => w + 150, days: WEEKEND, area: "body", why: "A longer outdoor stretch each week is where the mood benefits in studies show up." },
+  ] },
+  cook: { pillar: "Cook more at home", area: "food", why: "People who cook at home more often tend to eat healthier and spend less.", seeds: [
+    { title: "Pick tonight's dinner", emoji: "🍳", at: () => 15 * 60, area: "food", opens: "recipes", why: "Deciding before you're hungry makes cooking far more likely than takeout." },
+    { title: "Grocery list for the week", emoji: "🛒", at: () => 11 * 60, days: [6], area: "food", opens: "grocery", why: "One planned shop means the ingredients are there on busy nights." },
+  ] },
+  friends: { pillar: "Keep your people close", area: "family", why: "Strong friendships are linked to longer, healthier lives; they need regular small contact.", seeds: [
+    { title: "Message a friend", emoji: "🫂", at: () => 12 * 60 + 30, days: [2, 5], area: "family", why: "A quick message keeps friendships warm between visits." },
+    { title: "Plan time with friends", emoji: "📅", at: () => 18 * 60, days: [4], area: "family", opens: "calendar", why: "Putting plans on the calendar is what turns 'we should hang out' into actually seeing people." },
+  ] },
+  partner: { pillar: "Stay close to your partner", area: "family", why: "Small, regular moments of attention are what keep relationships strong.", seeds: [
+    { title: "Ask about their day (really listen)", emoji: "💑", at: () => 19 * 60 + 45, area: "family", why: "Turning toward each other in small daily moments predicts lasting relationships in research." },
+    { title: "Date night", emoji: "🌹", at: () => 19 * 60, days: [5], area: "family", opens: "calendar", why: "Regular one-on-one time keeps a relationship from running only on logistics." },
+  ] },
+  kids: { pillar: "Quality time with your kids", area: "family", why: "Short daily one-on-one time with a child is linked to better behavior and closeness.", seeds: [
+    { title: "10 minutes of one-on-one play", emoji: "🧸", at: () => 18 * 60 + 45, area: "family", why: "Child-led play, even briefly, builds connection and cooperation." },
+    { title: "Read together", emoji: "📖", at: (_w, b) => Math.min(b - 90, 20 * 60), area: "family", opens: "reading", why: "Reading aloud together builds language skills and is a calm way to end the day." },
+  ] },
+  learn: { pillar: "Learn something new", area: "learning", why: "Short practice spread over days beats long cramming for learning any skill.", seeds: [
+    { title: "Practice your new skill (15 min)", emoji: "💡", at: () => 19 * 60 + 30, days: [1, 3, 5], area: "learning", opens: "goals", why: "Spaced practice is one of the most reliable findings in learning research." },
+  ] },
+  create: { pillar: "Make something", area: "learning", why: "Creative hobbies are linked to better mood and less stress.", seeds: [
+    { title: "Creative time", emoji: "🎨", at: () => 19 * 60 + 30, days: [2, 6], area: "learning", why: "Regular creative time, without needing to be good at it, lifts mood for the days that follow." },
+  ] },
+  drinkless: { pillar: "Drink less", area: "body", why: "Cutting back on alcohol improves sleep, mood and health, and planning ahead is what works.", seeds: [
+    { title: "Plan alcohol-free days", emoji: "🚫", at: () => 17 * 60, days: [1], area: "body", opens: "habits", why: "Deciding your drink-free days in advance is more effective than deciding in the moment." },
+    { title: "Track drinks", emoji: "📝", at: () => 21 * 60 + 30, days: [5, 6], area: "body", opens: "habits", why: "Counting drinks makes it easier to stay within the limit you chose." },
+  ] },
+  home: { pillar: "A home that feels calm", area: "home", why: "A tidy home is linked to lower stress; little and often beats big cleaning days.", seeds: [
+    { title: "15-minute reset", emoji: "🧽", at: () => 19 * 60, area: "home", opens: "cleaning", why: "A short daily reset keeps clutter from building up." },
+    { title: "Chores check", emoji: "✅", at: () => 10 * 60, days: [6], area: "home", opens: "chores", why: "Sharing a weekly chore list spreads the work fairly across the family." },
+  ] },
+  selfcare: { pillar: "Take care of you", area: "mind", why: "Rest and small pleasures aren't selfish; they're what keep you able to care for others.", seeds: [
+    { title: "Something just for you", emoji: "🛁", at: () => 20 * 60 + 30, days: [3, 0], area: "mind", why: "Scheduled downtime protects against burnout better than waiting until you're exhausted." },
+    { title: "Check in with yourself", emoji: "💭", at: () => 13 * 60, area: "mind", opens: "mood", why: "Noticing how you feel early lets you adjust the day before stress builds." },
+  ] },
+  goals: { pillar: "Make progress on what matters", area: "work", why: "Breaking a big goal into weekly steps and reviewing them makes it far more likely to happen.", seeds: [
+    { title: "One step toward your goal", emoji: "🏆", at: () => 18 * 60 + 30, days: [1, 3, 5], area: "work", opens: "goals", why: "Specific, scheduled steps beat good intentions." },
+    { title: "Weekly goal review", emoji: "📈", at: () => 19 * 60 + 30, days: [0], area: "work", opens: "goals", why: "Checking progress weekly keeps goals from quietly fading." },
+  ] },
+  giveback: { pillar: "Help others", area: "family", why: "Helping others is linked to better well-being for the helper too.", seeds: [
+    { title: "One kind act", emoji: "🤝", at: () => 11 * 60, days: [2, 6], area: "family", why: "Small acts of kindness reliably lift your own mood as well as theirs." },
   ] },
 };
 

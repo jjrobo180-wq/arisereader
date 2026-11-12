@@ -1,4 +1,4 @@
-// Each Eye Gazer game on its own, for the iPad (WebKit, touch) check: ?g=match|pop|sentence|fidget|farm|runner|ninja|splash
+// Each Arise AAC game on its own, for the iPad (WebKit, touch) check: ?g=match|pop|sentence|fidget|farm|runner|ninja|splash
 import "../../client/src/index.css";
 import { createRoot } from "react-dom/client";
 import MatchPairsGame from "@/pages/eye-gaze/MatchPairsGame";
@@ -13,9 +13,16 @@ import EyeGazeTalker from "@/pages/EyeGazeTalker";
 import EyeGazeFlashcards from "@/pages/EyeGazeFlashcards";
 import EyeGazeLessons from "@/pages/EyeGazeLessons";
 import EyeGazeHome from "@/pages/EyeGazeHome";
+import EyeGazeSiteShell from "@/components/EyeGazeSiteShell";
+import { Router } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 const G: Record<string, any> = { match: MatchPairsGame, pop: WordPopGame, sentence: SentenceTrainGame, fidget: FidgetLabGame, farm: FarmWorldGame, runner: ReadingRunnerPro, ninja: ReadingNinja, splash: AnimalSplashGame, talker: EyeGazeTalker, flashcards: EyeGazeFlashcards, lessons: EyeGazeLessons, home: EyeGazeHome };
 const id = new URLSearchParams(location.search).get("g") || "match";
 const C = G[id];
-createRoot(document.getElementById("root")!).render(<QueryClientProvider client={queryClient}><C onBack={() => { (window as any).__back = true; }} /></QueryClientProvider>);
+// ?g=app: the Arise AAC app as a child sees it (its frame, tabs and Home).
+if (id === "app") { if (!location.hash) location.hash = "#/eye-gaze-home"; }
+createRoot(document.getElementById("root")!).render(<QueryClientProvider client={queryClient}>{id === "app"
+  ? <Router hook={useHashLocation}><EyeGazeSiteShell><EyeGazeHome /></EyeGazeSiteShell></Router>
+  : <C onBack={() => { (window as any).__back = true; }} />}</QueryClientProvider>);

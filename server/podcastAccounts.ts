@@ -1,4 +1,4 @@
-// Pod+ creator sign-in: an email and a 6-digit code. Listening never needs it; publishing episodes,
+// Podster creator sign-in: an email and a 6-digit code. Listening never needs it; publishing episodes,
 // Studio and going live do. An account remembers the device id its profile was made on, so signing
 // in on another phone brings the same profile, posts and followers (server/earshot.ts swaps the
 // device for the account's on every request that carries the session).
@@ -49,8 +49,8 @@ export function accountSessions(getDb: () => any) {
 }
 
 const codeEmail = (code: string) => `
-  <h1 style="margin:0 0 8px;font-size:22px">Your Pod+ sign-in code</h1>
-  <p style="margin:0 0 18px;color:#555">Type this code in Pod+ to sign in. It works for ${CODE_MINUTES} minutes.</p>
+  <h1 style="margin:0 0 8px;font-size:22px">Your Podster sign-in code</h1>
+  <p style="margin:0 0 18px;color:#555">Type this code in Podster to sign in. It works for ${CODE_MINUTES} minutes.</p>
   <p style="margin:0 0 18px;font-size:34px;font-weight:800;letter-spacing:8px">${code}</p>
   <p style="margin:0;color:#888;font-size:13px">If you didn't ask for this, you can ignore this email. Nobody can sign in without the code.</p>`;
 
@@ -91,7 +91,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
         tries: 0, sent_day: today, sent_today: sentToday + 1, sent_at: new Date().toISOString(),
       }, { onConflict: "email" });
       if (e2) throw e2;
-      const sent = await o.sendEmail(email, `${code} is your Pod+ code`, codeEmail(code));
+      const sent = await o.sendEmail(email, `${code} is your Podster code`, codeEmail(code));
       if (!sent.sent) {
         await db().from("podcast_account_codes").delete().eq("email", email);
         return res.status(503).json({ message: "We couldn't send the email just now. Try again in a few minutes." });
@@ -163,7 +163,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** Sign in with Apple (the Pod+ iPhone app). The identity token is checked against Apple's keys
+  /** Sign in with Apple (the Podster iPhone app). The identity token is checked against Apple's keys
    *  (server/appleSignIn.ts); the account is the one with that email (Apple's own or its private relay
    *  address), made now if it's new, keeping this phone's profile like an email-code sign-in does. */
   const apples = createAttemptLimiter({ max: 30, windowMs: 15 * 60_000 });
@@ -172,7 +172,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     try {
       const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [PODPLUS_APP]);
       const email = cleanEmail(claims.email);
-      if (!email) return res.status(400).json({ message: "Apple didn't share an email. In Settings → Apple ID → Sign in with Apple, remove Pod+ and try again." });
+      if (!email) return res.status(400).json({ message: "Apple didn't share an email. In Settings → Apple ID → Sign in with Apple, remove Podster and try again." });
       let { data: acct, error } = await db().from("podcast_accounts").select("id,email,device").eq("email", email).maybeSingle();
       if (error) throw error;
       if (!acct) {
@@ -194,7 +194,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** Delete my Pod+ account and everything made with it (App Store Guideline 5.1.1(v)). Works signed
+  /** Delete my Podster account and everything made with it (App Store Guideline 5.1.1(v)). Works signed
    *  in (the account, its profile and this phone's data) or not (this phone's listening data and
    *  profile). Asks for the word DELETE so it's never done by a stray tap. */
   const deletes = createAttemptLimiter({ max: 5, windowMs: 60 * 60_000 });
@@ -224,6 +224,37 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
+  /** The account's library (shows followed, saved, liked, Pod Modes, where you are in each episode),
+   *  saved by the phone so the Apple TV app (and any other device signed in) can show it. Only the
+   *  listening library: no device id or session is kept. Deleted with the account. */
+  const libraryWrites = createAttemptLimiter({ max: 120, windowMs: 60 * 60_000 });
+  app.get(`${P}/library`, gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    if (!req.creator?.id) return res.status(401).json({ message: "Sign in to bring your library.", needSignIn: true });
+    try {
+      const { data, error } = await db().from("podcast_account_library").select("data,updated_at").eq("account_id", req.creator.id).maybeSingle();
+      if (error) throw error;
+      res.json({ library: data?.data ?? null, at: data?.updated_at ?? null });
+    } catch (e: any) {
+      console.error("[podscroll] library read:", e?.message || e);
+      res.status(500).json({ message: "Your library didn't load. Try again." });
+    }
+  });
+  app.post(`${P}/library`, gate, async (req: any, res) => {
+    if (!req.creator?.id) return res.status(401).json({ message: "Sign in to save your library.", needSignIn: true });
+    if (tooMany(libraryWrites, `lib:${req.creator.id}`, res)) return;
+    const library = cleanAccountLibrary(req.body?.library);
+    if (!library) return res.status(400).json({ message: "That isn't a library." });
+    try {
+      const { error } = await db().from("podcast_account_library").upsert({ account_id: req.creator.id, data: library, updated_at: new Date().toISOString() }, { onConflict: "account_id" });
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[podscroll] library save:", e?.message || e);
+      res.status(500).json({ message: "Your library didn't save. Try again." });
+    }
+  });
+
   app.post(`${P}/signout`, gate, async (req: any, res) => {
     const token = String(req.headers["x-podscroll-session"] || "");
     if (SESSION.test(token)) {
@@ -234,7 +265,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
   });
 }
 
-/** Everything Pod+ keeps about these people ("d<device>" voters): profile (its posts, comments and
+/** Everything Podster keeps about these people ("d<device>" voters): profile (its posts, comments and
  *  followers go with it), likes, follows, saves, votes, blocks, messages, stories, listens, ad votes,
  *  episode comments and uploaded files. A table that doesn't exist yet is skipped. */
 export async function deletePodData(db: any, voters: string[]): Promise<void> {
@@ -249,7 +280,7 @@ export async function deletePodData(db: any, voters: string[]): Promise<void> {
       ["podcast_stories", "voter"], ["podcast_dm_threads", "a"], ["podcast_dm_threads", "b"], ["podcast_listens", "voter"],
       ["podcast_ad_votes", "voter"], ["podcast_ad_skips", "voter"], ["podcast_comments", "voter"], ["podcast_posts", "voter"], ["podcast_profiles", "voter"],
     ] as const) await run(db.from(table).delete().eq(column, voter));
-    // Episode comments and likes on the Pod+ site are kept by device id.
+    // Episode comments and likes on the Podster site are kept by device id.
     for (const table of ["podscroll_comment_reports", "podscroll_comments", "podscroll_likes"]) await run(db.from(table).delete().eq("user_id", device));
     // Photos, videos, episodes and clips they uploaded.
     const folder = voter.replace(/[^A-Za-z0-9_-]/g, "");
@@ -262,4 +293,24 @@ export async function deletePodData(db: any, voters: string[]): Promise<void> {
       }
     } catch { /* files without a database row are unreachable once the profile is gone */ }
   }
+}
+
+/** A listening library as the phone sends it (podscroll/carplay.ts carPlayLibrary), kept small and
+ *  without anything that identifies the device: no device id, session or server address. */
+export function cleanAccountLibrary(v: unknown): Record<string, unknown> | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const x = v as Record<string, any>;
+  const arr = (a: unknown, n: number) => (Array.isArray(a) ? a.filter((i) => i && typeof i === "object").slice(0, n) : []);
+  const out: Record<string, unknown> = {
+    speed: Number.isFinite(Number(x.speed)) ? Math.min(3, Math.max(0.5, Number(x.speed))) : 1,
+    skipIntro: x.skipIntro !== false,
+    genres: Array.isArray(x.genres) ? x.genres.filter((g: unknown) => typeof g === "string").slice(0, 20) : [],
+    follows: arr(x.follows, 300),
+    later: arr(x.later, 100),
+    liked: arr(x.liked, 100),
+    modes: arr(x.modes, 24).map((m: any) => ({ id: String(m.id ?? "").slice(0, 60), name: String(m.name ?? "").slice(0, 60), episodes: arr(m.episodes, 60) })),
+    spots: x.spots && typeof x.spots === "object" && !Array.isArray(x.spots) ? Object.fromEntries(Object.entries(x.spots).slice(0, 60)) : {},
+    at: Number.isFinite(Number(x.at)) ? Number(x.at) : Date.now(),
+  };
+  return JSON.stringify(out).length <= 400_000 ? out : null;
 }

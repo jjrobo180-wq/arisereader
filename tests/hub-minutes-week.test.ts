@@ -197,9 +197,44 @@ test("a student is put in a block, and a logged session is changed in place", ()
 
 test("the Minutes screen opens on the blocks and still has the by-student cards", () => {
   const screen = read("client/src/components/teacher-hub/HubProgress.tsx"), week = read("client/src/components/teacher-hub/HubMinutesWeek.tsx");
-  for (const part of ['data-testid="minutes-look"', '["week", "By block"], ["students", "By student"]', "<MinutesWeekView workspace={workspace} today={today}", "onBlocks={() => setSettingBlocks(true)}", "setPlanBlock(w.services, planId, block)", "<BlocksModal blocks={blocks}", "minuteBlocks: next", 'look === "students" &&', '"arise-hub-minutes-look"', '"Change session"', "updateLog(w.serviceLogs, id, session)", "blockLogs(items)", 'aria-label="Block"']) assert.ok(screen.includes(part), part);
+  for (const part of ['data-testid="minutes-look"', '[["main", "Main"], ["quick", "Quick log"]]', "<MinutesWeekView workspace={workspace} today={today}", "onBlocks={() => setSettingBlocks(true)}", "setSettingBlocks(true)", "setPlanBlock(w.services, planId, block)", "<BlocksModal blocks={blocks}", "minuteBlocks: next", 'look === "quick" && <MinutesWeekView', '"arise-hub-minutes-look"', '"Change session"', "updateLog(w.serviceLogs, id, session)", "blockLogs(items)", 'aria-label="Block"']) assert.ok(screen.includes(part), part);
   // A block takes the place of a clock time: no time box is left on the Minutes screens.
   for (const gone of ['type="time"', 'aria-label="From"', "Usual start", "clock12"]) { assert.ok(!screen.slice(screen.indexOf("export function MinutesTab")).includes(gone), gone); assert.ok(!week.includes(gone), gone); }
   assert.equal(screen.split('aria-label="Block"').length - 1, 2, "a block can be chosen for a plan and for a session");
   for (const part of ['data-testid="minutes-week"', 'data-testid="minutes-day-strip"', 'data-testid="minutes-row"', 'data-testid="minutes-cell"', 'data-testid="minutes-log-all"', 'data-testid="minutes-move"', 'data-testid="minutes-blocks-setup"', 'data-testid="blocks-form"', "Set up blocks", "Put in a block…", "Week before", "Week after", "hidden lg:block", "minutesWeek(workspace.services, workspace.serviceLogs, blocks, weekOf, today, optional)", "Forgot a day? Go back to it and add the minutes"]) assert.ok(week.includes(part), part);
+});
+
+test("Start fresh: days before the new start never count as missed, the percentages leave them out, and Undo puts it back", async () => {
+  const { startFresh, undoFresh } = await import("../shared/hubMinutesWeek");
+  const { completion } = await import("../shared/hubMinutesDay");
+  const plans = [jordan, sam];
+  const thu = "2026-09-17"; // a Thursday: Mon and Tue were missed, Wed too for Sam
+  const before = minutesWeek(plans, [], BLOCKS, thu, thu);
+  assert.ok(before.days.flatMap((d) => d.cells.flatMap((c) => c.items)).some((x) => x.state === "missed"));
+  const { plans: fresh, before: old } = startFresh(plans, thu);
+  const after = minutesWeek(fresh, [], BLOCKS, thu, thu);
+  const items = after.days.flatMap((d) => d.cells.flatMap((c) => c.items));
+  assert.equal(items.filter((x) => x.state === "missed").length, 0, "nothing before the fresh start is missed");
+  assert.ok(items.some((x) => x.state === "today"), "today is still due");
+  assert.equal(completion(after, thu, fresh, [], thu).month.planned, 0, "no old weeks count");
+  assert.deepEqual(undoFresh(fresh, old).map((p) => p.since), plans.map((p) => p.since));
+});
+
+test("every place minutes are marked has an Undo: each Done row, a whole block, everything just logged, and the class page", () => {
+  const r = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  const week = r("client/src/components/teacher-hub/HubMinutesWeek.tsx");
+  assert.match(week, /data-testid="minutes-unlog"/); assert.match(week, /data-testid="minutes-unlog-all"/);
+  const prog = r("client/src/components/teacher-hub/HubProgress.tsx");
+  assert.match(prog, /data-testid="minutes-undo-logged"/); assert.match(prog, /onUndo=\{unlog\}/);
+  const board = r("client/src/components/teacher-hub/HubClassBoard.tsx");
+  assert.match(board, /data-testid="class-student-unlog"/); assert.match(board, /data-testid="class-undo-batch-go"/);
+});
+
+test("every app in the WorkHub menu can be moved: up and down skip hidden apps, and My plugins extras have their own order", () => {
+  const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
+  assert.match(hub, /const section = sectionOf\(id\);/);
+  assert.match(hub, /current\.splice\(dir < 0 \? n : n \+ 1, 0, id\)/);
+  assert.match(hub, /myAppsOrder: keys/);
+  for (const k of ["office:", "kit:", "notes:", "sheets:"]) assert.ok(hub.includes(`key: \`${k}`), k);
+  assert.match(hub, /label: "Move up", onPick: \(\) => moveGroupBy\(item\.id, -1\)/, "phones move apps from the ⋯ / press-and-hold menu");
 });

@@ -1,4 +1,4 @@
-// Gratitude (a Plugin Store add-on): three good things a day, a streak, and a look back.
+// Gratitude (a Plugin Gallery add-on): three good things a day, a streak, and a look back.
 import { useState } from "react";
 import { Heart, Shuffle } from "lucide-react";
 import { streak } from "@shared/lifePlugins";

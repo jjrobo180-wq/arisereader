@@ -228,7 +228,7 @@ export default function EyeGazeProfileDashboard({
           <div className="text-center lg:text-left">
             <div className="inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-teal-800">
               <Sparkles className="w-4 h-4" />
-              My Eye Gazer Profile
+              My Arise AAC Profile
             </div>
             <h1 className="mt-3 text-4xl sm:text-6xl font-black tracking-tight text-slate-950">
               Hi, {firstName}!

@@ -1,4 +1,4 @@
-// Arise Fit settings for Apple Health (connect, sync steps, active calories and weigh-ins, save
+// Cooked settings for Apple Health (connect, sync steps, active calories and weigh-ins, save
 // workouts back) and reminders (workout days and time, water, weigh-in, fast complete). See fitNative.ts.
 import { useEffect, useState } from "react";
 import { Bell, Footprints, HeartPulse, RefreshCw } from "lucide-react";
@@ -51,10 +51,10 @@ export function HealthSheet({ data, update, onClose }: { data: FitData; update: 
     <div className="mt-1 rounded-[14px] p-4" style={{ background: `linear-gradient(150deg, ${C.tint}, ${C.card})` }}>
       <HeartPulse className="h-8 w-8" style={{ color: "#ff375f" }} />
       <p className="mt-2 text-[24px] leading-none" style={display}>{on ? "Connected" : "Connect Apple Health"}</p>
-      <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Reads your steps, active calories, heart rate and weigh-ins. Saves your workouts' calories, run distances and weight back to Health.</p>
+      <p className="mt-1 text-[14px] leading-snug" style={{ color: C.steel }}>Reads your steps, active calories, sleep (with deep and REM from an Apple Watch), heart rate and weigh-ins. Saves your workouts' calories, run distances, mindful minutes and weight back to Health.</p>
     </div>
     {!on ? <Btn className="mt-4 w-full" onClick={connect} disabled={busy} testId="fit-health-connect">{busy ? "Connecting…" : "Connect"}</Btn>
-      : <div className="mt-4 grid grid-cols-2 gap-2"><Btn onClick={sync} disabled={busy}><RefreshCw className="h-4 w-4" />{busy ? "Syncing…" : "Sync now"}</Btn><Btn kind="soft" onClick={() => { disconnectHealth(); setOn(false); setMsg("Disconnected. To remove access fully: Settings → Health → Data Access & Devices → Arise Fit."); }}>Disconnect</Btn></div>}
+      : <div className="mt-4 grid grid-cols-2 gap-2"><Btn onClick={sync} disabled={busy}><RefreshCw className="h-4 w-4" />{busy ? "Syncing…" : "Sync now"}</Btn><Btn kind="soft" onClick={() => { disconnectHealth(); setOn(false); setMsg("Disconnected. To remove access fully: Settings → Health → Data Access & Devices → Cooked."); }}>Disconnect</Btn></div>}
     {msg && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: C.card, color: C.steel }}>{msg}</p>}
     {snap && <><Title>From Health</Title><div className="grid grid-cols-3 gap-2 text-center">
       {([[fmtNum(snap.steps[dayKey()] ?? 0), "steps today"], [fmtNum(snap.active[dayKey()] ?? 0), "active kcal"], [String(snap.weights.length), "weigh-ins"]] as const).map(([v, l]) => <Card key={l} className="!px-1 !py-3"><p className="text-[24px] leading-none" style={display}>{v}</p><p className="mt-1 text-[11px] uppercase tracking-[.08em]" style={{ color: C.dim }}>{l}</p></Card>)}
@@ -78,7 +78,7 @@ export function RemindersSheet({ onClose }: { onClose: () => void }) {
     <div className="mt-3 space-y-2">
       {row("Workout", `${r.workout.days.length} days a week at ${new Date(2000, 0, 1, r.workout.hour, r.workout.minute).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`, r.workout.on, () => save({ ...r, workout: { ...r.workout, on: !r.workout.on } }), "workout")}
       {r.workout.on && <Card className="!p-3">
-        <div className="grid grid-cols-7 gap-1">{DAYS.map((d, i) => { const on = r.workout.days.includes(i); return <button key={i} type="button" onClick={() => save({ ...r, workout: { ...r.workout, days: on ? r.workout.days.filter((x) => x !== i) : [...r.workout.days, i].sort() } })} aria-pressed={on} className="h-10 rounded-[8px] text-[15px]" style={{ ...display, ...(on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 }) }}>{d}</button>; })}</div>
+        <div className="grid grid-cols-7 gap-1">{DAYS.map((d, i) => { const on = r.workout.days.includes(i); return <button key={i} type="button" onClick={() => save({ ...r, workout: { ...r.workout, days: on ? r.workout.days.filter((x) => x !== i) : [...r.workout.days, i].sort() } })} aria-pressed={on} className="h-10 rounded-[8px] text-[15px]" style={{ ...display, ...(on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }) }}>{d}</button>; })}</div>
         <input type="time" value={`${String(r.workout.hour).padStart(2, "0")}:${String(r.workout.minute).padStart(2, "0")}`} onChange={(e) => { const [h, m] = e.target.value.split(":").map(Number); if (Number.isFinite(h)) void save({ ...r, workout: { ...r.workout, hour: h, minute: m || 0 } }); }} aria-label="Reminder time" className="mt-2 h-12 w-full rounded-[8px] px-3 text-[17px]" style={{ background: C.card2, color: C.text }} />
       </Card>}
       {row("Water", "10 AM, 1, 4 and 7 PM", r.water, () => save({ ...r, water: !r.water }), "water")}

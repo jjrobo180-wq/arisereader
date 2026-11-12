@@ -4,11 +4,28 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
 import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
-import { recallHub, rememberHub } from "@/lib/hubMemory";
+import { markHubOpen, prefetchHub, recallHub, rememberHub } from "@/lib/hubMemory";
+import { merge3 } from "@shared/mergeJson";
 
 const api = `${API_BASE}/api/arise-todo/workspace`;
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const backupKey = (id: number) => `arise-todo-draft-v2:${id}`;
+
+/** LifeHub's copy, fetched in the background while WorkHub is open, so switching over is instant.
+ *  Not when this device holds changes that never reached the account: then LifeHub opens the normal
+ *  way, which offers to bring them back. */
+export function prefetchLifeHub(userId: number | undefined, token: string | null): Promise<void> {
+  return prefetchHub<object>("todo", userId, async () => {
+    if (!token || !userId) return null;
+    try { const raw = localStorage.getItem(backupKey(userId)); if (raw && JSON.parse(raw)?.dirty === true) return null; } catch { return null; }
+    const response = await fetch(api, { headers: auth(token), cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json().catch(() => null);
+    const remote = body?.workspace;
+    if (!remote || typeof remote !== "object" || Array.isArray(remote)) return null;
+    return { workspace: remote, updatedAt: typeof body?.updatedAt === "string" ? body.updatedAt : null };
+  });
+}
 
 export function useTodoCloud<W extends object>({
   userId, token, blank, isValid,
@@ -36,10 +53,37 @@ export function useTodoCloud<W extends object>({
   recoveryRef.current = recovery;
   const checkRef = useRef<() => Promise<void>>(async () => {});
 
-  const saveDraft = useCallback((current: W, dirty: boolean) => {
-    if (!userRef.current) return;
-    try { localStorage.setItem(backupKey(userRef.current), JSON.stringify({ workspace: current, dirty })); } catch {}
+  // The safety copy on this device. Writing it means turning the WHOLE hub (every task, note, recipe…)
+  // into text and storing it, which on a phone can take a noticeable moment; done on every keystroke it
+  // made typing and tapping stutter. So it is written once things go quiet (and at once when the app
+  // goes to the background or this page closes), with the newest copy and whether it's still unsaved.
+  const draft = useRef<{ current: W; dirty: boolean | null; timer: number | null; user: typeof userId }>({ current: undefined as unknown as W, dirty: null, timer: null, user: undefined as typeof userId });
+  const writeDraft = useCallback(() => {
+    const d = draft.current;
+    if (d.timer !== null) { window.clearTimeout(d.timer); d.timer = null; }
+    if (d.dirty === null || !d.user) return;
+    // Another account signed in meanwhile: its saver isn't this copy's, so keep the flag as it was.
+    const dirty = d.dirty || (d.user === userRef.current && !!saver.current?.hasUnsaved());
+    d.dirty = null;
+    // The copy last saved to the account goes with it, so changes made offline merge cleanly later.
+    const mine = saver.current && d.user === userRef.current ? saver.current : null;
+    const base = mine ? mine.saved : undefined;
+    // ...and when the account's copy was saved, so the next opening can show this copy at once and
+    // only ask the server "anything newer than this?".
+    const updatedAt = mine ? mine.baseUpdatedAt : null;
+    try { localStorage.setItem(backupKey(d.user), JSON.stringify({ workspace: d.current, dirty, ...(dirty && base ? { base } : {}), ...(typeof updatedAt === "string" ? { updatedAt } : {}) })); } catch {}
   }, []);
+  const saveDraft = useCallback((current: W, dirty: boolean, now = false) => {
+    if (!userRef.current) return;
+    const d = draft.current;
+    if (d.user && d.user !== userRef.current && d.dirty !== null) writeDraft();
+    d.current = current;
+    d.dirty = dirty;
+    d.user = userRef.current;
+    if (now) { writeDraft(); return; }
+    if (d.timer !== null) window.clearTimeout(d.timer);
+    d.timer = window.setTimeout(writeDraft, 1200);
+  }, [writeDraft]);
 
   useEffect(() => {
     if (!token || !userId) {
@@ -51,9 +95,25 @@ export function useTodoCloud<W extends object>({
       return;
     }
     let cancelled = false;
+    markHubOpen("todo", userId, true);
     // Coming back from WorkHub (or anywhere else on this page): show the copy kept in memory at
-    // once, and catch up with the server in the background — no loading screen.
-    const memo = recallHub<W>("todo", userId);
+    // once, and catch up with the server in the background — no loading screen. (A copy fetched
+    // ahead of time is checked like one from the server.)
+    const remembered = recallHub<W>("todo", userId);
+    // Opening the app fresh: the copy kept on this device shows at once, the same way, instead of a
+    // loading screen while the whole hub downloads. It names the account copy it came from, so the
+    // server is only asked for anything newer, and changes that never reached the account (no signal,
+    // app closed) go out as a normal save and merge with whatever another device saved meanwhile.
+    const onDevice = (): { workspace: W; saved: W; updatedAt: string | null; pending?: Promise<void> } | null => {
+      try {
+        const raw = localStorage.getItem(backupKey(userId));
+        const kept = raw ? JSON.parse(raw) : null;
+        if (!kept || typeof kept.updatedAt !== "string" || !isValid(kept.workspace)) return null;
+        if (kept.dirty !== true) return { workspace: kept.workspace, saved: kept.workspace, updatedAt: kept.updatedAt };
+        return isValid(kept.base) ? { workspace: kept.workspace, saved: kept.base, updatedAt: kept.updatedAt } : null;
+      } catch { return null; }
+    };
+    const memo = remembered && isValid(remembered.workspace) && isValid(remembered.saved) ? remembered : onDevice();
     setError("");
     setRecovery(null);
     if (memo) {
@@ -82,6 +142,15 @@ export function useTodoCloud<W extends object>({
       setTimer: (fn, ms) => window.setTimeout(fn, ms),
       clearTimer: timer => window.clearTimeout(timer as number),
       debounceMs: 650,
+      // Two devices saved at once: merged by itself, never a "which copy?" question.
+      fetchLatest: async () => {
+        const res = await fetch(api, { headers: auth(tokenRef.current || ""), cache: "no-store" });
+        const body = await res.json().catch(() => null);
+        if (!res.ok) throw new Error("not reached");
+        const remote = body?.workspace === null ? blank() : body?.workspace;
+        return isValid(remote) ? { workspace: remote, updatedAt: typeof body?.updatedAt === "string" ? body.updatedAt : null } : null;
+      },
+      onMerged: merged => { if (!cancelled) { rawSetWorkspace(merged); saveDraft(merged, true); } },
     }, { workspace: start, updatedAt });
     (async () => {
       try {
@@ -99,6 +168,9 @@ export function useTodoCloud<W extends object>({
           instance.change(memo.pending ? workspaceRef.current : memo.workspace);
           // Then ask the server for anything newer, once the page has caught up with `loaded`.
           window.setTimeout(() => { if (!cancelled) { lastCheck.current = 0; void checkRef.current(); } }, 60);
+          // A slow first draw (a phone opening the app) can still be going at that moment: ask once
+          // more shortly after. If the first one already went out, this one does nothing.
+          window.setTimeout(() => { if (!cancelled) void checkRef.current(); }, 1500);
           return;
         }
         const response = await fetch(api, { headers: auth(token), cache: "no-store" });
@@ -110,21 +182,24 @@ export function useTodoCloud<W extends object>({
         saver.current?.dispose();
         const instance = makeSaver(remote, typeof body?.updatedAt === "string" ? body.updatedAt : null);
         saver.current = instance;
-        let unsavedCopy: W | null = null;
+        // Changes on this device that never reached the account (no signal, app closed) are merged
+        // with the account's copy and saved, by themselves: nothing to choose.
+        let merged: W | null = null;
         try {
           const raw = localStorage.getItem(backupKey(userId));
           if (raw) {
             const cached = JSON.parse(raw);
             if (cached?.dirty === true && isValid(cached.workspace) && JSON.stringify(cached.workspace) !== JSON.stringify(remote)) {
-              unsavedCopy = cached.workspace;
+              const m = merge3(isValid(cached.base) ? cached.base : undefined, cached.workspace, remote);
+              if (isValid(m)) merged = m;
             }
           }
         } catch {}
-        setRecovery(unsavedCopy);
-        rawSetWorkspace(remote);
-        if (!unsavedCopy) saveDraft(remote, false);
-        setView({ kind: "saved" });
+        setRecovery(null);
+        rawSetWorkspace(merged ?? remote);
+        setView({ kind: merged ? "waiting" : "saved" });
         setLoaded(true);
+        if (merged) { instance.change(merged); saveDraft(merged, true); } else saveDraft(remote, false);
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.message || "Unable to load your saved tasks.");
@@ -133,6 +208,7 @@ export function useTodoCloud<W extends object>({
     })();
     return () => {
       cancelled = true;
+      markHubOpen("todo", userId, false);
       const instance = saver.current;
       saver.current = null;
       if (!instance) return;
@@ -153,7 +229,8 @@ export function useTodoCloud<W extends object>({
   useEffect(() => {
     if (!loaded || recovery || !saver.current) return;
     saver.current.change(workspace);
-    saveDraft(workspace, saver.current.hasUnsaved());
+    // Changed since the last save to the account (hasUnsaved is asked again when the copy is written).
+    saveDraft(workspace, false);
   }, [workspace, loaded, recovery, saveDraft]);
 
   const check = useCallback(async () => {
@@ -179,7 +256,7 @@ export function useTodoCloud<W extends object>({
   checkRef.current = check;
 
   useEffect(() => {
-    const send = () => { void saver.current?.flush(); };
+    const send = () => { writeDraft(); void saver.current?.flush(); };
     const visibility = () => { if (document.visibilityState === "hidden") send(); else void check(); };
     const online = () => { saver.current?.retryNow(); void check(); };
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -199,8 +276,9 @@ export function useTodoCloud<W extends object>({
       window.removeEventListener("online", online);
       window.removeEventListener("beforeunload", beforeUnload);
       window.clearInterval(timer);
+      writeDraft();
     };
-  }, [check]);
+  }, [check, writeDraft]);
 
   const setWorkspace: Dispatch<SetStateAction<W>> = useCallback(next => {
     rawSetWorkspace(previous => typeof next === "function"

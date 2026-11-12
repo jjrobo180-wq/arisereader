@@ -1,4 +1,4 @@
-// Arise Fit: My gym (workouts only from your equipment), reading machine QR codes, the photo endpoint,
+// Cooked: My gym (workouts only from your equipment), reading machine QR codes, the photo endpoint,
 // swapping, camera reps and the after-workout debrief.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -8,13 +8,15 @@ import { GEAR, GEAR_BY_ID, GYM_TYPES, canDo, cleanGearIds, cleanGym, exercisesOn
 import { alternatives, generateWorkout } from "../shared/fitRecovery";
 import { debrief, SUPPLEMENTS } from "../shared/fitDebrief";
 import { formLiftFor } from "../shared/fitForm";
-import { registerFitRoutes } from "../server/fit";
+import { askAiForGear, fitVisionTargets, registerFitRoutes, visionMissedImage } from "../server/fit";
 
 const PF = GYM_TYPES.find((g) => g.id === "planet-fitness")!.gear;
 
 test("every exercise's equipment is real gear, and most gear has exercises", () => {
   for (const e of CATALOG) for (const way of needsOf(e.id)) for (const g of way) assert.ok(GEAR_BY_ID.has(g), `${e.id} needs ${g}`);
-  assert.ok(GEAR.filter((g) => exercisesOn(g.id).length).length >= GEAR.length - 2);
+  // Accessories a photo can name (ball, roller, mat) help with warm-ups and core; they need no exercise of their own.
+  const ACCESSORY = new Set(["stability-ball", "foam-roller", "yoga-mat"]);
+  assert.ok(GEAR.filter((g) => ACCESSORY.has(g.id) || exercisesOn(g.id).length).length >= GEAR.length - 2);
   assert.equal(new Set(GEAR.map((g) => g.id)).size, GEAR.length);
   for (const g of GEAR) assert.ok(g.how.length >= 2 && g.avoid.length >= 1, g.id);
 });
@@ -81,6 +83,105 @@ test("the photo endpoint: one machine or a whole room, photos never kept", async
   assert.deepEqual(seen, ["machine", "gym"]);
 });
 
+test("machine vision detects and rejects bogus 'no image' replies", async () => {
+  assert.ok(visionMissedImage("No image was provided, so the equipment cannot be identified."));
+  assert.ok(visionMissedImage("The image was not provided."));
+  assert.ok(visionMissedImage("I can't see the photo."));
+  assert.equal(visionMissedImage("This is a seated row machine."), false);
+  assert.equal(visionMissedImage("No equipment was found in this room."), false);
+
+  const routes: Record<string, Function> = {};
+  const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
+  registerFitRoutes({ get: add("GET"), post: add("POST"), put: add("PUT") } as any, (_q: any, _s: any, next: any) => next(), {
+    store: { get: async () => null, set: async () => {} },
+    ownPlus: async () => ({ live: true }),
+    kv: (await import("../server/fitKv")).createMemoryKv(),
+    identify: async () => ({ gear: [], name: "", note: "No image was provided, so the equipment cannot be identified." }),
+  });
+  let status = 200; let result: any;
+  const res: any = { set() { return res; }, status(n: number) { status = n; return res; }, json(v: any) { result = v; return res; } };
+  await routes["POST /api/fit/identify"]({ user: { id: 74 }, body: { image: "data:image/jpeg;base64,AAAA", mode: "machine" } }, res);
+  assert.equal(status, 502);
+  assert.match(result.message, /retake|photo/i);
+  assert.doesNotMatch(result.message, /no image was provided/i);
+});
+
+test("photo scanner routes to real Groq vision model rather than fake OpenAI fallback key", async () => {
+  const env = { OPENAI_API_KEY: "routed-to-grok", GROQ_API_KEY: "gsk_test_key", USE_OPENAI: "0" };
+  const targets = fitVisionTargets(env);
+  assert.deepEqual(targets.map((t) => t.provider), ["groq"]);
+  assert.equal(targets[0].model, "qwen/qwen3.8-27b");
+  const image = "data:image/jpeg;base64," + "AQID".repeat(80);
+  let called = 0;
+  const answer = await askAiForGear(image, "machine", { env, fetcher: (async (url: any, init?: RequestInit) => {
+    called++;
+    assert.equal(String(url), "https://api.groq.com/openai/v1/chat/completions");
+    const request = JSON.parse(String(init?.body));
+    assert.equal(request.model, "qwen/qwen3.8-27b");
+    assert.equal(request.messages[1].content[1].image_url.url, image);
+    assert.equal(request.messages[1].content[1].image_url.detail, "high");
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      gear: ["treadmill"], name: "Treadmill", note: ""
+    }) } }] }), { status: 200 });
+  }) as typeof fetch });
+  assert.equal(called, 1);
+  assert.deepEqual(answer.gear, ["treadmill"]);
+});
+
+test("missing-image AI answer triggers fallback from Grok image API to Groq image API", async () => {
+  const env = { OPENAI_API_KEY: "routed-to-grok", XAI_API_KEY: "xai_test", GROQ_API_KEY: "gsk_test", USE_OPENAI: "0" };
+  const image = "data:image/jpeg;base64," + "AQID".repeat(80);
+  const calls: string[] = [];
+  const result = await askAiForGear(image, "machine", { env, fetcher: (async (url: any, init?: RequestInit) => {
+    const endpoint = String(url);
+    calls.push(endpoint);
+    const body = JSON.parse(String(init?.body));
+    if (endpoint.includes("api.x.ai")) {
+      assert.equal(body.model, "grok-4.7");
+      assert.equal(body.input[0].content[1].image_url, image);
+      assert.equal(body.input[0].content[1].type, "input_image");
+      assert.equal(body.store, false);
+      return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({
+        gear: [], name: "", note: "No image was provided, so the equipment cannot be identified."
+      }) }] }] }), { status: 200 });
+    }
+    assert.ok(endpoint.includes("api.groq.com"));
+    assert.equal(body.messages[1].content[1].image_url.url, image);
+    // Even when a provider returns the name but forgets the machine id, recover it.
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      gear: [], name: "Treadmill", note: "It is a treadmill."
+    }) } }] }), { status: 200 });
+  }) as typeof fetch });
+  assert.deepEqual(calls, ["https://api.x.ai/v1/responses", "https://api.groq.com/openai/v1/chat/completions"]);
+  assert.deepEqual(result.gear, ["treadmill"]);
+});
+
+test("OpenAI vision only uses a genuine key when explicitly configured", async () => {
+  const env = { OPENAI_API_KEY: "sk-real-key-in-test-only", USE_OPENAI: "1" };
+  assert.deepEqual(fitVisionTargets(env).map((t) => t.provider), ["openai"]);
+  const image = "data:image/jpeg;base64," + "AQID".repeat(80);
+  const answer = await askAiForGear(image, "machine", { env, fetcher: (async (url: any, init?: RequestInit) => {
+    assert.equal(String(url), "https://api.openai.com/v1/responses");
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.input[0].content[1].image_url, image);
+    return new Response(JSON.stringify({ output: [{ content: [{ type: "output_text", text: JSON.stringify({
+      gear: ["treadmill"], name: "Treadmill", note: ""
+    }) }] }] }), { status: 200 });
+  }) as typeof fetch });
+  assert.deepEqual(answer.gear, ["treadmill"]);
+});
+
+test("iPhone photo preview and workout reflection cannot collapse into one-line controls", () => {
+  const gym = readFileSync(new URL("../client/src/pages/fit/FitGym.tsx", import.meta.url), "utf8");
+  const train = readFileSync(new URL("../client/src/pages/fit/FitTrain.tsx", import.meta.url), "utf8");
+  assert.match(gym, /onPrepared\?\.\(image\)/, "client checks photo data before sending and shows its preview");
+  assert.match(gym, /data-testid="fit-scan-photo"/);
+  assert.match(gym, /alt="Photo of the gym machine selected for identification"/);
+  assert.match(train, /data-testid="fit-workout-reflection"/);
+  assert.match(train, /data-testid="fit-workout-note"/);
+  assert.match(train, /minHeight: 136/, "notes field has minimum height on iPhone");
+});
+
 test("after a workout: soreness, refuel, water", () => {
   const now = Date.parse("2026-11-01T18:00:00Z");
   const set = { reps: 10, weight: 100, done: true };
@@ -110,7 +211,7 @@ test("the camera counts reps for the lifts it can see", () => {
 test("wired in: My gym and Scan on Train, swap and camera in a workout, debrief after, the paused screen is readable", () => {
   const train = readFileSync(new URL("../client/src/pages/fit/FitTrain.tsx", import.meta.url), "utf8");
   for (const id of ["fit-my-gym", "fit-scan-machine", "fit-live-swap-", "fit-live-cam-", "fit-live-scan"]) assert.ok(train.includes(id), id);
-  assert.match(train, /<Debrief w=\{done\.w\}/);
+  assert.match(train, /<Debrief w=\{w\}/); assert.match(train, /<WorkoutReport w=\{done\.w\}/);
   // The paused screen is dark in every theme, so its text must not use the theme's (dark in Light) text color.
   const paused = train.slice(train.indexOf('data-testid="fit-paused"') - 400, train.indexOf('data-testid="fit-paused-finish"'));
   assert.ok(!/color: C\.(text|dim|steel)/.test(paused), "paused screen uses light text");

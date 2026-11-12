@@ -1,0 +1,300 @@
+/* Arise To Duo and WorkHub with an Arise Notes look. Like hubThemes.css, this remaps the shared utility
+   classes the hub's screens are built from, here to the look's variables (shared/notesThemes.ts). */
+.hub-look { background: var(--an-bg) !important; color: var(--an-ink) !important; font-family: var(--an-font); }
+.hub-look h1, .hub-look h2 { font-family: var(--an-serif); }
+.hub-look .bg-white, .hub-look .bg-white\/95, .hub-look .bg-white\/90, .hub-look .bg-white\/80, .hub-look .bg-white\/70, .hub-look .bg-slate-50, .hub-look .bg-slate-50\/60, .hub-look .bg-slate-50\/70, .hub-look .bg-\[\#f9fafc\], .hub-look .hover\:bg-white:hover, .hub-look .hover\:bg-slate-50:hover, .hub-look .hover\:bg-\[\#fcfbff\]:hover { background-color: var(--an-card) !important; }
+.hub-look .bg-\[\#f6f7fc\], .hub-look .bg-slate-100, .hub-look .bg-slate-100\/60 { background-color: var(--an-bg) !important; }
+.hub-look .bg-\[\#292446\], .hub-look .bg-slate-950, .hub-look .bg-slate-900, .hub-look .bg-violet-700, .hub-look .bg-violet-600, .hub-look .bg-\[\#7968e5\], .hub-look .bg-\[\#a38cfa\] { background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+.hub-look .bg-\[\#292446\] *, .hub-look .bg-slate-950 *, .hub-look .bg-violet-700 * { color: inherit; }
+.hub-look .bg-violet-50, .hub-look .bg-violet-100, .hub-look .bg-indigo-50 { background-color: var(--an-violet-soft) !important; }
+.hub-look .text-slate-950, .hub-look .text-slate-900, .hub-look .text-slate-800, .hub-look .text-slate-700, .hub-look .text-\[\#232139\] { color: var(--an-ink) !important; }
+.hub-look .text-slate-600, .hub-look .text-slate-500, .hub-look .text-slate-400, .hub-look .text-slate-300 { color: var(--an-muted) !important; }
+.hub-look .text-violet-500, .hub-look .text-violet-600, .hub-look .text-violet-700, .hub-look .text-violet-900, .hub-look .text-indigo-700, .hub-look .text-\[\#7869d7\], .hub-look .text-\[\#7866e1\], .hub-look .text-\[\#6c5cce\], .hub-look .text-\[\#5f4dc8\] { color: var(--an-violet-ink) !important; }
+.hub-look .border-slate-100, .hub-look .border-slate-200, .hub-look .border-slate-300, .hub-look .border-\[\#e7e8f0\], .hub-look .border-\[\#e7e8ef\], .hub-look .border-\[\#ececf3\], .hub-look .border-\[\#e4e6f0\], .hub-look .border-violet-200, .hub-look .divide-\[\#efeff5\] > * { border-color: var(--an-line) !important; }
+.hub-look .ring-slate-200, .hub-look .ring-slate-100 { --tw-ring-color: var(--an-line) !important; }
+.hub-look .rounded-xl, .hub-look .rounded-2xl, .hub-look .rounded-3xl, .hub-look .rounded-\[1\.1rem\], .hub-look .rounded-\[1\.4rem\], .hub-look .rounded-\[1\.5rem\], .hub-look .rounded-\[1\.6rem\], .hub-look .rounded-\[1\.75rem\] { border-radius: min(var(--an-radius), 28px) !important; }
+.hub-look input, .hub-look select, .hub-look textarea { background-color: var(--an-card) !important; color: var(--an-ink) !important; border-color: var(--an-line) !important; }
+.hub-look input::placeholder, .hub-look textarea::placeholder { color: var(--an-muted); }
+.hub-look .an-l-pad { padding: .9rem 1rem 0; }
+.hub-look .an-l-headline { margin: 0; font-size: 1.75rem; line-height: 1.08; font-weight: 900; }
+.an-l-bubble-them { align-self: flex-start; max-width: 85%; margin: 0; padding: .7rem .9rem; border-radius: 20px 20px 20px 4px; background: var(--an-card); font-size: 1.05rem; font-weight: 600; }
+.an-l-hero-swiss h1.an-l-pad { font-size: 1.9rem; }
+.an-l-hero-swiss .an-l-record { margin: 0; }
+
+/* The task list, drawn for each look. */
+.hub-look .hub-tasklist { background: none !important; border-color: transparent !important; box-shadow: none; overflow: visible; }
+.hub-look .hub-tasklist > * + * { border-top-width: 0; }
+.hub-theme-studio .hub-taskrow, .hub-theme-margin .hub-taskrow, .hub-theme-grove .hub-taskrow, .hub-theme-gazette .hub-taskrow { background: none !important; border-bottom: 1px solid var(--an-line); padding-left: 0; padding-right: 0; }
+.hub-theme-margin .hub-taskrow > :first-child { margin-right: .25rem; }
+.hub-theme-margin .hub-taskrow { box-shadow: inset 3.1rem 0 0 -1px transparent; }
+.hub-theme-bloom .hub-taskrow, .hub-theme-timeline .hub-taskrow, .hub-theme-chatline .hub-taskrow, .hub-theme-deck .hub-taskrow { margin-bottom: .5rem; border-radius: min(var(--an-radius), 28px); }
+.hub-theme-chatline .hub-taskrow { border-radius: 20px 20px 20px 4px; }
+.hub-theme-timeline .hub-taskrow { margin-left: 1.3rem; position: relative; overflow: visible; }
+.hub-theme-timeline .hub-taskrow::before { content: ""; position: absolute; left: -1.05rem; top: 1rem; width: .7rem; height: .7rem; border-radius: 50%; background: var(--an-ink); }
+.hub-theme-cassette .hub-taskrow { margin-bottom: .5rem; border-radius: 8px; background: var(--an-ink) !important; color: var(--an-bg) !important; border-left: 10px solid var(--an-coral); }
+.hub-theme-cassette .hub-taskrow * { color: var(--an-bg) !important; }
+.hub-theme-frost .hub-tasklist { padding: .25rem .9rem; background: color-mix(in srgb, var(--an-card) 75%, transparent) !important; border-radius: 26px; }
+.hub-theme-frost .hub-taskrow { background: none !important; border-bottom: 1px solid var(--an-line); }
+.hub-theme-deck .hub-taskrow:nth-child(3n+1) { background: #9de3d3 !important; }
+.hub-theme-deck .hub-taskrow:nth-child(3n+2) { background: #ffd95c !important; }
+.hub-theme-deck .hub-taskrow:nth-child(3n) { background: #d6c7ff !important; }
+.hub-theme-deck .hub-taskrow, .hub-theme-deck .hub-taskrow * { color: #14161c !important; }
+
+/* Cards and shortcuts */
+.hub-theme-punch .rounded-xl, .hub-theme-punch .rounded-2xl, .hub-theme-punch .rounded-3xl { border: 3px solid var(--an-edge, #000) !important; }
+.hub-theme-punch .shadow-sm, .hub-theme-punch .shadow, .hub-theme-punch .shadow-md { box-shadow: 4px 4px 0 var(--an-edge, #000) !important; }
+.hub-theme-swiss .shadow-sm, .hub-theme-gazette .shadow-sm, .hub-theme-margin .shadow-sm, .hub-theme-console .shadow-sm { box-shadow: none !important; }
+.hub-theme-console .rounded-xl, .hub-theme-console .rounded-2xl, .hub-theme-console .rounded-3xl { border: 1px solid var(--an-line); }
+.hub-theme-frost [data-testid="home-grid"] .bg-white { background-color: color-mix(in srgb, var(--an-card) 72%, transparent) !important;  }
+
+/* ——— Colors written straight into the screens ——— */
+.hub-look [class*="bg-[#292446]"], .hub-look [class*="bg-[#1d1a33]"], .hub-look [class*="bg-[#16152a]"], .hub-look [class*="bg-[#6e5ae0]"], .hub-look [class*="bg-[#6e5ce1]"], .hub-look [class*="bg-[#5948c8]"], .hub-look [class*="bg-[#7968e5]"], .hub-look [class*="bg-[#a38cfa]"] { background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; border-color: transparent; }
+.hub-look [class*="bg-[#292446]"] [class*="text-"], .hub-look [class*="bg-[#1d1a33]"] [class*="text-"], .hub-look [class*="bg-[#6e5ae0]"] [class*="text-"] { color: inherit !important; }
+.hub-look [class*="from-[#2d2555]"], .hub-look [class*="to-[#6d5ce7]"], .hub-look [class*="to-[#7c6be6]"], .hub-look [class*="to-[#4338ca]"] { background-image: none !important; background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+.hub-look [class*="bg-[#f7f9fa]"], .hub-look [class*="bg-[#fcfbff]"], .hub-look [class*="bg-[#f4f2ff]"], .hub-look [class*="bg-[#f2f2f2]"], .hub-look [class*="bg-[#fff]"], .hub-look [class*="bg-[#fff4ec]"] { background-color: var(--an-card) !important; color: var(--an-ink); }
+.hub-look [class*="text-[#111013]"], .hub-look [class*="text-[#120e14]"], .hub-look [class*="text-[#0e0d10]"], .hub-look [class*="text-[#2a2235]"], .hub-look [class*="text-[#0f1419]"], .hub-look [class*="text-[#2d2555]"], .hub-look [class*="text-[#292446]"], .hub-look [class*="text-[#242238]"], .hub-look [class*="text-[#1d1a33]"] { color: var(--an-ink) !important; }
+.hub-look [class*="text-[#bcb2ff]"] { color: var(--an-on-accent) !important; }
+.hub-look .bg-rose-50, .hub-look .bg-rose-100, .hub-look .bg-pink-50 { background-color: color-mix(in srgb, #e11d48 16%, var(--an-card)) !important; }
+.hub-look .bg-amber-50, .hub-look .bg-amber-100, .hub-look .bg-orange-50 { background-color: color-mix(in srgb, #f59e0b 18%, var(--an-card)) !important; }
+.hub-look .bg-emerald-50, .hub-look .bg-emerald-100, .hub-look .bg-teal-50 { background-color: color-mix(in srgb, #10b981 16%, var(--an-card)) !important; }
+.hub-look .bg-sky-50, .hub-look .bg-sky-100, .hub-look .bg-blue-50 { background-color: color-mix(in srgb, #0ea5e9 16%, var(--an-card)) !important; }
+.hub-look .border-rose-100, .hub-look .border-rose-200, .hub-look .border-amber-100, .hub-look .border-amber-200, .hub-look .border-emerald-100, .hub-look .border-emerald-200, .hub-look .border-sky-200, .hub-look .border-teal-100 { border-color: var(--an-line) !important; }
+.hub-look-dark .text-rose-500, .hub-look-dark .text-rose-600, .hub-look-dark .text-rose-700, .hub-look-dark .text-rose-800 { color: #ffa3a3 !important; }
+.hub-look-dark .text-amber-500, .hub-look-dark .text-amber-600, .hub-look-dark .text-orange-600 { color: #ffc969 !important; }
+.hub-look-dark .text-emerald-500, .hub-look-dark .text-emerald-600, .hub-look-dark .text-emerald-700, .hub-look-dark .text-emerald-800, .hub-look-dark .text-emerald-900, .hub-look-dark .text-green-600, .hub-look-dark .text-green-700, .hub-look-dark .text-green-800, .hub-look-dark .text-teal-600, .hub-look-dark .text-teal-700 { color: #7de2b8 !important; }
+.hub-look-dark .text-sky-600, .hub-look-dark .text-blue-600 { color: #9ad0ff !important; }
+/* Tide is one mid-deep teal, not near-black: its red and green words go a step lighter, and its tinted boxes
+   mix with the deeper page color, so a warning or an amount reads on it (the safety net turned them black). */
+.hub-theme-tide .text-rose-500, .hub-theme-tide .text-rose-600, .hub-theme-tide .text-rose-700, .hub-theme-tide .text-rose-800 { color: #ffe8e8 !important; }
+.hub-theme-tide .text-emerald-500, .hub-theme-tide .text-emerald-600, .hub-theme-tide .text-emerald-700, .hub-theme-tide .text-emerald-800, .hub-theme-tide .text-emerald-900, .hub-theme-tide .text-green-600, .hub-theme-tide .text-green-700 { color: #c2f7df !important; }
+.hub-theme-tide .text-amber-500, .hub-theme-tide .text-amber-600, .hub-theme-tide .text-amber-700 { color: #ffe8bd !important; }
+.hub-theme-tide .bg-rose-50, .hub-theme-tide .bg-rose-100 { background-color: color-mix(in srgb, #e11d48 24%, var(--an-bg)) !important; }
+.hub-theme-tide .bg-amber-50, .hub-theme-tide .bg-amber-100 { background-color: color-mix(in srgb, #f59e0b 22%, var(--an-bg)) !important; }
+.hub-theme-tide .bg-emerald-50, .hub-theme-tide .bg-emerald-100 { background-color: color-mix(in srgb, #10b981 22%, var(--an-bg)) !important; }
+/* Sticky notes keep their own color only in looks that are built for it; elsewhere they follow the look. */
+.hub-look .note-card { background: var(--an-card) !important; color: var(--an-ink); }
+/* The menu */
+.hub-look [data-testid$="tab-bar"] { background: var(--an-card) !important; color: var(--an-ink) !important; border: var(--an-border) solid var(--an-line); --tw-ring-color: transparent !important; }
+.hub-look [data-testid$="tab-bar"] [class*="text-white"], .hub-look [data-testid$="tab-bar"] button { color: var(--an-ink) !important; }
+.hub-look [data-testid$="tab-bar"] button[class*="bg-"]:not([aria-current]) { background-color: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+.hub-look [data-testid$="tab-bar"] svg { color: inherit; stroke: currentColor; }
+.hub-look [data-testid$="tab-bar"] [aria-current="page"], .hub-look [data-testid$="tab-bar"] [aria-pressed="true"] { background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+.hub-theme-swiss [data-testid$="tab-bar"], .hub-theme-margin [data-testid$="tab-bar"], .hub-theme-gazette [data-testid$="tab-bar"], .hub-theme-console [data-testid$="tab-bar"] { inset-inline: 0; max-width: none; border-width: 2px 0 0; box-shadow: none; border-radius: 0; bottom: 0 !important; }
+.hub-theme-punch [data-testid$="tab-bar"] { border: 3px solid var(--an-edge, #000); border-radius: 0; box-shadow: 5px 5px 0 var(--an-edge, #000); }
+.hub-theme-cassette [data-testid$="tab-bar"] { border-radius: 14px; border-bottom: 5px solid #1b1614; }
+.hub-theme-deck [data-testid$="tab-bar"] { border-radius: 24px; }
+/* Home grids */
+.hub-theme-swiss [data-testid="home-grid"], .hub-theme-gazette [data-testid="home-grid"], .hub-theme-margin [data-testid="home-grid"] { gap: 0 !important; }
+.hub-theme-swiss [data-testid="home-grid"] .bg-white, .hub-theme-gazette [data-testid="home-grid"] .bg-white, .hub-theme-margin [data-testid="home-grid"] .bg-white { background: none !important; border-width: 1px 0 0 !important; border-color: var(--an-line) !important; border-radius: 0 !important; box-shadow: none; }
+.hub-theme-chatline [data-testid="home-grid"] .bg-white { border: 0 !important; border-radius: 20px 20px 20px 4px !important; }
+.hub-theme-cassette [data-testid="home-grid"] .bg-white { border-left: 10px solid var(--an-coral) !important; }
+/* Notes */
+.hub-notes.hub-notes { column-gap: 1rem; }
+.hub-theme-margin .hub-notes, .hub-theme-swiss .hub-notes, .hub-theme-console .hub-notes, .hub-theme-grove .hub-notes { columns: 1 !important; }
+.hub-theme-margin .note-card, .hub-theme-swiss .note-card, .hub-theme-console .note-card, .hub-theme-grove .note-card, .hub-theme-gazette .note-card { background: none !important; border-width: 0 0 1px !important; border-color: var(--an-line) !important; border-radius: 0 !important; box-shadow: none !important; margin-bottom: 0 !important; }
+.hub-theme-margin .note-card { padding-left: 3.2rem; background: linear-gradient(90deg, transparent 2.6rem, #f0a7a0 2.6rem, #f0a7a0 calc(2.6rem + 1px), transparent calc(2.6rem + 1px)) !important; }
+.hub-theme-gazette .hub-notes { columns: 2 !important; column-rule: 1px solid var(--an-ink); }
+.hub-theme-gazette .note-card h3, .hub-theme-grove .note-card h3 { font-family: var(--an-serif); }
+.hub-theme-swiss .hub-notes { counter-reset: n; }
+.hub-theme-swiss .note-card { counter-increment: n; }
+.hub-theme-swiss .note-card h3 { font-size: 1.5rem; letter-spacing: -.03em; }
+.hub-theme-swiss .note-card h3::before { content: counter(n, decimal-leading-zero) "  "; color: var(--an-violet-ink); }
+.hub-theme-console .note-card h3::before { content: "> "; color: var(--an-violet); }
+.hub-theme-bloom .note-card:nth-child(4n+1), .hub-theme-punch .note-card:nth-child(4n+1), .hub-theme-deck .note-card:nth-child(4n+1) { background: #9de3d3 !important; }
+.hub-theme-bloom .note-card:nth-child(4n+2), .hub-theme-punch .note-card:nth-child(4n+2), .hub-theme-deck .note-card:nth-child(4n+2) { background: #ffd95c !important; }
+.hub-theme-bloom .note-card:nth-child(4n+3), .hub-theme-punch .note-card:nth-child(4n+3), .hub-theme-deck .note-card:nth-child(4n+3) { background: #d6c7ff !important; }
+.hub-theme-bloom .note-card:nth-child(4n), .hub-theme-punch .note-card:nth-child(4n), .hub-theme-deck .note-card:nth-child(4n) { background: #ffb8a8 !important; }
+.hub-theme-bloom .note-card *, .hub-theme-punch .note-card *, .hub-theme-deck .note-card * { color: #14161c !important; }
+.hub-theme-bloom .note-card, .hub-theme-deck .note-card { border-radius: 26px !important; }
+.hub-theme-punch .note-card { border: 3px solid var(--an-edge, #000) !important; box-shadow: 5px 5px 0 var(--an-edge, #000) !important; border-radius: 0 !important; }
+.hub-theme-punch .note-card:nth-child(odd) { transform: rotate(-1deg); }
+.hub-theme-punch .note-card:nth-child(even) { transform: rotate(1deg); }
+.hub-theme-cassette .note-card { border-top: 10px solid var(--an-coral) !important; background: var(--an-ink) !important; }
+.hub-theme-cassette .note-card * { color: var(--an-bg) !important; }
+.hub-theme-chatline .hub-notes { columns: 1 !important; }
+.hub-theme-chatline .note-card { max-width: 85%; border: 0 !important; border-radius: 20px 20px 20px 4px !important; }
+.hub-theme-chatline .note-card:nth-child(even) { margin-left: auto; background: var(--an-violet) !important; border-radius: 20px 20px 4px 20px !important; }
+.hub-theme-chatline .note-card:nth-child(even) * { color: var(--an-on-accent) !important; }
+.hub-theme-deck .hub-notes { columns: 1 !important; }
+.hub-theme-deck .note-card { min-height: 12rem; padding: 1.4rem !important; }
+.hub-theme-deck .note-card h3 { font-size: 1.9rem; letter-spacing: -.03em; }
+.hub-theme-frost .note-card { background: color-mix(in srgb, var(--an-card) 72%, transparent) !important;  }
+.hub-theme-timeline .hub-notes { columns: 1 !important; padding-left: 1.3rem; border-left: 2px solid var(--an-line); }
+
+/* ——— Tasks ——— */
+.lk-tasks { margin-top: 1rem; color: var(--an-ink); }
+.lk-tasks ul, .lk-tasks ol { list-style: none; margin: 0; padding: 0; }
+.lk-tasks button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+.lk-row { display: flex; align-items: center; gap: .75rem; min-height: 3.4rem; padding: .55rem .25rem; }
+.lk-row[data-done] b { text-decoration: line-through; opacity: .6; }
+.lk-open { flex: 1; min-width: 0; min-height: 2.75rem; }
+.lk-open b { display: block; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.lk-open small { display: block; margin-top: .15rem; font-size: .78rem; color: inherit; opacity: .78; }
+.lk-row[data-late] small { color: var(--an-coral); opacity: 1; font-weight: 700; }
+.lk-check { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; margin: -.3rem -.4rem; }
+.lk-check i { display: block; width: 1.3rem; height: 1.3rem; border: 2px solid currentColor; border-radius: min(var(--an-radius), 7px); }
+.lk-check[aria-pressed="true"] i { background: currentColor; }
+.lk-num { flex: none; font-variant-numeric: tabular-nums; }
+/* Studio: one big next task */
+.lk-next { display: flex; flex-direction: column; gap: .4rem; padding: 1.2rem; margin-bottom: .6rem; border-radius: 26px; background: var(--an-coral); color: var(--an-on-record); }
+.lk-next > span, .lk-next small { font-size: .85rem; font-weight: 600; }
+.lk-next > button:first-of-type { font-size: 1.8rem !important; line-height: 1.05; font-weight: 700 !important; letter-spacing: -.03em; }
+.lk-nextdone { align-self: flex-start; min-height: 2.75rem; margin-top: .4rem; padding: 0 1rem !important; border-radius: 16px; background: var(--an-on-record) !important; color: var(--an-coral) !important; font-weight: 700 !important; }
+.lk-tasks-studio li { border-bottom: 1px solid var(--an-line); }
+/* Margin: dates in a ruled margin */
+.lk-tasks-margin li { gap: .6rem; padding: 0; border-top: 1px solid var(--an-line); }
+.lk-margin { flex: none; width: 3.4rem; align-self: stretch; padding-top: 1rem; font: 500 .72rem ui-monospace, monospace; color: var(--an-muted); border-right: 1px solid #f0a7a0; }
+/* Bloom: colored tiles */
+.lk-tasks-bloom ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+.lk-tasks-bloom .lk-row { flex-direction: column; align-items: flex-start; min-height: 8rem; padding: .9rem; border-radius: 24px; }
+.lk-tasks-bloom .lk-open b { font-family: var(--an-serif); font-size: 1.05rem; }
+.lk-tasks-bloom .lk-check { margin: -.5rem; }
+/* Timeline and Grove: grouped by when */
+.lk-tasks-timeline section { position: relative; padding: 0 0 .7rem 1.4rem; border-left: 2px solid var(--an-line); margin-left: .4rem; }
+.lk-tasks-timeline section::before { content: ""; position: absolute; left: -.46rem; top: .2rem; width: .8rem; height: .8rem; border-radius: 50%; background: var(--an-violet); }
+.lk-tasks-timeline h3 { margin: 0 0 .4rem; font-size: .82rem; font-weight: 800; color: var(--an-violet-ink); }
+.lk-tasks-timeline .lk-row { margin-bottom: .4rem; padding: .4rem .8rem; border-radius: 18px; background: var(--an-card); }
+.lk-tasks-grove h3 { margin: 1.1rem 0 .3rem; font: 500 1.6rem var(--an-serif); }
+.lk-tasks-grove li { border-bottom: 1px solid var(--an-line); }
+.lk-tasks-grove .lk-check i { border-radius: 50%; }
+/* Console */
+.lk-tasks-console { font-family: var(--an-font); }
+.lk-prompt { margin: 0 0 .5rem; color: var(--an-violet); font-size: .9rem; }
+.lk-tasks-console .lk-row { min-height: 2.9rem; padding: 0; }
+.lk-ascii { min-width: 2.75rem; min-height: 2.75rem; color: var(--an-violet) !important; font-weight: 700; }
+.lk-tasks-console b { font-weight: 500; }
+/* Swiss: big numbers */
+.lk-tasks-swiss li { border-top: 2px solid var(--an-ink); padding: .8rem 0; gap: .9rem; }
+.lk-tasks-swiss .lk-num { font-size: 2.2rem; font-weight: 900; letter-spacing: -.05em; color: var(--an-violet-ink); }
+.lk-tasks-swiss b { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
+/* Cassette: track list on a tape label */
+.lk-label { display: flex; justify-content: space-between; padding: .7rem .9rem; border-radius: 10px 10px 0 0; border-top: 12px solid var(--an-coral); background: var(--an-ink); color: var(--an-bg); }
+.lk-tasks-cassette ol { padding: .2rem .9rem .5rem; border-radius: 0 0 10px 10px; background: var(--an-ink); color: var(--an-bg); }
+.lk-tasks-cassette li + li { border-top: 1px dashed currentColor; }
+.lk-tasks-cassette .lk-num { font: 500 .85rem ui-monospace, monospace; color: var(--an-coral); }
+/* Frost: progress ring over a glass panel */
+.lk-ring { display: grid; place-items: center; width: 9rem; height: 9rem; margin: 0 auto 1rem; border-radius: 50%; }
+.lk-ring > span { display: grid; place-items: center; align-content: center; width: 7.4rem; height: 7.4rem; border-radius: 50%; background: var(--an-bg); font-size: 1.9rem; font-weight: 700; line-height: 1; }
+.lk-ring small { font-size: .78rem; font-weight: 600; margin-top: .25rem; }
+.lk-tasks-frost ul { padding: .3rem 1rem; border-radius: 26px; background: color-mix(in srgb, var(--an-card) 72%, transparent);  }
+.lk-tasks-frost li + li { border-top: 1px solid var(--an-line); }
+.lk-tasks-frost .lk-check i { border-radius: 50%; }
+/* Gazette: a lead story, then columns */
+.lk-lead { display: flex; gap: .7rem; padding-bottom: .8rem; border-bottom: 4px double var(--an-ink); }
+.lk-lead b { font: 900 1.9rem/1.08 var(--an-serif); }
+.lk-lead small { margin-top: .4rem; font-size: .88rem; }
+.lk-tasks-gazette ul { columns: 2; column-gap: 1rem; column-rule: 1px solid var(--an-ink); margin-top: .5rem; }
+.lk-tasks-gazette li { break-inside: avoid; padding: .4rem 0; }
+.lk-tasks-gazette li b { font-family: var(--an-serif); }
+.lk-tasks-gazette .lk-check { display: grid; }
+/* Punch: stickers */
+.lk-tasks-punch ul { display: flex; flex-wrap: wrap; gap: .75rem; padding: .25rem; }
+.lk-tasks-punch .lk-row { flex: 1 1 100%; padding: .5rem .8rem; border: 3px solid var(--an-edge, #000); background: #fff; color: #000; box-shadow: 5px 5px 0 var(--an-edge, #000); }
+.lk-tasks-punch li:nth-child(3n+1) { background: #6ee7f9; transform: rotate(-.8deg); }
+.lk-tasks-punch li:nth-child(3n+2) { background: #a7f36b; transform: rotate(.7deg); }
+.lk-tasks-punch li:nth-child(3n) { background: #ff5ca8; }
+.lk-tasks-punch b { font-weight: 800; text-transform: uppercase; }
+.lk-tasks-punch .lk-check i { border-width: 3px; border-radius: 0; }
+/* Chatline: tasks are messages */
+.lk-tasks-chatline ul { display: flex; flex-direction: column; gap: .45rem; }
+.lk-tasks-chatline .lk-row { align-self: flex-start; max-width: 90%; padding: .4rem .9rem; border-radius: 20px 20px 20px 4px; background: var(--an-card); }
+.lk-tasks-chatline .lk-row[data-done] { align-self: flex-end; border-radius: 20px 20px 4px 20px; background: var(--an-violet); color: var(--an-on-accent); }
+.lk-tasks-chatline .lk-check i { border-radius: 50%; }
+/* Deck: one card at a time */
+.lk-card { display: flex; flex-direction: column; min-height: 18rem; padding: 1.4rem; border-radius: 28px; color: #14161c; }
+.lk-card small { font-size: .88rem; font-weight: 700; }
+.lk-cardtitle { flex: 1; margin: .7rem 0; font-size: 2.3rem !important; line-height: 1.02; font-weight: 800 !important; letter-spacing: -.03em; color: #14161c !important; }
+.lk-cardnav { display: grid; grid-template-columns: 1fr 1.5fr; gap: .5rem; margin-top: .6rem; }
+.lk-cardnav button { min-height: 3.2rem; padding: 0 1rem; text-align: center !important; border: 1px solid var(--an-line) !important; border-radius: 16px; font-weight: 700; }
+.lk-cardnav button:last-child { background: var(--an-violet) !important; color: var(--an-on-accent) !important; border: 0 !important; }
+
+/* ——— Calendar: what's coming up ——— */
+.lk-agenda { color: var(--an-ink); }
+.lk-agenda h2 { margin: 0 0 .6rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
+.lk-days { display: flex; flex-direction: column; gap: .5rem; }
+.lk-day { display: flex; align-items: flex-start; gap: .9rem; width: 100%; min-height: 3.5rem; padding: .7rem .9rem; text-align: left; border: 0; border-radius: min(var(--an-radius), 28px); background: var(--an-card); color: inherit; font: inherit; cursor: pointer; }
+.lk-date { display: flex; flex-direction: column; align-items: center; flex: none; width: 3rem; line-height: 1.1; }
+.lk-date small { font-size: .68rem; font-weight: 700; }
+.lk-date b { font-size: 1.5rem; font-weight: 800; }
+.lk-items { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .2rem; font-size: .92rem; }
+.lk-items em { margin-right: .45rem; font-style: normal; font-size: .78rem; font-weight: 700; color: var(--an-violet-ink); }
+.lk-none { margin: 0; color: var(--an-muted); }
+.lk-agenda-studio .lk-days { flex-direction: row; overflow-x: auto; padding-bottom: .4rem; }
+.lk-agenda-studio .lk-day { flex: 0 0 13rem; flex-direction: column; min-height: 10rem; border-radius: 24px; }
+.lk-agenda-studio .lk-day:first-child { background: var(--an-coral); color: var(--an-on-record); }
+.lk-agenda-studio .lk-day:first-child em { color: inherit; }
+.lk-agenda-margin .lk-days, .lk-agenda-swiss .lk-days, .lk-agenda-grove .lk-days { gap: 0; }
+.lk-agenda-margin .lk-day, .lk-agenda-swiss .lk-day, .lk-agenda-grove .lk-day { background: none; border-top: 1px solid var(--an-line); border-radius: 0; padding-inline: 0; }
+.lk-agenda-swiss .lk-day { border-top-width: 2px; }
+.lk-agenda-swiss .lk-date b { font-size: 2.6rem; font-weight: 900; letter-spacing: -.05em; }
+.lk-agenda-swiss .lk-date { width: 4.2rem; }
+.lk-agenda-grove h2, .lk-agenda-gazette h2 { font-family: var(--an-serif); font-weight: 500; font-size: 1.9rem; }
+.lk-agenda-grove .lk-date b { font-family: var(--an-serif); font-weight: 500; }
+.lk-agenda-bloom .lk-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lk-agenda-bloom .lk-day { flex-direction: column; background: var(--an-violet); color: var(--an-on-accent); border-radius: 24px; }
+.lk-agenda-bloom .lk-day em { color: inherit; }
+.lk-agenda-bloom .lk-day:nth-child(even) { background: #ffc24b; color: #17132e; }
+.lk-agenda-timeline .lk-days { gap: 0; margin-left: .4rem; border-left: 2px solid var(--an-line); }
+.lk-agenda-timeline .lk-day { background: none; padding-left: 1rem; }
+.lk-agenda-console .lk-day { padding: .3rem 0; background: none; border: 0; border-radius: 0; }
+.lk-agenda-console .lk-date { flex-direction: row; gap: .35rem; width: 7rem; color: var(--an-violet); }
+.lk-agenda-console h2 { color: var(--an-violet); font-size: 1rem; font-weight: 500; letter-spacing: 0; }
+.lk-agenda-cassette .lk-day { background: var(--an-ink); color: var(--an-bg); border-left: 10px solid var(--an-coral); border-radius: 8px; }
+.lk-agenda-cassette em { color: var(--an-coral); }
+.lk-agenda-frost .lk-day { background: color-mix(in srgb, var(--an-card) 72%, transparent);  }
+.lk-agenda-gazette .lk-days { display: block; columns: 2; column-gap: 1rem; column-rule: 1px solid var(--an-ink); }
+.lk-agenda-gazette .lk-day { break-inside: avoid; background: none; padding: .4rem 0; border-bottom: 1px solid var(--an-line); border-radius: 0; flex-direction: column; gap: .2rem; }
+.lk-agenda-gazette .lk-date { flex-direction: row; gap: .3rem; width: auto; font-family: var(--an-serif); }
+.lk-agenda-gazette .lk-date b { font-size: 1rem; }
+.lk-agenda-punch .lk-days { gap: .75rem; padding: .25rem; }
+.lk-agenda-punch .lk-day { border: 3px solid var(--an-edge, #000); background: #fff; color: #000; box-shadow: 5px 5px 0 var(--an-edge, #000); }
+.lk-agenda-punch em { color: #000; }
+.lk-agenda-punch .lk-date { background: #ff5ca8; padding: .3rem; border: 2px solid var(--an-edge, #000); width: 3.4rem; }
+.lk-agenda-chatline .lk-day { max-width: 88%; border-radius: 20px 20px 20px 4px; }
+.lk-agenda-deck .lk-day { min-height: 9rem; flex-direction: column; background: #9de3d3; color: #14161c; }
+.lk-agenda-deck em { color: inherit; }
+.lk-agenda-deck .lk-day:nth-child(3n+2) { background: #ffd95c; }
+.lk-agenda-deck .lk-day:nth-child(3n) { background: #d6c7ff; }
+.lk-agenda-deck .lk-date { flex-direction: row; gap: .35rem; width: auto; }
+.lk-agenda-deck .lk-date b { font-size: 2rem; }
+.lk-tasks-punch .lk-row[data-late] small { color: #000; }
+
+/* The top of Home sits inside the page here, not edge to edge. */
+.hub-look .an-l-hero-swiss { margin: 0; }
+.hub-look .an-l-hero-swiss .an-l-record { height: 11rem; }
+.hub-look .an-l-hero-swiss .an-l-record b { font-size: 4.6rem; }
+.hub-look .an-l-hero-swiss .an-l-secondary { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+/* The setup card keeps its icon readable and its button visible. */
+.hub-look .bg-white\/10 { background-color: transparent !important; }
+.hub-look .bg-\[\#a38cfa\] { background-color: var(--an-on-accent) !important; color: var(--an-violet) !important; }
+
+/* The top bar in apps runs into the status bar, in one color. */
+.hub-look header.sticky { background: var(--an-bg) !important; backdrop-filter: none; }
+/* Menus and drawers stay solid over the page. */
+.hub-look [role="menu"] { background: var(--an-card) !important; color: var(--an-ink); }
+/* Notifications take each look's colors, type, corners and shadow. */
+.hub-look [class*="text-violet"], .hub-look [class*="text-indigo"] { color: var(--an-violet-ink) !important; }
+
+/* The Work/Life switch matches the look in every hub and on every screen. */
+html[data-hub-look] [data-testid="hub-todo-switch"] { background: var(--an-card) !important; --tw-ring-color: var(--an-line) !important; border-radius: var(--an-radius) !important; box-shadow: var(--an-shadow, none) !important; }
+html[data-hub-look] [data-testid="hub-todo-switch"] a { background: transparent !important; color: var(--an-ink) !important; border-radius: calc(var(--an-radius) * .7) !important; }
+html[data-hub-look] [data-testid="hub-todo-switch"] a[aria-current="page"] { background: var(--an-violet) !important; color: var(--an-on-accent) !important; }
+
+.lk-tasks-tide .lk-row { border-left: 4px solid var(--an-violet); border-bottom: 1px solid var(--an-line); padding-left: .6rem; }
+.hub-theme-tide [data-testid$="tab-bar"] { border-radius: 14px; }
+.lk-tasks-tide small { color: var(--an-ink) !important; }
+.hub-look-dark .text-red-700, .hub-look-dark .text-red-600 { color: #ffa3a3 !important; }
+.hub-look-dark .hover\:bg-red-50:hover { background-color: color-mix(in srgb, #e11d48 18%, var(--an-card)) !important; }
+.hub-look-dark .text-amber-700, .hub-look-dark .text-amber-800 { color: #ffd98a !important; }
+
+/* Overdue labels on dark looks: the record color lifted so it reads on the dark card. */
+.hub-look-dark .lk-row[data-late] small { color: color-mix(in srgb, var(--an-coral) 50%, #ffffff); }
+/* Tinted chips on light looks: the chip's words lean toward the look's ink so they read on any card. */
+.hub-look:not(.hub-look-dark) .text-emerald-700, .hub-look:not(.hub-look-dark) .text-emerald-800 { color: color-mix(in srgb, #047857 55%, var(--an-ink)) !important; }
+.hub-look:not(.hub-look-dark) .text-rose-700, .hub-look:not(.hub-look-dark) .text-rose-600 { color: color-mix(in srgb, #be123c 55%, var(--an-ink)) !important; }
+.hub-look:not(.hub-look-dark) .text-amber-800, .hub-look:not(.hub-look-dark) .text-amber-700 { color: color-mix(in srgb, #92400e 55%, var(--an-ink)) !important; }
+
+/* Side panels with a background only on a computer (Customize's section list) take the look's card color too,
+   and a hovered row is a light wash of the ink, so its words stay readable (it went the page color: black on black). */
+.hub-look .sm\:bg-slate-50\/60, .hub-look .sm\:bg-slate-50, .hub-look .md\:bg-slate-50, .hub-look .lg\:bg-slate-50 { background-color: var(--an-card) !important; }
+.hub-look .hover\:bg-slate-100:hover, .hub-look .hover\:bg-slate-50:hover { background-color: color-mix(in srgb, var(--an-ink) 9%, var(--an-card)) !important; color: var(--an-ink) !important; }

@@ -1,14 +1,15 @@
+import { useAutoHideHeader } from "@/hooks/useAutoHideHeader";
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
+import { PICTURE_ART } from "@/lib/pictureArt";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import { markEmailRead } from "@shared/hubInbox";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
-import { Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
+import { NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
-import { SupportBanner, SupportMenuItem } from "@/components/SupportArise";
 import { STORE_KIND } from "@shared/hubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
@@ -91,17 +92,25 @@ import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@s
 import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFields, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import HubLessons from "@/components/teacher-hub/HubLessons";
+import { HubClassesCard } from "@/components/teacher-hub/HubClassesCard";
 import HubGoalBoard from "@/components/teacher-hub/HubGoalBoard";
 import { cleanSenderName } from "@shared/hubMeetings";
 import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
 import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
 import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
+import { useNativeBackdrop } from "@/lib/nativeBackdrop";
+import { useHubLook } from "@/components/HubLook";
+import { HubWaiting } from "@/lib/hubBackdrop";
+import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
+import { calendarEvents } from "@shared/hubHidden";
+import { toggleTask } from "@shared/hubTasks";
 import "@/components/teacher-hub/hubPaper.css";
 import "@/components/teacher-hub/darkPalette.css";
 import "@/components/teacher-hub/hubLifeLook.css";
 import { Stat as LifeStat } from "@/components/family-hub/ui";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
+import { IepPage } from "@/components/teacher-hub/HubIep";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
 import { HomeParts, WORK_PARTS, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
 import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, isPinId, moveSection, pinId, showSection, unpinId, type HomeSection, type HubLayout } from "@shared/hubLayout";
@@ -116,9 +125,12 @@ import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, teamDraft, teamMemb
 import { StudentTeamFields, StudentTeamSummary } from "@/components/teacher-hub/HubStudentTeam";
 import { deleteRow, deleteStudentRecords, studentRecordCount, undoDelete, type Deleted } from "@shared/hubDelete";
 import { BottomStack, useToasts, type ToastAction } from "@/components/teacher-hub/HubToast";
+import { publishWatchPart, watchActions } from "@/lib/watch";
+import { applyWorkWatch, workWatchPart } from "@shared/watchDuo";
 import { ConflictDialog, HubDataPanel, SaveBadge, SaveNotice, SizeNotice, downloadHubCopy } from "@/components/teacher-hub/HubSaveUI";
 import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
+import { Tasks, TaskRow, NewChip } from "@/components/teacher-hub/HubTasks";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
@@ -134,9 +146,10 @@ import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
-import AppWalkthrough from "@/components/AppWalkthrough";
+import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
+import AllAccessPopup from "@/components/AllAccessPopup";
 import HubCoach from "@/components/HubCoach";
-import { SHARED_LOOK_EVENT, readNight, rememberLook, withSharedLook, writeNight } from "@/lib/sharedLook";
+import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
 import { boardGoals } from "@shared/hubGoalBoard";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
 import { API_BASE } from "@/lib/queryClient";
@@ -146,7 +159,7 @@ import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { appLocked } from "@shared/privacyLock";
-import HubNotes from "@/components/teacher-hub/HubNotes";
+import HubLifeScreen from "@/components/teacher-hub/HubLifeScreens";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubAgenda from "@/components/teacher-hub/HubAgenda";
 import HubPageHead from "@/components/teacher-hub/HubPageHead";
@@ -165,7 +178,7 @@ import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/
 import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import PollAnswers, { usePollAnswers } from "@/components/teacher-hub/HubPollBell";
-import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
+import { AddEventModal, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
@@ -186,6 +199,8 @@ import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNo
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { isNativeApp } from "@/lib/nativeApp";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
+import { lockPageScroll } from "@/lib/scrollLock";
+import AppItemMenu from "@/components/hub-pieces/AppItemMenu";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -201,10 +216,11 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "caseload", label: "Caseload", icon: <Users className="h-4 w-4" /> },
   { id: "goals", label: "Goals", icon: <Target className="h-4 w-4" /> },
   { id: "minutes", label: "Minutes", icon: <Timer className="h-4 w-4" /> },
-  { id: "iep", label: "IEP & Meetings", icon: <CalendarDays className="h-4 w-4" /> },
+  { id: "iep", label: "IEP", icon: <CalendarDays className="h-4 w-4" /> },
   { id: "lessons", label: "Lessons", icon: <BookOpen className="h-4 w-4" /> },
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
+  { id: "journal", label: "Journal", icon: <NotebookPen className="h-4 w-4" /> },
   { id: "reader", label: "Overview", icon: <BookHeart className="h-4 w-4" /> },
   { id: "readerLive", label: "Live quiz", icon: <Trophy className="h-4 w-4" /> },
   { id: "readerScenes", label: "Scenes", icon: <Clapperboard className="h-4 w-4" /> },
@@ -229,10 +245,10 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
-  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, minutes: <Timer className="h-4 w-4" />,
-  notes: <StickyNote className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />,
+  notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
-  home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />, caseload: <Users className="h-4 w-4" />,
+  home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
   iep: <CalendarDays className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
   behavior: <Sparkles className="h-4 w-4" />,
   arise: <BookHeart className="h-4 w-4" />,
@@ -266,7 +282,7 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
       <div className="mx-auto grid grid-cols-1 max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[minmax(0,1.05fr)_.95fr]">
         <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
           <div className="mb-6 flex flex-wrap items-center gap-3 md:mb-12">
-            <span className="text-xs font-semibold uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</span>
+            <span className="text-xs font-semibold uppercase tracking-[.28em] text-slate-500">A.R.I.S.E.</span>
             <span className="rounded-full border border-teal-300/50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-teal-200">Add-on</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Arise WorkHub</h1>
@@ -303,8 +319,8 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
   );
 }
 
-/** WorkHub once the free month is over: the A.R.I.S.E. Reader tools stay, everything else is locked. */
-/** Which A.R.I.S.E. Reader tab an old teacher-dashboard link means ("comprehension", "parents"...). */
+/** WorkHub once the free month is over: the Arise Reader tools stay, everything else is locked. */
+/** Which Arise Reader tab an old teacher-dashboard link means ("comprehension", "parents"...). */
 function readerTabFor(old: string | null): ReaderTab {
   try { sessionStorage.removeItem("teacher_dashboard_tab"); } catch { /* fine */ }
   const map: Record<string, ReaderTab> = {
@@ -315,15 +331,15 @@ function readerTabFor(old: string | null): ReaderTab {
   return (old && map[old]) || "reader";
 }
 
-/** WorkHub once the free month is over: the A.R.I.S.E. Reader tabs stay, everything else is locked. */
+/** WorkHub once the free month is over: the Arise Reader tabs stay, everything else is locked. */
 function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolean }) {
   const [plans, setPlans] = useState(false);
   const [tab, setTab] = useState<ReaderTab>(() => { try { return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")); } catch { return "reader"; } });
   return (
     <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="min-w-0"><div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div><div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div></div>
+          <div className="min-w-0"><div className="text-xs font-bold uppercase tracking-[.22em] text-slate-500">Arise</div><div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div></div>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" />
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" /></button>
@@ -335,7 +351,7 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
           <button type="button" onClick={() => setPlans((v) => !v)} aria-expanded={plans} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{plans ? "Hide plans" : "See plans"}</button>
         </HubEndedNote>
         {plans && <div className="-mx-3 sm:mx-0"><HubPaywall isAdmin={isAdmin} embedded /></div>}
-        <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="A.R.I.S.E. Reader">
+        <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Arise Reader">
           {READER_TABS.map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
               className={`flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
@@ -352,13 +368,6 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
 /** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
-/** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
-function linkSummary(workspace: Workspace, links: HubLink[]): string {
-  const names = links.map((l) => resolveLink(workspace, l)?.label).filter(Boolean) as string[];
-  if (!names.length) return "Linked";
-  return names.length > 1 ? `${names[0].slice(0, 28)} + ${names.length - 1} more` : names[0].slice(0, 40);
-}
-
 /** What "Read with AI" asks about a document: goals first, then everything else worth keeping. */
 const READ_DOC_ASK = "Read this document. Pull out each student's IEP goals (the goal in its own words, the baseline, the target, the unit and the dates), any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping in my Hub.";
 
@@ -374,7 +383,7 @@ export default function TeacherHub() {
 function TeacherHubPage() {
   const { user, token, logout } = useAuth();
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
-  // The old teacher dashboard address opens the A.R.I.S.E. Reader tab (see OpenHubTab in App.tsx).
+  // The old teacher dashboard address opens the Arise Reader tab (see OpenHubTab in App.tsx).
   // Which tab is showing is remembered per account (sessionStorage key below), so a
   // browser refresh lands back where the teacher/parent actually was instead of
   // always resetting to Overview.
@@ -426,8 +435,19 @@ function TeacherHubPage() {
   const [notesKey, setNotesKey] = useState(0);
   // The Arise App Store. It opens straight away when the person switched here from LifeHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
-  /** An app to open the App Store on (search's "In the App Store" results). */
+  /** An app to open the App Store on (search's "In the Plugin Gallery" results). */
   const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
+  // The "⋯" menu on one app in the side menu (or press and hold it on a phone): which one is open.
+  const [itemMenu, setItemMenu] = useState<string | null>(null);
+  const holdTimer = useRef<number | null>(null), held = useRef(false);
+  const holdFor = (id: string) => ({
+    onContextMenu: (e: { preventDefault: () => void }) => { e.preventDefault(); setItemMenu(id); },
+    onTouchStart: () => { held.current = false; if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = window.setTimeout(() => { held.current = true; setItemMenu(id); }, 500); },
+    onTouchEnd: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = null; },
+    onTouchMove: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = null; },
+  });
+  /** A tap that ended a press-and-hold opened the menu; it doesn't also open the app. */
+  const wasHeld = () => { const h = held.current; held.current = false; return h; };
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -451,10 +471,9 @@ function TeacherHubPage() {
   useEffect(() => {
     if (!apps) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setApps(false); };
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
+    const unlock = lockPageScroll();
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); setHubGridFolder(null); };
+    return () => { document.removeEventListener("keydown", esc); unlock(); setAppsQuery(""); setHubGridFolder(null); };
   }, [apps]);
   const appsSwipe = useRef<number | null>(null);
   // The tab bar's Apps button opens the app drawer.
@@ -465,13 +484,13 @@ function TeacherHubPage() {
   }, []);
   const [youOpen, setYouOpen] = useState(false);
   // Arise To Duo: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
-  useAriseDuo();
+  const duo = useAriseDuo();
   const setRail = (open: boolean) => { setRailState(open); if (inDuoPane()) return; try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
   // The ⋯ menu (components/HubMoreMenu.tsx) closes itself on a tap outside it or Escape.
   // Night mode: the choice is remembered on this phone or computer.
   // Night mode is shared with LifeHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
   const [night, setNight] = useState(() => readNight("work"));
-  function toggleNight() { setNight((v) => { writeNight("work", !v); return !v; }); }
+  function toggleNight() { const on = !night; writeNight("work", on); setNight(on); setWorkspace((p) => ({ ...p, layout: withNight((p.layout || {}) as HubLayout, on) })); }
   const [, setLookTick] = useState(0);
   useEffect(() => { const f = () => { setNight(readNight("work")); setLookTick((x) => x + 1); }; window.addEventListener(SHARED_LOOK_EVENT, f); window.addEventListener("storage", f); return () => { window.removeEventListener(SHARED_LOOK_EVENT, f); window.removeEventListener("storage", f); }; }, []);
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
@@ -587,11 +606,23 @@ function TeacherHubPage() {
     return () => window.removeEventListener(OPEN_EMAIL_EVENT, open);
   }, []);
 
+  const [classesOpen, setClassesOpen] = useState(false);
   const [quickEvent, setQuickEvent] = useState(false);
   /** The student whose profile is open on the Caseload tab. It stays open while the teacher looks at another tab and comes back. */
   const [profileStudent, setProfileStudent] = useStayOnRefresh<string | null>("work-student", null);
   /** Checks a to-do off (or back on) and offers Undo for a few seconds. It can also be undone from "Done in the last day". */
   const checkTask = taskChecker(() => workspace.tasks, setWorkspace, (text, actions) => { toasts.show(text, actions); });
+  // Apple Watch (native/duo-watch): the Work side of the watch (to-dos, the week's calendar, notes); a to-do
+  // checked off or added there comes back here (shared/watchDuo.ts).
+  useEffect(() => {
+    if (!loaded || !user) return;
+    const t = window.setTimeout(() => publishWatchPart("work", workWatchPart(workspace, TODAY()), TODAY(), (user.displayName || "").split(" ")[0]), 1000);
+    return () => window.clearTimeout(t);
+  }, [workspace.tasks, workspace.events, workspace.notes, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!loaded || !user) return;
+    return watchActions((actions) => setWorkspace((p) => applyWorkWatch(p, actions, TODAY(), id)), "work");
+  }, [loaded, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const undoCheck = (taskId: string) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }));
   /** The to-do being changed from the To do card on Home. */
   const [homeTask, setHomeTask] = useStayOnRefresh<string | null>("work-home-task", null);
@@ -628,9 +659,15 @@ function TeacherHubPage() {
   // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
   // Every added Kit plugin and Notes app may be pinned to Home as its own tile (myKits/myNotesApps, just above).
   const pinnableApps = [...myKits.map((d) => d.id), ...myNotesApps.map((p) => p.id)];
-  const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps));
-  const setLayout = (next: HubLayout) => { rememberLook(next); setWorkspace((p) => ({ ...p, layout: next })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
-  const side = layout.menuSide;
+  const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps), "work");
+  const hubLook = useHubLook(layout.theme, night);
+  const hubRootRef = useRef<HTMLDivElement | null>(null);
+  useNativeBackdrop(hubRootRef, [night, layout.theme, hubLook.look?.id]);
+  const setLayout = (next: HubLayout) => { const stamped = stampLook(layout, next); setWorkspace((p) => ({ ...p, layout: stamped })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
+  /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
+  const osOn = !!hubLook.look && duo.mode !== "book" && !inDuoPane();
+  const workHeaderHidden = useAutoHideHeader(true);
+  const side = osOn ? "tabs" : layout.menuSide;
   /** The menu runs across the screen (top or bottom) instead of down a side. */
   const across = side === "top" || side === "bottom";
   /** A menu item's name on a phone: up to two short lines under its icon (one letter and dots told you nothing). On a computer, the full name. */
@@ -650,7 +687,7 @@ function TeacherHubPage() {
     ? `inset-x-0 bottom-0 border-t px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "translate-y-full"}`
     : `bottom-0 top-[65px] w-[72px] ${side === "right" ? "right-0 border-l pr-[env(safe-area-inset-right)]" : "left-0 border-r pl-[env(safe-area-inset-left)]"} ${menuOpen ? "translate-x-0" : side === "right" ? "translate-x-full" : "-translate-x-full"}`;
   // Where the menu sits on a computer (Customize): sidebar left or right, icons only, a top bar, or the app drawer.
-  const desk = layout.deskSide;
+  const desk = osOn ? "drawer" : layout.deskSide;
   const deskDrawer = desk === "drawer", deskTop = desk === "top", deskCompact = desk === "compact";
   // On a computer the sidebar sits like LifeHub's: full height, flush to the edge, white with a hairline,
   // and the page beside it gets LifeHub's roomy padding. The top bar and app drawer keep the centred page.
@@ -659,7 +696,7 @@ function TeacherHubPage() {
   const deskAside = deskDrawer ? "md:hidden" : deskTop ? "md:top-[65px] md:h-auto md:self-auto" : `md:top-[65px] md:h-[calc(100vh-65px)] md:self-start ${desk === "right" ? "md:order-2" : ""}`;
   const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : `md:h-full md:flex-col md:gap-0.5 md:overflow-y-auto md:rounded-none md:border-0 md:bg-white md:px-3 md:pb-3 md:pt-6 ${desk === "right" ? "md:border-l" : "md:border-r"} md:border-[#e4e6f0]`;
   const [openFolders, setOpenFolders] = useState<string[]>([]);
-  /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
+  /** Whether "Arise Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const learningAccess = useLearningAccess(token);
   const { plan: readerPlan } = usePlan(token);
   // Reader classroom tools are part of the Class/School Premium plan. The free
@@ -686,7 +723,7 @@ function TeacherHubPage() {
   const [notifyOpen, setNotifyOpen] = useState(false);
   const hubReady = canUseHub && loaded && !loadError && !needsPlan;
   const pollAnswers = usePollAnswers(token, user?.id, hubReady);
-  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
+  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff && !!user && walkthroughDone(user.id));
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
@@ -827,18 +864,9 @@ function TeacherHubPage() {
     );
   }
 
-  if (!loaded) {
-    return (
-      <div className="min-h-screen bg-slate-100 px-5 py-16">
-        <div className="mx-auto flex max-w-xl items-center justify-center gap-3 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-          <span className="text-sm font-medium text-slate-700">Opening your Arise WorkHub…</span>
-        </div>
-      </div>
-    );
-  }
+  if (!loaded) return <HubWaiting label="Opening your Arise WorkHub…" fallbackBg="#f1f5f9" />;
 
-  // After the free month: only the A.R.I.S.E. Reader tools stay (the rest of WorkHub is kept, but locked).
+  // After the free month: only the Arise Reader tools stay (the rest of WorkHub is kept, but locked).
   if (needsPlan) return <ReaderOnly signOut={signOut} isAdmin={!!user.isAdmin} />;
 
   if (loadError) {
@@ -864,6 +892,22 @@ function TeacherHubPage() {
   const isStoreGroup = (entry: (typeof menu)[number]) => entry.tabs.some((t) => WORK_ADD_ON_TABS.includes(t));
   const coreMenu = menu.filter((entry) => !isStoreGroup(entry));
   const installedMenu = menu.filter(isStoreGroup);
+  /** The apps listed with this one (built-in or My plugins), in menu order, the ones you can move. */
+  function sectionOf(id: HubGroupId): HubGroupId[] { return (menu.some((m) => m.id === id && isStoreGroup(m)) ? installedMenu : coreMenu).map((m) => m.id).filter((g) => g !== "home"); }
+  /** Hide (a built-in app) or remove (an app from the Plugin Gallery) one app of the menu, with Undo. */
+  const dropGroup = (item: (typeof menu)[number], removing: boolean) => {
+    const before = Object.fromEntries(item.tabs.map((t) => [t, workspace.visibleTabs[t]]));
+    setWorkspace((prev) => ({ ...prev, visibleTabs: { ...prev.visibleTabs, ...Object.fromEntries(item.tabs.map((t) => [t, false])) } }));
+    if (group.id === item.id) setTab("overview");
+    const name = groupLabel(item.id, visible);
+    toasts.show(removing ? `${name} removed. Add it back any time from the Plugin Gallery.` : `${name} hidden. Show it again in Customize.`,
+      [{ label: "Undo", run: () => setWorkspace((prev) => ({ ...prev, visibleTabs: { ...prev.visibleTabs, ...before } })) }]);
+  };
+  const hiddenLearning: string[] = Array.isArray((workspace as any).hiddenLearning) ? (workspace as any).hiddenLearning : [];
+  const setLearningHidden = (id: string, hide: boolean) => setWorkspace((prev) => {
+    const cur: string[] = Array.isArray((prev as any).hiddenLearning) ? (prev as any).hiddenLearning : [];
+    return { ...prev, hiddenLearning: hide ? [...new Set([...cur, id])] : cur.filter((x) => x !== id) } as typeof prev;
+  });
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
   // Opening a linked thing (components/teacher-hub/HubLinks.tsx): each kind goes where it lives.
@@ -909,7 +953,7 @@ function TeacherHubPage() {
     // A screen they haven't added yet: its page in the App Store, ready to add.
     else { setStoreOpenApp(`work-${t}`); setStore(true); }
   };
-  /** Everything the header's ⚡ shortcut can open (components/HeaderShortcut.tsx): each menu tab, A.R.I.S.E. Reader, and installed apps. */
+  /** Everything the header's ⚡ shortcut can open (components/HeaderShortcut.tsx): each menu tab, Arise Reader, and installed apps. */
   const shortcutChoices = (): ShortcutChoice[] => [
     ...menu.flatMap((g): ShortcutChoice[] => g.id === "arise"
       ? [{ id: "group:arise", label: g.label, icon: GROUP_ICON[g.id], onClick: () => goGroup(g.id) }]
@@ -917,10 +961,10 @@ function TeacherHubPage() {
     ...myKits.map((d): ShortcutChoice => { const Icon = kitIcon(d.icon); return { id: `kit:${d.id}`, label: d.name, icon: <Icon />, onClick: () => { closeApps(); openKit(d.id); } }; }),
     ...myNotesApps.map((p): ShortcutChoice => ({ id: `notes:${p.id}`, label: p.name, icon: <StickyNote />, onClick: () => { closeApps(); openNotesApp(p.id); } })),
   ];
-  /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
+  /** Opening a menu item. Arise Reader is a page of its own now (/reader), so that one item
    *  leaves the hub rather than switching tab; everything else behaves as it always did. */
   const goGroup = (id: HubGroupId) => {
-    // A.R.I.S.E. Reader is its own address, not a route inside this app, so this leaves for it.
+    // Arise Reader is its own address, not a route inside this app, so this leaves for it.
     if (id === "arise") { openReaderOrPlan(); return; }
     setTab(openGroup(id, visible, lastInGroup, !!user.isAdmin));
     closeApps();
@@ -933,6 +977,8 @@ function TeacherHubPage() {
       closeApps();
       return;
     }
+    // A LifeHub app's notice (Accountability: a partner did something, or asked for something) opens it in LifeHub.
+    if (type.startsWith("life:")) { navigate(`/lifehub?go=${encodeURIComponent(type.slice(5))}`); return; }
     // Anything else is the account's own (the Reader's approvals, quizzes, messages), or the admin's.
     if (user?.isAdmin) { try { sessionStorage.setItem("admin_notif", JSON.stringify({ type, id: 0 })); } catch { /* fine */ } navigate("/admin"); return; }
     if (readerNeedsPremium) { window.location.href = appHref("/billing"); return; }
@@ -953,11 +999,11 @@ function TeacherHubPage() {
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 className="h-4 w-4" />, open: () => setCustomize(true) });
     out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary and heads-ups", keywords: "notifications reminders alerts push phone bell", open: () => setNotifyOpen(true) });
     out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock screens and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock className="h-4 w-4" />, open: () => setLockSettings(true) });
-    out.push({ id: "store", kind: "Section", title: "App Gallery", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
+    out.push({ id: "store", kind: "Section", title: "Plugin Gallery", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
     // Installed apps are Apps too (not a separate "Plugins" group), with their icons and colours.
     for (const d of myKits) { const Icon = kitIcon(d.icon); out.push({ id: `kit-${d.id}`, kind: "App", title: d.name, sub: d.tagline, icon: <Icon />, color: d.color, open: () => openKit(d.id) }); }
     for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "App", title: p.name, icon: <StickyNote />, color: p.color, open: () => openNotesApp(p.id) });
-    // Apps not added yet: under "In the App Store", opening straight on that app's page.
+    // Apps not added yet: under "In the Plugin Gallery", opening straight on that app's page.
     for (const p of pluginsFor("work", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })) {
       if (!isAddable(p) || workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled, !!(workspace as any).briefOff, (workspace as any).sheetsInstalled, !!(workspace as any).driveInstalled, !!(workspace as any).dropInstalled)) continue;
       const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);
@@ -975,15 +1021,20 @@ function TeacherHubPage() {
   })();
   const group = groupOf(tab);
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits. Home never moves.
-  const moveGroupBy = (id: HubGroupId, dir: -1 | 1) => setWorkspace((prev) => {
-    const current = cleanGroupOrder(prev.groupOrder);
-    const at = current.indexOf(id);
-    const to = at + dir;
-    if (at < 0 || to < 0 || to >= current.length) return prev;
-    const next = [...current];
-    [next[at], next[to]] = [next[to], next[at]];
-    return { ...prev, groupOrder: next };
-  });
+  // Up and down go past the next app you can see. The saved order also holds apps that are hidden or not
+  // yours, and swapping with one of those used to look like nothing happened.
+  const moveGroupBy = (id: HubGroupId, dir: -1 | 1) => {
+    const section = sectionOf(id);
+    const at = section.indexOf(id), neighbor = section[at + dir];
+    if (at < 0 || !neighbor) return;
+    setWorkspace((prev) => {
+      const current = cleanGroupOrder(prev.groupOrder).filter((g) => g !== id);
+      const n = current.indexOf(neighbor);
+      if (n < 0) return prev;
+      current.splice(dir < 0 ? n : n + 1, 0, id);
+      return { ...prev, groupOrder: current };
+    });
+  };
   const moveGroupTo = (id: HubGroupId, beforeId: HubGroupId | null) => setWorkspace((prev) => {
     const current = cleanGroupOrder(prev.groupOrder).filter((g) => g !== id);
     const at = beforeId ? current.indexOf(beforeId) : current.length;
@@ -1002,13 +1053,41 @@ function TeacherHubPage() {
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
     extra: user.isAdmin ? [{ id: "admin", label: "To-Do admin", icon: <ShieldCheck />, onClick: () => { window.location.hash = "/todo-admin"; } }] : [],
   });
+  const osReady = osOn && canUseHub && loaded && !loadError && !needsPlan;
+  const osTab: OsScreen | null = tab === "overview" ? "home" : tab === "tasks" || tab === "calendar" || tab === "notes" ? tab : null;
+  const osCore = osReady && !!osTab && !kitOpen && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen;
+  const osGo = (s: OsScreen) => { setStore(false); setAddMenu(false); goTab(s === "home" ? "overview" : s); };
+  const osAdd = (title?: string) => { if (title) { setHomeQuick(title.slice(0, 200)); setHomeTask(NEW_TASK); } else setAddMenu((v) => !v); };
+  const osApps = () => setApps(true);
+  const osOff = (["tasks", "calendar", "notes"] as const).filter((t) => !isTabOn(t, visible, !!user.isAdmin));
+  const osFirst = (user.displayName || "").split(" ")[0];
+  const osToday = TODAY();
+  const osEvents = osCore ? calendarEvents(workspace, osToday, addDays(osToday, 34)) : [];
+  const osDays = !osCore ? [] : Array.from({ length: 35 }, (_, n) => {
+    const date = addDays(osToday, n), d = new Date(`${date}T12:00:00`);
+    return { date, weekday: d.toLocaleDateString(undefined, { weekday: "short" }), day: String(d.getDate()), month: d.toLocaleDateString(undefined, { month: "short" }),
+      items: [...osEvents.filter((e) => e.date === date).map((e) => ({ id: e.id, time: e.start, title: e.title })),
+        ...workspace.meetings.filter((m) => !m.done && m.date === date).map((m) => ({ id: m.id, time: m.time ?? "", title: m.type || "Meeting" })),
+        ...workspace.tasks.filter((t) => !t.done && !t.archived && t.dueDate === date).map((t) => ({ id: t.id, time: t.dueTime ?? "", title: t.title }))] };
+  });
+  const osLists = cleanTaskLists(workspace.taskLists);
+  const osTasks = workspace.tasks.filter((t) => !t.archived).map((t) => { const list = osLists.find((l) => l.id === t.listId); return { id: t.id, title: t.title, done: t.done, due: t.dueDate, late: !t.done && !!t.dueDate && t.dueDate < osToday, dueLabel: t.dueDate ? new Date(`${t.dueDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: "", notes: t.notes ?? "" }; });
+  // Notes about a student show only their title outside the Notes app, so nothing private sits on Home.
+  const osNotes = [...workspace.notes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((n) => ({ id: n.id, title: n.title || n.type || "Note", body: n.student ? "" : n.body, locked: n.locked, when: n.date }));
+  const osShortcuts = [{ id: "classes", label: "Classes", onClick: () => setClassesOpen(true) }, ...(["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, !!user.isAdmin)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }))];
+  // The bell: in the header, or in the themed top bar beside the Work/Life switch.
+  const workBell = <NotificationBell
+              extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
+              onNavigate={openAlert}
+              onSettings={() => setNotifyOpen(true)}
+              triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />;
   return (
     <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} readDocument={(student) => {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}>
-    <div className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
-      style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
+    <div ref={hubRootRef} className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
+      style={{ ...hubLook.style, "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {canUseHub && loaded && !loadError && !needsPlan && <HubCoach userId={user.id} hub="work" />}
       {canUseHub && loaded && !loadError && !needsPlan && <AppWalkthrough userId={user.id} hub="work" arise={user.role === "teacher" || user.role === "parent"}
@@ -1019,6 +1098,8 @@ function TeacherHubPage() {
           setWorkspace((prev) => { const had = prev.calendars.find((c) => isIphoneCalendar(c.url)); return replaceCalendarEvents(prev, { id: had?.id || id(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() }, events, id); });
           return events.length;
         }} />}
+      {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). The same one LifeHub shows. */}
+      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         initialOpen={storeOpenApp ?? undefined}
@@ -1062,7 +1143,8 @@ function TeacherHubPage() {
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      {/* Blends into the page (no white bar or line), and slides away as you scroll down on a phone. */}
+      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} bg-slate-100 py-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && workHeaderHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-header-hidden={!osCore && workHeaderHidden ? "true" : undefined}>
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
@@ -1080,11 +1162,8 @@ function TeacherHubPage() {
             </div>
             <HubSearchButton onOpen={() => setSearching(true)} />
             <span className="hidden sm:contents duo:hidden"><SaveBadge view={view} /></span>
-            <NotificationBell
-              extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
-              onNavigate={openAlert}
-              onSettings={() => setNotifyOpen(true)}
-              triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />
+            {!osCore && workBell}
+
             {/* On a phone this lives in the floating add button instead, so the header stays clear. */}
             <button type="button" onClick={() => startAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4 duo:hidden" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
@@ -1103,7 +1182,7 @@ function TeacherHubPage() {
         {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
           className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
           {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
-        {(drawerMenu || deskDrawer) && !apps && (
+        {(drawerMenu || deskDrawer) && !apps && !osOn && (
           <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open"
             onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (appsSwipe.current !== null && appsSwipe.current - e.touches[0].clientY > 30) { appsSwipe.current = null; setApps(true); } }}
             className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 ${drawerMenu && !tabBar ? "inline-flex" : "hidden"} ${deskDrawer ? "md:inline-flex" : "md:hidden"}`}>
@@ -1114,7 +1193,7 @@ function TeacherHubPage() {
           <div className={`fixed inset-0 z-[70] ${drawerMenu ? "" : "max-md:hidden"} ${deskDrawer ? "" : "md:hidden"} ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>
             <div className={`absolute inset-0 bg-slate-950/30 transition-opacity duration-200 ${apps ? "opacity-100" : "opacity-0"}`} onClick={() => setApps(false)} />
             <div role="dialog" aria-modal="true" aria-label="All sections" data-testid="hub-apps"
-              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,env(safe-area-inset-top))] mx-auto flex max-w-3xl flex-col rounded-t-[2rem] md:top-16 bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
+              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,var(--sat,env(safe-area-inset-top,0px)))] mx-auto flex max-w-3xl flex-col rounded-t-[2rem] md:top-16 bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
               onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }}
               onTouchEnd={(e) => { const from = appsSwipe.current; appsSwipe.current = null; const list = document.getElementById("hub-apps-list"); if (from !== null && e.changedTouches[0].clientY - from > 90 && (!list || list.scrollTop <= 0)) setApps(false); }}>
               <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden />
@@ -1138,7 +1217,7 @@ function TeacherHubPage() {
                     </label>
                     <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
                   </div>
-                  {hubOpenFolder && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{hubOpenFolder.name}</p>}
+                  {hubOpenFolder && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{hubOpenFolder.name}</p>}
                   <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
                     {!hubOpenFolder && (user.role === "teacher" || !!user.isAdmin) && LEARNING_APPS.filter((a) => a.label.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => { const Icon = a.icon; const has = learningAccess[a.id]; return (
                       <li key={`learn-${a.id}`}>
@@ -1154,7 +1233,7 @@ function TeacherHubPage() {
                         <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
                           className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
                           <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-7 w-7" /></span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">App Gallery</span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">Plugin Gallery</span>
                         </button>
                       </li>
                     )}
@@ -1211,7 +1290,7 @@ function TeacherHubPage() {
             </div>
           </div>
         )}
-        <aside data-tour="hub-menu" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
+        <aside data-tour="hub-menu" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
           <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${deskList}`}>
             {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
             <div className={`hidden px-3 py-3 ${deskTop || deskCompact ? "" : "md:block"}`}>
@@ -1233,7 +1312,8 @@ function TeacherHubPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => { goGroup(item.id); afterPick(); }}
+                    onClick={() => { if (wasHeld()) return; goGroup(item.id); afterPick(); }}
+                    {...(movable ? holdFor(`g:${item.id}`) : {})}
                     aria-current={group.id === item.id && !kitOpen ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
@@ -1242,16 +1322,25 @@ function TeacherHubPage() {
                     {GROUP_ICON[item.id]}
                     <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{groupLabel(item.id, visible)}</span>
                   </button>
+                  {movable && <AppItemMenu name={groupLabel(item.id, visible)} open={itemMenu === `g:${item.id}`} setOpen={(o) => setItemMenu(o ? `g:${item.id}` : null)}
+                    className={deskTop || deskCompact ? "md:hidden" : ""}
+                    actions={[
+                      { label: "Open", onPick: () => { goGroup(item.id); afterPick(); } },
+                      ...(sectionOf(item.id).indexOf(item.id) > 0 ? [{ label: "Move up", onPick: () => moveGroupBy(item.id, -1) }] : []),
+                      ...(sectionOf(item.id).indexOf(item.id) < sectionOf(item.id).length - 1 ? [{ label: "Move down", onPick: () => moveGroupBy(item.id, 1) }] : []),
+                      isStoreGroup(item) ? { label: "Remove app", danger: true, onPick: () => dropGroup(item, true) } : { label: "Hide from menu", onPick: () => dropGroup(item, false) },
+                      { label: "Customize menu", onPick: () => setCustomize(true) },
+                    ]} />}
                   {movable && (
                     <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${deskTop || deskCompact || nested ? "" : "md:flex"}`}>
-                      <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={i <= 1} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
-                      <button type="button" onClick={() => moveGroupBy(item.id, 1)} disabled={i >= menu.length - 1} aria-label={`Move ${groupLabel(item.id, visible)} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+                      <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={sectionOf(item.id).indexOf(item.id) <= 0} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+                      <button type="button" onClick={() => moveGroupBy(item.id, 1)} disabled={sectionOf(item.id).indexOf(item.id) >= sectionOf(item.id).length - 1} aria-label={`Move ${groupLabel(item.id, visible)} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
                     </span>
                   )}
                 </div>
               );
               };
-              /** A.R.I.S.E. Reader's own row: one sub-item, folder-style, for each of its tabs. */
+              /** Arise Reader's own row: one sub-item, folder-style, for each of its tabs. */
               const subItem = (t: HubTab, nested: boolean) => (
                 <div key={t} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"} ${nested && !deskTop && !deskCompact ? "md:pl-4" : ""}`}>
                   <button type="button" onClick={() => { setTab(t); closeApps(); afterPick(); }} aria-current={tab === t && !kitOpen ? "page" : undefined} data-testid={`hub-menu-${t}`} data-hub-nav
@@ -1271,7 +1360,7 @@ function TeacherHubPage() {
                   </button>
                 </div>
               );
-              /** A.R.I.S.E. Reader, at the top of Arise Learning. It is a page of its own now
+              /** Arise Reader, at the top of Arise Learning. It is a page of its own now
                *  (/reader), so this leaves the hub rather than opening tabs inside it — there is
                *  nothing left to expand underneath, which is why the chevron is gone. */
               const readerBlock = (() => {
@@ -1280,22 +1369,22 @@ function TeacherHubPage() {
                       {/* Same style as the other Arise Learning programs (a colored icon tile). Pressing it
                           jumps straight to the Reader Overview, so a teacher always lands somewhere. */}
                       <button type="button" onClick={() => { afterPick(); openReaderOrPlan(); }} data-testid="hub-menu-arise" data-hub-nav
-                        title={readerNeedsPremium ? "A.R.I.S.E. Reader: add it from the Class plan" : "Open A.R.I.S.E. Reader"}
+                        title={readerNeedsPremium ? "Arise Reader: add it from the Class plan" : "Open Arise Reader"}
                         className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm text-slate-700 hover:text-slate-950 md:hover:bg-slate-100`}>
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}>{GROUP_ICON.arise}</span>
                         <span className={`${MENU_LABEL} md:hidden`}>Reader</span>
                         {readerNeedsPremium && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-800 md:hidden">Add-on</span>}
-                        <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+                        <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>Arise Reader</span>
                         {readerNeedsPremium && <span className={`hidden shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800 md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} data-testid="hub-reader-addon">Add-on</span>}
                       </button>
                     </div>
                   </Fragment>;
               })();
-              // The admin console lives in A.R.I.S.E. Reader now (its menu, for admins), not in WorkHub.
+              // The admin console lives in Arise Reader now (its menu, for admins), not in WorkHub.
               const adminBlock = null;
               // Para Team (pages/ParaTeam.tsx): the teacher's shared space with their paras and 1:1s.
               // Everyone gets it: teachers make a team, paras (often free To-Do accounts) join one.
-              // Para Team is in the App Gallery now (it shows under My apps once added).
+              // Para Team is in the Plugin Gallery now (it shows under My apps once added).
               const _paraBlock = <div key="para-team" className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { afterPick(); navigate("/para-team"); }} data-testid="hub-para-team" data-hub-nav title="Para Team: your paras and 1:1s, all in one place"
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-700 transition hover:text-slate-950 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-slate-100`}>
@@ -1310,11 +1399,11 @@ function TeacherHubPage() {
                   <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
                 </div>
                 {readerBlock}
-                {LEARNING_APPS.map((a) => {
+                {LEARNING_APPS.filter((a) => !hiddenLearning.includes(a.id)).map((a) => {
                   const has = learningAccess[a.id];
                   return (
-                    <div key={`learn-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                      <button type="button" onClick={() => { afterPick(); openLearning(a.id, has); }} data-testid={`hub-learning-${a.id}`} data-hub-nav
+                    <div key={`learn-${a.id}`} className={`group/navitem flex items-center ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                      <button type="button" onClick={() => { if (wasHeld()) return; afterPick(); openLearning(a.id, has); }} {...holdFor(`l:${a.id}`)} data-testid={`hub-learning-${a.id}`} data-hub-nav
                         title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
                         className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-700 transition hover:text-slate-950 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-slate-100`}>
                         <LearningIcon id={a.id} />
@@ -1322,22 +1411,16 @@ function TeacherHubPage() {
                         <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>{a.label}</span>
                         {!has && <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} style={{ background: a.soft, color: a.color }}>Add-on</span>}
                       </button>
+                      <AppItemMenu name={a.label} open={itemMenu === `l:${a.id}`} setOpen={(o) => setItemMenu(o ? `l:${a.id}` : null)} className={deskTop || deskCompact ? "md:hidden" : ""}
+                        actions={[{ label: "Open", onPick: () => { afterPick(); openLearning(a.id, has); } }, { label: "Hide from menu", onPick: () => { setLearningHidden(a.id, true); toasts.show(`${a.label} hidden. Show it again in Customize.`, [{ label: "Undo", run: () => setLearningHidden(a.id, false) }]); } }]} />
                     </div>
                   );
                 })}
-                <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                  <SupportMenuItem isAdmin={!!user?.isAdmin} testId="hub-support"
-                    className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-rose-700 transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-rose-50`}>
-                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white"><Heart className="h-4 w-4 fill-current" /></span>
-                    <span className={`${MENU_LABEL} md:hidden`}>Support</span>
-                    <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>Support A.R.I.S.E.</span>
-                  </SupportMenuItem>
-                </div>
               </Fragment>;
               const renderSidebarGroups = (groups: typeof menu, keepFolders: boolean) => foldMenu(groups, keepFolders ? layout.folders : [])
                 .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
                 .map((entry) => {
-                // A.R.I.S.E. Reader lives in the Arise Learning section, right below Home.
+                // Arise Reader lives in the Arise Learning section, right below Home.
                 if (entry.kind === "item" && entry.item.id === "arise") return null;
                 // Drawn right below Arise Learning instead, not wherever the saved order put it.
                 if (entry.kind === "item" && entry.item.id === "admin") return null;
@@ -1361,64 +1444,79 @@ function TeacherHubPage() {
               const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || myOfficeApps.length > 0 || !!drivePlugin || !!dropPlugin;
               return <>
                 {renderSidebarGroups(coreMenu, true)}
-                {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My apps</p>}
+                {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My plugins</p>}
                 {renderSidebarGroups(installedMenu, false)}
-                {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={`flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-600 hover:text-indigo-700 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm md:hover:bg-slate-100`}><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></a>)}
               </>;
             })()}
-            {myKits.map((d) => {
-              const Icon = kitIcon(d.icon);
-              return (
-                <div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+            {(() => {
+              // Everything else under My plugins (kits like IEP, Notes, Sheets and Office apps, Drive, Dropbox),
+              // in the order you set: ⋯ (or press and hold) → Move up / Move down.
+              const extras: { key: string; label: string; node: any; remove?: () => void }[] = [];
+              myOfficeApps.forEach((a) => extras.push({ key: `office:${a.id}`, label: a.name, node: <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={`flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-600 hover:text-indigo-700 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm md:hover:bg-slate-100`}><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></a> }));
+              myKits.forEach((d) => { const Icon = kitIcon(d.icon); extras.push({ key: `kit:${d.id}`, label: d.name, remove: () => {
+                const before: string[] | undefined = (workspace as any).kitInstalled;
+                setWorkspace((prev) => ({ ...prev, kitInstalled: ((prev as any).kitInstalled as string[] | undefined ?? []).filter((k) => k !== d.id) } as typeof prev));
+                if (kitOpen === d.id) setKitOpen(null);
+                toasts.show(`${d.name} removed. Add it back any time from the Plugin Gallery.`, [{ label: "Undo", run: () => setWorkspace((prev) => ({ ...prev, kitInstalled: before ?? [] } as typeof prev)) }]);
+              }, node: (<div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                   <button type="button" onClick={() => { closeApps(); openKit(d.id); afterPick(); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`hub-kit-${d.id}`} data-hub-nav
                     className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${kitOpen === d.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: d.color }}><Icon className="h-3.5 w-3.5" /></span>
                     <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{d.name}</span>
                   </button>
-                </div>
-              );
-            })}
-            {myNotesApps.map((p) => (
-              <div key={`notes-app-${p.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                </div>) }); });
+              myNotesApps.forEach((p) => extras.push({ key: `notes:${p.id}`, label: p.name, node: (<div key={`notes-app-${p.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); openNotesApp(p.id); afterPick(); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`hub-notes-app-${p.id}`} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${notesAppOpen === p.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><StickyNote className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{p.name}</span>
                 </button>
-              </div>
-            ))}
-            {mySheetsApps.map((a) => (
-              <div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              </div>) }));
+              mySheetsApps.forEach((a) => extras.push({ key: `sheets:${a.id}`, label: a.name, node: (<div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(a.id); afterPick(); }} aria-current={sheetsAppOpen === a.id ? "page" : undefined} data-testid={`hub-sheets-app-${a.id}`} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${sheetsAppOpen === a.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: a.color }}><Table className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span>
                 </button>
-              </div>
-            ))}
-            {drivePlugin && (
-              <div key={"drive-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              </div>) }));
+              if (drivePlugin) extras.push({ key: "drive", label: drivePlugin.name, node: (<div key={"drive-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setDriveOpen(true); afterPick(); }} aria-current={driveOpen ? "page" : undefined} data-testid={"hub-drive-app"} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${driveOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: drivePlugin.color }}><FolderOpen className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{drivePlugin.name}</span>
                 </button>
-              </div>
-            )}
-            {dropPlugin && (
-              <div key={"drop-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              </div>) });
+              if (dropPlugin) extras.push({ key: "drop", label: dropPlugin.name, node: (<div key={"drop-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setDropOpen(true); afterPick(); }} aria-current={dropOpen ? "page" : undefined} data-testid={"hub-drop-app"} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${dropOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: dropPlugin.color }}><QrCode className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{dropPlugin.name}</span>
                 </button>
-              </div>
-            )}
+              </div>) });
+              const order: string[] = Array.isArray((workspace as any).myAppsOrder) ? (workspace as any).myAppsOrder : [];
+              const rank = (k: string) => { const i = order.indexOf(k); return i < 0 ? 1000 + extras.findIndex((x) => x.key === k) : i; };
+              const sorted = [...extras].sort((a, b) => rank(a.key) - rank(b.key));
+              const move = (key: string, dir: -1 | 1) => {
+                const keys = sorted.map((x) => x.key); const at = keys.indexOf(key), to = at + dir;
+                if (at < 0 || to < 0 || to >= keys.length) return;
+                [keys[at], keys[to]] = [keys[to], keys[at]];
+                setWorkspace((prev) => ({ ...prev, myAppsOrder: keys } as typeof prev));
+              };
+              return sorted.map((x, i) => <div key={x.key} className={`group/navitem relative flex items-center ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`} {...holdFor(`x:${x.key}`)}>
+                <div className="min-w-0 flex-1" onClickCapture={(e) => { if (wasHeld()) { e.stopPropagation(); e.preventDefault(); } }}>{x.node}</div>
+                <AppItemMenu name={x.label} open={itemMenu === `x:${x.key}`} setOpen={(o) => setItemMenu(o ? `x:${x.key}` : null)} className={deskTop || deskCompact ? "md:hidden" : ""}
+                  actions={[...(i > 0 ? [{ label: "Move up", onPick: () => move(x.key, -1) }] : []), ...(i < sorted.length - 1 ? [{ label: "Move down", onPick: () => move(x.key, 1) }] : []), ...(x.remove ? [{ label: "Remove app", danger: true, onPick: x.remove }] : []), { label: "Customize menu", onPick: () => setCustomize(true) }]} />
+                {!deskTop && !deskCompact && <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
+                  <button type="button" onClick={() => move(x.key, -1)} disabled={i === 0} aria-label={`Move ${x.label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => move(x.key, 1)} disabled={i === sorted.length - 1} aria-label={`Move ${x.label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
+                </span>}
+              </div>);
+            })()}
             <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:mt-2 md:w-full md:border-t md:border-slate-100 md:pt-2`}>
               <button type="button" onClick={() => { setStore(true); afterPick(); }} data-testid="hub-menu-app-store" data-hub-store
                 className="flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium">
                 <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-3.5 w-3.5" /></span>
-                <span className={`${MENU_LABEL}`}>App Gallery</span>
+                <span className={`${MENU_LABEL}`}>Plugin Gallery</span>
               </button>
             </div>
           </div>
@@ -1429,7 +1527,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> Plugin Gallery</button>
               </div>
               <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />
             </div>
@@ -1438,7 +1536,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-notes-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> Plugin Gallery</button>
               </div>
               <NotesKitApp key={notesAppOpen} name={notesAppPlugin("work", notesAppOpen)!.name} blurb={notesAppPlugin("work", notesAppOpen)!.description}
                 notes={notesAppRecords[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={id} say={(m) => toasts.show(m, [])} />
@@ -1448,7 +1546,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-sheets-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> Plugin Gallery</button>
               </div>
               <OfficeApp config={SHEETS} legacy={legacySheets(hubSheets, (sid) => setHubSheets((all) => all.filter((x) => x.id !== sid)))} say={(m) => toasts.show(m, [])} />
             </div>
@@ -1457,7 +1555,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-drive-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> Plugin Gallery</button>
               </div>
               <DriveApp files={hubDrive} setFiles={setHubDrive} say={(m) => toasts.show(m, [])} token={token}
                 onReadWithAI={(f, blob) => setAdding({ preload: { file: new File([blob], f.name, { type: f.contentType || blob.type }), text: READ_DOC_ASK }, links: [{ kind: "file", id: f.id }] })} />
@@ -1467,7 +1565,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-drop-app-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Gallery</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> Plugin Gallery</button>
               </div>
               <DropApp say={(m) => toasts.show(m, [])} token={token} />
             </div>
@@ -1492,25 +1590,6 @@ function TeacherHubPage() {
           {customize && <CustomizeSheet eyebrow="WorkHub" storageKey="work-customize-tab" initialTab={customizeTab} dark="#020617" testId="customize-layout"
             onClose={() => { setCustomize(false); setCustomizeTab(undefined); }}
             tabs={[
-              { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
-                <SameBothHubs testId="hub-same-both" />
-                <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">
-                  <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
-                    {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
-                      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
-                  </div>
-                  {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Apps for every section, and You for your account and settings.</p>
-                    : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
-                    {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
-                      className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
-                      <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
-                      <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
-                    </button>)}
-                  </div>}
-                </CustomizeGroup>
-                <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
-                <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
-              </> },
               { id: "look", label: "Look", icon: <Palette />, content: <>
                 <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
                   <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
@@ -1538,26 +1617,6 @@ function TeacherHubPage() {
                 </CustomizeGroup>
                 <ThemePicker layout={layout} setLayout={setLayout} dark="#020617" />
               </> },
-              { id: "home", label: "Home screen", icon: <LayoutGrid />, content: <CustomizeGroup title="Home screen" help="Turn parts on or off and move them up or down. The picture box shows a photo of your choice; tap Style on it to add one.">
-                  <ul className="space-y-1.5" aria-label="Parts of Home">
-                    {layout.home.map((id, i) => {
-                      const on = !layout.homeHidden.includes(id);
-                      // A pinned App Store app (pin:<id>) is listed by its own name; it is not one of the built-in parts.
-                      const label = HOME_SECTIONS.find((x) => x.id === id)?.label ?? (isPinId(id) ? (myKits.find((d) => d.id === unpinId(id))?.name ?? myNotesApps.find((p) => p.id === unpinId(id))?.name) : undefined) ?? id;
-                      return (
-                        <li key={id} className={`flex min-h-11 items-center gap-2 rounded-xl border px-2 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`home-part-${id}`}>
-                          <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm">
-                            <input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} />
-                            <span className={on ? "font-medium text-slate-900" : "text-slate-500"}>{label}</span>
-                          </label>
-                          <button type="button" onClick={() => setLayout(moveSection(layout, id, -1))} disabled={i === 0} aria-label={`Move ${label} up`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
-                          <button type="button" onClick={() => setLayout(moveSection(layout, id, 1))} disabled={i === layout.home.length - 1} aria-label={`Move ${label} down`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: (workspace as any).widgetsOn ? ["picture"] : ["picture", "widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
-              </CustomizeGroup> },
               { id: "tabs", label: "Tabs", icon: <ListChecks />, content: <CustomizeGroup title="Tabs" help="Hide anything you do not use. Hiding a tab does not delete its records. To reorder the menu, drag an item in it (or use its arrows on hover).">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
@@ -1585,18 +1644,37 @@ function TeacherHubPage() {
               </div>
               </CustomizeGroup> },
               { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <DuoControls canWork onClose={() => { setCustomize(false); setCustomizeTab(undefined); }} dark="#020617" /> },
+              { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
+                <SameBothHubs testId="hub-same-both" />
+                <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">
+                  <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
+                    {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
+                      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
+                  </div>
+                  {layout.menuSide === "tabs" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600" data-testid="menu-tabs-help">A bar floats along the bottom of the screen: Home, Tasks, the + button to add anything, Plugins for every section, and You for your account and settings.</p>
+                    : layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
+                    {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
+                      className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                      <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
+                      <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
+                    </button>)}
+                  </div>}
+                </CustomizeGroup>
+                <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
+                <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
+              </> },
               { id: "more", label: "Plan & data", icon: <Sparkles />, content: <>
                 <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Gallery</span>Add apps, tabs and connections.</span></button>
+                  <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the Plugin Gallery</span>Add plugins, tabs and connections.</span></button>
                   <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise:walkthrough")); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour again</button>
                 </div>
                 <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
               </> },
             ]} />}
 
-          {subTabs.length > 1 && (
-            // On desktop the sidebar lists every A.R.I.S.E. Reader sub-tab, and under Admin console
+          {subTabs.length > 1 && group.id !== "iep" && (
+            // On desktop the sidebar lists every Arise Reader sub-tab, and under Admin console
             // its sections and Settings' parts, so this dropdown would only repeat them there. It
             // earns its keep on phones, and on desktop only in the drawer layout, which has no
             // sidebar showing.
@@ -1622,10 +1700,9 @@ function TeacherHubPage() {
             </div>
           )}
 
-          <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
+          {!osCore && <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
           {tab === "overview" && (
             <>
-              <SupportBanner />
               {(() => {
                 // Home in the teacher's order. Press and hold (or Edit Home) to arrange it right here; Customize sets the same order.
                 // Widened past Record<HomeSection, ...> below so a pinned Kit plugin or Notes app (see pinId) can add its own entry.
@@ -1634,7 +1711,7 @@ function TeacherHubPage() {
                   day: (() => {
                     const hour = new Date().getHours();
                     const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-                    const first = user.displayName.split(" ")[0];
+                    const first = (user.displayName || "").split(" ")[0];
                     return <header className="flex flex-wrap items-start justify-between gap-4" data-testid="home-greeting">
                       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
                         <h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{hello}{first ? `, ${first}` : ""}<span className="text-[#7866e1]">.</span></h1>
@@ -1660,7 +1737,7 @@ function TeacherHubPage() {
                     </div>;
                   })(),
                   picture: (
-              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]} stats={isTabOn("caseload", visible, !!user.isAdmin) ? [{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }] : [{ label: "Open to-dos", value: openTasks }, { label: "Notes", value: workspace.notes.length }, { label: "Events", value: workspace.events.length }]} />
+              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={(user.displayName || "").split(" ")[0]} stats={isTabOn("caseload", visible, !!user.isAdmin) ? [{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }] : [{ label: "Open to-dos", value: openTasks }, { label: "Notes", value: workspace.notes.length }, { label: "Events", value: workspace.events.length }]} />
                   ),
                   agenda: (
               <HubAgenda workspace={workspace} onOpenCalendar={() => setTab("calendar")} onOpenMeetings={() => setTab("iep")} />
@@ -1677,7 +1754,8 @@ function TeacherHubPage() {
               </Card>
                   ),
                   calendar: (
-              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} agendaToday collapseKey="home-calendar" />
+              // The same calendar as the Calendar tab (Home still showed the older one).
+              <div data-testid="home-calendar"><HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} /></div>
                   ),
                   meetings: (
               <Card title="Upcoming IEP / reevaluation meetings" collapseKey="home-meetings">
@@ -1712,15 +1790,16 @@ function TeacherHubPage() {
               <WidgetBoard items={(workspace as any).widgetItems} makeId={id} accent="bg-slate-950"
                 setItems={(update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) }))} />
                   ) : null,
-                  notifications: (
-              <HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} />
-                  ),
                   profile: (
               <Card title="Workspace profile" collapseKey="home-profile">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <Field placeholder="School" value={workspace.profile.school} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, school: e.target.value } }))} />
                   <Field placeholder="Grade / band" value={workspace.profile.gradeBand} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, gradeBand: e.target.value } }))} />
                   <Field placeholder="Subject / role" value={workspace.profile.subject} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, subject: e.target.value } }))} />
+                </div>
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <h3 className="mb-2 text-sm font-bold text-slate-900">Classes, subjects &amp; teachers</h3>
+                  <HubClassesCard workspace={workspace} setWorkspace={setWorkspace} makeId={id} />
                 </div>
               </Card>
                   ),
@@ -1745,25 +1824,42 @@ function TeacherHubPage() {
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
                 // LifeHub's Home look (see hubLifeLook.css): soft white cards on the same ground.
-                return <div className="hub-home-life"><HomeParts parts={part} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
+                // The Tiles look: each part's tile shows what's in it, live (the Picture box shows the picture).
+                const openT = workspace.tasks.filter((t) => !t.done), todayKey = new Date().toISOString().slice(0, 10);
+                const dueT = openT.filter((t) => t.dueDate && t.dueDate <= todayKey);
+                const nextM = workspace.meetings.filter((m) => !(m as any).done && m.date >= todayKey).sort((a, b) => (a.date + (a.time ?? "")).localeCompare(b.date + (b.time ?? "")))[0];
+                const bannerImg = (workspace.profile as any)?.banner?.image as string | undefined;
+                const partLive: Record<string, { faces?: { big?: string; text: string }[]; photos?: string[] }> = {
+                  picture: { photos: bannerImg ? [bannerImg] : PICTURE_ART },
+                  day: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] },
+                  stats: { faces: [{ big: String(openT.length), text: openT.length === 1 ? "open task" : "open tasks" }, { big: String(workspace.students.length), text: workspace.students.length === 1 ? "student" : "students" }] },
+                  todo: { faces: [{ big: String(openT.length), text: "to do" }, ...(dueT.length ? [{ big: String(dueT.length), text: "due today or late" }] : []), ...openT.slice(0, 2).map((t) => ({ text: t.title }))] },
+                  agenda: { faces: [{ big: String(dueT.length), text: dueT.length ? `due today: ${dueT[0].title}` : "nothing due today" }] },
+                  calendar: { faces: [{ big: String(new Date().getDate()), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long" }) }] },
+                  meetings: { faces: nextM ? [{ big: new Date(`${nextM.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }), text: `${nextM.type} · ${nextM.student}` }] : [{ text: "No meetings coming up" }] },
+                };
+                return <div className="hub-home-life"><HomeParts parts={part} partLive={partLive} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
               })()}
             </>
           )}
 
-          {tab !== "overview" && tab !== "caseload" && !isReaderTab(tab) && tab !== "admin" && (
+          {tab !== "overview" && tab !== "caseload" && tab !== "minutes" && tab !== "calendar" && tab !== "notes" && tab !== "journal" && !isReaderTab(tab) && tab !== "admin" && (
             <HubPageHead tab={tab} title={TAB_META.find((m) => m.id === tab)?.label ?? groupLabel(group.id, visible)} workspace={workspace} />
           )}
 
           {false && tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
-            onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the App Gallery.", [{ label: "Open App Gallery", run: () => setStore(true) }]); }} />}
-          {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
-          {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
+            onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the Plugin Gallery.", [{ label: "Open Plugin Gallery", run: () => setStore(true) }]); }} />}
+          {tab === "calendar" && <HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, !!user.isAdmin) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
-          {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
+          {(tab === "iep" || tab === "caseload" || tab === "minutes") && <IepPage key={tab} start={tab === "caseload" ? "profile" : tab === "minutes" ? "minutes" : "overview"} startStudent={tab === "caseload" ? profileStudent : null} workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} token={token}
+            meetings={<Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
+            caseload={(studentId, onPick) => <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={studentId} setProfileId={onPick} openTab={setTab} />}
+            goals={<><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}
+            minutes={<MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
-          {tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
+          {tab === "notes" && <HubLifeScreen key={notesKey} which="notes" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} />}
+          {tab === "journal" && <HubLifeScreen which="journal" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "admin" && user.isAdmin && adminSection === "updates" && <WhatsNew embedded />}
           {tab === "admin" && user.isAdmin && adminSection !== "updates" && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
@@ -1774,17 +1870,18 @@ function TeacherHubPage() {
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
-          </LockedApp>
+          </LockedApp>}
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={(side === "bottom" && menuOpen) || tabBar ? 4.9 : 0} />}
       {searching && <HubSearch entries={searchEntries} hubName="WorkHub" accent="bg-teal-700" onClose={() => setSearching(false)} />}
       {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
       {pollsOpen && <PollAnswers replies={pollAnswers.replies} markRead={pollAnswers.markRead} onClose={() => setPollsOpen(false)} onOpenMeetings={() => setTab("iep")} />}
+      {classesOpen && <HubModal title="Classes, subjects & teachers" size="lg" closeOnBackdrop onClose={() => setClassesOpen(false)}><HubClassesCard workspace={workspace} setWorkspace={setWorkspace} makeId={id} /></HubModal>}
       {notifyOpen && <HubModal title="Notification settings" onClose={() => setNotifyOpen(false)} closeOnBackdrop size="lg"><HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} inModal /></HubModal>}
       {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
+        <div ref={addRef} className={`${osOn ? "los-addwrap " : ""}fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-md:bottom-0 max-md:right-auto max-md:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>
@@ -1819,7 +1916,14 @@ function TeacherHubPage() {
           </button>
         </div>
       )}
-      {canUseHub && loaded && !loadError && !needsPlan && tabBar && <PhoneTabBar hub="work" name={user.displayName || user.username || ""}
+      {osCore && hubLook.look && <LookOS bell={workBell} hubName="WorkHub" hubSwitch={<HubSwitch current="hub" night={night} />} look={hubLook.look} name={osFirst} dateLabel={new Date(`${osToday}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        screen={osTab!} go={osGo} openApps={osApps} add={osAdd} addTask={() => { setHomeQuick(""); setHomeTask(NEW_TASK); }} addTask={() => { setHomeQuick(""); setHomeTask(NEW_TASK); }} tasks={osTasks} days={osDays} notes={osNotes} shortcuts={osShortcuts} off={osOff} lockedApps={workspace.lock?.apps} onYou={() => setYouOpen(true)}
+        toggle={(tid) => setWorkspace((p) => ({ ...p, tasks: toggleTask(p.tasks, tid, TODAY()).tasks }))} openTask={setHomeTask}
+        content={<LockedApp locked={appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>{tab === "calendar" ? <HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} /> : tab === "notes" ? <HubLifeScreen key={notesKey} which="notes" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} /> : tab === "journal" ? <HubLifeScreen which="journal" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} /> : null}</LockedApp>} />}
+      {osReady && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
+      {osReady && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubTrialNote trial={trial} which="work" upgradeHref="#/billing" /></>}
+        items={[{ id: "search", label: "Search", detail: "Everything in WorkHub", onClick: () => setSearching(true) }, ...moreGroups.flatMap((g) => g.items)]} />}
+      {canUseHub && loaded && !loadError && !needsPlan && tabBar && !osOn && <PhoneTabBar hub="work" name={user.displayName || user.username || ""}
         home={group.id === "home"} tasks={tab === "tasks"} addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
         onHome={() => { setAddMenu(false); goGroup("home"); }}
         onTasks={() => { setAddMenu(false); if (visible.tasks !== false) goTab("tasks"); else { setStoreOpenApp("work-tasks"); setStore(true); } }}
@@ -1839,55 +1943,6 @@ function TeacherHubPage() {
 }
 
 /** One to-do, the same on every screen: check it off, tap it to change it, pin it, delete it. */
-function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive }: { task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void }) {
-  const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
-  return (
-    <li className="group flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:gap-y-2 sm:p-4" data-testid="task-row">
-      <label className={`relative mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}>
-        <input type="checkbox" className="absolute inset-0 cursor-pointer opacity-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => onToggle(task)} />
-        <Check className="h-[15px] w-[15px]" />
-      </label>
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onEdit(task)} aria-label={`Edit ${task.title}`} data-testid="task-edit">
-        <div className={task.done ? "text-sm font-bold text-slate-400 line-through [overflow-wrap:anywhere] sm:text-base" : "text-sm font-bold text-slate-800 [overflow-wrap:anywhere] sm:text-base"}>{email?.unread && !task.done && <NewChip />}{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
-        {email?.message && !task.done ? (
-          <>
-            <p className="mt-0.5 text-xs font-medium text-slate-600 [overflow-wrap:anywhere]" data-testid="task-email-from">{[email.from && `From ${email.from}`, email.sent && `Sent ${email.sent}`].filter(Boolean).join(" · ")}</p>
-            <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere] sm:line-clamp-3" data-testid="task-email-message">{email.message.replace(/<https?:\/\/[^\s<>]+>/g, "").replace(/\n{2,}/g, "\n").trim()}</p>
-          </>
-        ) : task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere]" data-testid="task-notes">{task.notes}</p>}
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-          {list && <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
-          {task.priority === "high" && !task.done && <span className="rounded-lg bg-orange-50 px-2 py-1 text-orange-600">High priority</span>}
-          {!task.done && <DueChip date={task.dueDate} time={task.dueTime} today={today} />}
-          {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}{task.dueTime ? ` · ${clock12(task.dueTime)}` : ""}</span>}
-          {!task.dueDate && !task.done && <span>No due date</span>}
-          {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
-          {task.emailId && <span className="inline-flex items-center gap-1" data-testid="task-from-email"><Mail className="h-3.5 w-3.5" />From an email</span>}
-          {(task.links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-1 text-teal-800" data-testid="task-links"><Link2 className="h-3.5 w-3.5" />{linkSummary(workspace, task.links!)}</span>}
-          {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
-          <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
-        </div>
-      </button>
-      {/* On a phone these sit on their own line under the to-do, so the words get the full width. */}
-      <div className={email ? "flex basis-full items-center gap-3 pl-9 sm:contents" : "contents"}>
-        {email && (
-          <div className="min-w-0 sm:order-last sm:basis-full sm:pl-9">
-            <button type="button" onClick={() => openHubEmail(email.id)} aria-label={`Open the email: ${email.subject || task.title}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-100" data-testid="task-open-email"><Mail className="h-4 w-4" />Open the email</button>
-          </div>
-        )}
-        <span className="ml-auto sm:hidden" aria-hidden="true" />
-        <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
-        {onArchive && <button type="button" aria-label={task.archived ? `Restore ${task.title} from archive` : `Archive ${task.title}`} title={task.archived ? "Restore" : "Archive"} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-violet-50 hover:text-violet-700" onClick={() => onArchive(task, !task.archived)}>{task.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>}
-        <button type="button" aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(task)}><Trash2 className="h-4 w-4" /></button>
-      </div>
-    </li>
-  );
-}
-
-/** Marks a forwarded email that hasn't been opened yet. */
-function NewChip() {
-  return <span className="mr-1.5 inline-flex items-center rounded-full bg-teal-600 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-wide text-white" data-testid="email-new">New</span>;
-}
 
 function QuickAdd({ icon, title, detail, onClick }: { icon: ReactNode; title: string; detail: string; onClick: () => void }) {
   return (
@@ -2147,7 +2202,7 @@ function AddCard({ title, label, children }: { title: string; label: string; chi
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
+  return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
 }
 
 function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, token, makeId, account }: SectionProps & { seats: number | null; studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
@@ -2194,161 +2249,6 @@ function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, toke
   );
 }
 
-const DUE_STYLE: Record<DueState, string> = { none: "bg-slate-100 text-slate-500", overdue: "bg-red-100 text-red-700", today: "bg-amber-100 text-amber-800", soon: "bg-sky-100 text-sky-800", later: "bg-slate-100 text-slate-600" };
-
-function DueChip({ date, time, today }: { date: string; time?: string; today: string }) {
-  if (!date) return null;
-  const state = dueState(date, today);
-  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}{time ? ` · ${clock12(time)}` : ""}</span>;
-}
-
-function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps & { makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void }) {
-  // Laid out like LifeHub's to-do lists: views (All, Today, Upcoming, Completed, Archived) and the
-  // teacher's own coloured lists down the side, numbers across the top, progress and what's next
-  // beside the list. The view, the list and the sort picked are remembered until changed.
-  const today = TODAY();
-  const lists = cleanTaskLists(workspace.taskLists);
-  const [view, setView] = useSavedChoice<TaskView>("hub-tasks-view", "all", TASK_VIEWS);
-  const [listPick, setListPick] = useSavedChoice<string>("hub-tasks-list", "all");
-  const listId = listPick === "all" || lists.some((l) => l.id === listPick) ? listPick : "all";
-  const [sort, setSort] = useSavedChoice<TaskSort>("hub-tasks-sort", "due", TASK_SORTS.map((o) => o.id));
-  const [search, setSearch] = useState("");
-  const [quick, setQuick] = useState("");
-  const [addingList, setAddingList] = useState(false);
-  const [newList, setNewList] = useState("");
-  /** The to-do open in the pop-up: `id: null` is a new one. */
-  const [editing, setEditing] = useState<{ id: string | null } | null>(null);
-  const counts = taskCounts(workspace.tasks, today);
-  const views = viewCounts(workspace.tasks, listId, today);
-  const shown = useMemo(() => viewTasks(workspace.tasks, view, listId, sort, today, search), [workspace.tasks, view, listId, sort, today, search]);
-  const kept = workspace.tasks.filter((t) => !t.archived);
-  const done = kept.filter((t) => t.done).length;
-  const upcoming = kept.filter((t) => !t.done && t.dueDate && t.dueDate > today).sort((a, b) => `${a.dueDate}${a.dueTime || ""}`.localeCompare(`${b.dueDate}${b.dueTime || ""}`));
-  const listName = listId === "all" ? "Everything" : lists.find((l) => l.id === listId)?.name || "Everything";
-  const VIEW_INFO: Record<TaskView, { title: string; icon: ReactNode }> = {
-    all: { title: "All tasks", icon: <ListTodo className="h-4 w-4" /> },
-    today: { title: "Today", icon: <Sun className="h-4 w-4" /> },
-    upcoming: { title: "Upcoming", icon: <CalendarDays className="h-4 w-4" /> },
-    completed: { title: "Completed", icon: <CheckCircle2 className="h-4 w-4" /> },
-    archived: { title: "Archived", icon: <Archive className="h-4 w-4" /> },
-  };
-
-  function quickAdd(e: FormEvent) {
-    e.preventDefault();
-    const title = quick.trim();
-    if (!title) return;
-    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: id(), title, dueDate: view === "today" ? today : "", recurring: "", done: false, ...(listId !== "all" ? { listId } : {}) }] }));
-    setQuick("");
-  }
-  function addList(e: FormEvent) {
-    e.preventDefault();
-    const name = newList.trim().slice(0, 60);
-    if (!name) return;
-    const list = { id: makeId(), name, color: TASK_LIST_COLORS[lists.length % TASK_LIST_COLORS.length] };
-    setWorkspace((p) => ({ ...p, taskLists: [...cleanTaskLists(p.taskLists), list] }));
-    setListPick(list.id);
-    setNewList(""); setAddingList(false);
-  }
-  function deleteList(listToGo: { id: string; name: string }) {
-    if (!confirm(`Delete the list "${listToGo.name}"? Its to-dos stay, on no list.`)) return;
-    setWorkspace((p) => removeTaskList(p, listToGo.id));
-    setListPick("all");
-  }
-  const archive = (task: Task, on: boolean) => {
-    setWorkspace((p) => ({ ...p, tasks: archiveTask(p.tasks, task.id, on) }));
-    toast(on ? `Archived "${task.title}".` : `Brought back "${task.title}".`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: archiveTask(p.tasks, task.id, !on) })) }]);
-  };
-  const toggle = taskChecker(() => workspace.tasks, setWorkspace, toast);
-  /** Takes every finished to-do off the list, with Undo. */
-  function clearFinished() {
-    const { cleared } = clearDone(workspace.tasks);
-    if (!cleared.length) return;
-    setWorkspace((p) => ({ ...p, tasks: clearDone(p.tasks).tasks }));
-    toast(`Cleared ${cleared.length} finished ${cleared.length === 1 ? "to-do" : "to-dos"}.`, [{ label: "Undo", run: () => setWorkspace((p) => ({ ...p, tasks: restoreTasks(p.tasks, cleared) })) }]);
-  }
-  const navBtn = (active: boolean) => `flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:px-4 sm:text-sm lg:w-full ${active ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`;
-
-  return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13.5rem_minmax(0,1fr)]" data-testid="hub-todo">
-      {/* Views and lists: a column on a computer, two scrolling rows on a phone. */}
-      <nav aria-label="To-do views and lists" className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-2 lg:self-start lg:p-3">
-        <p className="hidden px-3 pb-2 pt-1 text-[11px] font-black uppercase tracking-[.16em] text-slate-400 lg:block">Tasks</p>
-        <div className="flex gap-1 overflow-x-auto lg:block lg:space-y-1">
-          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={navBtn(view === v)} data-testid={`task-view-${v}`}>{VIEW_INFO[v].icon}<span>{VIEW_INFO[v].title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{views[v]}</span></button>)}
-        </div>
-        <div className="mt-2 flex items-center justify-between px-3 pb-1 pt-3 lg:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button type="button" onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus className="h-[18px] w-[18px]" /></button></div>
-        <div className="flex gap-1 overflow-x-auto lg:block lg:space-y-0.5">
-          <button type="button" onClick={() => setListPick("all")} className={`flex min-h-10 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold lg:w-full ${listId === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle className="hidden h-3 w-3 lg:block" />Everything</button>
-          {lists.map((l) => <button key={l.id} type="button" onClick={() => setListPick(l.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-bold lg:w-full ${listId === l.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.color }} /><span className="max-w-32 truncate">{l.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline">{kept.filter((t) => !t.done && t.listId === l.id).length}</span></button>)}
-          {!addingList && <button type="button" onClick={() => setAddingList(true)} className="flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 text-xs font-bold text-slate-500 lg:hidden"><Plus className="h-3.5 w-3.5" /> List</button>}
-        </div>
-        {addingList && <form onSubmit={addList} className="mt-2 flex gap-2 px-1"><input className="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm" value={newList} autoFocus maxLength={60} onChange={(e) => setNewList(e.target.value)} placeholder="List name (IEP paperwork, Copies…)" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check className="h-[18px] w-[18px]" /></button><button type="button" onClick={() => { setAddingList(false); setNewList(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X className="h-[18px] w-[18px]" /></button></form>}
-      </nav>
-
-      <div className="min-w-0">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="task-alerts">
-          {[
-            { label: "Open tasks", count: counts.open, icon: <ListTodo className="h-[17px] w-[17px]" />, tint: "text-violet-600 bg-violet-50", go: "all" as TaskView },
-            { label: "Due today", count: counts.today, icon: <Sun className="h-[17px] w-[17px]" />, tint: "text-amber-600 bg-amber-50", go: "today" as TaskView },
-            { label: "Overdue", count: counts.overdue, icon: <Clock3 className="h-[17px] w-[17px]" />, tint: "text-rose-600 bg-rose-50", go: "today" as TaskView },
-            { label: "Completed", count: done, icon: <CheckCircle2 className="h-[17px] w-[17px]" />, tint: "text-emerald-600 bg-emerald-50", go: "completed" as TaskView },
-          ].map((s) => <button key={s.label} type="button" onClick={() => setView(s.go)} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 text-left shadow-[0_3px_16px_#17152b08] transition hover:border-violet-200 sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{s.label}</span><span className={`rounded-xl p-2 ${s.tint}`}>{s.icon}</span></div><p className="text-3xl font-black text-[#242238]">{s.count}</p></button>)}
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}</p><h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
-              <button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#6e5ae0] px-4 text-sm font-bold text-white hover:bg-[#5948c8]"><Plus className="h-[17px] w-[17px]" /> Add task</button>
-            </div>
-            {view !== "completed" && view !== "archived" && (
-              <form onSubmit={quickAdd} className="mt-5 flex gap-2">
-                <Field placeholder={`Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} />
-<button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="tasks-quick-more"><MoreHorizontal className="h-4 w-4" /> More</button>
-                <PrimaryButton type="submit" disabled={!quick.trim()}>Add</PrimaryButton>
-              </form>
-            )}
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
-              <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><Field type="search" placeholder="Search tasks and notes" aria-label="Search to-dos" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
-              <Select aria-label="Sort to-dos" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)}>{TASK_SORTS.map((o) => <option key={o.id} value={o.id}>Sort: {o.label}</option>)}</Select>
-            </div>
-            {shown.length ? <ul className="mt-5 space-y-2">{shown.map((task) => (
-              <TaskRow key={task.id} task={task} today={today} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onToggle={toggle} onEdit={(t) => setEditing({ id: t.id })} onDelete={(t) => remove("tasks", t.id)} list={lists.find((l) => l.id === task.listId)} onArchive={archive} />
-            ))}</ul> : (
-              <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center">
-                <span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive className="h-[26px] w-[26px]" /> : <Sparkles className="h-[26px] w-[26px]" />}</span>
-                <p className="mt-4 text-lg font-extrabold text-slate-900">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>
-              </div>
-            )}
-            {view === "completed" && counts.done > 0 && !search.trim() && (
-              <div className="mt-3 text-center"><button type="button" onClick={clearFinished} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" data-testid="clear-done">Clear all {counts.done} finished</button></div>
-            )}
-            {(view === "all" || view === "today") && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
-            {listId !== "all" && <button type="button" onClick={() => { const l = lists.find((x) => x.id === listId); if (l) deleteList(l); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete this list</button>}
-          </section>
-
-          <aside className="space-y-5">
-            <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f]">
-              <div className="flex items-center gap-2 text-[#bcb2ff]"><Sparkles className="h-[17px] w-[17px]" /><span className="text-[11px] font-extrabold uppercase tracking-[.14em]">Your progress</span></div>
-              <p className="mt-5 text-3xl font-black">{kept.length ? Math.round((done / kept.length) * 100) : 0}%</p>
-              <p className="mt-1 text-xs text-slate-300">of all tasks completed</p>
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${kept.length ? (done / kept.length) * 100 : 0}%` }} /></div>
-              <p className="mt-4 text-xs font-medium leading-5 text-slate-300">Every little step counts. Keep going at your own pace.</p>
-            </section>
-            <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
-              <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-slate-900">Coming up next</h3><CalendarDays className="h-[17px] w-[17px] text-violet-500" /></div>
-              {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map((task) => <button key={task.id} type="button" onClick={() => setEditing({ id: task.id })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{friendlyDate(task.dueDate, today)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
-            </section>
-          </aside>
-        </div>
-      </div>
-      {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today} lists={lists} startList={listId === "all" ? "" : listId}
-        onSave={(fields) => { setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) })); if (!editing.id) setQuick(""); }} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
-    </div>
-  );
-}
-
 function Arise({ workspace, setWorkspace, remove, studentOptions }: SectionProps & { studentOptions: () => ReactNode }) {
   const [form, setForm] = useState({ student: "", book: "", score: "", points: "", date: TODAY() });
   function add(e: FormEvent) {
@@ -2369,7 +2269,7 @@ function Arise({ workspace, setWorkspace, remove, studentOptions }: SectionProps
         </form>
       </AddCard>
       <Card title="Reading history">
-        {workspace.ariseRecords.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Student</th><th>Book</th><th>Score</th><th>Points</th><th>Date</th><th /></tr></thead><tbody>{workspace.ariseRecords.map((r) => <tr key={r.id} className="border-t border-slate-100"><td className="py-3 font-medium">{r.student}</td><td>{r.book}</td><td>{r.score}</td><td>{r.points}</td><td>{r.date}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("ariseRecords", r.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No A.R.I.S.E. records yet.</Empty>}
+        {workspace.ariseRecords.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-500"><tr><th className="pb-2">Student</th><th>Book</th><th>Score</th><th>Points</th><th>Date</th><th /></tr></thead><tbody>{workspace.ariseRecords.map((r) => <tr key={r.id} className="border-t border-slate-100"><td className="py-3 font-medium">{r.student}</td><td>{r.book}</td><td>{r.score}</td><td>{r.points}</td><td>{r.date}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("ariseRecords", r.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No A.R.I.S.E. records yet.</Empty>}
       </Card>
     </>
   );
@@ -2423,7 +2323,7 @@ function Attendance({ workspace, setWorkspace, remove, studentOptions, exportAtt
         </form>
       </Card>
       <Card title="Attendance log">
-        {workspace.attendance.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Date</th><th>Student</th><th>Class</th><th>Status</th><th /></tr></thead><tbody>{workspace.attendance.map((a) => <tr key={a.id} className="border-t border-slate-100"><td className="py-3">{a.date}</td><td className="font-medium">{a.student}</td><td>{a.className}</td><td>{a.status}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("attendance", a.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No attendance entries yet.</Empty>}
+        {workspace.attendance.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-500"><tr><th className="pb-2">Date</th><th>Student</th><th>Class</th><th>Status</th><th /></tr></thead><tbody>{workspace.attendance.map((a) => <tr key={a.id} className="border-t border-slate-100"><td className="py-3">{a.date}</td><td className="font-medium">{a.student}</td><td>{a.className}</td><td>{a.status}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("attendance", a.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No attendance entries yet.</Empty>}
       </Card>
     </>
   );

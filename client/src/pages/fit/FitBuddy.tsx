@@ -1,4 +1,4 @@
-// Arise Fit: workout buddies (shared/fitBuddy.ts, server/fitBuddy.ts). Matched with someone you don't
+// Cooked: workout buddies (shared/fitBuddy.ts, server/fitBuddy.ts). Matched with someone you don't
 // know: an emoji and a gamertag, a shared weekly goal, and ready-made messages. Nothing can be typed.
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Search, Swords, UserX, Users } from "lucide-react";
@@ -42,7 +42,7 @@ export function BuddyCard({ token, onOpen }: { token: string | null; onOpen: () 
   </Card>;
 }
 
-const pill = (on: boolean) => ({ background: on ? C.lime : C.card2, color: on ? "#0b0b0c" : C.text });
+const pill = (on: boolean) => ({ background: on ? C.lime : C.card2, color: on ? "var(--fit-on-accent)" : C.text });
 function Pick<T extends string | number>({ items, value, onPick, label }: { items: { v: T; text: string }[]; value: T; onPick: (v: T) => void; label: string }) {
   return <div role="group" aria-label={label} className="flex flex-wrap gap-2">{items.map((i) => <button key={String(i.v)} type="button" onClick={() => { haptic("light"); onPick(i.v); }} aria-pressed={value === i.v} className="min-h-10 rounded-full px-4 text-[14px] font-semibold" style={pill(value === i.v)}>{i.text}</button>)}</div>;
 }

@@ -1,4 +1,4 @@
-// Backups are an explicit, offline user action. They never contact A.R.I.S.E. Reader.
+// Backups are an explicit, offline user action. They never contact Arise Reader.
 import { BEGINNER_LESSONS } from "./lessons";
 export type LocalPhonics = {buildsCompleted:3;correctOnFirstCheck:number;checks:number};
 export type LocalAttempt = {bestScore:number;lastScore:number;attempts:number;passedAt:string|null;phonics?:LocalPhonics};

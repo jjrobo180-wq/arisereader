@@ -64,6 +64,18 @@ test("advisories are ranked by their students' points, and ties share a place", 
   assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal), ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"]);
 });
 
+test("all of grade 6 races as Ms. Garcia's Lit Lab, without changing anyone's real advisory", async () => {
+  const advisories = advisoriesForSchool(CGMS);
+  assert.equal(advisories.length, 15, "the school's advisories themselves don't change");
+  const students = new Map<number, string>([[1, "Boucher & Groussman"], [2, "Balestrini & Tsui"], [3, "Mullaney & Muniz"], [4, "Chase & Shuster"], [5, "idk"]]);
+  const rows = rankAdvisories(advisories, students, new Map([[1, 10], [2, 20], [3, 5], [4, 30], [5, 99]]), new Map([[1, 1], [2, 2], [3, 3], [4, 1]]), CGMS_FALL_2026.combinedGrades);
+  assert.equal(rows.length, 11);
+  const lab = rows.find((r) => r.name === "Ms. Garcia's Lit Lab")!;
+  assert.deepEqual([lab.rank, lab.points, lab.students, lab.books, lab.grade, lab.room], [1, 35, 3, 6, "6", ""]);
+  assert.equal(lab.advisories?.length, 5);
+  assert.ok(rows.every((r) => r === lab || r.grade !== "6"));
+});
+
 function fakeApp() {
   const routes: Record<string, Function> = {};
   const app: any = { get: (path: string, ...h: Function[]) => { routes[path] = h[h.length - 1]; } };
@@ -72,8 +84,8 @@ function fakeApp() {
     auth: (_req, _res, next) => next(),
     getSchool: async (id) => (id === 4 ? { id: 4, name: CGMS } : id === 9 ? { id: 9, name: "Elsewhere Elementary" } : null),
     allSchools: async () => [{ id: 9, name: "Elsewhere Elementary" }, { id: 4, name: CGMS }],
-    schoolStudentIds: async () => [100, 101, 102, 103],
-    advisoryPicks: async () => [{ studentId: 100, advisory: "Chase & Shuster" }, { studentId: 101, advisory: "Isaac & Ross" }, { studentId: 102, advisory: "Isaac & Ross" }, { studentId: 999, advisory: "Isaac & Ross" }],
+    schoolStudentIds: async () => [100, 101, 102, 103, 104],
+    advisoryPicks: async () => [{ studentId: 104, advisory: "Garcia & Micou" }, { studentId: 100, advisory: "Chase & Shuster" }, { studentId: 101, advisory: "Isaac & Ross" }, { studentId: 102, advisory: "Isaac & Ross" }, { studentId: 999, advisory: "Isaac & Ross" }],
     pointsBetween: async (ids, from, to, fromDay, endDay) => { calls.push({ ids, from, to, fromDay, endDay }); return new Map([[100, 40], [101, 25], [102, 10], [999, 500], [103, 7]]); },
     quizzesBetween: async () => new Map([[100, 3], [101, 2], [102, 4], [999, 50], [103, 1]]),
     now: () => Date.parse("2026-10-19T22:00:00Z"),
@@ -102,11 +114,19 @@ test("a student sees every advisory's place and their own advisory's, counting f
   assert.ok(!calls[0].ids.includes(999), "a student who left the school (archived) doesn't count");
 });
 
+test("a sixth grader's place is Ms. Garcia's Lit Lab's", async () => {
+  const { get } = fakeApp();
+  const { body } = await get({ id: 104, role: "student", school_id: 4 });
+  assert.equal(body.mine.advisory, "Ms. Garcia's Lit Lab");
+  assert.equal(body.standings.find((s: any) => s.name === "Ms. Garcia's Lit Lab").students, 1);
+  assert.ok(!body.standings.some((s: any) => s.name === "Garcia & Micou"));
+});
+
 test("a student with no advisory still sees the board; other schools and staff get what fits them", async () => {
   const { get } = fakeApp();
   const loose = await get({ id: 103, role: "student", school_id: 4 });
   assert.deepEqual(loose.body.mine, { advisory: null, rank: null, points: 7 });
-  assert.equal(loose.body.standings.length, 15);
+  assert.equal(loose.body.standings.length, 11);
   assert.deepEqual((await get({ id: 5, role: "student", school_id: 9 })).body, { challenge: null, standings: [], mine: null });
   assert.deepEqual((await get({ id: 6, role: "student" })).body, { challenge: null, standings: [], mine: null });
   const teacher = await get({ id: 123, role: "teacher", school_id: 4 });
@@ -186,19 +206,13 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   assert.match(read("shared/lifeLayout.ts"), /\{ menuSide: "tabs", menuClose: "button", homeHidden: \["widgets"\] \}/);
 });
 
-test("the donation banner can't be closed and shows in both hubs and the Reader; Support is in every sidebar", () => {
+test("the donation banner can't be closed and shows in the Reader; Arise To Duo's hubs have no Support", () => {
   const support = read("client/src/components/SupportArise.tsx");
   const banner = support.slice(support.indexOf("export function SupportBanner"), support.indexOf("export function SupportMenuItem"));
   assert.doesNotMatch(banner, /support-banner-close|localStorage/, "no close button, nothing remembered");
-  assert.match(read("client/src/pages/TeacherHub.tsx"), /\{tab === "overview" && \(\n\s*<>\n\s*<SupportBanner \/>/);
-  assert.match(read("client/src/pages/TeacherHub.tsx"), /<SupportMenuItem isAdmin=\{!!user\?\.isAdmin\} testId="hub-support"/);
-  const life = read("client/src/pages/AriseTodo.tsx");
-  assert.match(life, /\{shown === "home" && <div className="mb-4"><SupportBanner \/><\/div>\}/, "every LifeHub account, not just parents");
-  assert.match(life, /<SupportMenuItem isAdmin=\{user\.isAdmin\} testId="life-support"/);
+  // November 2026: the owner asked for Support (and its heart) to come off Arise To Duo's desktop.
+  for (const hub of ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx"]) assert.doesNotMatch(read(hub), /SupportBanner|SupportMenuItem|SupportButton/, hub);
   const reader = read("client/src/pages/TeacherReader.tsx");
-  assert.match(reader, /<SupportBanner dark \/>/);
-  assert.match(reader, /testId="reader-support"/);
-  assert.match(reader, /testId="reader-rail-support"/);
   for (const href of ["/history/", "/math/", "/social/"]) assert.ok(reader.includes(`href: "${href}"`), href);
   assert.match(reader, /Also on your account:/);
 });
@@ -269,15 +283,16 @@ test("a parent's Overview has the teacher format: greeting, four counts, a list 
 
 test("admins have the admin console in the Reader's menu, one item per section", () => {
   const reader = read("client/src/pages/TeacherReader.tsx");
-  assert.match(reader, /\.\.\.ADMIN_SECTIONS\.filter\(\(a\) => a\.id !== "overview"\)\.map/);
-  assert.match(reader, /\{user\.isAdmin && <>\n\s*<p [^>]*>Admin console<\/p>/);
+  // One short admin list: the teacher's menu, then just the console's sections, nothing twice.
+  assert.match(reader, /\(\["overview", "people", "schools", "library", "inbox", "stats", "todo", "settings"\] as AdminSection\[\]\)/);
+  assert.match(reader, /\{user\.isAdmin && <>\n\s*<p [^>]*>Admin<\/p>/);
   assert.match(reader, /<AdminConsole night bare section=\{adminSection\}/);
-  assert.match(reader, /\.\.\.\(user\.isAdmin \? ADMIN_MENU : \[\]\)/, "on a phone too");
+  assert.match(reader, /\.\.\.\(user\.isAdmin \? \[null, \.\.\.ADMIN_MENU\] : \[\]\)/, "on a phone too");
 });
 
 test("sign-up asks for the advisory at schools with advisories, and the admin's not-placed list shows and sets advisories", () => {
   const reg = read("client/src/pages/Register.tsx");
-  assert.match(reg, /<Label htmlFor="teacher">\{byAdvisory \? "Advisory" : "Teacher"\}<\/Label>/);
+  assert.match(reg, /<Label htmlFor="teacher"[^>]*>\{byAdvisory \? "Advisory" : "Teacher"\}<\/Label>/);
   assert.match(reg, /"Choose your advisory…"/);
   assert.match(reg, /My advisory isn't listed/);
   assert.match(reg, /advisoryId: advisoryPicked \? selectedTeacherId\.slice\("advisory:"\.length\) : undefined/);
@@ -314,9 +329,9 @@ test("the admin console is only in the Reader: WorkHub's menu has none, and old 
 });
 
 
-test("the admin Overview is split into its own menu items, and the console shows without its own header", () => {
+test("the admin menu has no copies of the Overview's parts or of other menus, and the console shows without its own header", () => {
   const page = read("client/src/pages/TeacherReader.tsx");
-  for (const label of ["Needs attention", "Quick actions", "Student leaderboard", "Notification settings", "Student progress", "Polls"]) assert.ok(page.includes(`label: "${label}"`), label);
+  for (const label of ["Needs attention", "Quick actions", "Student leaderboard", "Notification settings", "Student progress", "Polls"]) assert.ok(!page.includes(`label: "${label}"`), label);
   assert.match(page, /<AdminConsole night bare section=\{adminSection\} overviewPart=\{adminPart \?\? undefined\}/);
   const admin = read("client/src/pages/Admin.tsx");
   for (const part of ["home", "attention", "actions", "leaderboard"]) assert.ok(admin.includes(`showPart("${part}")`), part);
@@ -338,4 +353,12 @@ test("\"Let the games begin!\" introduces the challenge once per account for stu
   assert.match(popup, /export function GamesBeginStaffPopup/);
   const reader = read("client/src/pages/TeacherReader.tsx");
   assert.match(reader, /<GamesBeginStaffPopup enabled=\{hubIntroDone\}/, "teachers and admin see it after the new-hub note, never stacked");
+});
+
+test("admins can delete accounts in bulk, but never admins, themselves or sample accounts, and only after typing DELETE and the count", () => {
+  const routes = read("server/routes.ts");
+  assert.match(routes, /app\.post\("\/api\/admin\/accounts\/bulk-delete", authMiddleware, adminMiddleware/);
+  assert.match(routes, /u\.is_admin \|\| Number\(u\.id\) === me \|\| \/\^sample\/i\.test/);
+  assert.match(routes, /String\(req\.body\?\.confirm \|\| ""\)\.trim\(\) !== `DELETE \$\{list\.length\}`/);
+  assert.match(read("client/src/pages/Admin.tsx"), /<AdminDeleteAccounts \/>/);
 });

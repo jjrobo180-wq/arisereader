@@ -1,4 +1,4 @@
-// A.R.I.S.E. Beginners, inside A.R.I.S.E. Reader (the student page is #/beginners). Reader for younger readers:
+// A.R.I.S.E. Beginners, inside Arise Reader (the student page is #/beginners). Reader for younger readers:
 // the same accounts, the same leaderboards, the same points and the same prizes. The program itself is in
 // shared/beginners (curriculum, phonics, the Reading Coach's scoring and Say It Studio).
 //

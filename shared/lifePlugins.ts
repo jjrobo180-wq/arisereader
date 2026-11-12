@@ -1,4 +1,4 @@
-// Arise LifeHub: what the Plugin Store's add-on sections need beyond saved data. The verse of the
+// Arise LifeHub: what the Plugin Gallery's add-on sections need beyond saved data. The verse of the
 // day (King James Version, public domain), the daily quote, journal prompts, grocery aisles, and
 // the readers for the live feeds (Today in history, What's trending, Bible passages) that
 // server/lifehubPlugins.ts fetches.
@@ -173,6 +173,10 @@ const AISLE_WORDS: [string, string[]][] = [
   ["Household", ["paper towel", "toilet paper", "napkin", "trash bag", "foil", "plastic wrap", "detergent", "dish", "soap", "sponge", "bleach", "cleaner", "battery", "light bulb", "zip"]],
   ["Personal care", ["shampoo", "conditioner", "toothpaste", "toothbrush", "deodorant", "lotion", "razor", "floss", "tissue", "diaper", "wipe", "sunscreen", "vitamin", "medicine"]],
 ];
+
+/** The aisle a list item is shown under. One the list doesn't have ("Bread & bakery", a typo) shows under Other,
+ *  so no item can ever be on the list and not on screen. */
+export const aisleOf = (i: { aisle?: string | null }): string => (i.aisle && AISLES.includes(i.aisle) ? i.aisle : "Other");
 
 /** The aisle a grocery item most likely sits in. */
 export function guessAisle(name: string): string {

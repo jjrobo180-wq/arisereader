@@ -1,4 +1,4 @@
-// Arise Math (/math/): K–12 math practice built like A.R.I.S.E. Reader, with points, a class
+// Arise Math (/math/): K–12 math practice built like Arise Reader, with points, a class
 // leaderboard, certificates and a game room. Shared by the server (which makes and grades every
 // question, so points can't be faked) and the tests. Tables: migrations/arise_math.sql.
 
@@ -25,6 +25,9 @@ export const fmtV = (v: number) => (Number.isInteger(v) ? N(v) : Number.isIntege
 
 /** Reads a typed answer: "12", "−3", "3/4", ".5", "x = 4". NaN when it isn't a number. */
 export function parseAnswer(raw: unknown): number {
+  // A mixed number: "1 1/4" is 1.25. Squeezing the space out would read it as 11/4.
+  const mixed = String(raw ?? "").trim().replace(/[−–—]/g, "-").match(/^(-?)(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) { const whole = Number(mixed[2]), top = Number(mixed[3]), bottom = Number(mixed[4]); return bottom ? (mixed[1] ? -1 : 1) * (whole + top / bottom) : NaN; }
   const s = String(raw ?? "").trim().replace(/[−–—]/g, "-").replace(/\s+/g, "").replace(/^x=/i, "");
   if (!s || s.length > 24) return NaN;
   if (/^-?\d+(\.\d+)?\/-?\d+(\.\d+)?$/.test(s)) { const [a, b] = s.split("/").map(Number); return b ? a / b : NaN; }

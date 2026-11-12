@@ -68,7 +68,7 @@ test("the App Store shows a Hubs tab with a card per template, each able to add 
   const store = read("client/src/components/plugin-store/PluginStore.tsx");
   assert.match(store, /data-testid="plugin-store-templates"/, "a chip switches to the templates view");
   assert.match(store, /const toggleTemplate = \(t: HubTemplate, on: boolean\) => \{/);
-  assert.match(store, /for \(const p of templatePlugins\(t\)\) onToggle\(p, on\);/, "a template is installed by toggling each of its plugins");
+  assert.match(store, /const list = templatePlugins\(t\);\s*for \(const p of list\) onToggle\(p, on\);/, "a template is installed by toggling each of its plugins");
   assert.match(store, /data-testid=\{`template-\$\{t\.id\}`\}/, "each template renders as its own card");
   assert.match(store, /data-testid="template-detail"/, "a template has its own detail page listing its apps");
 });

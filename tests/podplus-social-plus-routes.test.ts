@@ -1,19 +1,19 @@
-// Regression for real-world Pod+ Social reads: Supabase's query builders are
+// Regression for real-world Podster Social reads: Supabase's query builders are
 // PromiseLike, and must not be unwrapped before filters are chained.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerSocialPlus } from "../server/podcastSocialPlus";
 import { fakeApp, fakeSupabase, SOCIAL_TABLES } from "./fakeSupabase";
 
-test("official Pod+ posts load on profile and Explore instead of returning 500", async () => {
+test("official Podster posts load on profile and Explore instead of returning 500", async () => {
   const db = fakeSupabase({
     ...SOCIAL_TABLES,
     podcast_blocks: {},
     podcast_post_saves: {},
   });
   await db.client.from("podcast_profiles").insert({
-    voter: "d-owner", handle: "jjrobo180", name: "Pod+", avatar: "🎙️",
-    verified: true, hidden: false, bio: "The official Pod+ account.",
+    voter: "d-owner", handle: "jjrobo180", name: "Podster", avatar: "🎙️",
+    verified: true, hidden: false, bio: "The official Podster account.",
   });
   await db.client.from("podcast_posts").insert({
     voter: "d-owner", kind: "share", episode_id: "42",
@@ -32,7 +32,7 @@ test("official Pod+ posts load on profile and Explore instead of returning 500",
     myProfile: async () => null,
     peopleById: async () => new Map(),
     profileOf: (p: any) => ({ handle: p.handle, name: p.name, bio: p.bio ?? "", avatar: p.avatar ?? "🎧", verified: !!p.verified }),
-    shape: async (rows: any[]) => rows.map((r) => ({ id: String(r.id), kind: r.kind, at: r.created_at, caption: r.caption, episode: r.episode, media: [], author: { handle: "jjrobo180", name: "Pod+", verified: true } })),
+    shape: async (rows: any[]) => rows.map((r) => ({ id: String(r.id), kind: r.kind, at: r.created_at, caption: r.caption, episode: r.episode, media: [], author: { handle: "jjrobo180", name: "Podster", verified: true } })),
     postCols: async () => "id,voter,kind,episode,caption,created_at,hidden",
     notify: async () => {}, hasV2: async () => true, blockSet: async () => new Set<string>(),
     publicPrefix: () => "", folderOf: (id: string) => id,

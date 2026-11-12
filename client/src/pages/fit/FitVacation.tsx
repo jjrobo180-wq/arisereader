@@ -1,4 +1,4 @@
-// Arise Fit: vacation mode (shared/fitVacation.ts). Plan a trip: where you'll train, how much you'll commit
+// Cooked: vacation mode (shared/fitVacation.ts). Plan a trip: where you'll train, how much you'll commit
 // to, and what to do before and after to make up for it, for workouts and for food. Also the card that
 // finishes a workout that was split across the day.
 import { useState } from "react";
@@ -44,11 +44,11 @@ export function VacationSheet({ data, update, list, onStart, onClose, say }: { d
     haptic("success"); update((d) => ({ ...d, vacation: v })); setEditing(false); say("Vacation plan saved.");
   };
   const gymId = v.gym?.type ?? "";
-  const chip = (on: boolean) => on ? { background: C.lime, color: "#0b0b0c" } : { background: C.card2 };
+  const chip = (on: boolean) => on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 };
 
   return <Sheet title="Vacation mode" onClose={onClose} testId="fit-vacation">
     {editing ? <>
-      <p className="px-1 text-[15px]" style={{ color: C.steel }}>Tell Arise Fit about the trip. It will plan your workouts and your food around it.</p>
+      <p className="px-1 text-[15px]" style={{ color: C.steel }}>Tell Cooked about the trip. It will plan your workouts and your food around it.</p>
       <Title>The trip</Title>
       <Card className="!p-4"><Field label="Where to (optional)"><input value={v.place ?? ""} onChange={(e) => set({ place: e.target.value.slice(0, 60) })} placeholder="Cabo, Grandma's, Disney..." className={inputCls} style={inputStyle} /></Field>
         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -57,7 +57,7 @@ export function VacationSheet({ data, update, list, onStart, onClose, say }: { d
         <p className="mt-2 text-[13px]" style={{ color: C.dim }}>{valid ? `${tripDays(v)} day${tripDays(v) === 1 ? "" : "s"} away` : "Check the dates"}</p></Card>
 
       <Title>Working out on the trip</Title>
-      <div className="grid grid-cols-3 gap-2">{COMMITS.map((c) => <button key={c.id} type="button" onClick={() => set({ commit: c.id, ...(c.id === "train" ? { mins: Math.max(v.mins, 40), perWeek: Math.min(7, Math.max(v.perWeek, normal)) } : c.id === "light" ? { mins: Math.min(v.mins, 30), perWeek: Math.min(Math.max(v.perWeek, 2), 4) } : { perWeek: 0 }) })} aria-pressed={v.commit === c.id} className="rounded-[12px] p-3 text-left" style={v.commit === c.id ? { background: C.lime, color: "#0b0b0c" } : { background: C.card }}>
+      <div className="grid grid-cols-3 gap-2">{COMMITS.map((c) => <button key={c.id} type="button" onClick={() => set({ commit: c.id, ...(c.id === "train" ? { mins: Math.max(v.mins, 40), perWeek: Math.min(7, Math.max(v.perWeek, normal)) } : c.id === "light" ? { mins: Math.min(v.mins, 30), perWeek: Math.min(Math.max(v.perWeek, 2), 4) } : { perWeek: 0 }) })} aria-pressed={v.commit === c.id} className="rounded-[12px] p-3 text-left" style={v.commit === c.id ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card }}>
         <span className="block text-[15px] font-bold leading-tight">{c.name}</span><span className="mt-1 block text-[12px] leading-tight opacity-80">{c.blurb}</span></button>)}</div>
       {v.commit !== "rest" && <Card className="mt-3 !p-4">
         <p className="text-[13px] font-semibold" style={{ color: C.dim }}>How long is a workout?</p>
@@ -135,7 +135,7 @@ export function VacationCard({ data, onOpen }: { data: FitData; onOpen: () => vo
     : phase === "during" ? `${v.place || "Vacation"}, day ${n} of ${tripDays(v)}`
     : phase === "after" ? `Welcome back. Easing back in, day ${n} of ${v.backDays}`
     : `${v.place || "Your trip"} starts ${when(v.start)}`;
-  return <button type="button" onClick={onOpen} className="fit-in mt-3 flex w-full items-center gap-3 rounded-[14px] p-3.5 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: "inset 0 0 0 1px rgba(255,90,31,.2)" }} data-testid="fit-today-vacation">
+  return <button type="button" onClick={onOpen} className="fit-in mt-3 flex w-full items-center gap-3 rounded-[14px] p-3.5 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: "inset 0 0 0 1px rgba(var(--fit-accent-rgb),.2)" }} data-testid="fit-today-vacation">
     <Plane className="h-5 w-5 shrink-0" style={{ color: C.lime }} />
     <span className="min-w-0 flex-1"><span className="block text-[13px]" style={{ color: C.dim }}>{v ? "Vacation mode" : "Going on a trip?"}</span><span className="block text-[15px] font-semibold leading-snug">{line}</span></span>
     <ChevronRight className="h-5 w-5 shrink-0" style={{ color: C.dim }} /></button>;
@@ -147,7 +147,7 @@ export function SplitCard({ data, update, onStart }: { data: FitData; update: Up
   if (!s) return null;
   const sets = s.exercises.reduce((t, e) => t + e.sets.length, 0);
   const old = s.date !== dayKey();
-  return <div className="fit-in mt-3 rounded-[14px] p-3.5" style={{ background: C.card, boxShadow: "inset 0 0 0 1px rgba(255,90,31,.35)" }} data-testid="fit-today-split">
+  return <div className="fit-in mt-3 rounded-[14px] p-3.5" style={{ background: C.card, boxShadow: "inset 0 0 0 1px rgba(var(--fit-accent-rgb),.35)" }} data-testid="fit-today-split">
     <p className="text-[13px]" style={{ color: C.dim }}>{old ? "Left over from before" : "Finish your workout"}</p>
     <p className="text-[18px] font-semibold leading-snug">{s.name}, part {s.part}: {s.exercises.length} exercise{s.exercises.length === 1 ? "" : "s"}, {sets} set{sets === 1 ? "" : "s"} to go</p>
     <div className="mt-3 flex gap-2">

@@ -1,17 +1,18 @@
-// The sign-in and sign-up screens of the iPhone apps: Arise To Duo, A.R.I.S.E. Reader (students) and
-// A.R.I.S.E. Reader Educator (teachers and parents). Only inside an app; the website
+// The sign-in and sign-up screens of the iPhone apps: Arise To Duo, Arise Reader (students) and
+// Arise Reader Educator (teachers and parents). Only inside an app; the website
 // keeps pages/SignIn.tsx). Built like an iPhone app's first screen: a welcome page with Sign in with
 // Apple first, then email sign-in and a free account on their own screens, with grouped fields,
 // a back button, and nothing that reads like a web page (no header, no marketing columns, no
 // sample accounts). Signing in here is the same account as the website's.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, Mic, Sparkles, Trophy, Users } from "lucide-react";
+import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, ChevronLeft, Eye, EyeOff, FileText, GraduationCap, HeartHandshake, ListChecks, Loader2, Mail, MessageCircle, Mic, Sparkles, Trophy, Users } from "lucide-react";
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
-import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
+import { LEGAL, NATIVE_APPS, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
 
 type Screen = "welcome" | "signin" | "signup" | "code" | "forgot";
@@ -23,13 +24,13 @@ const showHubMenus = () => { try { localStorage.setItem("arise-hub-rail", "open"
  *  student app has no Sign in with Apple and no "free account" (an independent learner signs up on the
  *  same page the website uses). */
 const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { tint: string; icon: ReactNode; title: string; text: string }[]; apple: boolean; signInHint: string; create: string }> = {
-  todo: { icon: "/icon-512.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or A.R.I.S.E. Reader account.", create: "Create a free account",
+  todo: { icon: "/app-icons/todo-1024.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or Arise Reader account.", create: "Create a free account",
     features: [
       { tint: "#6a55dc", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "LifeHub", text: "Home, family, calendar, health and money." },
       { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Reminders", text: "A heads-up before what matters, on your iPhone." },
     ] },
-  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "I'm learning on my own",
+  reader: { icon: "/app-icons/reader-1024.png", tagline: "Read, play and grow, one book at a time.", apple: false, signInHint: "Use the username and password from your teacher or parent.", create: "New here? A parent creates the account",
     features: [
       { tint: "#6a3cf0", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Books at your level", text: "Stories picked for how you read." },
       { tint: "#e08a1a", icon: <Trophy className="h-[22px] w-[22px]" />, title: "Quizzes and rewards", text: "Earn points for every book you finish." },
@@ -41,7 +42,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#0f766e", icon: <Users className="h-[22px] w-[22px]" />, title: "For parents", text: "Follow your child's reading and celebrate wins." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Messages and updates as they happen." },
     ] },
-  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Eye Gazer account, or any A.R.I.S.E. account.", create: "Create an Eye Gazer account",
+  eyegaze: { icon: "/app-icons/eyegazer-1024.png", tagline: "Learn, play and talk with your eyes.", apple: true, signInHint: "Use your Arise AAC account, or any A.R.I.S.E. account.", create: "Create an Arise AAC account",
     features: [
       { tint: "#0891b2", icon: <Eye className="h-[22px] w-[22px]" />, title: "Made for eye gaze", text: "Games, lessons and a talker that work with a look, a tap or a switch." },
       { tint: "#7c3aed", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Lessons and books", text: "Letters, words, life skills and stories at their level." },
@@ -53,9 +54,9 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
       { tint: "#3b82f6", icon: <LineChart className="h-[22px] w-[22px]" />, title: "Real progress", text: "Strength, volume, weight and streaks over time." },
     ] },
-  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Arise Fit).", create: "Create a free account",
+  trainer: { icon: "/app-icons/trainer-1024.png", tagline: "Coach your clients. Grow your business.", apple: true, signInHint: "Use your Arise account (the same one works in Cooked Fitness by Arise).", create: "Create a free account",
     features: [
-      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Arise Fit workouts, food and health data come to you." },
+      { tint: "#ff5a1f", icon: <Users className="h-[22px] w-[22px]" />, title: "Clients, synced", text: "Their Cooked Fitness by Arise workouts, food and health data come to you." },
       { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
       { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
     ] },
@@ -65,17 +66,30 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Transcript and summary", text: "Every word with times, then the key points." },
       { tint: "#ef4e5b", icon: <ListChecks className="h-[22px] w-[22px]" />, title: "Straight to your planner", text: "To-dos and dates go into Arise To Duo." },
     ] },
+  talk: { icon: "/app-icons/talk-1024.png", tagline: "Say it with a tap.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
+    features: [
+      { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Talking boards", text: "Tap a picture or a word and it is spoken for you." },
+      { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Made for you", text: "Make boards with the words you use every day." },
+      { tint: "#0f766e", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "Share with family", text: "Keep the same boards on every device." },
+    ] },
+  undercover: { icon: "/app-icons/undercover-1024.png", tagline: "Ask AI in the meeting. It looks like texting.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
+    features: [
+      { tint: "#2563eb", icon: <MessageCircle className="h-[22px] w-[22px]" />, title: "Looks like texting", text: "Answers come back as texts or a group chat." },
+      { tint: "#0f766e", icon: <FileText className="h-[22px] w-[22px]" />, title: "Or a document", text: "Answers write into notes or doc comments." },
+      { tint: "#6a55dc", icon: <EyeOff className="h-[22px] w-[22px]" />, title: "Quick hide", text: "One tap swaps to a decoy chat or hides answers." },
+    ] },
 };
 
 const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
 
-export default function NativeSignIn() {
+/** On the website, `flavor` picks the app's own sign-in (#/fit, #/trainer) and `start` can open on sign-up. */
+export default function NativeSignIn({ flavor: forced, start }: { flavor?: NativeFlavor; start?: "welcome" | "signup" } = {}) {
   const { login, signInWithApple } = useAuth();
   const [, navigate] = useLocation();
-  const flavor = nativeFlavor();
+  const flavor = forced ?? nativeFlavor();
   const copy = COPY[flavor];
-  const appName = nativeAppInfo().name;
-  const [screen, setScreen] = useState<Screen>("welcome");
+  const appName = NATIVE_APPS[flavor].name;
+  const [screen, setScreen] = useState<Screen>(start ?? "welcome");
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -108,7 +122,7 @@ export default function NativeSignIn() {
 
   const signIn = (e: FormEvent) => { e.preventDefault(); void run("form", async () => { await login(username.trim(), password); showHubMenus(); }); };
 
-  /** Eye Gazer: a plain account of its own. Just a name, a username and a password: no school,
+  /** Arise AAC: a plain account of its own. Just a name, a username and a password: no school,
    *  no teacher, no email code. It opens straight into the eye-gaze home with every feature. */
   const signUpEyeGazer = () => run("form", async () => {
     const clean = username.trim().toLowerCase();
@@ -127,14 +141,14 @@ export default function NativeSignIn() {
     e.preventDefault();
     if (flavor === "eyegaze") { void signUpEyeGazer(); return; }
     void run("form", async () => {
-      const clean = username.trim().toLowerCase();
       if (name.trim().length < 2) throw new Error("Enter your name.");
-      if (!/^[a-z0-9_-]{3,30}$/.test(clean)) throw new Error("Usernames are 3–30 letters, numbers, dashes or underscores.");
-      if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email.trim())) throw new Error("Enter an email address we can send a code to.");
+      if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email.trim())) throw new Error("Enter your email address.");
       if (password.length < 8) throw new Error("Use a password with at least 8 characters.");
-      const res = await fetch(`${API_BASE}/api/arise-todo/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: clean, displayName: name.trim(), password, email: email.trim() }) });
+      // Just name, email and password: the server makes the username from the email.
+      const res = await fetch(`${API_BASE}/api/arise-todo/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: name.trim(), password, email: email.trim() }) });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.message || "Couldn't create your account.");
+      const clean = String(data?.username || email.trim().toLowerCase());
       // The account stays off until the emailed code is typed back (unless no code could be sent).
       if (data?.confirmEmail) { setCodeFor(clean); setNotice(data?.message || ""); setScreen("code"); return; }
       await login(clean, password); showHubMenus();
@@ -159,12 +173,13 @@ export default function NativeSignIn() {
   });
 
   const apple = copy.apple && appleSignInAvailable();
+  /** The apps whose paid tier is part of Arise All Access show the plan on sign-up. */
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
-  const create = () => (flavor === "reader" ? navigate("/register-independent") :  flavor === "educator" ? setPicking(true) : go("signup"));
+  const create = () => (flavor === "reader" ? navigate("/parent-signup") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
   if (screen === "welcome") return <Shell>
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-6 text-center">
       <img src={copy.icon} alt="" width={88} height={88} className="h-[88px] w-[88px] rounded-[22px] shadow-[0_18px_40px_-16px_rgba(76,58,190,.55)] ring-1 ring-black/5" />
       <h1 className="mt-6 text-[34px] font-bold leading-[1.1] tracking-[-.02em] text-[#111018] [text-wrap:balance]">{appName}</h1>
       <p className="mt-2 max-w-[18rem] text-[17px] leading-snug text-[#6b6879] [text-wrap:balance]">{copy.tagline}</p>
@@ -221,20 +236,20 @@ export default function NativeSignIn() {
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Eye Gazer account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Eye Gazer game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Arise Fit and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked Fitness by Arise and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
-        <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />
-        {signingUp && !eyeGazer && <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" placeholder="you@example.com" testId="native-signup-email" plain />}
+        {(!signingUp || eyeGazer) && <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />}
+        {signingUp && !eyeGazer && <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="username" placeholder="you@example.com" testId="native-signup-email" plain />}
         <Field label="Password" value={password} onChange={setPassword} type={show ? "text" : "password"} autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? (eyeGazer ? "6 or more characters" : "8 or more characters") : "Required"} testId="native-password" plain
           trailing={<button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"} className="-mr-2 grid h-11 w-11 place-items-center text-[#8e8b9c]">{show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>} />
       </Group>
       {!signingUp && <button type="button" onClick={() => go("forgot")} className="mt-3 self-start px-1 py-2 text-[15px] font-semibold text-[#5b4fe0]">Forgot username or password?</button>}
       {signingUp && eyeGazer && <button type="button" onClick={() => navigate("/parent-signup")} className="mt-3 self-start px-1 py-2 text-[14px] font-semibold text-[#5b4fe0]">A parent who wants family controls? Make a parent account</button>}
-      {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">We'll email a 6-digit code to confirm it. Your email is also how you reset your password.</p>}
+      {signingUp && !eyeGazer && <p className="mt-3 px-1 text-[13px] leading-snug text-[#8e8b9c]">You sign in with your email. We'll send it a 6-digit code to confirm.</p>}
       <Message error={error} notice={notice} />
       <div className="mt-auto space-y-3 pb-2 pt-8">
-        <Primary busy={busy === "form"} disabled={!username.trim() || !password || (signingUp && (!name.trim() || (!eyeGazer && !email.trim())))}>{signingUp ? "Create account" : "Sign in"}</Primary>
+        <Primary busy={busy === "form"} disabled={!password || (signingUp ? (!name.trim() || (eyeGazer ? !username.trim() : !email.trim())) : !username.trim())}>{signingUp ? "Create account" : "Sign in"}</Primary>
         {apple && <button type="button" onClick={withApple} disabled={!!busy}
           className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-black text-[17px] font-semibold text-white active:opacity-80 disabled:opacity-60">
           {busy === "apple" ? <Loader2 className="h-5 w-5 animate-spin" /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={APPLE_LOGO_PATH} /></svg>}
@@ -250,7 +265,12 @@ export default function NativeSignIn() {
 
 /** The whole screen: the iPhone's safe areas, a soft page colour, no page scroll behind it. */
 function Shell({ children }: { children: ReactNode }) {
-  useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = "#f6f5fb"; return () => { document.documentElement.style.background = was; }; }, []);
+  useEffect(() => {
+    const was = document.documentElement.style.background; document.documentElement.style.background = "#f6f5fb";
+    // The app paints the strip behind the clock itself; without this it stays the dark hub colour (a black bar).
+    document.body.style.backgroundColor = "#f6f5fb"; sendBackdrop("#f6f5fb");
+    return () => { document.documentElement.style.background = was; window.dispatchEvent(new Event(BACKDROP_REFRESH)); };
+  }, []);
   return <main className="fixed inset-0 flex flex-col overflow-hidden bg-[#f6f5fb] pb-[max(12px,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-[#111018]" style={font} data-testid="native-signin">
     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[45%] bg-[radial-gradient(80%_70%_at_50%_0%,rgba(122,104,235,.16),transparent_70%)]" />
     <div className="relative mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col">{children}</div>

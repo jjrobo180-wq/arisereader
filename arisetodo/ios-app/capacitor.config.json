@@ -4,8 +4,8 @@
   "webDir": "www",
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1500,
-      "backgroundColor": "#FFFFFF",
+      "launchShowDuration": 500,
+      "backgroundColor": "#f6f7fc",
       "showSpinner": false
     },
     "Keyboard": {
@@ -33,6 +33,8 @@
     }
   },
   "ios": {
-    "contentInset": "automatic"
-  }
+    "contentInset": "never",
+    "backgroundColor": "#f6f7fc"
+  },
+  "backgroundColor": "#f6f7fc"
 }

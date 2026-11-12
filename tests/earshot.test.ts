@@ -142,13 +142,14 @@ test("server: student accounts get clean podcasts and no comments", async () => 
   });
 });
 
-test("Earshot is wired into LifeHub and the App Store", () => {
+test("Earshot is out of Arise To Duo, with its saved data kept", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  // Taken out of Arise To Duo (it's Podster now): no App Store entry, never on, even for families who had it. Their data stays.
   assert.ok(FAMILY_SECTIONS.includes("earshot")); assert.ok(ADD_ON_SECTIONS.includes("earshot"));
-  const p = PLUGINS.find((q) => q.id === "life-earshot")!;
-  assert.ok(p && p.target.kind === "section" && p.target.section === "earshot");
+  assert.equal(PLUGINS.find((q) => q.id === "life-earshot"), undefined);
   const f = emptyFamily();
-  assert.equal(isOn("earshot", f), false, "off until added");
+  assert.equal(isOn("earshot", f), false);
+  assert.equal(isOn("earshot", { ...f, sections: { ...f.sections, earshot: true } }), false, "hidden for families who had added it");
   assert.deepEqual(cleanFamily({ ...f, earshot: { setupDone: true, genres: ["news"] } }).earshot.genres, ["news"]);
   assert.match(read("client/src/components/family-hub/lifeApps.tsx"), /earshot: \(p\) => <Earshot/);
   assert.match(read("client/src/components/family-hub/Members.tsx"), /earshot: \{ label: "Earshot"/);
@@ -169,7 +170,7 @@ test("Podscroll: its own site, calling the public routes", () => {
   assert.match(read("podscroll/main.tsx"), /from "\.\.\/client\/src\/components\/family-hub\/earshot\/EarshotPlayer"/);
   assert.doesNotMatch(read("client/src/components/family-hub/earshot/EarshotPlayer.tsx"), /from "@\//, "the shared player imports nothing from the Arise app");
   const manifest = JSON.parse(read("podscroll/public/manifest.webmanifest"));
-  assert.equal(manifest.name, "Pod+"); assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.name, "Podster"); assert.equal(manifest.display, "standalone");
 });
 
 // ---------------------------------------------------------------------------

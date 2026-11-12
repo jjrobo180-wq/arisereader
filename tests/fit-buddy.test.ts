@@ -1,4 +1,4 @@
-// Arise Fit: workout buddies matched with a stranger.
+// Cooked: workout buddies matched with a stranger.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { emptyFit } from "../shared/fit";

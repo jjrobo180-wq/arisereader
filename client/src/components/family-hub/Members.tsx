@@ -1,10 +1,9 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Rocket, BadgeCheck as BadgeCheckIcon4 } from "lucide-react";
-import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
+import { Share2, Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
-import { SharedLinks } from "./ShareLink";
 import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3 } from "lucide-react";
@@ -25,7 +24,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   mood: { label: "Mood tracker", detail: "Daily mood check-in and patterns", icon: <SmilePlus size={17} /> },
   news: { label: "News", detail: "Today's headlines and local news", icon: <Newspaper size={17} /> },
   notifications: { label: "Notifications", detail: "Choose your reminders and how many", icon: null },
-  reader: { label: "A.R.I.S.E. Reader", detail: "Your children's reading, controls and add-ons", icon: null },
+  reader: { label: "Arise Reader", detail: "Your children's reading, controls and add-ons", icon: null },
   health: { label: "Calorie counter", detail: "Calories, food, water, exercise and Apple Health steps", icon: <Apple size={17} /> },
   polls: { label: "Polls", detail: "Dinner ideas, weekend plans and votes", icon: <Vote size={17} /> },
   trips: { label: "Trips", detail: "Trip planner and packing lists", icon: <Plane size={17} /> },
@@ -44,7 +43,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   relationships: { label: "Relationships", detail: "Tips, conversation starters and date ideas", icon: <HeartHandshake size={17} /> },
   dictionary: { label: "Dictionary", detail: "Look up any word, plus a word a day", icon: <BookOpen size={17} /> },
   links: { label: "Link page", detail: "Your links on one shareable page", icon: <Link2 size={17} /> },
-  linked: { label: "Linked profiles", detail: "Share apps like Potty Training with a co-parent, sitter or grandparent", icon: <Users size={17} /> },
+  linked: { label: "Sharing", detail: "Everyone you share with: your partner, a co-parent, a sitter or grandparent", icon: <Users size={17} /> },
   lifeplan: { label: "AI Reminders", detail: "AI builds your reminders around the life you want", icon: <Sparkles size={17} /> },
   habits: { label: "Habit tracker", detail: "Daily habits and streaks", icon: <RepeatIcon size={17} /> },
   gratitude: { label: "Gratitude", detail: "Three good things a day", icon: <HeartIcon size={17} /> },
@@ -90,6 +89,15 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   accountability: { label: "Accountability", detail: "Ask each other, get nudged, check it off with proof", icon: <BadgeCheckIcon4 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
   browser: { label: "Browser", detail: "Browse, bookmark and save pages as tasks", icon: <GlobeIcon2 size={17} /> },
+  healthlite: { label: "Health Lite", detail: "Pick your health tools", icon: <HeartPulseIcon2 size={17} /> },
+  inspire: { label: "Journal & Inspiration", detail: "Journal, quotes, gratitude", icon: <BookOpenIcon size={17} /> },
+  kitchen: { label: "Kitchen", detail: "Shop, plan, cook", icon: <ChefHatIcon size={17} /> },
+  moneyhub: { label: "Money", detail: "Budget, bills, loans, savings", icon: <Wallet size={17} /> },
+  homehub: { label: "Home & Car", detail: "Upkeep, cleaning, plants, car", icon: <WrenchIcon size={17} /> },
+  datehub: { label: "Gifts & Dates", detail: "Birthdays, gifts, countdowns", icon: <CakeIcon size={17} /> },
+  dailyhub: { label: "Daily Reads", detail: "News, history, dictionary", icon: <BookOpenIcon size={17} /> },
+  listhub: { label: "Lists", detail: "Reading, watchlist, bucket list", icon: <BookOpenIcon size={17} /> },
+  focushub: { label: "Focus & Routines", detail: "Focus timer, clocks, routines", icon: <Wallet size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };
@@ -124,6 +132,12 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
 
   return <div className="space-y-6">
     <PageHead eyebrow="Family & settings" title="Your family" blurb="Add everyone once, then assign tasks, chores, events and votes to them. Turn off any part of the hub you don't need." />
+    {/* Sharing with other people (their own accounts) is all on one page, the Sharing page. */}
+    <a href="#/lifehub?go=linked" className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:border-violet-300" data-testid="settings-sharing">
+      <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white"><Users size={20} /></span>
+      <span className="min-w-0 flex-1"><span className="block font-black text-slate-900">Sharing</span><span className="block text-sm text-slate-500">Your partner, a co-parent, a sitter: who sees and changes what, Accountability together, and links</span></span>
+      <span className="text-slate-400">›</span>
+    </a>
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <Panel eyebrow="People" title={`${family.members.length} in the family`} right={<button onClick={() => setEditing(blank(makeId(), family.members.length))} className={primary}><UserPlus size={16} /> Add person</button>}>
         {family.members.length ? <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{family.members.map((m) => <li key={m.id}>
@@ -133,27 +147,13 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
         </li>)}</ul> : <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center"><p className="font-bold">Who's in your family?</p><p className="mt-1 text-sm text-slate-500">Add each parent and kid. Kids get a behavior card and a star chart.</p><button onClick={() => setEditing(blank(makeId(), 0))} className={primary + " mt-4"}><Plus size={16} /> Add the first person</button></div>}
       </Panel>
 
-      <Panel eyebrow="Switches" title="Turn features on or off">
-        <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
-        <ul className="divide-y divide-slate-100">{orderedToggleable(family).map((s) => {
-          const info = SECTION_INFO[s];
-          const on = isOn(s, family);
-          return <li key={s} className="flex items-center gap-3 py-3">
-            <span className={`rounded-xl p-2 ${on ? "bg-violet-50 text-violet-600" : "bg-slate-100 text-slate-400"}`}>{info.icon}</span>
-            <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{info.label}</span><span className="text-xs text-slate-500">{info.detail}</span></span>
-            <Toggle on={on} label={`Show ${info.label}`} onChange={(v) => setFamily((f) => ({ ...f, sections: { ...f.sections, [s]: v } }))} />
-          </li>;
-        })}</ul>
-        <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-4">
+      <Panel eyebrow="Rewards" title="Stars">
+        <div className="flex items-center gap-3">
           <span className="min-w-0 flex-1"><span className="block text-sm font-bold">Chore stars count toward rewards</span><span className="text-xs text-slate-500">Kids can spend stars from chores and behavior together</span></span>
           <Toggle on={family.chorePointsCount} label="Chore stars count toward rewards" onChange={(v) => setFamily((f) => ({ ...f, chorePointsCount: v }))} />
         </div>
       </Panel>
     </div>
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <SharedLinks say={say} />
-    </div>
-
     {editing && <Modal title={family.members.some((m) => m.id === editing.id) ? `Edit ${editing.name || "person"}` : "Add a person"} onClose={() => setEditing(null)}>
       <form onSubmit={save} className="space-y-4">
         <div className="flex items-center gap-4"><Avatar member={{ ...editing, name: editing.name || "?" }} size="lg" />

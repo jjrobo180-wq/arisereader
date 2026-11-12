@@ -1,5 +1,5 @@
 // WorkHub menu: since Oct 12–13, 2026 each screen has its own place in the menu, and the Reader
-// tools live on their own page (A.R.I.S.E. Reader) rather than in the hub menu.
+// tools live on their own page (Arise Reader) rather than in the hub menu.
 // Run: npx tsx --test tests/hub-tab-groups.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -15,8 +15,9 @@ test("every hub screen is in exactly one menu place; the Reader tools are on the
   const listed = HUB_GROUPS.flatMap((g) => g.tabs);
   assert.deepEqual([...listed].sort(), HUB_TABS.filter((t) => !isReaderTool(t)).sort());
   assert.equal(new Set(listed).size, listed.length);
-  assert.deepEqual(groupOf("iep").tabs, ["iep"]);
-  assert.equal(groupOf("iep").label, "Meetings");
+  assert.deepEqual(groupOf("iep").tabs, ["iep", "caseload", "minutes"]);
+  assert.equal(groupOf("minutes").id, "iep", "Minutes and Caseload live inside IEP");
+  assert.equal(groupOf("iep").label, "IEP");
   assert.equal(groupOf("reader").id, "arise", "one way out to the Reader page");
   for (const g of HUB_GROUPS) if (g.tabs.length > 1) for (const t of g.tabs) assert.ok(SUB_LABELS[t], `${t} has a button label`);
 });
@@ -27,7 +28,8 @@ test("hidden screens leave the menu; Home always shows", () => {
   assert.deepEqual(groupTabs("tasks", hide), ["tasks"]);
   assert.equal(visibleGroups(hide).some((g) => g.id === "notes"), false);
   assert.equal(groupLabel("tasks", all), "Tasks");
-  assert.equal(groupLabel("iep", all), "Meetings");
+  assert.equal(groupLabel("iep", all), "IEP");
+  assert.equal(groupLabel("iep", { ...all, caseload: false, minutes: false }), "IEP");
   assert.equal(visibleGroups({ ...all, parents: false }).some((g) => g.id === "parents"), false);
   assert.ok(visibleGroups({ ...all, overview: false }).some((g) => g.id === "home"), "Home always shows");
   assert.ok(ALWAYS_SHOWN.includes("overview"));

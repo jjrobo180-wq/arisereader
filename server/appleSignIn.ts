@@ -1,4 +1,4 @@
-// Sign in with Apple for the Arise To Duo and Pod+ iPhone apps.
+// Sign in with Apple for the Arise To Duo and Podster iPhone apps.
 //
 // The app asks iOS to sign in (the Apple sheet with Face ID); iOS hands back an identity token, a JWT
 // signed by Apple. The server checks it here against Apple's published keys before trusting who it
@@ -11,9 +11,9 @@ export const APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys";
 /** The apps a token may be for (their bundle IDs). */
 export const ARISE_APP = "com.arisereader.arisetodo";
 export const PODPLUS_APP = "com.arisereader.podplus";
-/** A.R.I.S.E. Reader Educator, the teacher and parent Reader app. */
+/** Arise Reader Educator, the teacher and parent Reader app. */
 export const EDUCATOR_APP = "com.arisereader.educator";
-/** Arise Fit, training and nutrition (personal accounts, like Arise To Duo). */
+/** Cooked, training and nutrition (personal accounts, like Arise To Duo). */
 export const FIT_APP = "com.arisereader.fit";
 export const EYEGAZER_APP = "com.arisereader.eyegazer";
 export const TRAINER_APP = "com.arisereader.trainer";

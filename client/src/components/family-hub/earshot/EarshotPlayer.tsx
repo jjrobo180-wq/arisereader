@@ -8,7 +8,7 @@ import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, safeTo, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
-import { alignAds, guessAdAround, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
+import { alignAds, copyToShow, guessAdAround, playAdAt, showToCopy, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
 import { InfoSheet } from "./EarshotInfo";
 import { ClipMaker, LIGHT_CSS, ProfileEditor, ShareSheet, UploadSheet, postEpisodeOf, toEpisode as micEpisode, toShow as micShow } from "./EarshotSocial";
@@ -31,9 +31,9 @@ type Comment = { id: string; author: string; body: string; at: string; mine: boo
 type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string;
   /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
   again?: boolean;
-  /** An Open Mic episode (made by someone on Pod+), woven into For You. */
+  /** An Open Mic episode (made by someone on Podster), woven into For You. */
   mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean };
-  /** Pod+ Live News Radio: when this bulletin is on air for everyone (server clock, ms) and how long. */
+  /** Podster Live News Radio: when this bulletin is on air for everyone (server clock, ms) and how long. */
   live?: { startsAt: number; secs: number } };
 type Tab = "foryou" | "following" | "openmic" | "social" | "explore" | "library";
 
@@ -118,11 +118,11 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
 // ===========================================================================
 // The player: feed, explore, library
 // ===========================================================================
-/** What's playing in the swipe player, for a mini bar on other pages (Pod+ keeps the player running). */
-export type NowPlaying = { title: string; show: string; art: string; playing: boolean; /** Pod+ Live News Radio is on. */ live?: boolean };
+/** What's playing in the swipe player, for a mini bar on other pages (Podster keeps the player running). */
+export type NowPlaying = { title: string; show: string; art: string; playing: boolean; /** Podster Live News Radio is on. */ live?: boolean };
 export type PlayerControl = { toggle: () => void; pause: () => void };
 export type PlayerProps = {
-  /** Shown on screen right now (Pod+ keeps it running, hidden, on other pages so the sound goes on). */
+  /** Shown on screen right now (Podster keeps it running, hidden, on other pages so the sound goes on). */
   visible?: boolean;
   onNowPlaying?: (n: NowPlaying | null) => void;
   control?: { current: PlayerControl | null };
@@ -142,30 +142,63 @@ export type PlayerProps = {
   mediaUrl?: (path: string) => string;
   /** Where LivePod connects (wss://…), when the server is on another address (Podscroll). */
   liveBase?: string;
-  /** Pod+ creators sign in with an email code; the app keeps the session and sends it with requests. */
+  /** Podster creators sign in with an email code; the app keeps the session and sends it with requests. */
   onSession?: (token: string | null, email?: string) => void;
-  /** Nothing plays while this is on (Pod+: the free minute is up and there's no account yet). */
+  /** Nothing plays while this is on (Podster: the free minute is up and there's no account yet). */
   locked?: boolean;
-  /** Pod+: the site has its own home page. The scroll shows only For You and Following; Open Mic,
+  /** Podster: the site has its own home page. The scroll shows only For You and Following; Open Mic,
    *  Social, Library and Explore open on their own from that home page (initialTab), and a back
    *  button returns to it. */
   onHome?: () => void;
   initialTab?: Tab;
   /** Goes up each time the site opens a page (Social, Open Mic…) in the running player. */
   tabNonce?: number;
-  /** Pod+: play a Pod Mode back to back from this episode (opened from the home page). */
+  /** Podster: play a Pod Mode back to back from this episode (opened from the home page). */
   playMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
-type SessionAds = { ready: boolean; final: boolean; pending?: boolean; startAt?: number; ads: PlayAd[]; how: string; compared: number; dur?: number; gone?: boolean };
-type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null; used: number; retried?: boolean };
+type SessionAds = { ready: boolean; final: boolean; pending?: boolean; startAt?: number; ads: PlayAd[]; how: string; compared: number; dur?: number; gone?: boolean; clean?: boolean };
+type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null; used: number; retried?: boolean; clean?: boolean };
+/** An episode's ad-free copy (server/podcastClean.ts): the show with its stitched-in ads cut out, played
+ *  straight from storage. Its time is show time; `sid` is its shared session (read along, its ads). */
+type CleanCopy = { sid: string; url: string; exp: number; secs: number; ads: PlayAd[] };
+// Kept while the page is open: the player is made again for each episode opened from the home page.
+const cleanKnown = new Map<string, { copy: CleanCopy | null; at: number }>();
+const cleanAsking = new Map<string, Promise<CleanCopy | null>>();
+const isCleanSid = (sid: string | undefined) => !!sid && /^cl\d{1,20}_*$/.test(sid);
+/** The ad-free copy's shared session id (the same as the server's cleanSidOf). */
+const cleanSidFor = (episodeId: string) => { const d = String(episodeId || "").replace(/\D/g, "").slice(0, 20); return d ? `cl${d}`.padEnd(16, "_") : ""; };
+/** Episodes about to be seen are made ad-free before anyone plays them (server/podcastClean.ts
+ *  createPrecleaner): asked for once per page, a few at a time. The home page asks too. */
+type PrepApi = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
+let prepApi: PrepApi | null = null;
+const prepAsked = new Set<string>();
+export function setPrepareApi(api: PrepApi | null) { prepApi = api; }
+/** Ad-free copies are for people with ad skipping (Arise All Access); for everyone else none are made or used. */
+let cleanOn = true;
+export function setCleanEnabled(on: boolean) { cleanOn = on; }
+export function prepareClean(eps: (PodEpisode | null | undefined)[], api: PrepApi | null = prepApi) {
+  if (!api || !cleanOn) return;
+  const list = eps.filter((e): e is PodEpisode => !!e?.id && !!e.audio && !prepAsked.has(e.id) && throughServer(e.audio) && !OWN_EPISODE.test(e.id) && !cleanKnown.get(e.id)?.copy).slice(0, 8);
+  if (!list.length) return;
+  for (const e of list) prepAsked.add(e.id);
+  void api("/api/earshot/clean/prepare", { method: "POST", body: { episodes: list.map((e) => ({ id: e.id, showId: e.showId, audio: e.audio })) } }).catch(() => { for (const e of list) prepAsked.delete(e.id); });
+}
+/** The play token too: an episode started before a new player had one played straight from the host, ads and all. */
+let sharedTok: { token: string; exp: number; audio: string } | null = null;
 const newSid = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b & 63]).join(""); };
 /** Audio formats the server can look inside (MP3); others play straight from the host. */
 const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac|webm)(\?|$)/i.test(url) && !/\/storage\/v1\/object\/public\//.test(url);
 
 // ---- where each episode was left off, kept on this device ----
-type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
+/** c: t is show time (saved while playing the ad-free copy); ct: show time of a spot saved in a copy with ads. */
+type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number; c?: 1; ct?: number };
+/** Where to pick an episode up, in the time of the copy about to play (its ad-free copy, or one with ads). */
+function spotTime(spot: Spot | undefined, clean: boolean): number | undefined {
+  if (!spot) return undefined;
+  return clean && !spot.c && typeof spot.ct === "number" ? spot.ct : spot.t;
+}
 // Blended ad skips: the sound eases out just before an ad, the jump lands, and it eases back in once
 // the audio there is ready, so a skip never cuts mid-word or clicks. Phones that don't let a page set
 // volume (iPhones) just jump at the exact moment instead.
@@ -197,12 +230,14 @@ const savedWords = (s: number) => { const m = Math.round(s / 60); return m < 1 ?
 
 const SPOTS_KEY = "earshot.spots";
 const readSpots = (): Record<string, Spot> => { try { const v = JSON.parse(localStorage.getItem(SPOTS_KEY) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
-function saveSpot(ep: PodEpisode, t: number, realSecs = 0) {
+function saveSpot(ep: PodEpisode, t: number, realSecs = 0, where?: { clean?: boolean; ct?: number }) {
   const all = readSpots();
   // The listed length can be shorter than the file (ads stitched in): the longer of the two counts.
   const secs = Math.max(ep.secs || 0, Number.isFinite(realSecs) ? Math.floor(realSecs) : 0, all[ep.id]?.secs || 0);
-  if (t < 15 || (secs && t > secs - 30)) delete all[ep.id];
-  else all[ep.id] = { t: Math.floor(t), secs, title: ep.title, show: ep.show, showId: ep.showId, art: ep.art, at: Date.now() };
+  // The ad-free copy is shorter than the listed length (its ads are gone): its own end counts there.
+  const end = where?.clean && Number.isFinite(realSecs) && realSecs > 0 ? realSecs : secs;
+  if (t < 15 || (end && t > end - 30)) delete all[ep.id];
+  else all[ep.id] = { t: Math.floor(t), secs, title: ep.title, show: ep.show, showId: ep.showId, art: ep.art, at: Date.now(), ...(where?.clean ? { c: 1 as const } : typeof where?.ct === "number" && Number.isFinite(where.ct) ? { ct: Math.floor(where.ct) } : {}) };
   const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 200);
   try { localStorage.setItem(SPOTS_KEY, JSON.stringify(Object.fromEntries(keep))); } catch { /* not kept */ }
   // Continue listening (Home) updates right away.
@@ -264,12 +299,28 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [skipped, setSkipped] = useState<{ ad: PlayAd; epId: string } | null>(null);
   /** The episode playing muted while the ads at its start are found. */
   const [holding, setHolding] = useState<string | null>(null);
+  const holdingRef = useRef(holding); holdingRef.current = holding;
   // Smart ad skip: what the server knows per episode, this listener's marks in progress, and quick forward jumps.
   const serverAds = useRef<Map<string, ServerAd[]>>(new Map());
   // Playback through the server: a play token for audio addresses, and each episode's session.
-  const playTok = useRef<{ token: string; exp: number; audio: string } | null>(null);
+  const playTok = useRef<{ token: string; exp: number; audio: string } | null>(sharedTok && sharedTok.exp - Date.now() > 10 * 60_000 ? sharedTok : null);
   const plays = useRef<Map<string, PlaySession>>(new Map());
   const direct = useRef<Set<string>>(new Set());
+  /** Episodes whose ad-free copy wouldn't play here this time (they go through the server instead). */
+  const cleanOff = useRef<Set<string>>(new Set());
+  const cleanFails = useRef<Map<string, number>>(new Map());
+  /** Picking up again through the server, per episode: how many times lately (a last resort after many). */
+  const pickups = useRef<Map<string, number[]>>(new Map());
+  /** The episode being lined up again after its copy was lost (muted until it's at the same moment). */
+  const lining = useRef<{ ep: string; sid: string } | null>(null);
+  /** Episodes asked about (ad-free copy, play token) before their first play here. */
+  const prepared = useRef<Set<string>>(new Set());
+  const prepTag = useRef(0);
+  /** Where each episode last ended by itself, to tell a real end from a copy that was cut short. */
+  const endedAt = useRef<Map<string, number>>(new Map());
+  // Set below (they're used by code defined before them).
+  const toCleanRef = useRef<(a: HTMLAudioElement, ep: PodEpisode, atCopy?: number, play?: boolean, fresh?: boolean) => boolean>(() => false);
+  const recoverRef = useRef<(a: HTMLAudioElement, ep: PodEpisode, play: boolean, why?: "error" | "stall" | "net" | "ended", at?: number) => void>(() => {});
   const localAds = useRef<Map<string, PlayAd[]>>(new Map());
   const [adsTick, setAdsTick] = useState(0);
   const [adsShared, setAdsShared] = useState(true);
@@ -294,7 +345,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const players = useRef<HTMLAudioElement[]>([]);
   const cur = useRef<HTMLAudioElement | null>(null);
   const keepSpotRef = useRef<() => void>(() => {});
-  /** Pod+ Live News Radio while it is on (see startNewsRadio). */
+  /** Podster Live News Radio while it is on (see startNewsRadio). */
   const radio = useRef<{ offset: number; finished: string } | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const listened = useRef(0);
@@ -336,7 +387,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = setInterval(pull, 30_000), b = setInterval(pullMic, 5 * 60_000);
     return () => { clearInterval(a); clearInterval(b); };
   }, [api, student]);
-  /** Creating needs a profile, and on Pod+ an email sign-in first. */
+  /** Creating needs a profile, and on Podster an email sign-in first. */
   const create = (what: "create" | "golive" | "upload" | "studio") => {
     if (creator && !creator.creator && creator.signIn) { afterSignIn.current = what; setMaker("signin"); return; }
     if (what !== "create" && !creator?.profile) { afterSignIn.current = what; setMaker("profile"); return; }
@@ -534,7 +585,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
   // Fill the feed once there's something to pick from, and keep it filled: an episode opened first
-  // (a shared link, or a pick from the Pod+ home page) can land before For You has loaded, and the
+  // (a shared link, or a pick from the Podster home page) can land before For You has loaded, and the
   // feed still has to carry on after it.
   useEffect(() => { if (itemsRef.current.length - activeRef.current < 3 && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab, items.length]);
 
@@ -589,6 +640,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const again = () => {
       const r = netRetry.current; if (!r || r.ep !== id || cur.current !== a || a.dataset.ep !== id) return;
       if (typeof navigator !== "undefined" && navigator.onLine === false) { r.timer = setTimeout(again, 3000); return; }
+      // Through the server: the server may have let that copy go meanwhile (a restart), and a new copy
+      // can have other ads in it, so it's picked up at the same moment of the show instead.
+      const epHere = itemsRef.current.find((x) => x.ep?.id === id)?.ep;
+      if (epHere && a.dataset.sid && a.dataset.clean !== "1" && !liveOf(id)) { recoverRef.current(a, epHere, r.play, "net", r.t); return; }
       const src = a.currentSrc || a.src; if (!src) return;
       a.src = src; a.load();
       a.addEventListener("loadedmetadata", () => { try { if (r.t > 1) a.currentTime = r.t; } catch { /* not seekable yet */ } }, { once: true });
@@ -618,14 +673,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     set("seekto", live ? null : (d: any) => { if (typeof d?.seekTime === "number") seekTo(d.seekTime, true); });
     if (live) {
       const ep = itemsRef.current[activeRef.current]?.ep;
-      try { navigator.mediaSession.metadata = new MediaMetadata({ title: `LIVE · ${NEWS_RADIO_NAME}`, artist: ep ? `${ep.show} · ${ep.title}` : "News", album: "Pod+", artwork: ep?.art ? [{ src: ep.art, sizes: "600x600" }] : [] }); } catch { /* not supported */ }
+      try { navigator.mediaSession.metadata = new MediaMetadata({ title: `LIVE · ${NEWS_RADIO_NAME}`, artist: ep ? `${ep.show} · ${ep.title}` : "News", album: "Podster", artwork: ep?.art ? [{ src: ep.art, sizes: "600x600" }] : [] }); } catch { /* not supported */ }
     }
   };
   const claimLockScreen = (a: HTMLAudioElement) => {
     if (!("mediaSession" in navigator)) return;
     try {
       const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-      if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+      if (ep) navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Podster" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
       navigator.mediaSession.setActionHandler("play", () => { cur.current?.play().catch(() => {}); });
       navigator.mediaSession.setActionHandler("pause", () => cur.current?.pause());
       skipButtons();
@@ -657,9 +712,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
    *  page may shape its sound (crossOrigin). A player whose sound already goes through the boost can't
    *  play audio from other sites (it would be silent), so it is swapped for a fresh one first. */
   const setAudioSrc = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
-    // Downloaded (Pod+): play the copy on this device. It's this page's own, so Voice boost still works.
+    a = pointAt(a, ep, via);
+    // Loading a new source puts the speed back to the default rate: the listener's speed is the default.
+    try { a.defaultPlaybackRate = esRef.current.settings.speed || 1; a.playbackRate = esRef.current.settings.speed || 1; } catch { /* not supported */ }
+    return a;
+  };
+  const pointAt = (a: HTMLAudioElement, ep: PodEpisode, via: string | null): HTMLAudioElement => {
+    // Downloaded (Podster): play the copy on this device. It's this page's own, so Voice boost still works.
     const saved = offlineAudio()?.url(episodeKey(ep.id));
-    if (saved) { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = saved; return a; }
+    if (saved) {
+      a.removeAttribute("crossorigin");
+      // A downloaded ad-free copy keeps its session, for its ads and read along.
+      if (via && isCleanSid(via)) { a.dataset.sid = via; a.dataset.clean = "1"; } else { delete a.dataset.sid; delete a.dataset.clean; }
+      a.src = saved; return a;
+    }
     if (!via && isBoosted(a)) {
       const fresh = makeAudio();
       const i = players.current.indexOf(a); if (i >= 0) players.current[i] = fresh;
@@ -667,12 +733,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (cur.current === a) cur.current = fresh;
       fresh.dataset.ep = ep.id; a = fresh;
     }
-    if (via) { if (esRef.current.settings.voiceBoost || isBoosted(a)) a.crossOrigin = "anonymous"; else a.removeAttribute("crossorigin"); a.dataset.sid = via; a.src = sessionSrc(ep, via); }
-    else { a.removeAttribute("crossorigin"); delete a.dataset.sid; a.src = ep.audio; }
+    // Through the server, or its ad-free copy straight from storage (both let Voice boost shape the sound).
+    if (via) { if (esRef.current.settings.voiceBoost || isBoosted(a)) a.crossOrigin = "anonymous"; else a.removeAttribute("crossorigin"); a.dataset.sid = via; if (isCleanSid(via)) a.dataset.clean = "1"; else delete a.dataset.clean; a.src = sessionSrc(ep, via); }
+    else { a.removeAttribute("crossorigin"); delete a.dataset.sid; delete a.dataset.clean; a.src = ep.audio; }
     return a;
   };
-  /** The server's copy isn't working out for this episode: play it straight from the show's host,
-   *  from the same moment, and don't go through the server for it again this time. */
+  /** The last resort, when the server can't play this episode at all (it can't reach it, or keeps
+   *  failing): straight from the show's host from the same moment, the ads known there still skipped. */
   const goDirect = (a: HTMLAudioElement, ep: PodEpisode, t: number, play: boolean) => {
     direct.current.add(ep.id);
     const p = plays.current.get(ep.id); if (p?.timer) clearTimeout(p.timer);
@@ -681,18 +748,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (play) b.play().then(() => setPlaying(true), () => setPlaying(false));
     return b;
   };
-  // Through the server and stuck with no sound for 10 seconds (the host is slow to hand the server the
-  // file, or the server's copy stalled): straight from the host from the same moment, instead of
-  // leaving it silent. Checked every 2 seconds while something should be playing.
+  // Through the server (or the ad-free copy) and stuck with no sound for 10 seconds: picked up again at
+  // the same moment (the ad-free copy if there is one, otherwise a copy through the server), never
+  // from the host with its ads. Checked every 2 seconds while something should be playing.
   const stall = useRef<{ ep: string; t: number; n: number }>({ ep: "", t: -1, n: 0 });
   useEffect(() => {
     const iv = setInterval(() => {
       const a = cur.current; const it = itemsRef.current[activeRef.current];
-      if (!a || !it?.ep || a.paused || a.dataset.ep !== it.ep.id || !a.dataset.sid || direct.current.has(it.ep.id)) { stall.current = { ep: "", t: -1, n: 0 }; return; }
+      if (!a || !it?.ep || a.paused || a.dataset.ep !== it.ep.id || !a.dataset.sid || direct.current.has(it.ep.id) || lining.current?.ep === it.ep.id) { stall.current = { ep: "", t: -1, n: 0 }; return; }
       const s0 = stall.current;
       if (s0.ep === it.ep.id && Math.abs(a.currentTime - s0.t) < 0.2 && a.readyState < 3) s0.n++;
       else stall.current = { ep: it.ep.id, t: a.currentTime, n: 0 };
-      if (stall.current.n >= 5) { stall.current = { ep: "", t: -1, n: 0 }; a.muted = false; setHolding(null); goDirect(a, it.ep, it.live ? liveAt(it.live) : a.currentTime, true); }
+      if (stall.current.n >= 5) { stall.current = { ep: "", t: -1, n: 0 }; if (holdingRef.current === it.ep.id) { a.muted = false; setHolding(null); } recoverRef.current(a, it.ep, true, "stall"); }
     }, 2000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -737,12 +804,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       if (stop || !b?.token) return;
       const first = !playTok.current;
       playTok.current = { token: String(b.token), exp: Number(b.exp) * 1000, audio: String(b.audio || "/api/earshot/audio/") };
-      // Players loaded before the token came back play straight from the host: switch the ones that haven't started.
+      sharedTok = playTok.current;
+      // Players loaded before the token came back play straight from the host: switch the ones that
+      // haven't started (and the one playing, if it has only just begun: it's still in the pre-roll).
       if (first) for (const a of players.current) {
         const ep = itemsRef.current.find((x) => x.ep?.id === a.dataset.ep)?.ep;
-        if (!ep || a.dataset.sid || !a.paused || a.currentTime > 0.5) continue;
+        if (!ep || a.dataset.sid || liveOf(ep.id)) continue;
+        const fresh = a.paused ? a.currentTime <= 0.5 : a === cur.current && a.currentTime < 3;
+        if (!fresh) continue;
+        const was = !a.paused;
         const via = viaServer(ep); if (!via) continue;
-        setAudioSrc(a, ep, via); a.load();
+        const b2 = setAudioSrc(a, ep, via); b2.load();
+        if (was) b2.play().catch(() => setPlaying(false));
       }
       t = setTimeout(get, Math.max(60_000, playTok.current.exp - Date.now() - 30 * 60_000));
     }).catch(() => { if (!stop) t = setTimeout(get, 60_000); });
@@ -750,19 +823,64 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return () => { stop = true; if (t) clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, mediaUrl ? 1 : 0]);
-  /** A session for this episode (its id), when its audio can come through the server. */
-  const viaServer = (ep: PodEpisode): string | null => {
-    if (offlineAudio()?.url(episodeKey(ep.id))) return null; // downloaded: plays from this device
+  /** The episode's ad-free copy, when it has one that plays here (and its address is good for a while). */
+  const cleanReady = (epId: string): CleanCopy | null => {
+    const c = cleanKnown.get(epId)?.copy;
+    return c && c.exp - Date.now() > 10 * 60_000 && !cleanOff.current.has(epId) ? c : null;
+  };
+  /** Asks the server whether an episode has an ad-free copy yet (remembered for a little while). */
+  const askClean = (ep: PodEpisode, force = false): Promise<CleanCopy | null> => {
+    if (!ep?.id || !throughServer(ep.audio) || OWN_EPISODE.test(ep.id)) return Promise.resolve(null);
+    const k = cleanKnown.get(ep.id);
+    if (!force && k && (k.copy ? k.copy.exp - Date.now() > 30 * 60_000 : Date.now() - k.at < 25_000)) return Promise.resolve(k.copy);
+    const asking = cleanAsking.get(ep.id);
+    if (asking) return asking;
+    const p = api(`/api/earshot/clean/${ep.id}?s=${ep.showId}`).then((b: any) => {
+      const copy: CleanCopy | null = b?.ready && typeof b.url === "string" && isCleanSid(String(b.sid || "")) ? { sid: String(b.sid), url: b.url, exp: Number(b.exp) || Date.now() + 3600_000, secs: Number(b.secs) || 0, ads: Array.isArray(b.ads) ? b.ads : [] } : null;
+      cleanKnown.set(ep.id, { copy, at: Date.now() });
+      if (cleanKnown.size > 500) cleanKnown.delete(cleanKnown.keys().next().value as string);
+      return copy;
+    }).catch(() => k?.copy ?? null).finally(() => { cleanAsking.delete(ep.id); });
+    cleanAsking.set(ep.id, p);
+    return p;
+  };
+  /** The ad-free copy's session for this episode (its ads, read along), set up once. */
+  const cleanSession = (ep: PodEpisode, sid: string, ads: PlayAd[] = []): string => {
+    let q = plays.current.get(ep.id);
+    if (!q || q.sid !== sid) {
+      if (q?.timer) clearTimeout(q.timer);
+      // Ads still at its very start (a pre-roll that was part of the file): it starts after them.
+      let at = 0;
+      for (const x of ownAds(ads).slice().sort((m, n) => m.s - n.s)) { if (x.sure && x.s <= at + 1 && x.e - x.s <= 8 * 60) at = Math.max(at, x.e); else if (x.s > at + 1) break; }
+      q = { sid, showId: ep.showId, ads: { ready: true, final: false, ads, how: "same", compared: 0, clean: true, startAt: at >= 4 && at <= 600 ? at : undefined }, polls: 0, timer: null, used: Date.now(), clean: true };
+      plays.current.set(ep.id, q); pollPlay(ep.id);
+    }
+    q.used = Date.now();
+    return q.sid;
+  };
+  /** A session for this episode (its id): its ad-free copy when it has one, otherwise a copy through the
+   *  server when its audio can come that way. Live News Radio keeps to the station's own copy. */
+  const viaServer = (ep: PodEpisode, allowClean = esRef.current.settings.adMode === "auto"): string | null => {
+    // Downloaded: plays from this device (a downloaded ad-free copy still gets its ads and read along).
+    if (offlineAudio()?.url(episodeKey(ep.id))) return offlineAudio()?.isClean?.(episodeKey(ep.id)) && cleanSidFor(ep.id) ? cleanSession(ep, cleanSidFor(ep.id)) : null;
+    const c = allowClean && !liveOf(ep.id) ? cleanReady(ep.id) : null;
+    if (c) return cleanSession(ep, c.sid, c.ads);
     const tok = playTok.current;
     if (!mediaUrl || !tok || tok.exp - Date.now() < 5 * 60_000 || direct.current.has(ep.id) || !throughServer(ep.audio)) return null;
     let p = plays.current.get(ep.id);
     // The server lets a session go after half an hour unused: start a new one before that.
-    if (!p || p.ads?.gone || Date.now() - p.used > 20 * 60_000) { if (p?.timer) clearTimeout(p.timer); p = { sid: newSid(), showId: ep.showId, ads: null, polls: 0, timer: null, used: Date.now(), retried: p?.retried }; plays.current.set(ep.id, p); pollPlay(ep.id); }
+    if (!p || p.clean || p.ads?.gone || Date.now() - p.used > 20 * 60_000) { if (p?.timer) clearTimeout(p.timer); p = { sid: newSid(), showId: ep.showId, ads: null, polls: 0, timer: null, used: Date.now(), retried: p?.retried }; plays.current.set(ep.id, p); pollPlay(ep.id); }
     p.used = Date.now();
     return p.sid;
   };
   // u: the episode's own address, for an older episode the server's short lists don't have.
-  const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}&u=${encodeURIComponent(ep.audio || "")}`);
+  const sessionSrc = (ep: PodEpisode, sid: string) => {
+    const saved = isCleanSid(sid) && offlineAudio()?.isClean?.(episodeKey(ep.id)) ? offlineAudio()?.url(episodeKey(ep.id)) : null;
+    if (saved) return saved;
+    const c = cleanKnown.get(ep.id)?.copy;
+    if (c && c.sid === sid) return c.url;
+    return mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}&u=${encodeURIComponent(ep.audio || "")}`);
+  };
   const skipping = useRef(false);
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Past an ad, blended: ease out (when fadeOut), jump, ease back in once the audio there is ready. */
@@ -772,9 +890,30 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const smoothSkip = (a: HTMLAudioElement, ad: PlayAd, epId: string, fadeOut = true) => {
     // Never jump into the last seconds of what's really there (a bad ad guess ended the episode on
     // the spot, and Play then did the same jump again), and never in an episode set to play straight.
-    if (plainPlay.current.has(epId) || !safeTo(a, ad.e)) return;
+    if (plainPlay.current.has(epId)) return;
+    if (!safeTo(a, ad.e)) {
+      // An ad that runs to the very end (the post-roll), found in the audio itself or marked by
+      // listeners: the episode is over where it starts.
+      const D = a.duration;
+      const tail = Number.isFinite(D) && D > 0 && ad.e >= D - 15 && ad.s > 60 && safeTo(a, ad.s) && (ad.kind === "dai" || ad.kind === "known" || ad.kind === "chapter" || ad.kind === "splice" || ad.kind === "user");
+      if (!tail || skipping.current) return;
+      skipping.current = true;
+      setSkipped({ ad, epId }); addSaved(D - ad.s, false);
+      try { a.currentTime = D; } catch { /* not seekable */ }
+      setTimeout(() => { skipping.current = false; }, 1500);
+      return;
+    }
     if (skipping.current) return; skipping.current = true;
     const land = () => {
+      // Playing a copy with ads in it and the ad-free copy is ready: carry on in that one, right after this ad.
+      const epNow = a.dataset.clean !== "1" && cleanReady(epId) ? itemsRef.current.find((x) => x.ep?.id === epId)?.ep : undefined;
+      if (epNow && toCleanRef.current(a, epNow, ad.e)) {
+        setSkipped({ ad, epId }); addSaved(ad.e - ad.s, ad.kind === "intro");
+        let back = false;
+        const up = () => { if (back) return; back = true; skipping.current = false; void fadeVolume(a, 1, 500); };
+        a.addEventListener("playing", up, { once: true }); setTimeout(up, 2500);
+        return;
+      }
       try { a.currentTime = ad.e; } catch { skipping.current = false; void fadeVolume(a, 1, 150); return; }
       let back = false;
       const up = () => { if (back) return; back = true; a.removeEventListener("seeked", up); skipping.current = false; void fadeVolume(a, 1, 500); };
@@ -787,7 +926,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   /** Jumps past a sure ad the player is in right now (and says so). */
   const skipIfInAd = (a: HTMLAudioElement, ads: PlayAd[]) => {
     const t = a.currentTime || 0;
-    const ad = ads.find((x) => x.sure && (x.kind !== "intro" || esRef.current.settings.skipIntro) && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
+    const ad = ownAds(ads).find((x) => x.sure && (x.kind !== "intro" || esRef.current.settings.skipIntro) && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
     if (!ad) return;
     const epId = a.dataset.ep; if (epId) smoothSkip(a, ad, epId, false);
   };
@@ -801,8 +940,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       p.timer = null;
       const q = plays.current.get(epId); if (q !== p) return;
       p.polls++;
-      api(`/api/earshot/play/${p.sid}/ads`).then((b: SessionAds) => {
+      api(`/api/earshot/play/${p.sid}/ads?e=${epId}&s=${p.showId}`).then((b: SessionAds) => {
         if (plays.current.get(epId) !== p) return;
+        // A new copy the server hasn't started yet (the player asks for its audio a moment later): ask again.
+        if (b?.gone && !p.clean && p.polls <= 4) { pollPlay(epId); return; }
+        // Its ad-free copy is gone from storage: play this episode through the server.
+        if (b?.gone && p.clean) { cleanOff.current.add(epId); cleanKnown.delete(epId); }
         p.ads = b; setAdsTick((x) => x + 1);
         // Playing inside an ad this copy turns out to have (the pre-roll, usually): jump past it now.
         const a = cur.current;
@@ -812,6 +955,167 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }, wait);
   };
   useEffect(() => () => { plays.current.forEach((p) => { if (p.timer) clearTimeout(p.timer); }); }, []);
+
+  /** Podster skips every ad found in this very copy by itself, sure or not (Undo brings any one back).
+   *  Left as an offer: a spot listeners merely skip past, and a seam with weak signs on one side
+   *  (often the show's own edit, not an ad). */
+  const ownAds = (list: PlayAd[]): PlayAd[] => (standalone ? list.map((x) => (!x.sure && x.kind !== "crowd" && x.kind !== "splice" ? { ...x, sure: true } : x)) : list);
+  /** Where an episode starts: the top when it's set to play straight through, otherwise where it was
+   *  left off (in the time of the copy about to play) or past a long intro. */
+  const startFor = (ep: PodEpisode, clean: boolean, via = true): number => {
+    if (plainPlay.current.has(ep.id)) return 0;
+    const spot = readSpots()[ep.id];
+    const secs = clean ? cleanReady(ep.id)?.secs || 0 : Math.max(ep.secs || 0, spot?.secs || 0);
+    return startAt(secs, spotTime(spot, clean), via ? false : esRef.current.settings.skipIntro);
+  };
+  /** Jumps to `to` once the audio can be sought, and again once it plays (iPhones ignore an early jump). */
+  const jumpWhenReady = (b: HTMLAudioElement, epId: string, to: number) => {
+    if (!(to > 0.5)) return;
+    const jump = () => { try { if (b.dataset.ep === epId && Math.abs(b.currentTime - to) > 2 && safeTo(b, to)) b.currentTime = to; } catch { /* not seekable yet */ } };
+    if (b.readyState >= 1) jump(); else b.addEventListener("loadedmetadata", jump, { once: true });
+    b.addEventListener("playing", jump, { once: true });
+  };
+  /** Where this player is, for its saved spot: in show time when it plays the ad-free copy, and the show
+   *  time of the moment too when it plays a copy with ads (so the ad-free copy picks up there later). */
+  const whereIn = (a: HTMLAudioElement | null | undefined, epId: string): { clean?: boolean; ct?: number } | undefined => {
+    if (!a || a.dataset.ep !== epId) return undefined;
+    if (a.dataset.clean === "1") return { clean: true };
+    const p = plays.current.get(epId);
+    return p && !p.clean && a.dataset.sid === p.sid && p.ads?.final ? { ct: copyToShow(a.currentTime || 0, p.ads.ads) } : undefined;
+  };
+  /** Moves a player over to the episode's ad-free copy at the same moment of the show (or at `atCopy`, a
+   *  moment of the copy it's playing; `fresh`: it hasn't really started, so where it should start), and
+   *  plays on if it was playing. false when there's no ad-free copy to move to. */
+  const toClean = (a: HTMLAudioElement, ep: PodEpisode, atCopy?: number, play?: boolean, fresh = false): boolean => {
+    const c = cleanReady(ep.id);
+    if (!c || a.dataset.ep !== ep.id || a.dataset.clean === "1" || liveOf(ep.id)) return false;
+    const p = plays.current.get(ep.id);
+    const onCopy = !!a.dataset.sid && !!p && p.sid === a.dataset.sid && !p.clean;
+    const x = atCopy ?? (a.currentTime || 0);
+    let to = fresh || (atCopy === undefined && x < 1) ? startFor(ep, true) : onCopy ? copyToShow(x, p!.ads?.ads ?? []) : x;
+    if (c.secs > 40) to = Math.min(to, c.secs - 20);
+    const was = play ?? !a.paused;
+    const sid = viaServer(ep);
+    if (!sid || !isCleanSid(sid)) return false;
+    if (lining.current?.ep === ep.id) lining.current = null;
+    const b = setAudioSrc(a, ep, sid); b.load();
+    b.muted = false;
+    jumpWhenReady(b, ep.id, to);
+    if (was) b.play().catch(() => setPlaying(false));
+    if (b === cur.current) { setNetWait(null); setAdsTick((n) => n + 1); }
+    return true;
+  };
+  toCleanRef.current = toClean;
+  /** A new copy through the server lined up to show time `ct`: it plays muted until the server knows that
+   *  copy's stitched-in ads (seconds), then jumps to the same moment of the show and the sound comes back. */
+  const resumeLive = (a: HTMLAudioElement, ep: PodEpisode, ct: number, play: boolean) => {
+    if (a.dataset.ep !== ep.id) return;
+    // Many times in a few minutes: the server can't play this one now (the very last resort is the host's own copy).
+    const now = Date.now(), list = (pickups.current.get(ep.id) ?? []).filter((x) => now - x < 5 * 60_000);
+    list.push(now); pickups.current.set(ep.id, list);
+    if (list.length > 4) { if (a === cur.current) say("Ad-free play isn't working for this episode right now, so it's playing as the show sent it."); goDirect(a, ep, ct, play); return; }
+    const old = plays.current.get(ep.id); if (old?.timer) clearTimeout(old.timer); plays.current.delete(ep.id);
+    const sid = viaServer(ep, false);
+    if (!sid) { goDirect(a, ep, ct, play); return; }
+    const b = setAudioSrc(a, ep, sid); b.load();
+    if (ct < 2) { if (play) b.play().catch(() => setPlaying(false)); return; }
+    lining.current = { ep: ep.id, sid };
+    b.muted = true; if (b === cur.current) setNetWait("buffering");
+    const t0 = Date.now();
+    const done = (x: number) => {
+      if (lining.current?.sid === sid) lining.current = null;
+      try { if (b.dataset.ep === ep.id && safeTo(b, x)) b.currentTime = x; } catch { /* not seekable yet */ }
+      jumpWhenReady(b, ep.id, x);
+      b.muted = false; if (b === cur.current) setNetWait(null);
+    };
+    const tick = () => {
+      if (b.dataset.ep !== ep.id || b.dataset.sid !== sid) { if (lining.current?.sid === sid) lining.current = null; b.muted = false; return; }
+      const q = plays.current.get(ep.id);
+      if (q && q.sid === sid && q.ads?.final && !q.ads.gone) { done(showToCopy(ct, q.ads.ads)); return; }
+      if (Date.now() - t0 > 25_000) { done(ct + (q?.ads?.startAt ?? 0)); return; }
+      setTimeout(tick, 300);
+    };
+    if (play) b.play().catch(() => setPlaying(false));
+    setTimeout(tick, 300);
+  };
+  /** The audio stopped (a dropped connection; the server restarted and let its copy go; an address that
+   *  ran out): picked up again at the same moment of the show. The ad-free copy when there is one;
+   *  otherwise the same copy if the server still has it, or a new one lined up to the same moment.
+   *  Never straight from the host with its ads, except as the very last resort. */
+  const recover = (a: HTMLAudioElement, ep: PodEpisode, play: boolean, why: "error" | "stall" | "net" | "ended" = "error", at?: number) => {
+    if (a.dataset.ep !== ep.id) return;
+    if (liveOf(ep.id)) { radioAgain(a, ep, play); return; }
+    // Not really started yet (it failed while loading): where it should start, in show time.
+    const fresh = (at ?? (a.currentTime || 0)) < 1;
+    const t = fresh ? startFor(ep, true) : at ?? (a.currentTime || 0);
+    if (a.dataset.clean !== "1" && toClean(a, ep, fresh ? undefined : t, play, fresh)) return;
+    if (a.dataset.clean === "1") {
+      // Saved on this device, or only slow for a moment: the same file again from the same moment.
+      const here = cleanReady(ep.id);
+      if (offlineAudio()?.isClean?.(episodeKey(ep.id)) || (why === "stall" && here)) {
+        const b = setAudioSrc(a, ep, a.dataset.sid || cleanSidFor(ep.id)); b.load(); jumpWhenReady(b, ep.id, t);
+        if (play) b.play().catch(() => setPlaying(false));
+        return;
+      }
+      // Its address may have run out: a fresh one, at the same moment (twice; then a copy through the server).
+      const n = (cleanFails.current.get(ep.id) ?? 0) + 1; cleanFails.current.set(ep.id, n);
+      if (n <= 2) {
+        void askClean(ep, true).then((c) => {
+          if (a.dataset.ep !== ep.id) return;
+          if (!c) { cleanOff.current.add(ep.id); resumeLive(a, ep, t, play); return; }
+          const b = setAudioSrc(a, ep, c.sid); b.load(); jumpWhenReady(b, ep.id, t);
+          if (play) b.play().catch(() => setPlaying(false));
+        });
+        return;
+      }
+      cleanOff.current.add(ep.id);
+      resumeLive(a, ep, t, play);
+      return;
+    }
+    const sid = a.dataset.sid, p = plays.current.get(ep.id);
+    if (!sid || !p || p.sid !== sid) { resumeLive(a, ep, t, play); return; }
+    const ct = fresh ? t : copyToShow(t, p.ads?.ads ?? []);
+    // Is the server's copy still there? Then carry on in it; if not (a restart), a new one at the same moment.
+    api(`/api/earshot/play/${sid}/ads?e=${ep.id}&s=${ep.showId}`).then((b: SessionAds) => {
+      if (a.dataset.ep !== ep.id || a.dataset.sid !== sid) return;
+      if (b?.gone) { resumeLive(a, ep, ct, play); return; }
+      p.ads = b; setAdsTick((n) => n + 1);
+      // Still coming in from the show's host (slowly): it plays on by itself once there's sound.
+      if (why === "stall" && !b?.dur) { if (a === cur.current) setNetWait("buffering"); return; }
+      const b2 = setAudioSrc(a, ep, sid); b2.load(); jumpWhenReady(b2, ep.id, t);
+      if (play) b2.play().catch(() => setPlaying(false));
+    }).catch(() => {
+      // The server can't be reached this moment (restarting): again in a few seconds.
+      setTimeout(() => { if (a.dataset.ep === ep.id && a.dataset.sid === sid) recover(a, ep, play, why, t); }, 4000);
+    });
+  };
+  recoverRef.current = recover;
+  /** Live News Radio's copy stopped: a new one through the server at the point the station has reached
+   *  (twice in a couple of minutes; then the host's own copy). */
+  const radioAgain = (a: HTMLAudioElement, ep: PodEpisode, play: boolean) => {
+    const live = liveOf(ep.id); if (!live) return;
+    const now = Date.now(), list = (pickups.current.get(ep.id) ?? []).filter((x) => now - x < 2 * 60_000);
+    list.push(now); pickups.current.set(ep.id, list);
+    const old = plays.current.get(ep.id); if (old?.timer) clearTimeout(old.timer); plays.current.delete(ep.id);
+    const sid = list.length <= 2 ? viaServer(ep, false) : null;
+    if (!sid) { goDirect(a, ep, liveAt(live), play); return; }
+    const b = setAudioSrc(a, ep, sid); b.load(); jumpWhenReady(b, ep.id, liveAt(live));
+    if (play) b.play().catch(() => setPlaying(false));
+  };
+  /** An episode's ad-free copy turned up: a player that loaded it ahead changes over at once, and the one
+   *  playing does too if it has only just started (otherwise at its next ad, a pause or a hiccup). */
+  const cleanArrived = (ep: PodEpisode) => {
+    if (!cleanReady(ep.id) || liveOf(ep.id)) return;
+    for (const a of players.current) {
+      if (a.dataset.ep !== ep.id || a.dataset.clean === "1" || lining.current?.ep === ep.id) continue;
+      if (a !== cur.current) { if (a.paused && (a.currentTime || 0) < 1) toClean(a, ep, undefined, false, true); continue; }
+      const held = holdingRef.current === ep.id;
+      if (held || a.paused || (a.currentTime || 0) < 4) {
+        if (held) { a.muted = false; setHolding(null); }
+        toClean(a, ep, undefined, undefined, held || (a.currentTime || 0) < 4);
+      }
+    }
+  };
 
   /** The player holding this episode, loading it into a free one if needed (and starting where it should). */
   const playerFor = (ep: PodEpisode, keep: (HTMLAudioElement | null)[]) => {
@@ -826,8 +1130,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.preload = "auto";
     // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
     const live = liveOf(ep.id);
-    const spot = readSpots()[ep.id];
-    const at = live ? liveAt(live) : plainPlay.current.has(ep.id) ? 0 : startAt(Math.max(ep.secs || 0, spot?.secs || 0), spot?.t, via ? false : esRef.current.settings.skipIntro);
+    const at = live ? liveAt(live) : startFor(ep, a.dataset.clean === "1", !!via);
     a.addEventListener("loadedmetadata", () => {
       // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
       // Only somewhere well before the real end (Apple's length can be longer than the file).
@@ -844,13 +1147,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   /** Saves where the episode in the player is, right now (before switching away from it). */
-  function keepSpot() { const it = itemsRef.current[activeRef.current]; const a = cur.current; if (it?.ep && !it.key.startsWith("nr-") && a && a.dataset.ep === it.ep.id && a.currentTime > 0) saveSpot(it.ep, a.currentTime, a.duration); }
+  function keepSpot() { const it = itemsRef.current[activeRef.current]; const a = cur.current; if (it?.ep && !it.key.startsWith("nr-") && a && a.dataset.ep === it.ep.id && a.currentTime > 0 && lining.current?.ep !== it.ep.id) saveSpot(it.ep, a.currentTime, a.duration, whereIn(a, it.ep.id)); }
   keepSpotRef.current = keepSpot;
   function pausePlayer() { cur.current?.pause(); setPlaying(false); }
   useEffect(() => { if (locked) { players.current.forEach((a) => a.pause()); setPlaying(false); } }, [locked]);
   const leave = useCallback((i: number) => {
     const it = itemsRef.current[i]; if (!it?.ep || !unlockedRef.current) return;
-    if (cur.current?.dataset.ep === it.ep.id && !it.key.startsWith("nr-")) saveSpot(it.ep, cur.current.currentTime, cur.current.duration);
+    if (cur.current?.dataset.ep === it.ep.id && !it.key.startsWith("nr-") && lining.current?.ep !== it.ep.id) saveSpot(it.ep, cur.current.currentTime, cur.current.duration, whereIn(cur.current, it.ep.id));
     const secs = listened.current;
     if (secs < 3) { signal(it.show.genre, "skip"); update((e) => ({ ...e, skipped: [it.show.id, ...e.skipped].slice(0, 80) })); }
     else if (secs < 15) signal(it.show.genre, "pass");
@@ -860,6 +1163,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const activate = useCallback((i: number, play: boolean) => {
     const it = itemsRef.current[i]; if (!it?.ep) return;
     const ep = it.ep;
+    // The first time here: a moment (1.5 s at most) to learn whether it has an ad-free copy, and to get
+    // the play token, so it never starts straight from the host with its ads in.
+    if (!prepared.current.has(ep.id) && !it.live && throughServer(ep.audio) && !offlineAudio()?.url(episodeKey(ep.id)) && !players.current.some((x) => x.dataset.ep === ep.id) && (!cleanKnown.has(ep.id) || (!!mediaUrl && !playTok.current))) {
+      const tag = ++prepTag.current;
+      if (cur.current && cur.current.dataset.ep !== ep.id) cur.current.pause();
+      if (play) setNetWait("buffering");
+      const token = new Promise<void>((r) => { const t0 = Date.now(); const f = () => { if (playTok.current || !mediaUrl || Date.now() - t0 > 1500) r(); else setTimeout(f, 100); }; f(); });
+      void Promise.race([Promise.all([askClean(ep), token]), new Promise((r) => setTimeout(r, 1500))]).then(() => {
+        prepared.current.add(ep.id);
+        if (prepTag.current === tag && activeRef.current === i && itemsRef.current[i]?.ep?.id === ep.id) activateRef.current(i, play);
+      });
+      return;
+    }
+    prepared.current.add(ep.id);
     const next = itemsRef.current[i + 1]?.ep;
     const a = playerFor(ep, []);
     if (cur.current && cur.current !== a) cur.current.pause();
@@ -894,7 +1211,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         if (cur.current !== a || a.dataset.ep !== ep.id) { a.muted = false; setHolding(null); return; }
         if (q?.ads?.ready || Date.now() - t0 > 8000) {
           const st = q?.ads?.startAt ?? 0;
-          const back = (q?.ads?.ads ?? []).find((x) => x.sure && x.s <= 1)?.e ?? st;
+          const back = ownAds(q?.ads?.ads ?? []).find((x) => x.sure && x.s <= 1)?.e ?? st;
           const to = plainPlay.current.has(ep.id) || !safeTo(a, Math.max(st, back, 0)) ? 0 : Math.max(st, back, 0);
           // Past the pre-roll; with none, back to the start (the muted seconds weren't heard).
           try { if (to > a.currentTime) a.currentTime = to; else if (!to && a.currentTime <= 9) a.currentTime = 0; } catch { /* not seekable yet */ }
@@ -914,16 +1231,38 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     if (play) a.play().catch(() => { a.muted = false; setHolding(null); setPlaying(false); });
     if (next) playerFor(next, [a]);
+    // Whether this one and the next few have ad-free copies: those then play from storage (one loaded
+    // ahead changes over at once).
+    for (const x of itemsRef.current.slice(i, i + 4)) { const e2 = x.ep; if (e2 && !x.live) void askClean(e2).then((c) => { if (c) cleanArrived(e2); }); }
+    // The ones after that are made ad-free now, before they're reached.
+    prepareClean(itemsRef.current.slice(i + 2, i + 8).filter((x) => !x.live).map((x) => x.ep), api);
     // Covers for the next few are fetched now, so they're there the moment you swipe.
     itemsRef.current.slice(i + 1, i + 4).forEach((x) => { const img = new Image(); img.src = x.ep?.art || x.show.art; });
     if ("mediaSession" in navigator) {
       try {
-        navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+        navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Podster" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
         skipButtons();
       } catch { /* not supported */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [esRef, standalone]);
+  const activateRef = useRef(activate); activateRef.current = activate;
+  // While a copy with ads in it plays (its ad-free copy not ready yet), ask now and then: once it is,
+  // the player changes over at its next ad, pause or hiccup. The next episode, loaded ahead, too: it
+  // changes over before it's reached.
+  useEffect(() => {
+    const iv = setInterval(() => {
+      for (const k of [0, 1]) {
+        const it = itemsRef.current[activeRef.current + k]; const ep = it?.ep;
+        if (!ep || it?.live || cleanOff.current.has(ep.id)) continue;
+        const a = players.current.find((x) => x.dataset.ep === ep.id);
+        if (!a || a.dataset.clean === "1" || !a.dataset.sid) continue;
+        void askClean(ep).then((c) => { if (c) cleanArrived(ep); });
+      }
+    }, 20_000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const prevActive = useRef(-1);
   useEffect(() => {
@@ -938,8 +1277,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const activeEpId = items[active]?.ep?.id, nextEpId = items[active + 1]?.ep?.id;
   useEffect(() => { if (activeEpId && cur.current?.dataset.ep !== activeEpId) activate(active, unlockedRef.current); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeEpId]);
   useEffect(() => { const n = items[active + 1]?.ep; if (n && cur.current) playerFor(n, [cur.current]); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nextEpId]);
-  useEffect(() => { if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
-  useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && !it.key.startsWith("nr-") && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime, cur.current.duration); };
+  useEffect(() => { players.current.forEach((a) => { try { a.defaultPlaybackRate = es.settings.speed || 1; } catch { /* not supported */ } }); if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
+  useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && !it.key.startsWith("nr-") && cur.current?.dataset.ep === it.ep.id && lining.current?.ep !== it.ep.id) saveSpot(it.ep, cur.current.currentTime, cur.current.duration, whereIn(cur.current, it.ep.id)); };
     // Leaving the app (iPhone doesn't always send pagehide) saves it too.
     const hidden = () => { if (document.visibilityState === "hidden") save(); };
     window.addEventListener("pagehide", save); document.addEventListener("visibilitychange", hidden);
@@ -962,7 +1301,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       const D = a.duration;
       if (a.ended || (Number.isFinite(D) && D > 0 && a.currentTime >= D - 2)) { plainPlay.current.add(it.ep.id); try { a.currentTime = 0; } catch { /* not seekable */ } }
       a.playbackRate = esRef.current.settings.speed; a.play().catch(() => setPlaying(false));
-    } else a.pause();
+    } else {
+      a.pause();
+      // Paused while a copy with ads in it plays and the ad-free copy is ready: it changes over now, unheard.
+      if (a.dataset.sid && a.dataset.clean !== "1" && cleanReady(it.ep.id)) toClean(a, it.ep, undefined, false);
+    }
   };
   const lastPos = useRef(0);
   const seekBy = (d: number) => {
@@ -985,12 +1328,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const seekTo = (t: number, user = false) => {
     const a = cur.current; if (!a || !a.dataset.ep) return;
     const from = a.currentTime;
-    // A jump well past what's loaded, through the server: the server's copy may not have got there
-    // yet (it fetches from the start), so play from the show's host at that moment instead of waiting.
-    if (user && a.dataset.sid) {
+    // A jump well past what's loaded, through the server: the ad-free copy (when it's ready) goes there at
+    // once. Otherwise the server's copy gets there in a moment (it fetches from the start, quickly).
+    if (user && a.dataset.sid && a.dataset.clean !== "1") {
       const it = itemsRef.current[activeRef.current];
       let loaded = false; try { for (let i = 0; i < a.buffered.length; i++) if (t >= a.buffered.start(i) - 1 && t <= a.buffered.end(i) + 20) loaded = true; } catch { /* unknown */ }
-      if (!loaded && it?.ep && it.ep.id === a.dataset.ep && !it.live && t - from > 60) { goDirect(a, it.ep, Math.max(0, t), !a.paused); setTime(t); noteSkip(it.ep.id, from, t); return; }
+      if (!loaded && it?.ep && it.ep.id === a.dataset.ep && !it.live && t - from > 60 && toClean(a, it.ep, Math.max(0, t))) { noteSkip(it.ep.id, from, t); return; }
     }
     // Dragged to a spot inside an ad: the listener chose to be there, so it isn't skipped out from under them.
     if (user) { const ad = adsRef.current.find((x) => t >= x.s && t < x.e - 1); if (ad) undone.current.add(ad.key); }
@@ -1015,7 +1358,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- read along and ad skip ----------------
   const activeEp = items[active]?.ep ?? null;
-  /** Pod+ Live News Radio is on: it plays like a live station (LiveNews), no skipping or swiping. */
+  /** Podster Live News Radio is on: it plays like a live station (LiveNews), no skipping or swiping. */
   const onAir = !!items[active]?.key.startsWith("nr-");
   // ---------------- timestamped comments, popping up as their moment plays ----------------
   const timed = useTimedComments(api, activeEp?.id, commentsOn && es.settings.liveComments && !student);
@@ -1102,6 +1445,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   handlers.current.time = (a) => {
+    // A new copy being lined up to the same moment (playing muted): nothing here counts yet.
+    if (lining.current && lining.current.ep === a.dataset.ep) { lastTime.current = a.currentTime; return; }
     const t = a.currentTime; const prev = lastTime.current; const delta = t - prev; lastTime.current = t;
     if (delta > 0 && delta < 2) listened.current += delta;
     // Hours back: listening faster gives back the difference.
@@ -1117,7 +1462,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       try { navigator.mediaSession?.setPositionState?.({ duration: a.duration, playbackRate: a.playbackRate || 1, position: Math.max(0, Math.min(t, a.duration)) }); } catch { /* not supported */ }
     }
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t, a.duration); }
+    if (ep && a.dataset.ep === ep.id && !it?.key.startsWith("nr-") && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t, a.duration, whereIn(a, ep.id)); }
     // Live: this copy runs longer than the station's slot (ads stitched in): everyone else has moved
     // on, so this phone does too.
     if (it?.live && ep && a.dataset.ep === ep.id && !a.paused && liveClock() > it.live.startsAt + it.live.secs * 1000 + 6000 && Date.now() - lastAutoAdvance.current > 10_000) { lastAutoAdvance.current = Date.now(); void tuneIn(ep.id); }
@@ -1130,8 +1475,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     const mode = esRef.current.settings.adMode;
     if (ep && (listened.current > 1.5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
-    // Not skipping ads (no Pod+ Membership, or ad skip turned off): a found ad that plays is time a
-    // member would have had back. Shown as "With Pod+ you'd have saved…" (HoursBackCard).
+    // Not skipping ads (no Podster Membership, or ad skip turned off): a found ad that plays is time a
+    // member would have had back. Shown as "With Podster you'd have saved…" (HoursBackCard).
     if (ep && it && mode !== "auto" && delta > 0 && delta < 2 && !esRef.current.adFree.includes(it.show.id)) {
       const ad = playAdAt(adsRef.current, t);
       if (ad && ad.sure && ad.kind !== "intro") countCouldSave(delta);
@@ -1166,15 +1511,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const r0 = netRetry.current;
     const stuck = !!r0 && r0.ep === ca?.dataset.ep && r0.tries >= 2 && Math.abs(r0.t - (ca?.currentTime || 0)) < 3 && navigator.onLine !== false;
     if (ca && !stuck && Number.isFinite(ca.duration) && ca.duration > 0 && ca.currentTime < ca.duration - 8) { waitForSignal(ca); return; }
-    // Said "ended" far before the episode's real length (the server's copy was cut short): not the
-    // end. Carry on from the same moment straight from the show's host.
+    // Said "ended" far before the episode's real length (the server's copy was cut short, or the server
+    // restarted): not the end. Picked up at the same moment (the ad-free copy, or a copy through the
+    // server), never from the host with its ads. Ending at the same place twice is the real end.
     {
-      const it0 = itemsRef.current[activeRef.current]; const real = it0?.ep?.secs || 0;
-      const cutShort = real >= 60 && ca && ca.currentTime > 0 && ca.currentTime < real * 0.85 - 10;
+      const it0 = itemsRef.current[activeRef.current];
+      const onClean = ca?.dataset.clean === "1";
+      const real = onClean ? cleanReady(it0?.ep?.id ?? "")?.secs || 0 : it0?.ep?.secs || 0;
+      const cutShort = real >= 60 && !!ca && ca.currentTime > 0 && ca.currentTime < (onClean ? real - 20 : real * 0.85 - 10);
       const neverStarted = !!ca?.dataset.sid && (ca?.currentTime ?? 0) < 5;
-      if (ca && it0?.ep && ca.dataset.ep === it0.ep.id && (cutShort || neverStarted) && !direct.current.has(it0.ep.id)) {
+      const again = !!ca && !!it0?.ep && Math.abs((endedAt.current.get(it0.ep.id) ?? -1e9) - ca.currentTime) < 5;
+      if (ca && it0?.ep) endedAt.current.set(it0.ep.id, ca.currentTime);
+      if (ca && it0?.ep && ca.dataset.ep === it0.ep.id && ca.dataset.sid && (cutShort || neverStarted) && !again && !direct.current.has(it0.ep.id)) {
         if (r0) { if (r0.timer) clearTimeout(r0.timer); netRetry.current = null; setNetWait(null); }
-        goDirect(ca, it0.ep, ca.currentTime, true);
+        recover(ca, it0.ep, true, "ended");
         return;
       }
     }
@@ -1207,19 +1557,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   handlers.current.error = (a) => {
     // No signal (or the connection broke mid-episode): wait for it, same episode, same spot.
     if (a === cur.current && ((typeof navigator !== "undefined" && navigator.onLine === false) || a.error?.code === 2 || netRetry.current?.ep === a.dataset.ep)) { waitForSignal(a); return; }
-    // Through the server didn't work: a new session once, then straight from the host, from the same spot.
+    // Through the server or its ad-free copy and it didn't work: picked up again at the same moment of the
+    // show (a fresh address for the ad-free copy, the same copy if the server still has it, or a new one).
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
-    if (ep && a.dataset.sid && a.dataset.ep === ep.id) {
-      const t = a.currentTime || 0, wasPlaying = !a.paused || playing;
-      const p = plays.current.get(ep.id); if (p?.timer) clearTimeout(p.timer); plays.current.delete(ep.id);
-      if (!p?.retried) plays.current.set(ep.id, { sid: "", showId: ep.showId, ads: { ready: true, final: true, ads: [], how: "failed", compared: 0, gone: true }, polls: 0, timer: null, used: 0, retried: true });
-      else direct.current.add(ep.id);
-      const via = viaServer(ep);
-      a = setAudioSrc(a, ep, via); a.load();
-      if (t > 1) a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } }, { once: true });
-      if (wasPlaying) a.play().catch(() => setPlaying(false));
-      return;
-    }
+    if (ep && a.dataset.sid && a.dataset.ep === ep.id) { recover(a, ep, !a.paused || playing); return; }
     // An episode loaded ahead (not the one playing) that fails is loaded again when you get to it.
     if (a !== cur.current) return;
     if (unlockedRef.current) say("This episode won't play here. Swipe for the next one, or open it in Apple Podcasts.");
@@ -1233,12 +1574,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // Ads the server found in this very copy (exact), then the rest, leaving out ones they already cover.
     const p = plays.current.get(activeEp.id);
     const mineCopy = !!p && cur.current?.dataset.sid === p.sid;
-    const own = mineCopy ? p!.ads?.ads ?? [] : [];
+    const own = mineCopy ? ownAds(p!.ads?.ads ?? []) : [];
     // Once this copy has been compared, guesses from other copies (unsure, found in a copy of another
     // length) are left out; listeners' marks and exact matches stay.
     const compared = mineCopy && !!p!.ads?.final && (p!.ads.how === "diff" || p!.ads.how === "same");
     const covered = (a: PlayAd) => own.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
-    const others = alignAds(serverAds.current.get(activeEp.id) ?? [], dur).filter((a) => !compared || a.sure || a.kind === "user" || a.kind === "crowd");
+    // The ad-free copy has its own times (show time): guesses made for copies with ads don't fit it.
+    const others = mineCopy && p!.clean ? [] : alignAds(serverAds.current.get(activeEp.id) ?? [], dur).filter((a) => !compared || a.sure || a.kind === "user" || a.kind === "crowd");
     return [...own, ...[...others, ...mine].filter((a) => !covered(a))].filter((a) => !undone.current.has(a.key) && (a.kind !== "intro" || esRef.current.settings.skipIntro)).sort((x, y) => x.s - y.s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEp?.id, Math.round(dur * 10), adsTick]);
@@ -1452,7 +1794,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
-  // Pod+ Live News Radio: one station for everyone (server/newsStation.ts). The server says which
+  // Podster Live News Radio: one station for everyone (server/newsStation.ts). The server says which
   // bulletin is on air and since when; this plays that one from the point it has reached, so every
   // phone hears the same moment. Stop and Listen live again rejoins wherever the station is now.
   const radioItem = (ep: PodEpisode, why: string, live: { startsAt: number; secs: number }): Item => {
@@ -1517,7 +1859,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A Pod Mode opened from the Pod+ home page plays back to back.
+  // A Pod Mode opened from the Podster home page plays back to back.
   const modeStarted = useRef(false);
   useEffect(() => {
     if (!playMode || modeStarted.current) return;
@@ -1565,7 +1907,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
-  // Pod+ fills the whole screen, top to bottom edge, like its home page (fixed to all four sides:
+  // Podster fills the whole screen, top to bottom edge, like its home page (fixed to all four sides:
   // 100dvh came out 62 px short on the iPhone home screen, leaving a gap under the bottom bars).
   // Podscroll used to fill exactly the visible screen (100dvh). It used to size itself to the whole screen on
   // the iPhone home screen, which ran past what iOS shows and hid the bottom of every tab there.
@@ -1592,12 +1934,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     players.current.forEach((a) => {
       if (a === cur.current && !a.paused) return;
       a.preload = "none";
-      if (a !== cur.current && a.getAttribute("src") && a.readyState < 3) { try { a.pause(); a.removeAttribute("src"); a.load(); delete a.dataset.ep; delete a.dataset.sid; } catch { /* fine */ } }
+      if (a !== cur.current && a.getAttribute("src") && a.readyState < 3) { try { a.pause(); a.removeAttribute("src"); a.load(); delete a.dataset.ep; delete a.dataset.sid; delete a.dataset.clean; } catch { /* fine */ } }
     });
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Another Pod+ player started (an audiobook, the radio): this one pauses.
+  // Another Podster player started (an audiobook, the radio): this one pauses.
   useEffect(() => onOtherSound("pod", () => cur.current?.pause()), []);
-  // What's playing, for the mini bar on Pod+'s other pages, and a way to pause it from there.
+  // What's playing, for the mini bar on Podster's other pages, and a way to pause it from there.
   const nowEp = items[active]?.ep, nowShow = items[active]?.show;
   useEffect(() => {
     const started = playing || (!!cur.current && cur.current.dataset.ep === nowEp?.id && cur.current.currentTime > 0);
@@ -1645,7 +1987,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // other tabs (pad), the notices and the sheets.
   // Room for the iPhone's notch and home bar. With the mini player showing, the mini player takes the
   // home bar's room itself (counting it twice left a gap between the page's bottom bar and it).
-  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[env(safe-area-inset-top,0px)] ${mini || tab === "social" ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`} style={{ ["--ps-safe-b" as string]: mini ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>{n}</div> : n;
+  const pad = (n: ReactNode) => standalone ? <div className={`box-border h-full pt-[var(--sat,env(safe-area-inset-top,0px))] ${mini || tab === "social" ? "" : "pb-[env(safe-area-inset-bottom,0px)]"}`} style={{ ["--ps-safe-b" as string]: mini ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
   const page = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
   const light = page && day;
@@ -1662,7 +2004,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", c);
   });
   const miniPad = mini ? (standalone ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]" : "pb-14") : "";
-  // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
+  // Podster: Open Mic, Social and Library opened from the site's home page wear the site's look
   // (its top bar, type and white or near-black page) instead of the player's own.
   const site = !!onHome && page;
   const siteFont = site ? { fontFamily: "Roboto, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" } : undefined;
@@ -1670,10 +2012,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     ? <div className={`ps-light h-full ${miniPad}`} style={siteFont}><style>{LIGHT_CSS}</style>{pad(n)}</div>
     : <div className={`h-full ${site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} ${miniPad}`} style={siteFont}>{pad(n)}</div>;
   const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
-  const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
+  const below = standalone ? "top-[calc(4rem+var(--sat,env(safe-area-inset-top,0px)))]" : "top-16";
   return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} text-white shadow-2xl`}>
     {site
-      ? <header className={`absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 ${standalone ? "pt-[env(safe-area-inset-top,0px)]" : ""} ${light ? "bg-white text-[#0f0f0f]" : "bg-[#0f0f0f] text-[#f1f1f1]"}`} style={siteFont}>
+      ? <header className={`absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 ${standalone ? "pt-[var(--sat,env(safe-area-inset-top,0px))]" : ""} ${light ? "bg-white text-[#0f0f0f]" : "bg-[#0f0f0f] text-[#f1f1f1]"}`} style={siteFont}>
         <div className="flex h-14 w-full items-center gap-2">
           <button type="button" onClick={onHome} className={`inline-flex h-10 flex-none items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><ChevronLeft size={20} />Home</button>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{TAB_NAMES[tab]}</h1>
@@ -1683,7 +2025,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
           </>}
         </div>
       </header>
-      : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
+      : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)]" : "pt-3"}`}>
       <div className="flex min-w-0 items-center gap-2">
       {onHome && <button type="button" aria-label="Back to home" onClick={onHome} className={`grid h-9 w-9 flex-none place-items-center rounded-full ${chip} backdrop-blur ${light ? "" : "text-white"}`}><ChevronLeft size={20} /></button>}
       {genreMode && tab === "foryou"
@@ -1795,7 +2137,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onToggle={toggle} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onClose={() => setSheet(null)}
       onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
 
-    {/* Creating: sign in (Pod+), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
+    {/* Creating: sign in (Podster), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
     {socialAsk && <SignInSheet api={api} say={say} why="Sign in with your email to post photos and videos." onClose={() => { socialAsk(false); setSocialAsk(null); }}
       onDone={(token, email) => { onSession?.(token, email); say(`Signed in as ${email}.`); const done = socialAsk; setSocialAsk(null); setTimeout(() => { reloadCreator(); done(true); }, 400); }} />}
     {maker === "signin" && <SignInSheet api={api} say={say} why="Sign in with your email to publish episodes, go live and see your Studio." onClose={() => { afterSignIn.current = null; setMaker(null); }}
@@ -1868,7 +2210,7 @@ function Cover({ art, alt, eager, playing, children }: { art: string; alt: strin
     {children}
   </div>;
 }
-/** On a For You card: this episode comes from Open Mic (made by someone on Pod+). */
+/** On a For You card: this episode comes from Open Mic (made by someone on Podster). */
 const MicTag = ({ newVoice }: { newVoice: boolean }) => <p className="mb-1.5 flex items-center gap-1.5">
   <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider text-[#111013]" style={{ background: "#ff8a3d" }}><Mic size={11} strokeWidth={2.5} />Open Mic</span>
   {newVoice && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider">New voice</span>}
@@ -1923,7 +2265,7 @@ function Card(p: CardProps) {
       <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh] overflow-hidden">
         <img src={hiRes(art, 1200)} onError={artFallback(art)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
-        <div className="absolute inset-x-0 top-0 h-[calc(7rem+env(safe-area-inset-top,0px))] bg-gradient-to-b from-black/45 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-[calc(7rem+var(--sat,env(safe-area-inset-top,0px)))] bg-gradient-to-b from-black/45 to-transparent" />
       </div>
       <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
       {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
@@ -2282,7 +2624,7 @@ function ReadAlong({ ep, art, tx, time, dur, playing, onSeek, onToggle, onBack, 
     <div aria-hidden className="absolute -inset-[30%] bg-cover bg-center opacity-80 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
     <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 to-black/70" />
 
-    <header className="relative z-[1] flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
+    <header className="relative z-[1] flex items-center gap-3 px-4 pb-2 pt-[calc(var(--sat,env(safe-area-inset-top,0px))+0.75rem)]">
       <button type="button" onClick={onClose} aria-label="Close read along" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={22} /></button>
       <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-10 w-10 flex-none rounded-lg object-cover" />
       <div className="min-w-0 flex-1"><p className="truncate text-[14px] font-semibold leading-tight">{ep.title}</p><p className="truncate text-[12px] text-white/60">{ep.show}</p></div>
@@ -2440,7 +2782,7 @@ function SleepSheet({ sleepAt, onPick, onClose }: { sleepAt: number | "end" | nu
 }
 
 function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple, theme, account }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void; apple?: boolean; theme: Theme;
-  /** Pod+: who is signed in, with sign in / sign out. */
+  /** Podster: who is signed in, with sign in / sign out. */
   account?: { email: string | null; onSignIn: () => void; onSignOut: () => void } }) {
   const set = (patch: Partial<EarshotData["settings"]>) => update((e) => ({ ...e, settings: { ...e.settings, ...patch } }));
   const Row = ({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) => <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3.5 last:border-0"><div><b className="block text-sm">{title}</b>{sub && <span className="block text-xs text-white/55">{sub}</span>}</div>{children}</div>;
@@ -2456,9 +2798,15 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
       <Row title="Appearance" sub={theme === "system" ? "Follows your phone or computer" : theme === "light" ? "Day: light pages" : "Night: dark pages"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["light", "Day"], ["dark", "Night"], ["system", "Auto"]] as [Theme, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={theme === v} onClick={() => setTheme(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${theme === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
-      <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? `Skips ads it's sure about, and asks about the rest. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}` : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
+      {apple && es.settings.adMode !== "auto"
+        ? <Row title="Skip ads" sub="Podster is free to listen, with ads. Arise All Access skips them for you."><span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">All Access</span></Row>
+        : apple
+        ? <Row title="No ads" sub={`Always on. Ads stitched into an episode are cut out, and the rest are skipped the moment they start. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}`}>
+          <span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">On</span>
+        </Row>
+        : <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? `Skips ads it's sure about, and asks about the rest. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}` : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
-      </Row>
+      </Row>}
       <Row title="Sleep timer" sub={sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this episode" : `Stops in ${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`}>
         <div className="flex flex-none flex-wrap justify-end gap-1">{([[15, "15m"], [30, "30m"], [60, "1h"], ["end", "End"], [null, "Off"]] as [number | "end" | null, string][]).map(([v, l]) =>
           <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>
@@ -2565,7 +2913,7 @@ function Library({ es, update, onEditInterests, onOpen, onMode, onPlayDownloads,
   </div>;
 }
 
-// ---- Pod+ Live News Radio, on air: looks and plays like a live news stream. One button (listen or
+// ---- Podster Live News Radio, on air: looks and plays like a live news stream. One button (listen or
 // stop), no seek bar, no skipping, no swiping; the next bulletin comes on by itself. ----
 function PodMark({ size = 30 }: { size?: number }) {
   return <svg width={size} height={size * 0.7} viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>;
@@ -2577,14 +2925,14 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }
   const ago = (() => { const m = Math.round((Date.now() - (Date.parse(ep.date) || Date.now())) / 60000); return m < 2 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} hr ago`; })();
   const ticker = [ep, ...next].slice(0, 8).map((e) => `${e.show}: ${e.title}`);
   const stop = (e: { stopPropagation: () => void }) => { e.stopPropagation(); };
-  return <section role="region" aria-label="Pod+ Live News Radio, live" data-testid="pod-live-news"
+  return <section role="region" aria-label="Podster Live News Radio, live" data-testid="pod-live-news"
     onWheel={stop}
     className="absolute inset-0 z-[30] flex touch-none select-none flex-col overflow-hidden bg-[#08080c] text-white" style={{ overscrollBehavior: "none" }}>
     <style>{"@keyframes ln-pulse{0%,100%{opacity:1}50%{opacity:.35}}@keyframes ln-bar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}@keyframes ln-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}"}</style>
     {ep.art && <img src={ep.art} alt="" aria-hidden referrerPolicy="no-referrer" className="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-3xl" />}
     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
-    <header className="relative z-[1] flex items-center justify-between gap-3 px-4 pt-[max(env(safe-area-inset-top),14px)]">
-      <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Pod+ <span className="font-semibold text-white/70">Live News</span></span></span>
+    <header className="relative z-[1] flex items-center justify-between gap-3 px-4 pt-[max(var(--sat,env(safe-area-inset-top,0px)),14px)]">
+      <span className="flex min-w-0 items-center gap-2"><PodMark /><span className="truncate text-[17px] font-bold tracking-[-0.03em]">Podster <span className="font-semibold text-white/70">Live News</span></span></span>
       <span className="flex flex-none items-center gap-2">
         <span className="flex items-center gap-1.5 rounded-md bg-[#e5172f] px-2 py-1 text-[12px] font-extrabold tracking-[.12em]" data-testid="pod-live-badge"><span className="h-2 w-2 rounded-full bg-white" style={{ animation: "ln-pulse 1.4s ease-in-out infinite" }} />LIVE</span>
         <button type="button" onClick={onMinimize} aria-label="Keep listening and go back" data-testid="pod-live-minimize" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={20} /></button>
@@ -2607,7 +2955,7 @@ function LiveNews({ ep, next, playing, unlocked, onToggle, onMinimize, onLeave }
         {playing ? <><Pause size={22} fill="currentColor" strokeWidth={0} />Stop</> : <><Play size={22} fill="currentColor" strokeWidth={0} />{unlocked ? "Listen live" : "Tap to listen live"}</>}
       </button>
       {next[0] && <p className="mt-5 max-w-sm truncate text-[13px] text-white/50">Up next: <span className="text-white/75">{next[0].show}</span></p>}
-      <p className="mt-2 text-[12px] text-white/40">Everyone on Pod+ hears the same news, live.</p>
+      <p className="mt-2 text-[12px] text-white/40">Everyone on Podster hears the same news, live.</p>
       <button type="button" onClick={onLeave} data-testid="pod-live-off" className="mt-3 rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/55 underline-offset-2 hover:underline">Turn off Live News</button>
     </div>
 

@@ -52,7 +52,7 @@ const printFunction = `  const printAdminLeaderboard = () => {
       return \`<article class="champ-card place-\${rank}">
         <div class="place-badge"><span>\${placeIcons[idx]}</span> \${placeWords[idx]}</div>
         <div class="champ-name">\${escapeHtml(entry.displayName || "Reader")}</div>
-        <div class="champ-meta">\${detail || "A.R.I.S.E. Reader"}</div>
+        <div class="champ-meta">\${detail || "Arise Reader"}</div>
         <div class="score-row"><div><b>\${Number(entry.totalPoints || 0).toLocaleString()}</b><span>POINTS</span></div><div><b>\${Number(entry.quizzesTaken || 0)}</b><span>QUIZZES</span></div></div>
         \${reward ? \`<div class="reward"><span>REWARD</span><strong>\${escapeHtml(reward)}</strong></div>\` : ""}
       </article>\`;
@@ -64,7 +64,7 @@ const printFunction = `  const printAdminLeaderboard = () => {
       const reward = (adminLbRewards[String(entry.id ?? rank)] || "").trim();
       return \`<div class="standing-row">
         <div class="rank-bubble">#\${rank}</div>
-        <div class="standing-reader"><strong>\${escapeHtml(entry.displayName || "Reader")}</strong><small>\${studentDetail || "A.R.I.S.E. Reader"}</small></div>
+        <div class="standing-reader"><strong>\${escapeHtml(entry.displayName || "Reader")}</strong><small>\${studentDetail || "Arise Reader"}</small></div>
         <div class="standing-stat"><b>\${Number(entry.quizzesTaken || 0)}</b><span>QUIZZES</span></div>
         <div class="standing-stat points"><b>\${Number(entry.totalPoints || 0).toLocaleString()}</b><span>POINTS</span></div>
         <div class="standing-reward"><span>REWARD</span><strong>\${reward ? escapeHtml(reward) : "—"}</strong></div>
@@ -72,7 +72,7 @@ const printFunction = `  const printAdminLeaderboard = () => {
     }).join("");
 
     const html = \`<!doctype html>
-<html><head><meta charset="utf-8"><title>A.R.I.S.E. Reader Hallway Leaderboard</title>
+<html><head><meta charset="utf-8"><title>Arise Reader Hallway Leaderboard</title>
 <style>
   @page { size: Letter portrait; margin: 0.28in; }
   * { box-sizing: border-box; }

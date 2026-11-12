@@ -26,7 +26,7 @@ export const INK_W = 1000;
 export const INK_H = 1414; // A4/Letter-ish portrait
 
 // ─── Look ────────────────────────────────────────────────────────────────────
-export type PaperTheme = "paper" | "cream" | "sepia" | "mint" | "rose" | "sky" | "graphite" | "midnight";
+export type PaperTheme = "paper" | "cream" | "sepia" | "mint" | "rose" | "sky" | "graphite" | "midnight" | "charcoal";
 export const PAPER_THEMES: Record<PaperTheme, { name: string; bg: string; ink: string; muted: string; line: string; dark: boolean }> = {
   paper: { name: "Paper", bg: "#ffffff", ink: "#1b1a26", muted: "#6b6880", line: "#e7e4f2", dark: false },
   cream: { name: "Cream", bg: "#fbf7ec", ink: "#2b2516", muted: "#7a6f55", line: "#ece3cc", dark: false },
@@ -36,6 +36,7 @@ export const PAPER_THEMES: Record<PaperTheme, { name: string; bg: string; ink: s
   sky: { name: "Sky", bg: "#eef5fd", ink: "#14263b", muted: "#55708f", line: "#d6e6f8", dark: false },
   graphite: { name: "Graphite", bg: "#26262b", ink: "#ececf1", muted: "#a3a3ad", line: "#3a3a41", dark: true },
   midnight: { name: "Midnight", bg: "#141a2e", ink: "#e8ecf8", muted: "#9aa5c4", line: "#26304d", dark: true },
+  charcoal: { name: "Charcoal", bg: "#1c1c1e", ink: "#f2f2f7", muted: "#a1a1a8", line: "#2c2c2e", dark: true },
 };
 export const PAPER_THEME_IDS = Object.keys(PAPER_THEMES) as PaperTheme[];
 
@@ -105,7 +106,7 @@ export const DEFAULT_SETTINGS: PageSettings = { folders: [], vault: null, prefs:
 
 // ─── Cleaning ────────────────────────────────────────────────────────────────
 const str = (v: unknown, max: number) => (typeof v === "string" ? v : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").slice(0, max);
-const line = (v: unknown, max: number) => str(v, max * 2).replace(/\s+/g, " ").trim().slice(0, max);
+const line = (v: unknown, max: number) => str(v, max * 2).replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max);
 const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const hex = (v: unknown, d = "") => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : d);
 const b64 = (v: unknown, max: number) => (typeof v === "string" && v.length <= max && /^[A-Za-z0-9+/]+={0,2}$/.test(v) ? v : "");

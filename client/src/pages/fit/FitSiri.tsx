@@ -1,4 +1,4 @@
-// Arise Fit with Siri. Every action has a link: arisefit://do/<action> opens the iPhone app and does it
+// Cooked with Siri. Every action has a link: arisefit://do/<action> opens the iPhone app and does it
 // (the app registers the arisefit:// scheme: .github/scripts/configure_fit_app.py), and
 // …/#/fit?do=<action> does the same on the website. A shortcut in Apple's Shortcuts app that opens the
 // link runs when you say its name to Siri ("Hey Siri, start my workout"). Circle invites and guest
@@ -28,6 +28,8 @@ export function useDeepLinks(handle: (l: FitLink) => void) {
     if (!isNativeApp()) return;
     nativeCall(/^App$/, "App", "getLaunchUrl").then((r: any) => run(r?.url)).catch(() => {});
     void nativeListen("App", "appUrlOpen", (e: any) => run(e?.url));
+    // A tapped reminder (the morning sleep check-in, wind down) carries its link.
+    void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => run(e?.notification?.extra?.url));
   }, []);
 }
 
@@ -50,7 +52,7 @@ export function SiriSheet({ onClose }: { onClose: () => void }) {
     </ol>
       <p className="mt-3 text-[13px]" style={{ color: C.dim }}>Now say "Hey Siri," then the phrase. Shortcuts can also go on your Home Screen, Action button or Back Tap.</p>
       {native && <a href="shortcuts://create-shortcut" className="mt-3 flex min-h-12 items-center justify-center rounded-[12px] text-[15px] font-semibold" style={{ background: C.card2, color: C.text }}>Open Shortcuts</a>}
-      {!native && <p className="mt-3 text-[13px]" style={{ color: C.dim }}>These links open the Arise Fit iPhone app.</p>}</Card>
+      {!native && <p className="mt-3 text-[13px]" style={{ color: C.dim }}>These links open the Cooked iPhone app.</p>}</Card>
     <Title>Phrases</Title>
     <div className="space-y-2">{SIRI_ACTIONS.map((a) => <Card key={a.id} className="flex items-center gap-3 !p-3.5" testId={`fit-siri-${a.id}`}>
       <div className="min-w-0 flex-1"><p className="text-[16px] font-semibold">"{a.phrase}"</p><p className="text-[12px]" style={{ color: C.dim }}>{a.does}</p></div>

@@ -9,10 +9,13 @@ export const MINUTE_SUBJECTS: readonly string[] = GOAL_AREAS;
 /** What minutes with no subject are shown under. */
 export const NO_SUBJECT = "No subject";
 
-/** A saved subject made safe to use: one of the subjects (in its own capitals), or "" for none. */
+/** The longest subject a teacher can type. */
+export const SUBJECT_MAX = 40;
+/** A saved subject made safe to use: a listed subject (in its own capitals) or one the teacher typed ("Science"), or "" for none. */
 export function cleanSubject(value: unknown): string {
-  const said = typeof value === "string" ? value.replace(/\s+/g, " ").trim().toLowerCase() : "";
-  return (said && MINUTE_SUBJECTS.find((s) => s.toLowerCase() === said)) || "";
+  const typed = typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, SUBJECT_MAX) : "";
+  const said = typed.toLowerCase();
+  return (said && MINUTE_SUBJECTS.find((s) => s.toLowerCase() === said)) || typed;
 }
 
 const fold = (name: unknown) => String(name ?? "").trim().toLowerCase().replace(/\s+/g, " ");

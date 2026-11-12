@@ -1,7 +1,7 @@
 /**
  * Single-use, short-lived sign-in bridge from arisereader.com to arisetodo.com
  * (two independent cookie origins). Teachers, parents, LifeHub-only accounts and
- * administrators who sign in on A.R.I.S.E. Reader are carried into their hub on
+ * administrators who sign in on Arise Reader are carried into their hub on
  * arisetodo.com without typing their password again. Students never use it.
  * Never place the actual bearer token or password in the redirect URL.
  *
@@ -52,7 +52,7 @@ export function registerAdminHandoffRoutes(
   // A signed-in Reader account with a hub requests a random one-use code using their existing bearer token.
   app.post("/api/auth/admin-handoff/start", requireAuth, (req: any, res: Response) => {
     noCache(res);
-    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open A.R.I.S.E. Reader to continue." });
+    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open Arise Reader to continue." });
     if (!isHubAccount(req.realUser) || !req.sessionToken) {
       return res.status(403).json({ message: "Only teacher, parent and LifeHub accounts open a hub." });
     }
@@ -62,6 +62,38 @@ export function registerAdminHandoffRoutes(
     const code = randomBytes(32).toString("hex");
     tickets.set(code, { sessionToken: String(req.sessionToken), userId: Number(req.realUser.id), expiresAt: now() + TTL_MS });
     res.json({ code, expiresInSeconds: TTL_MS / 1000 });
+  });
+
+  // From the Arise Reader iPhone app to its plan page in Safari: a one-use code so the person lands
+  // signed in (no typing their password again). Any account can ask for one for itself; it's redeemed on
+  // arisereader.com only, once, within two minutes. The code is never the session token.
+  const payTickets = new Map<string, Ticket>();
+  app.post("/api/auth/web-handoff/start", requireAuth, (req: any, res: Response) => {
+    noCache(res);
+    if (!req.realUser || !req.sessionToken || req.realUser.isAdmin) return res.status(403).json({ message: "Sign in again to continue." });
+    const t = now();
+    for (const [c, k] of payTickets) if (k.expiresAt <= t) payTickets.delete(c);
+    if (payTickets.size >= MAX_TICKETS) return res.status(429).json({ message: "Please retry in a moment." });
+    const code = randomBytes(32).toString("hex");
+    payTickets.set(code, { sessionToken: String(req.sessionToken), userId: Number(req.realUser.id), expiresAt: t + 2 * TTL_MS });
+    res.json({ code });
+  });
+  app.post("/api/auth/web-handoff/consume", async (req: Request, res: Response) => {
+    noCache(res);
+    // Redeemed on our own websites only: arisereader.com (the Reader plan) and arisetodo.com (All Access).
+    if (!readerHosts.has(host(req)) && !todoHosts.has(host(req))) return res.status(403).json({ message: "Open arisereader.com or arisetodo.com to continue." });
+    const code: unknown = req.body?.code;
+    if (typeof code !== "string" || !/^[a-f0-9]{64}$/.test(code)) return res.status(400).json({ message: "Invalid sign-in link." });
+    const ticket = payTickets.get(code);
+    payTickets.delete(code);
+    if (!ticket || ticket.expiresAt <= now()) return res.status(401).json({ message: "This sign-in link expired. Please sign in." });
+    try {
+      const session = await getSession(ticket.sessionToken);
+      if (!session?.user || Number(session.user.id) !== ticket.userId) return res.status(401).json({ message: "Please sign in." });
+      return res.json({ user: session.user, token: ticket.sessionToken });
+    } catch {
+      return res.status(503).json({ message: "Could not complete sign-in. Please sign in." });
+    }
   });
 
   // Redeem on the To-Do origin only. Remove the code before any async work;

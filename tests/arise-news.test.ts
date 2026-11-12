@@ -225,7 +225,10 @@ test("the browser finds real photos for the Originals and swaps any drawn cover 
   const { readFileSync } = await import("node:fs");
   const lib = readFileSync(new URL("../client/src/lib/readPhotos.ts", import.meta.url), "utf8");
   assert.match(lib, /pilicense: "free"/);
-  assert.match(readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8"), /createRoot\(document\.getElementById\("root"\)!\)\.render\(<App \/>\);\nvoid import\("\.\/lib\/readPhotos"\)\.then\(\(m\) => m\.installReadPhotos\(\)\)/);
+  // Started right after the first screen is drawn, in every app that can show these covers (not in the apps
+  // that open straight into their own screens: Cooked, Cooked PT, Notes, Talk, Undercover).
+  const main = readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8");
+  assert.match(main, /createRoot\(document\.getElementById\("root"\)!\)\.render\(<App \/>\);\n[\s\S]{0,500}if \(!\(isFitApp\(\) \|\| isTrainerApp\(\) \|\| isNotesApp\(\) \|\| isUndercoverApp\(\) \|\| isTalkApp\(\)\)\) \{\n\s+void import\("\.\/lib\/readPhotos"\)\.then\(\(m\) => m\.installReadPhotos\(\)\)/);
   const { newsCoverSrc, NEWS_ARTICLES } = await import("../shared/ariseNews");
   // Every story loads its own exact photo straight from Wikimedia Commons, like the biographies.
   for (const a of NEWS_ARTICLES) assert.match(newsCoverSrc(a), /^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+\.(jpe?g|png)\?width=\d+$/i, a.slug);

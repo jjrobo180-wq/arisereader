@@ -1,0 +1,22 @@
+Wren is built with these open tools.
+
+Kokoro-82M voice model and voices (hexgrad). Apache License 2.0.
+misaki pronunciation dictionaries and text-to-phoneme logic (hexgrad). Apache License 2.0.
+kokoro-onnx model export (thewh1teagle). MIT License.
+ONNX Runtime Web (Microsoft). MIT License.
+Fluent Emoji symbols (Microsoft). MIT License.
+Phosphor Icons, via react-icons. MIT License.
+Atkinson Hyperlegible Next (Braille Institute of America and The Atkinson Hyperlegible Next Project Authors). SIL Open Font License 1.1.
+Parkinsans (The Parkinsans Project Authors). SIL Open Font License 1.1.
+Word frequency lists, FrequencyWords by Hermit Dave. Content CC BY-SA 4.0. The suggestion lists in this app are filtered from them and are shared under the same license.
+
+MIT License
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Copyright notices for MIT components: (c) Microsoft Corporation (ONNX Runtime, Fluent Emoji); (c) Phosphor Icons; (c) thewh1teagle.
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+SIL Open Font License 1.1: https://openfontlicense.org
+CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/

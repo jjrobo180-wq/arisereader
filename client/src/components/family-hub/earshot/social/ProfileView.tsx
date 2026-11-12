@@ -42,7 +42,7 @@ export function ProfileScreen({ handle, ctx, onBack, onEdit, onPeople, onChanged
   };
   const block = (on: boolean) => ctx.api("/api/earshot/social/block", { method: "POST", body: { handle: p.handle, on } })
     .then(() => { ctx.say(on ? `You blocked @${p.handle}.` : `@${p.handle} is unblocked.`); void load(); list.reset(); }).catch((e) => ctx.say(e.message));
-  const share = () => shareOrCopy(linkTo(`u/${p.handle}`), `${p.name} (@${p.handle}) on Pod+`, ctx.say);
+  const share = () => shareOrCopy(linkTo(`u/${p.handle}`), `${p.name} (@${p.handle}) on Podster`, ctx.say);
   const tabs: [Tab, string][] = [["posts", "Posts"], ["media", "Media"], ["clips", "Clips"], ["podcast", "Podcasts"], ...(me ? [["likes", "Likes"], ["saved", "Saved"]] as [Tab, string][] : [])];
   const empty: Record<Tab, [string, string]> = {
     posts: me ? ["You haven't posted yet", "When you post, it'll show up here."] : [`@${p.handle} hasn't posted`, "When they do, their posts will show up here."],
@@ -202,7 +202,7 @@ export function EditProfile({ ctx, initial, onClose, onSaved }: { ctx: SCtx; ini
         const widgets = [...(page?.widgets || []).filter((w: any) => w?.type !== "top8"), { id: "w-top8", type: "top8", col: "main", shows: favs }];
         await ctx.api("/api/earshot/social/me/page", { method: "POST", body: { page: { ...(page || {}), widgets } } }).catch(() => {});
       }
-      ctx.say(initial ? "Profile saved." : "Welcome to Pod+ Social!");
+      ctx.say(initial ? "Profile saved." : "Welcome to Podster Social!");
       onSaved(b.profile);
     } catch (e: any) { ctx.say(e?.message || "That didn't save."); }
     finally { setBusy(false); }

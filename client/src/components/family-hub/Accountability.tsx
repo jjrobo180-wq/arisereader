@@ -2,18 +2,21 @@
 // you share with your partner or family. Ask for something once or on repeat, they're nudged until
 // it's done, and they check it off with a photo or video, an AI worksheet, or a quiz your child took.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BadgeCheck, Bell, Camera, Check, ChevronLeft, ClipboardList, Copy, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
+import { BadgeCheck, Bell, Camera, Check, ChevronLeft, ClipboardList, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import {
-  NAG_CHOICES, addDays, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
-  type AcctTask, type Checkin, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
+  NAG_CHOICES, NOTIFY_KINDS, addDays, cleanNotify, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
+  type AcctTask, type Checkin, type NotifyKind, type NotifyPrefs, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
 } from "@shared/accountability";
 import { publishWidgets } from "@/lib/widgets";
+import { isNativeApp } from "@/lib/nativeApp";
+import { applePushAvailable, applePushProblem, ensureApplePush, startApplePush } from "@/lib/applePush";
+import TodoNotifications from "./TodoNotifications";
 import type { SectionProps } from "./ui";
 
 const TEAL = "#0d9488";
-type Data = { me: number; spaces: Space[]; tasks: AcctTask[]; checkins: Checkin[] };
+type Data = { me: number; spaces: Space[]; myNotify?: Record<string, NotifyPrefs>; tasks: AcctTask[]; checkins: Checkin[] };
 const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { return ""; } })();
 const SPACE_KEY = "arise-acct-space";
 const hashParam = (k: string) => { const h = window.location.hash, q = h.indexOf("?"); return q < 0 ? "" : new URLSearchParams(h.slice(q + 1)).get(k) || ""; };
@@ -69,7 +72,7 @@ export default function Accountability({ say }: SectionProps) {
   const [error, setError] = useState("");
   const [spaceId, setSpaceId] = useState(() => { try { return localStorage.getItem(SPACE_KEY) || ""; } catch { return ""; } });
   const [tab, setTab] = useState<"today" | "tasks" | "activity">("today");
-  const [sheet, setSheet] = useState<null | { kind: "new" } | { kind: "edit"; task: AcctTask } | { kind: "do"; task: AcctTask } | { kind: "task"; task: AcctTask } | { kind: "invite" } | { kind: "start" } | { kind: "join"; code?: string } | { kind: "review"; checkin: Checkin } | { kind: "done" }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "new" } | { kind: "edit"; task: AcctTask } | { kind: "do"; task: AcctTask } | { kind: "task"; task: AcctTask } | { kind: "invite" } | { kind: "start" } | { kind: "join"; code?: string } | { kind: "review"; checkin: Checkin } | { kind: "done" } | { kind: "notify" }>(null);
   const [kid, setKid] = useState<AcctTask | null>(null);
 
   const load = useCallback(async () => {
@@ -79,6 +82,10 @@ export default function Accountability({ say }: SectionProps) {
   useEffect(() => { void load(); const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 30_000); const f = () => { if (document.visibilityState === "visible") void load(); }; document.addEventListener("visibilitychange", f); return () => { clearInterval(t); document.removeEventListener("visibilitychange", f); }; }, [load]);
 
   const space = data?.spaces.find((s) => s.id === spaceId) ?? data?.spaces[0] ?? null;
+  // Sharing with someone: the iPhone app signs up for notifications (asking iOS the first time), so "she did it",
+  // "he asked you" and approvals arrive. It only did that when reminders were on, so most phones never heard.
+  const sharing = !!data?.spaces.some((s) => s.members.length > 1);
+  useEffect(() => { if (sharing && isNativeApp()) void startApplePush(true); }, [sharing]);
   useEffect(() => { if (space && space.id !== spaceId) setSpaceId(space.id); if (space) { try { localStorage.setItem(SPACE_KEY, space.id); } catch { /* fine */ } } }, [space?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const today = localNow(Date.now(), TZ).day;
   const nowMin = localNow(Date.now(), TZ).minutes;
@@ -108,6 +115,9 @@ export default function Accountability({ say }: SectionProps) {
     if (t) { setSpaceId(t.spaceId); setSheet(t.assignee === data.me && !isDone(checkinFor(data.checkins, t.id, today)) ? { kind: "do", task: t } : { kind: "task", task: t }); }
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Inviting happens on the one Sharing page (Settings), with "Add someone" open and Accountability on: once they
+  // accept, the two of you share a space (server/accountability.ts ensureSharedSpace).
+  const inviteOnSharing = () => { window.location.hash = "#/lifehub?go=linked&add=accountability"; };
   const act = async (fn: () => Promise<unknown>, done?: string) => { try { await fn(); if (done) say(done); await load(); return true; } catch (e: any) { say(e.message); return false; } };
 
   if (!data) return <div className="grid min-h-[50vh] place-items-center text-slate-500">{error ? <div className="text-center"><p className="font-bold">{error}</p><button type="button" onClick={() => void load()} className={`${ghostBtn} mt-3`}>Try again</button></div> : <Loader2 className="animate-spin" />}</div>;
@@ -124,7 +134,7 @@ export default function Accountability({ say }: SectionProps) {
       <button type="button" onClick={() => setSheet({ kind: "start" })} className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-teal-300" data-testid="acct-start"><Plus className="text-teal-600" /><p className="mt-3 font-black">Start a space</p><p className="text-sm text-slate-500">Then invite your partner</p></button>
       <button type="button" onClick={() => setSheet({ kind: "join" })} className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-teal-300" data-testid="acct-join"><Users className="text-violet-600" /><p className="mt-3 font-black">I have an invite code</p><p className="text-sm text-slate-500">Join someone's space</p></button>
     </div>
-    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) setSheet({ kind: "invite" }); }} />}
+    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) inviteOnSharing(); }} />}
     {sheet?.kind === "join" && <JoinSheet code={sheet.code} onClose={() => setSheet(null)} onDone={async (code, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/join", { method: "POST", body: { code, myName, tz: TZ } }); setSpaceId(r.id); }, "You're in!"); if (ok) setSheet(null); }} />}
   </div>;
 
@@ -142,7 +152,10 @@ export default function Accountability({ say }: SectionProps) {
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0"><p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-white/70">Accountability</p><h1 className="mt-1 truncate text-2xl font-black">{space.name}</h1>
           <div className="mt-3 flex -space-x-2">{space.members.map((m) => <Avatar key={m.userId} name={m.name} color={colorOf(space, m.userId)} size={32} />)}</div></div>
-        <button type="button" onClick={() => setSheet({ kind: "invite" })} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-3.5 text-sm font-bold backdrop-blur hover:bg-white/25" data-testid="acct-invite"><Share2 size={15} />Invite</button>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={() => setSheet({ kind: "notify" })} aria-label="Notifications" className="grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur hover:bg-white/25" data-testid="acct-notify"><Bell size={17} /></button>
+          <button type="button" onClick={() => inviteOnSharing()} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/15 px-3.5 text-sm font-bold backdrop-blur hover:bg-white/25" data-testid="acct-invite"><Share2 size={15} />Invite</button>
+        </div>
       </div>
       {data.spaces.length > 1 && <div className="relative mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none]">{data.spaces.map((s) => <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${s.id === space.id ? "bg-white text-teal-800" : "bg-white/15 text-white"}`}>{s.name}</button>)}<button type="button" onClick={() => setSheet({ kind: "start" })} className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">+ New</button></div>}
     </div>
@@ -177,11 +190,12 @@ export default function Accountability({ say }: SectionProps) {
     {tab === "tasks" && <div className="space-y-2.5" data-testid="acct-all">{tasks.length ? tasks.map((t) => <button key={t.id} type="button" onClick={() => setSheet({ kind: "task", task: t })} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 text-left shadow-sm"><KindIcon kind={t.kind} /><span className="min-w-0 flex-1"><span className="block truncate font-bold">{t.title}</span><span className="text-xs text-slate-500">{nameOf(t.assignee)} · {repeatWords(t.repeat)} · by {timeWords(t.due)}</span></span>{streak(t, checkins, today) > 1 && <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-black text-orange-600">🔥 {streak(t, checkins, today)}</span>}</button>) : <Empty text="No tasks yet. Tap Ask to make the first one." />}</div>}
     {tab === "activity" && <Activity checkins={checkins} tasks={tasks} nameOf={nameOf} colorFor={(id) => colorOf(space, id)} onOpen={(c) => setSheet(c.by !== me && c.status === "done" ? { kind: "review", checkin: c } : { kind: "task", task: tasks.find((t) => t.id === c.taskId)! })} />}
 
-    <p className="flex items-start gap-2 rounded-2xl bg-slate-50 p-3 text-xs leading-5 text-slate-500"><Bell size={14} className="mt-0.5 shrink-0" />Reminders come as notifications from Arise To Duo. Turn them on in Notifications, on every phone in this space.</p>
+    <button type="button" onClick={() => setSheet({ kind: "notify" })} className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 p-3 text-left text-xs leading-5 text-slate-500 hover:bg-slate-100"><Bell size={16} className="shrink-0 text-teal-600" /><span className="flex-1">Everyone in this space gets alerts when something is asked, done, missed or checked. <b className="text-teal-700">Set up and test notifications</b></span></button>
 
 
-    {sheet?.kind === "invite" && <InviteSheet space={space} onClose={() => setSheet(null)} onNewCode={() => void act(() => api(`/spaces/${space.id}`, { method: "PATCH", body: { newCode: true } }), "New code made. The old one no longer works.")} say={say} />}
-    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) setSheet({ kind: "invite" }); }} />}
+    {sheet?.kind === "notify" && <NotifySheet space={space} me={me} prefs={data.myNotify?.[space.id] ?? cleanNotify({})} api={api} say={say} onClose={() => setSheet(null)} onSaved={() => void load()} />}
+
+    {sheet?.kind === "start" && <StartSheet onClose={() => setSheet(null)} onDone={async (name, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/spaces", { method: "POST", body: { name, myName, tz: TZ } }); setSpaceId(r.id); }); if (ok) inviteOnSharing(); }} />}
     {sheet?.kind === "join" && <JoinSheet code={sheet.code} onClose={() => setSheet(null)} onDone={async (code, myName) => { const ok = await act(async () => { const r = await api<{ id: string }>("/join", { method: "POST", body: { code, myName, tz: TZ } }); setSpaceId(r.id); }, "You're in!"); if (ok) setSheet(null); }} />}
     {(sheet?.kind === "new" || sheet?.kind === "edit") && <TaskEditor space={space} me={me} task={sheet.kind === "edit" ? sheet.task : null} api={api} say={say} onClose={() => setSheet(null)}
       onSave={async (task) => { const ok = await act(() => sheet.kind === "edit" ? api(`/tasks/${sheet.task.id}`, { method: "PUT", body: { task } }) : api("/tasks", { method: "POST", body: { spaceId: space.id, task } }), sheet.kind === "edit" ? "Saved." : task.assignee === me ? "Added." : `Sent to ${nameOf(task.assignee)}. They'll be reminded until it's done.`); if (ok) setSheet(null); }} />}
@@ -250,6 +264,78 @@ function Activity({ checkins, tasks, nameOf, colorFor, onOpen }: { checkins: Che
 }
 
 // ---------------- sheets ----------------
+type NotifyPerson = { userId: number; name: string; apple: number; web: number; known: boolean; off: NotifyKind[] };
+const deviceWords = (p: { apple: number; web: number }) => [p.apple ? `${p.apple} iPhone${p.apple > 1 ? "s" : ""}` : "", p.web ? `${p.web} browser${p.web > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ");
+/** Notifications for this space: turn them on for this device, see who will actually get alerts,
+ *  send everyone a real test, and pick which alerts you want. */
+function NotifySheet({ space, me, prefs, api, say, onClose, onSaved }: { space: Space; me: number; prefs: NotifyPrefs; api: ReturnType<typeof useApi>; say: (m: string) => void; onClose: () => void; onSaved: () => void }) {
+  const [people, setPeople] = useState<NotifyPerson[] | null>(null);
+  const [mine, setMine] = useState<NotifyPrefs>(prefs);
+  const [testing, setTesting] = useState(false);
+  const [results, setResults] = useState<{ userId: number; name: string; delivered: number }[] | null>(null);
+  const loadPeople = useCallback(() => api<{ people: NotifyPerson[] }>(`/spaces/${space.id}/notify-status`).then((b) => setPeople(b.people)).catch(() => setPeople([])), [api, space.id]);
+  useEffect(() => { void loadPeople(); const t = setInterval(() => { if (document.visibilityState === "visible") void loadPeople(); }, 20000); return () => clearInterval(t); }, [loadPeople]);
+  // The row for "You" updates the moment this iPhone connects (NativeRemindersPanel says when).
+  useEffect(() => { const f = () => void loadPeople(); window.addEventListener("arise:push-linked", f); return () => window.removeEventListener("arise:push-linked", f); }, [loadPeople]);
+  const [connecting, setConnecting] = useState(false);
+  const connectMe = async () => {
+    setConnecting(true);
+    try { const ok = await ensureApplePush(); await loadPeople(); say(ok ? "This iPhone is connected. Alerts will reach you here." : applePushProblem() || "This iPhone couldn't connect. Check your connection and try again."); }
+    finally { setConnecting(false); }
+  };
+  const canConnect = isNativeApp() && applePushAvailable();
+  const toggle = async (kind: NotifyKind) => {
+    const next = { ...mine, [kind]: !mine[kind] }; setMine(next);
+    try { await api(`/spaces/${space.id}/notify`, { method: "PUT", body: { notify: next } }); onSaved(); }
+    catch (e: any) { setMine(mine); say(e.message); }
+  };
+  const test = async () => {
+    setTesting(true); setResults(null);
+    try { const b = await api<{ results: { userId: number; name: string; delivered: number }[] }>(`/spaces/${space.id}/test`, { method: "POST", body: {} }); setResults(b.results); void loadPeople(); }
+    catch (e: any) { say(e.message); }
+    finally { setTesting(false); }
+  };
+  const label = (id: number, name: string) => (id === me ? "You" : name || "Partner");
+  return <Sheet title="Notifications" onClose={onClose} wide>
+    <div className="space-y-5" data-testid="acct-notify-sheet">
+      <section className="space-y-2">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">This device</p>
+        <TodoNotifications />
+      </section>
+
+      <section className="space-y-2.5">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Who gets alerts in {space.name}</p>
+        {!people ? <div className="grid place-items-center py-4"><Loader2 className="animate-spin text-slate-400" /></div>
+          : people.map((p) => { const on = p.apple + p.web > 0, r = results?.find((x) => x.userId === p.userId);
+            return <div key={p.userId} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm" data-testid="acct-notify-person">
+              <Avatar name={p.name} color={colorOf(space, p.userId)} size={36} />
+              <span className="min-w-0 flex-1">
+                <span className="block font-black text-slate-900">{label(p.userId, p.name)}</span>
+                <span className={`block text-xs font-semibold ${on ? "text-emerald-700" : "text-rose-600"}`}>{on ? `On · ${deviceWords(p)}` : p.userId === me ? (canConnect ? "This iPhone isn't connected for alerts yet." : "Not on yet. Turn it on above.") : "Not set up. They won't get alerts until they open Accountability › 🔔 on their phone and turn them on."}</span>
+                {p.off.length > 0 && <span className="block text-[11px] text-slate-400">Turned off: {p.off.map((k) => NOTIFY_KINDS.find((x) => x.kind === k)?.label.toLowerCase()).join(", ")}</span>}
+              </span>
+              {!on && p.userId === me && canConnect && <button type="button" onClick={() => void connectMe()} disabled={connecting} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#0d9488] px-3.5 text-xs font-black text-white disabled:opacity-60" data-testid="acct-connect-me">{connecting ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}Connect</button>}
+              {r && (on || !(p.userId === me && canConnect)) && <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${r.delivered ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`} data-testid="acct-test-result">{r.delivered ? `Sent ✓ ${r.delivered}` : "No device"}</span>}
+            </div>; })}
+        <button type="button" onClick={() => void test()} disabled={testing} className={`${tealBtn} w-full`} data-testid="acct-test">{testing ? <Loader2 size={17} className="animate-spin" /> : <Bell size={17} />}Send a test to everyone</button>
+        {results && <p className="text-center text-xs text-slate-500">{results.every((r) => r.delivered) ? "Sent to every phone. Check that it showed up on each one." : "Anyone marked “No device” needs to turn notifications on first (they can also see it in their notification bell in the app)."}</p>}
+      </section>
+
+      <section className="space-y-2">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Alerts I want</p>
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+          {NOTIFY_KINDS.map(({ kind, label: l, detail }) => <label key={kind} className="flex cursor-pointer items-center gap-3 p-3.5">
+            <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{l}</span><span className="block text-xs text-slate-500">{detail}</span></span>
+            <input type="checkbox" checked={mine[kind]} onChange={() => void toggle(kind)} className="peer sr-only" data-testid={`acct-pref-${kind}`} />
+            <span aria-hidden className={`relative h-7 w-12 shrink-0 rounded-full transition ${mine[kind] ? "bg-[#0d9488]" : "bg-slate-200"}`}><span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${mine[kind] ? "left-[1.375rem]" : "left-0.5"}`} /></span>
+          </label>)}
+        </div>
+        <p className="text-xs leading-5 text-slate-400">These are just for you, in this space. Your partner picks their own.</p>
+      </section>
+    </div>
+  </Sheet>;
+}
+
 function StartSheet({ onClose, onDone }: { onClose: () => void; onDone: (name: string, myName: string) => Promise<void> }) {
   const [name, setName] = useState("Our family"); const [me, setMe] = useState(""); const [busy, setBusy] = useState(false);
   return <Sheet title="Start a space" onClose={onClose}><div className="space-y-4">
@@ -266,19 +352,6 @@ function JoinSheet({ code: start, onClose, onDone }: { code?: string; onClose: (
     <button type="button" disabled={busy || code.replace(/\W/g, "").length < 6} onClick={async () => { setBusy(true); await onDone(code, me); setBusy(false); }} className={`${tealBtn} w-full`} data-testid="acct-join-go">{busy ? <Loader2 className="animate-spin" size={18} /> : <Users size={18} />}Join</button>
   </div></Sheet>;
 }
-function InviteSheet({ space, onClose, onNewCode, say }: { space: Space; onClose: () => void; onNewCode: () => void; say: (m: string) => void }) {
-  const link = `https://arisetodo.com/#/lifehub?go=accountability&join=${space.code}`;
-  const text = `Join me in “${space.name}” on Arise To Duo Accountability so we can keep each other on track. Open ${link} or enter code ${space.code} in Accountability.`;
-  const share = async () => { try { if (navigator.share) { await navigator.share({ title: "Join me on Accountability", text }); return; } } catch (e: any) { if (e?.name === "AbortError") return; } try { await navigator.clipboard.writeText(text); say("Invite copied. Paste it in a text."); } catch { say(`Your code is ${space.code}`); } };
-  return <Sheet title="Invite your partner" onClose={onClose}><div className="space-y-5 text-center" data-testid="acct-invite-sheet">
-    <p className="text-sm text-slate-500">They open Arise To Duo, go to Accountability and enter this code (or tap your link).</p>
-    <p className="rounded-3xl bg-gradient-to-br from-teal-50 to-violet-50 py-6 font-mono text-4xl font-black tracking-[.3em] text-slate-900" data-testid="acct-code-big">{space.code}</p>
-    <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => void share()} className={tealBtn}><Share2 size={17} />Send invite</button><button type="button" onClick={() => { navigator.clipboard?.writeText(space.code).then(() => say("Code copied."), () => say(space.code)); }} className={ghostBtn}><Copy size={17} />Copy code</button></div>
-    <div className="text-left"><p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">In this space</p><div className="flex flex-wrap gap-2">{space.members.map((m) => <span key={m.userId} className="flex items-center gap-2 rounded-full bg-slate-100 py-1 pl-1 pr-3 text-sm font-bold"><Avatar name={m.name} color={colorOf(space, m.userId)} size={26} />{m.name}</span>)}</div></div>
-    <button type="button" onClick={onNewCode} className="text-xs font-bold text-slate-400 underline">Make a new code</button>
-  </div></Sheet>;
-}
-
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 function TaskEditor({ space, me, task, api, say, onClose, onSave }: { space: Space; me: number; task: AcctTask | null; api: ReturnType<typeof useApi>; say: (m: string) => void; onClose: () => void; onSave: (t: any) => Promise<void> }) {
   const other = space.members.find((m) => m.userId !== me)?.userId ?? me;
@@ -509,7 +582,7 @@ function KidQuiz({ quiz, onClose, onFinish }: { quiz: Quiz; onClose: () => void;
     setPicked(k); setAnswers((a) => ({ ...a, [q.id]: String(k) }));
     setTimeout(() => { setPicked(null); setI((x) => x + 1); }, k === q.answer ? 900 : 1500);
   };
-  return <div className="fixed inset-0 z-[600] flex flex-col bg-gradient-to-b from-[#fff7ed] to-[#eef2ff] pb-[env(safe-area-inset-bottom)] pt-[max(env(safe-area-inset-top),12px)]" data-testid="acct-kid">
+  return <div className="fixed inset-0 z-[600] flex flex-col bg-gradient-to-b from-[#fff7ed] to-[#eef2ff] pb-[env(safe-area-inset-bottom)] pt-[max(var(--sat,env(safe-area-inset-top,0px)),12px)]" data-testid="acct-kid">
     <div className="flex items-center gap-3 px-4"><button type="button" onClick={onClose} aria-label="Close the quiz" className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-500 shadow"><ChevronLeft /></button>
       <div className="flex flex-1 gap-1.5">{quiz.questions.map((x, k) => <span key={x.id} className={`h-2.5 flex-1 rounded-full ${k < i ? (Number(answers[x.id]) === x.answer ? "bg-emerald-400" : "bg-rose-300") : k === i ? "bg-orange-400" : "bg-white"}`} />)}</div></div>
     {!done ? <div className="flex flex-1 flex-col items-center justify-center gap-6 px-5 text-center">

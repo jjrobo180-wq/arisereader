@@ -13,7 +13,7 @@ const T = (o: Partial<PublicTrainer>): PublicTrainer => ({ ...cleanTrainer({ nam
 
 test("listings are cleaned: links are https only, prices set the modes, state codes are real", () => {
   const t = cleanTrainer({ name: " Mike ", website: "javascript:alert(1)", bookingUrl: "calendly.com/mike", state: "zz", prices: [{ mode: "inPerson", cents: 8000, per: "session" }, { mode: "bogus", cents: 1 }], photo: "data:text/html;base64,AAAA" });
-  assert.equal(t.name, "Mike");
+  assert.equal(t.name, "Mike ", "a trailing space stays while typing");
   assert.equal(t.website, "");
   assert.equal(t.bookingUrl, "https://calendly.com/mike");
   assert.equal(t.state, "");

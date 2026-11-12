@@ -1,4 +1,4 @@
-// The numbers behind Arise Fit's first-open setup: feet and inches, how fast to reach a goal weight, and
+// The numbers behind Cooked's first-open setup: feet and inches, how fast to reach a goal weight, and
 // what that means in calories. Pure, so it's tested.
 import { goals, type Profile } from "./fit";
 import { pointsBudget } from "./fitNutrition";
@@ -45,4 +45,34 @@ export function goalWeightFits(goal: Profile["goal"], fromKg: number, toKg: numb
 export function planFor(p: Profile, kg: number | undefined, today = new Date()) {
   const g = goals(p, kg, today);
   return { ...g, points: pointsBudget(g) };
+}
+
+// ─── "What do you want from Cooked?" ──────────────────────────────────────────────────────────
+// A multi-select in first-open setup. Each pick adds its apps (shared/fitApps.ts) and the best of them go
+// on the tab bar, so the app is set up the way the person said they'd use it.
+import { FIT_APP_BY_ID, TAB_MAX, defaultApps, type FitAppId, type FitApps } from "./fitApps";
+
+export type FeatureChoice = { id: string; title: string; sub: string; apps: FitAppId[]; /** The app that earns a tab if the person picks this. */ tab?: FitAppId };
+export const FEATURE_CHOICES: FeatureChoice[] = [
+  { id: "lift", title: "Workouts & strength", sub: "Programs, a live workout screen and an exercise library with videos.", apps: ["train", "form", "scan", "progress"], tab: "train" },
+  { id: "food", title: "Track what I eat", sub: "Calories or points, macros, barcode and photo logging.", apps: ["food", "recipes"], tab: "food" },
+  { id: "eatout", title: "Fast food & eating-out ideas", sub: "What to order at restaurants near you and still hit your goal.", apps: ["eat", "recipes", "food"], tab: "food" },
+  { id: "sleep", title: "Sleep tracking", sub: "A nightly score, a bedtime plan, and tracking from your pillow or watch.", apps: ["sleep", "recovery"], tab: "sleep" },
+  { id: "yoga", title: "Yoga & meditation", sub: "Guided flows, breathing, meditation and a simple counter.", apps: ["yoga", "mind", "mobility"], tab: "yoga" },
+  { id: "run", title: "Running, hiking & walking", sub: "GPS runs, trails near you, Couch to 5K and steps.", apps: ["run", "c25k", "steps", "hiit"], tab: "run" },
+  { id: "fast", title: "Intermittent fasting", sub: "Timers, streaks and your plan.", apps: ["fast", "water"], tab: "fast" },
+  { id: "gyms", title: "Find gyms near me", sub: "Gyms around you with prices and how busy they are.", apps: ["gyms", "travel"] },
+  { id: "friends", title: "Friends & a coach", sub: "Workout with a circle, a buddy, or a personal trainer.", apps: ["friends", "coach"], tab: "friends" },
+];
+const CORE: FitAppId[] = ["recipes", "water", "progress"];
+
+/** The apps and tab bar for the features picked (in the order they were picked). Nothing picked → the usual start. */
+export function appsForFeatures(picked: string[]): FitApps {
+  const chosen = picked.map((id) => FEATURE_CHOICES.find((f) => f.id === id)).filter((f): f is FeatureChoice => !!f);
+  if (!chosen.length) return defaultApps();
+  const added = [...new Set<FitAppId>([...chosen.flatMap((f) => f.apps), ...CORE])].filter((id) => FIT_APP_BY_ID.has(id));
+  const tabs = [...new Set<FitAppId>(chosen.map((f) => f.tab).filter((t): t is FitAppId => !!t && !!FIT_APP_BY_ID.get(t)?.tab))].slice(0, TAB_MAX);
+  // Fewer than three picks that earn a tab: fill with Train and Food, then the rest of the apps that can sit on the bar.
+  for (const t of ["train", "food", "run"] as FitAppId[]) if (tabs.length < TAB_MAX && !tabs.includes(t) && added.includes(t)) tabs.push(t);
+  return { added, tabs };
 }

@@ -1,12 +1,12 @@
 // Support: the "Contact us" form on the Support pages of Arise To Duo (arisetodo.com/support) and
-// Pod+ (podscroll.onrender.com/support), and inside both iPhone apps. App Review asks every app for
+// Podster (podscroll.onrender.com/support), and inside both iPhone apps. App Review asks every app for
 // a way to reach the developer (Support URL, Guideline 1.5) and apps with posts from people for
 // published contact details (Guideline 1.2). Each message reaches the admin by email and in the bell.
 import type { Express } from "express";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 
-export type SupportMessage = { app: "Arise To Duo" | "Pod+"; name: string; email: string; topic: string; message: string };
-export const SUPPORT_TOPICS = ["Question", "Something isn't working", "Report a post or person", "Delete my account or data", "Privacy", "Other"] as const;
+export type SupportMessage = { app: "Arise To Duo" | "Podster"; name: string; email: string; topic: string; message: string };
+export const SUPPORT_TOPICS = ["Question", "Something isn't working", "Report a post or person", "Delete my account or data", "Privacy", "Copyright or takedown request", "Other"] as const;
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b-\u001f]/g, "").trim().slice(0, max) : "");
 const EMAIL = /^[^\s@<>()[\],;:"]+@[^\s@<>()[\],;:"]+\.[^\s@<>()[\],;:"]{2,}$/;
@@ -41,6 +41,6 @@ export function registerSupportRoutes(app: Express, o: { deliver: (m: SupportMes
     }
   };
   app.post("/api/support/contact", handler("Arise To Duo"));
-  // Under /api/podscroll so the Pod+ site and app can call it (that path has Pod+'s own CORS rules).
-  app.post("/api/podscroll/support", handler("Pod+"));
+  // Under /api/podscroll so the Podster site and app can call it (that path has Podster's own CORS rules).
+  app.post("/api/podscroll/support", handler("Podster"));
 }

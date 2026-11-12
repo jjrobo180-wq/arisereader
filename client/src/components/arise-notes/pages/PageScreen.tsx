@@ -2,7 +2,7 @@
 // handwritten (pages you write on with the Apple Pencil). It saves itself as you go, syncs, and can be
 // locked with the notes password. Menu: appearance, pin, colour, folder, lock, AI, versions, export.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
+import { ChevronLeft, Maximize2, MessageCircle, Mic, Minimize2, Pause, Play, Send, Square, Star, Clock, Copy, Download, FileText, Image as ImageIcon, Lock, LockOpen, MoreHorizontal, Palette, PenLine, Pin, PinOff, Sparkles, Table2, Trash2, Wand2 } from "lucide-react";
 import { DEFAULT_LOOK, blankInkPage, pageTitle, textOfHtml, type InkPage, type Page, type PageContent, type PageLook, type PageMeta } from "@shared/arisePages";
 import { noteHtml as aiNoteHtml } from "@shared/ariseNotes";
 import { wordCount } from "@shared/office/docModel";
@@ -20,18 +20,30 @@ import { exportInkImage, exportInkPdf, exportMarkdown, exportText, exportWord, p
 import { lockContent, unlockContent } from "./pagesLock";
 import { AppearanceSheet, ColorDots, ForgotSheet, SYNC_WORDS, UnlockSheet, VaultSheet, loadPageFont, lookStyle, usePages, useUnlocked } from "./pagesUi";
 import { drafts } from "./drafts";
+import { useAppearance } from "../appearance";
+import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { takeCommands, useNoteRecording } from "./useNoteRecording";
+import { answerLines } from "@shared/undercover";
+import { WAIT, answerHtml, deleteReply, failReply, finishReply, clearStale, mergeReply, newReplyId, parseAtArise, waitingBlock } from "@shared/ariseReply";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
 
-export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: string; onBack: () => void }) {
+export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ctx: AppCtx; id: string; onBack: () => void; expanded?: boolean; onExpand?: () => void }) {
   const userId = ctx.me.user.id;
   const say = useToast();
   const { sync, settings, metas, state } = usePages(userId);
   const key = useUnlocked(settings.vault);
+  const appearance = useAppearance();
   const [page, setPage] = useState<Page | null | undefined>(undefined);
   const [content, setContent] = useState<(PageContent & { inkText?: string }) | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [panel, setPanel] = useState<Panel>("");
+  // Ask AI in the note (Undercover's AI): a bar under the note; each answer is written into the note
+  // like your own lines, so on screen it just looks like note taking. On or off is remembered.
+  const [askOn, setAskOn] = useState(() => { try { return localStorage.getItem("arise-notes-ask-in-note") === "1"; } catch { return false; } });
+  const [askQ, setAskQ] = useState("");
+  const [askBusy, setAskBusy] = useState(false);
+  const toggleAsk = () => setAskOn((v) => { try { localStorage.setItem("arise-notes-ask-in-note", v ? "0" : "1"); } catch { /* not kept */ } return !v; });
   const [lockAfter, setLockAfter] = useState(false); // locking this note once the password is ready
   const pageRef = useRef<Page | null>(null);
   const contentRef = useRef<(PageContent & { inkText?: string }) | null>(null);
@@ -79,6 +91,11 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
   }, [key, sync]);
   const edit = (patch: Partial<PageContent & { inkText?: string }>) => {
     if (!contentRef.current) return;
+    // Typed commands (@ariserecord, @arisepause, @ariseresume, @arisestop, @arisemark) run and are taken out.
+    if (patch.html) {
+      const cmd = takeCommands(patch.html);
+      if (cmd.commands.length) { patch = { ...patch, html: cmd.html }; setResetKey((k) => k + 1); cmd.commands.forEach((c) => recording.run(c)); }
+    }
     const next = { ...contentRef.current, ...patch };
     contentRef.current = next;
     setContent(next);
@@ -87,6 +104,15 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
     timer.current = setTimeout(() => void persist(), 450);
   };
   const setMeta = (patch: Partial<Page>) => { void persist(patch); };
+  // Recording a meeting in this note (useNoteRecording.ts): when it stops, its summary is added here.
+  const recording = useNoteRecording(ctx, (html) => { edit({ html: `${contentRef.current?.html ?? ""}${html}` }); setResetKey((k) => k + 1); say("The meeting's summary is in your note."); }, say);
+  // "Record a meeting" on the Notes tab opens a new note and starts right away.
+  useEffect(() => {
+    if (!content || page?.kind !== "text") return;
+    let go = false;
+    try { go = sessionStorage.getItem("arise-pages-record") === "1"; if (go) sessionStorage.removeItem("arise-pages-record"); } catch { /* no */ }
+    if (go) void recording.start();
+  }, [!!content, page?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
   // Leaving: save now, and drop a new note nobody wrote in.
   useEffect(() => () => {
     if (timer.current) { clearTimeout(timer.current); void persist(); }
@@ -97,6 +123,81 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
     if (p && drafts.has(p.id) && c && isEmpty(c)) drafts.delete(p.id);
     onBack();
   };
+
+  // ─── @arise: type "@arise <what you want>" on a line and press Enter. Arise answers right under it in a block
+  // you can merge (keep just the answer, no prompt) or delete. The Ask bar below answers the same way. ───
+  const working = useRef(new Set<string>());
+  const [reply, setReply] = useState<{ id: string; waiting: boolean } | null>(null);
+  const sel = (id: string) => `[data-arise="${id}"]`;
+  /** Changes one reply block in place (keeps your cursor); when the page isn't showing it, changes the saved text. */
+  const patchReply = (id: string, fn: (html: string) => string) => {
+    const ed = noteEl(), el = ed?.querySelector(sel(id));
+    if (ed && el) { el.outerHTML = fn(el.outerHTML); ed.dispatchEvent(new Event("input", { bubbles: true })); return; }
+    edit({ html: fn(contentRef.current?.html ?? "") }); setResetKey((k) => k + 1);
+  };
+  const runArise = async (id: string, ask: string, context: string) => {
+    working.current.add(id);
+    try {
+      const text = await askAi("docNotes", [{ role: "user", content: ask }], { ...undercoverPrefs(), context });
+      const lines = answerLines(text);
+      patchReply(WAIT + id, (h) => finishReply(h, id, answerHtml(lines.length ? lines : [text])));
+      setReply({ id, waiting: false });
+    } catch (x: any) {
+      patchReply(WAIT + id, (h) => failReply(h, id)); setReply(null);
+      say(x?.message || "Couldn't get an answer.");
+    } finally { working.current.delete(id); }
+  };
+  /** A typed "@arise …" line becomes the prompt of a reply block, with a fresh line after it to keep writing on. */
+  const startAt = (blk: HTMLElement, ask: string) => {
+    const ed = noteEl(); if (!ed) return;
+    const id = newReplyId();
+    blk.outerHTML = `${waitingBlock(id, ask)}<p><br></p>`;
+    const mine = ed.querySelector(sel(WAIT + id));
+    const copy = ed.cloneNode(true) as HTMLElement; copy.querySelector(sel(WAIT + id))?.remove();
+    const next = mine?.nextElementSibling;
+    if (next) { const r = document.createRange(); r.setStart(next, 0); r.collapse(true); const sn = window.getSelection(); sn?.removeAllRanges(); sn?.addRange(r); }
+    ed.dispatchEvent(new Event("input", { bubbles: true }));
+    setReply({ id: WAIT + id, waiting: true });
+    void runArise(id, ask, textOfHtml(copy.innerHTML));
+  };
+  const startRef = useRef(startAt); startRef.current = startAt;
+  const canArise = useRef(false); canArise.current = !!content && page?.kind === "text" && !(sync.meta(page.id)?.deletedAt ?? page.deletedAt);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || !canArise.current) return;
+      const ed = noteEl(), sn = window.getSelection();
+      if (!ed || !sn?.isCollapsed || !sn.anchorNode || !ed.contains(sn.anchorNode)) return;
+      let blk = (sn.anchorNode.nodeType === 1 ? sn.anchorNode : sn.anchorNode.parentElement) as HTMLElement | null;
+      while (blk && blk.parentElement !== ed) blk = blk.parentElement;
+      if (!blk || !/^(P|DIV|H[1-4])$/.test(blk.tagName)) return;
+      const ask = parseAtArise(blk.textContent || "");
+      if (!ask) return;
+      e.preventDefault(); e.stopPropagation();
+      startRef.current(blk, ask);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, []);
+  // Which reply the cursor is in: the Merge and Delete bar is for that one.
+  useEffect(() => {
+    const on = () => {
+      const ed = noteEl(), sn = window.getSelection();
+      if (!ed || !sn?.anchorNode || !ed.contains(sn.anchorNode)) return;
+      const el = (sn.anchorNode.nodeType === 1 ? sn.anchorNode : sn.anchorNode.parentElement) as HTMLElement | null;
+      const v = el?.closest("blockquote[data-arise]")?.getAttribute("data-arise");
+      setReply(v ? { id: v, waiting: v.startsWith(WAIT) } : null);
+    };
+    document.addEventListener("selectionchange", on);
+    return () => document.removeEventListener("selectionchange", on);
+  }, []);
+  // An answer that was still being written when the page was closed goes back to being the line that was typed.
+  useEffect(() => {
+    const c = contentRef.current; if (!c) return;
+    const clean = clearStale(c.html, working.current);
+    if (clean !== c.html) { edit({ html: clean }); setResetKey((k) => k + 1); }
+  }, [!!content, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mergeIt = () => { if (!reply) return; patchReply(reply.id, (h) => mergeReply(h, reply.id)); setReply(null); say("Merged into your note."); };
+  const deleteIt = () => { if (!reply) return; patchReply(reply.id, (h) => deleteReply(h, reply.id)); setReply(null); say("Arise's reply deleted."); };
 
   // Handwriting becomes searchable: the iPhone reads it (on the device) a little after you stop writing.
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,20 +239,39 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
   if (page === undefined) return <div className="grid h-full place-items-center"><Spinner /></div>;
   if (!page) return <div className="mx-auto max-w-md p-6"><Notice tone="bad" action={<Btn kind="primary" onClick={onBack}>Back to notes</Btn>}>That note isn't here. It may have been deleted on another device.</Notice></div>;
 
-  const look = content?.look ?? page.content.look ?? DEFAULT_LOOK;
+  // The typing screen follows Light / Dark / Auto: the plain white paper turns charcoal in dark mode (the
+  // saved note keeps its own paper; other papers you picked on purpose stay as they are).
+  const savedLook = content?.look ?? page.content.look ?? DEFAULT_LOOK;
+  const look = appearance.dark && savedLook.theme === "paper" ? { ...savedLook, theme: "charcoal" as const } : savedLook;
   const title = content?.title ?? "";
   const meta = sync.meta(page.id);
   const trashed = !!(meta?.deletedAt ?? page.deletedAt);
 
-  return <div className="flex h-full min-h-0 flex-col" style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
+  return <div className="flex h-full min-h-0 flex-col" data-paper={look.theme} style={{ background: lookStyle(look).background as string }} data-testid="pages-note">
     {/* Top bar */}
-    <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[env(safe-area-inset-top)]">
+    <header className="an-noprint an-notehead sticky top-0 z-30 flex items-center gap-1 px-2 pt-[var(--sat,env(safe-area-inset-top,0px))]">
       <IconBtn label="Back to notes" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn>
       <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--an-muted)]">{page.locked && !content ? "Locked" : SYNC_WORDS[state]}</span>
+      {onExpand && <IconBtn label={expanded ? "Shrink back to the list" : "Fill the whole page"} onClick={onExpand}>{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</IconBtn>}
       {content && <IconBtn label="Appearance" onClick={() => setPanel("look")}><Palette className="h-5 w-5" /></IconBtn>}
+      {content && page.kind === "text" && recording.state === "idle" && <IconBtn label="Record a meeting into this note" onClick={() => void recording.start()}><Mic className="h-5 w-5" /></IconBtn>}
+      {content && page.kind === "text" && <IconBtn label={askOn ? "Hide Ask AI" : "Ask AI in this note"} onClick={toggleAsk} className={askOn ? "!text-[var(--an-violet)]" : ""}><MessageCircle className="h-5 w-5" /></IconBtn>}
       {content && page.kind === "text" && <IconBtn label="AI tools" onClick={() => setPanel("ai")}><Sparkles className="h-5 w-5" /></IconBtn>}
       <IconBtn label="More" onClick={() => setPanel("more")}><MoreHorizontal className="h-5 w-5" /></IconBtn>
     </header>
+    {recording.state !== "idle" && <div className="an-noprint sticky top-[calc(var(--sat,env(safe-area-inset-top,0px))+3rem)] z-20 mx-3 mt-2 flex items-center gap-2 rounded-2xl bg-[#1d1a33] px-3 py-2 text-white shadow-lg" role="status" aria-live="polite" data-testid="pages-rec-bar">
+      {recording.state === "finishing" || recording.state === "starting" ? <><Spinner /><span className="text-[14px] font-semibold">{recording.state === "starting" ? "Starting…" : recording.step || "Finishing…"}</span></> : <>
+        <span className={`h-2.5 w-2.5 rounded-full ${recording.state === "recording" ? "animate-pulse bg-[#ef4444]" : "bg-white/40"}`} aria-hidden />
+        <span className="tabular-nums text-[15px] font-semibold">{Math.floor(recording.secs / 60)}:{String(Math.floor(recording.secs % 60)).padStart(2, "0")}</span>
+        <span className="text-[13px] text-white/70">{recording.state === "paused" ? "Paused" : "Recording"}</span>
+        <span className="mx-1 h-1.5 flex-1 overflow-hidden rounded-full bg-white/15" aria-hidden><span className="block h-full rounded-full bg-[#a78bfa] transition-[width]" style={{ width: `${Math.round(Math.min(1, recording.level) * 100)}%` }} /></span>
+        <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Mark this moment as important" onClick={recording.mark}><Star className="h-[18px] w-[18px]" /></button>
+        {recording.state === "recording"
+          ? <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Pause recording" onClick={recording.pause}><Pause className="h-[18px] w-[18px]" /></button>
+          : <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Resume recording" onClick={recording.resume}><Play className="h-[18px] w-[18px]" /></button>}
+        <button type="button" className="flex h-10 items-center gap-1.5 rounded-full bg-[#ef4444] px-3 text-[13px] font-semibold" aria-label="Stop and write it up" onClick={() => void recording.stop()}><Square className="h-3.5 w-3.5" fill="currentColor" />Stop</button>
+      </>}
+    </div>}
     {trashed && <div className="px-4 pt-3"><Notice tone="warn" action={<Btn kind="soft" onClick={() => { sync.restore(page.id); say("Restored."); }}>Restore</Btn>}>This note is in Recently Deleted.</Notice></div>}
 
     {/* Body */}
@@ -160,8 +280,31 @@ export default function PageScreen({ ctx, id, onBack }: { ctx: AppCtx; id: strin
         : content ? <InkBody content={content} pencilOnly={settings.prefs.pencilOnly} edit={(p) => { edit(p); if (p.ink) readInk(p.ink); }} onPencilOnly={(v) => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, pencilOnly: v } })} title={title} />
           : <Spinner />}
 
+    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Reply" data-testid="pages-reply-bar">
+      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Reply</span>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={mergeIt} className="min-h-11 rounded-xl bg-[var(--an-violet)] px-3 text-[14px] font-bold text-white" data-testid="pages-reply-merge">Merge into note</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={deleteIt} className="min-h-11 rounded-xl px-3 text-[14px] font-bold text-[var(--an-muted)] ring-1 ring-[var(--an-line)]" data-testid="pages-reply-delete">Delete</button>
+    </div>}
+    {askOn && content && page.kind === "text" && !trashed && <form className="an-noprint sticky bottom-0 z-20 flex gap-2 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2" style={{ background: "linear-gradient(to top, color-mix(in srgb, var(--an-bg, #fff) 92%, transparent) 70%, transparent)" }}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const q = askQ.trim();
+        if (!q || askBusy) return;
+        setAskBusy(true);
+        try {
+          const id = newReplyId(), before = contentRef.current?.html ?? content.html;
+          edit({ html: `${before}${waitingBlock(id, q)}` }); setResetKey((k) => k + 1); setAskQ("");
+          await runArise(id, q, textOfHtml(before));
+        } catch (x: any) { say(x?.message || "Couldn't get an answer."); }
+        finally { setAskBusy(false); }
+      }} data-testid="pages-ask-bar">
+      <label className="sr-only" htmlFor="pages-ask-input">Ask AI. The answer is added to this note.</label>
+      <input id="pages-ask-input" className="an-input flex-1" value={askQ} onChange={(e) => setAskQ(e.target.value)} placeholder={askBusy ? "Writing…" : "Ask anything, or type @arise in your note"} maxLength={500} autoComplete="off" enterKeyHint="send" />
+      <Btn kind="primary" type="submit" busy={askBusy} disabled={!askQ.trim()} aria-label="Ask"><Send className="h-4 w-4" /></Btn>
+    </form>}
+
     {/* Sheets */}
-    {panel === "look" && content && <AppearanceSheet look={look} onChange={(l) => edit({ look: l })} onClose={() => setPanel("")} onDefault={() => { sync.saveSettings({ ...settings, prefs: { ...settings.prefs, look } }); say("New notes will look like this."); }} />}
+    {panel === "look" && content && <AppearanceSheet look={savedLook} onChange={(l) => edit({ look: l })} onClose={() => setPanel("")} onDefault={() => { sync.saveSettings({ ...settings, prefs: { ...settings.prefs, look } }); say("New notes will look like this."); }} />}
     {panel === "more" && <MoreSheet page={page} meta={meta} content={content} words={content && page.kind === "text" ? wordCount(content.html).words : 0}
       folders={settings.folders} onClose={() => setPanel("")} setMeta={setMeta} open={setPanel}
       onLock={() => void lockNote()} onUnlockNote={unlockNote}
@@ -235,7 +378,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const { toolbar, page } = useRichEditor({
     startHtml: content.html, resetKey: "page", onChange: (html) => { if (!filled.current) { filled.current = true; return; } if (html !== content.html) edit({ html }); },
     placeholder: "Start writing…", testId: "pages-rich", label: "Note", pageClassName: "min-h-[60vh] ![color:inherit] ![font-size:inherit] ![line-height:inherit] [font-family:inherit] pb-40",
-    toolbarClassName: "bg-white/85 backdrop-blur-xl",
+    toolbarClassName: "bg-transparent",
   });
   const fileIn = useRef<HTMLInputElement>(null);
   const addImage = async (f: File | undefined) => {
@@ -246,7 +389,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
   const addTable = () => insertHtml(`<table style="border-collapse: collapse; width: 100%">${Array.from({ length: 3 }, (_, r) => `<tr>${Array.from({ length: 3 }, () => `<${r ? "td" : "th"} style="border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left"><br></${r ? "td" : "th"}>`).join("")}</tr>`).join("")}</table><p><br></p>`);
   const style = lookStyle(look);
   return <>
-    <div className="an-noprint an-notehead sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 flex items-center">
+    <div className="an-noprint an-notebar z-20 flex items-center">
       <div className="min-w-0 flex-1">{toolbar}</div>
       <div className="flex shrink-0 items-center gap-0.5 border-l border-black/5 px-1">
         <IconBtn label="Add a picture" onClick={() => fileIn.current?.click()}><ImageIcon className="h-[18px] w-[18px]" /></IconBtn>
@@ -256,7 +399,7 @@ function TextBody({ content, look, edit, onSketch, onAiNote }: { content: PageCo
       </div>
       <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addImage(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto" style={style}>
+    <div className="min-h-0 flex-1 overflow-y-auto" data-paper={look.theme} style={style}>
       <div className={`mx-auto px-6 pb-10 pt-7 sm:px-10 ${look.wide ? "max-w-none" : "max-w-[760px]"}`}>
         <input className="an-bare an-doc-title w-full bg-transparent text-[34px] leading-[1.1] outline-none placeholder:opacity-30" style={{ fontFamily: style.fontFamily, color: "inherit" }}
           value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
@@ -303,9 +446,9 @@ function InkBody({ content, pencilOnly, edit, onPencilOnly, title }: { content: 
       onAddPage={(paper) => change([...content.ink, blankInkPage(paper, content.ink[content.ink.length - 1]?.tint ?? "paper")])}
       onAddPhoto={() => photoIn.current?.click()} />
     <input ref={photoIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { void addPhotoPage(e.target.files?.[0]); e.target.value = ""; }} />
-    <div className="min-h-0 flex-1 overflow-auto bg-[#ecebf3] px-3 py-5 sm:px-6" data-testid="pages-ink">
+    <div className="min-h-0 flex-1 overflow-auto bg-[var(--an-bg)] px-3 py-5 sm:px-6" data-testid="pages-ink">
       <div className="mx-auto" style={{ width: `min(100%, ${Math.round(820 * zoom)}px)`, minWidth: zoom > 1 ? `${Math.round(820 * zoom)}px` : undefined }}>
-        <input className="an-bare an-doc-title mb-3 w-full bg-transparent text-[28px] text-[#1b1a26] outline-none placeholder:text-[#9a98ab]" value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
+        <input className="an-bare an-doc-title mb-3 w-full bg-transparent text-[28px] text-[var(--an-ink)] outline-none placeholder:text-[var(--an-faint)]" value={content.title} onChange={(e) => edit({ title: e.target.value.slice(0, 140) })} placeholder="Title" aria-label="Title" data-testid="pages-title" />
         <div className="space-y-5">{content.ink.map((p, i) => <div key={p.id}>
           <InkCanvas page={p} tools={tools} pencilOnly={pencilOnly} label={`${title || "Note"}, page ${i + 1}`} onChange={(np) => setPage(i, np)} onPen={() => { if (!pencilOnly) onPencilOnly(true); }} />
           <div className="mt-1.5 flex items-center justify-between text-[12px] text-[#6b6880]">
@@ -344,13 +487,13 @@ function MoreSheet({ page, meta, content, words, folders, onClose, setMeta, open
   const say = useToast();
   const pinned = meta?.pinned ?? page.pinned;
   const Row = ({ icon, label, onClick, danger, testId }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean; testId?: string }) =>
-    <button type="button" onClick={onClick} data-testid={testId} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold hover:bg-slate-50 ${danger ? "text-[#c2283a]" : ""}`}>{icon}{label}</button>;
+    <button type="button" onClick={onClick} data-testid={testId} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-semibold active:bg-[color-mix(in_srgb,var(--an-ink)_8%,transparent)] ${danger ? "text-[#c2283a]" : ""}`}>{icon}{label}</button>;
   return <Sheet title={pageTitle({ ...page, content: content ?? page.content })} onClose={onClose}>
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3"><span className="text-[14px] font-bold">Color</span><ColorDots value={meta?.color ?? page.color} onChange={(c) => setMeta({ color: c })} /></div>
       <label className="flex items-center justify-between gap-3 text-[14px] font-bold">Folder
         <select className="an-input !w-auto !min-h-10" value={meta?.folderId ?? page.folderId} onChange={(e) => { setMeta({ folderId: e.target.value }); say(e.target.value ? "Moved." : "Moved to All notes."); }} data-testid="pages-move">
-          <option value="">No folder</option>{folders.map((f) => <option key={f.id} value={f.id}>{f.icon} {f.name}</option>)}
+          <option value="">No folder</option>{folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       </label>
       <div className="divide-y divide-[var(--an-line)] rounded-2xl border border-[var(--an-line)]">

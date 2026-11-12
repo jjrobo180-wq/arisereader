@@ -18,6 +18,7 @@ interface DonationData {
 }
 
 export default function DonationGoal() {
+  return null; // Donations are switched off across the site (November 2026).
   const [data, setData] = useState<DonationData | null>(null);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function DonationGoal() {
           </div>
           <div>
             <h3 className="text-lg font-bold leading-tight">{data.title || "Support Our Readers"}</h3>
-            <p className="text-xs text-white/80 leading-tight">{data.description || "Help us keep A.R.I.S.E Reader free for students"}</p>
+            <p className="text-xs text-white/80 leading-tight">{data.description || "Help us keep Arise Reader free for students"}</p>
           </div>
         </div>
 

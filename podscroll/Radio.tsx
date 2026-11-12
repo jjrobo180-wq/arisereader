@@ -1,4 +1,4 @@
-// Pod+ Radio: live stations, including FM and AM stations' own web streams, from the free, open
+// Podster Radio: live stations, including FM and AM stations' own web streams, from the free, open
 // Radio Browser directory (radio-browser.info, about 50,000 stations). The page asks the directory
 // directly (it allows that from any site) and plays each station's stream straight from the
 // station. Only https streams that a browser can play natively are shown (no plain http, which a
@@ -31,7 +31,7 @@ async function ask(path: string): Promise<any> {
 }
 
 /** National networks that license their live streams only to their own apps and paid partners
- *  (TuneIn, iHeart...): not played in Pod+, so no one's stream is used without permission (and App
+ *  (TuneIn, iHeart...): not played in Podster, so no one's stream is used without permission (and App
  *  Review guideline 5.2.3). Local and independent stations that run their own public stream stay. */
 const NETWORKS = /\b(cnn|hln|fox ?news|fox business|msnbc|cnbc|nbc news|abc news|cbs news|bbc|npr news|npr 24|bloomberg|sky news|c-?span|al ?jazeera|reuters|cbc news|espn|siriusxm|sirius|iheart|newsmax|one america|oan)\b/i;
 export const isNetwork = (s: Pick<Station, "name" | "tags">) => NETWORKS.test(s.name || "") || /\b(cnn|msnbc|fox ?news|bbc)\b/i.test(s.tags || "");
@@ -146,7 +146,7 @@ export function fullTimeNews(s: Pick<Station, "name" | "tags">): boolean {
   return /\bnews\b/.test(tags) && !NOT_NEWS.test(tags);
 }
 
-/** Live news stations (separate from Pod+ Live News Radio): radio stations that are news all day,
+/** Live news stations (separate from Podster Live News Radio): radio stations that are news all day,
  *  from their own live streams in the Radio Browser directory. This country's first. */
 export function NewsStationsView({ onPlay, current, onBack }: { onPlay: (s: Station) => void; current: Station | null; onBack: () => void }) {
   const country = useMemo(myCountry, []);
@@ -169,7 +169,7 @@ export function NewsStationsView({ onPlay, current, onBack }: { onPlay: (s: Stat
   return <div className="px-4 pb-28 pt-3 sm:px-6">
     <button onClick={onBack} className="mb-2 text-sm font-medium text-[#606060] hover:text-[#0f0f0f]">← Home</button>
     <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30] motion-safe:animate-pulse" />Live news stations</h1>
-    <p className="mt-1 max-w-xl text-sm text-[#606060]">Radio stations that are news all day, live from each station's own stream. For news from the big newsrooms back to back, try Pod+ Live News Radio.</p>
+    <p className="mt-1 max-w-xl text-sm text-[#606060]">Radio stations that are news all day, live from each station's own stream. For news from the big newsrooms back to back, try Podster Live News Radio.</p>
     {err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={() => setSpin((n) => n + 1)} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
       : !list ? <div className="flex justify-center py-24" role="status" aria-label="Loading stations"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>
       : !list.length ? <p className="py-20 text-center text-[#606060]">No news stations are on the air right now. Try again in a little while.</p>
@@ -217,7 +217,7 @@ export function RadioBar({ station, onStop, say }: { station: Station; onStop: (
     try {
       if ("mediaSession" in navigator) {
         const art = /^https:\/\//i.test(station.favicon || "") ? station.favicon : "";
-        navigator.mediaSession.metadata = new MediaMetadata({ title: cleanName(station.name), artist: where(station) || "Live radio", album: "Pod+ Radio", artwork: art ? [{ src: art }] : [] });
+        navigator.mediaSession.metadata = new MediaMetadata({ title: cleanName(station.name), artist: where(station) || "Live radio", album: "Podster Radio", artwork: art ? [{ src: art }] : [] });
         navigator.mediaSession.setActionHandler("play", () => { audio.current?.play().catch(() => {}); });
         navigator.mediaSession.setActionHandler("pause", () => audio.current?.pause());
         navigator.mediaSession.setActionHandler("stop", () => onStop());

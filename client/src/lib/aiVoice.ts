@@ -4,9 +4,9 @@
 // keeps what it made. Long text is said in pieces, the next one fetched while this one plays.
 // When no AI voice can be reached, nothing is said and `onError` explains; there is no robot fallback.
 //
-// No "@/" imports here: Pod+ (podscroll/) uses this file too.
+// No "@/" imports here: Podster (podscroll/) uses this file too.
 
-export type AiVoiceName = "hannah" | "autumn" | "diana" | "austin" | "daniel" | "troy";
+export type AiVoiceName = "hannah" | "autumn" | "diana" | "austin" | "daniel" | "troy" | "calm";
 export type SayOptions = {
   voice?: AiVoiceName;
   /** Playback speed (1 = normal). */ rate?: number;
@@ -115,6 +115,8 @@ export async function sayAI(text: string, opts: SayOptions = {}): Promise<boolea
         a.onerror = () => resolve(false);
         a.pause();
         a.src = url;
+        // Slowing down must never lower the pitch: that is what makes a voice sound thick and off.
+        try { (a as any).preservesPitch = true; (a as any).webkitPreservesPitch = true; } catch { /* default */ }
         a.playbackRate = opts.rate || 1;
         a.play().then(() => { if (!started) { started = true; opts.onStart?.(); } opts.onPart?.(i, pieces[i]); }, () => resolve(false));
       });

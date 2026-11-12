@@ -1,4 +1,4 @@
-// Pod+ profile pages, MySpace style but minimal: your page, your way. A background (color, gradient,
+// Podster profile pages, MySpace style but minimal: your page, your way. A background (color, gradient,
 // pattern or photo), a banner, accent color, font, card style and corners, a profile song, a mood,
 // and widgets you add, move between the two columns, reorder and fill in: Top 8 shows, Top 8
 // friends, guestbook, quote, links, photo, text, interests, latest posts, clips and your podcast.
@@ -71,7 +71,7 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
     : { background: `linear-gradient(120deg, ${page.accent}, ${alpha(page.accent, 0.35)})` };
   const share = () => {
     const url = `${location.origin}${location.pathname}#/u/${data.profile.handle}`;
-    if (navigator.share) void navigator.share({ title: `${data.profile.name} on Pod+`, url }).catch(() => {});
+    if (navigator.share) void navigator.share({ title: `${data.profile.name} on Podster`, url }).catch(() => {});
     else void navigator.clipboard?.writeText(url).then(() => ctx.say("Link copied.")).catch(() => ctx.say(url));
   };
   const btn = "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold sm:flex-none";
@@ -85,8 +85,8 @@ export function ProfileSpace({ data, page, ctx, onBack, onFollow, onEditProfile,
         <main className="min-w-0 overflow-hidden sm:shadow-[0_10px_40px_-12px_rgba(0,0,0,.45)]" style={{ borderRadius: r }}>
           {/* Cover and picture */}
           <div className="relative aspect-[4/1] max-h-[180px] min-h-[96px] w-full" style={coverStyle}>
-            <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><ChevronLeft size={20} /></button>
-            <button type="button" onClick={share} aria-label="Share profile" className="absolute right-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><Share size={17} /></button>
+            <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><ChevronLeft size={20} /></button>
+            <button type="button" onClick={share} aria-label="Share profile" className="absolute right-3 top-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur"><Share size={17} /></button>
           </div>
           <section className="relative px-4 pb-4 sm:px-5" style={surface}>
             <div className="flex items-end justify-between gap-3">
@@ -540,7 +540,7 @@ export function PersonSpace({ handle, ctx, onEdit, onClose, row }: { handle: str
   useEffect(() => { setData(null); setErr(""); ctx.api(`/api/earshot/social/u/${handle}`).then(setData).catch((e) => setErr(e?.message || "That profile didn't load.")); }, [handle]); // eslint-disable-line react-hooks/exhaustive-deps
   const follow = () => { if (!data) return; if (!ctx.me) return ctx.needProfile(); const on = !data.followed; setData({ ...data, followed: on, followers: data.followers + (on ? 1 : -1) }); ctx.api("/api/earshot/social/follow", { method: "POST", body: { handle, on } }).catch((e) => ctx.say(e.message)); };
   if (!data) return <div className="ps-dark absolute inset-0 z-40 grid place-items-center bg-black text-white" role="dialog" aria-label={`@${handle}`}>
-    <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-white/10"><ChevronLeft size={22} /></button>
+    <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,var(--sat,env(safe-area-inset-top,0px)))] grid h-10 w-10 place-items-center rounded-full bg-white/10"><ChevronLeft size={22} /></button>
     {err ? <p className="px-6 text-center text-sm text-white/70">{err}</p> : <Loader2 className="animate-spin" />}
   </div>;
   const patch = (pid: string, f: (p: Post) => Post) => setData((d) => (d ? { ...d, posts: d.posts.map((p) => (p.id === pid ? f(p) : p.repost?.id === pid ? { ...p, repost: f(p.repost) } : p)) } : d));

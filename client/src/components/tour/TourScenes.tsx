@@ -1,7 +1,7 @@
-// Animated scenes for the iPhone apps' first-run tours (Arise To Duo, A.R.I.S.E. Reader, Reader
-// Educator and Pod+): a small phone showing the app's real screens (the same tab bar, switch, cards
+// Animated scenes for the iPhone apps' first-run tours (Arise To Duo, Arise Reader, Reader
+// Educator and Podster): a small phone showing the app's real screens (the same tab bar, switch, cards
 // and labels), with a finger doing the step, on a loop. They replace the old single-icon pictures.
-// Inline styles only (no Tailwind classes), so Pod+'s separate build draws them the same way.
+// Inline styles only (no Tailwind classes), so Podster's separate build draws them the same way.
 // Respects Reduce Motion: the scene then rests on its finished frame.
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
@@ -128,7 +128,7 @@ function TabBar({ hub = "life", highlight }: { hub?: "life" | "work"; highlight?
     {highlight && <span className="ts-a" style={abs({ left: 6, top: 4, width: 32, height: 32, borderRadius: 99, background: "rgba(255,255,255,.16)", ...A("ts-tabs") })} />}
     {t("Home")}{t("Tasks")}
     <span style={{ width: 30, height: 30, margin: "0 3px", borderRadius: 99, background: hub === "work" ? WORK : LIFE, color: "#fff", display: "grid", placeItems: "center", fontSize: 18, fontWeight: 400 }}>+</span>
-    {t("Apps")}{t("You")}
+    {t("Plugins")}{t("You")}
   </div>;
 }
 
@@ -181,7 +181,7 @@ function TodoAdd() {
 function TodoGallery() {
   const tile = (n: string, c: string, e: string) => <div style={{ ...card, padding: "6px 7px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, minWidth: 0 }}><span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 7, background: c, display: "grid", placeItems: "center", fontSize: 11 }}>{e}</span><Txt s={8.5} w={700} style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{n}</Txt></div>;
   return <Phone>
-    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>App Gallery</Txt></div>
+    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Plugin Gallery</Txt></div>
     <div style={abs({ top: 56, left: 10, right: 10, ...card, padding: 10, background: "linear-gradient(150deg,#fff,#f3f0ff)" })}>
       <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
         <span style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(160deg,#4ade80,#15803d)", display: "grid", placeItems: "center", fontSize: 20 }}>💵</span>
@@ -260,10 +260,10 @@ function TodoSplit() {
 function TodoArise() {
   const row = (e: string, t: string, c: string) => <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600 }}><span style={{ width: 22, height: 22, borderRadius: 7, background: c, display: "grid", placeItems: "center", fontSize: 11 }}>{e}</span>{t}</div>;
   return <Phone>
-    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Apps</Txt></div>
+    <div style={abs({ top: 26, left: 12 })}><Txt s={17} w={800}>Plugins</Txt></div>
     <div style={abs({ top: 54, left: 10, right: 10, ...card, padding: 4 })}>
       {row("🏠", "Home", "#ede9fe")}
-      <div className="ts-a" style={{ ...A("ts-slideup"), animationIterationCount: 1, animationDuration: ".8s" }}>{row("📖", "A.R.I.S.E. Reader", "#e0e7ff")}{row("➗", "Arise Math", "#dcfce7")}{row("🏛️", "Arise History", "#ffedd5")}{row("🔗", "Arise Connect", "#e0f2fe")}</div>
+      <div className="ts-a" style={{ ...A("ts-slideup"), animationIterationCount: 1, animationDuration: ".8s" }}>{row("📖", "Arise Reader", "#e0e7ff")}{row("➗", "Arise Math", "#dcfce7")}{row("🏛️", "Arise History", "#ffedd5")}{row("🔗", "Arise Connect", "#e0f2fe")}</div>
     </div>
     <TabBar />
   </Phone>;
@@ -297,7 +297,7 @@ export function TodoScene({ id }: { id: string }) {
   }
 }
 
-// ——— A.R.I.S.E. Reader (students) and Reader Educator —————————————————————————————————————————
+// ——— Arise Reader (students) and Reader Educator —————————————————————————————————————————
 
 const READ = "#5b4fe0";
 const cover = (c1: string, c2: string, t: string): CSSProperties => ({ background: `linear-gradient(160deg,${c1},${c2})`, borderRadius: 8, color: "#fff", fontSize: 8, fontWeight: 800, padding: 6, display: "flex", alignItems: "flex-end", boxShadow: "0 6px 12px -6px rgba(0,0,0,.5)", ...(t ? {} : {}) });
@@ -381,7 +381,7 @@ function EducatorFamily() {
   </Phone>;
 }
 
-/** A.R.I.S.E. Reader and Reader Educator tour scenes, by page id (components/ReaderFirstRun.tsx). */
+/** Arise Reader and Reader Educator tour scenes, by page id (components/ReaderFirstRun.tsx). */
 export function ReaderScene({ id }: { id: string }) {
   switch (id) {
     case "library": return <ReaderLibrary />;
@@ -394,7 +394,7 @@ export function ReaderScene({ id }: { id: string }) {
   }
 }
 
-// ——— Pod+ ————————————————————————————————————————————————————————————————————————————————————
+// ——— Podster ————————————————————————————————————————————————————————————————————————————————————
 
 const POD = "#ff6a1f";
 const art = (a: string, b: string): CSSProperties => ({ background: `linear-gradient(150deg,${a},${b})` });
@@ -432,7 +432,7 @@ function PodLearn() {
 
 function PodMake() {
   return <Phone theme="dark">
-    <div style={abs({ top: 28, left: 12 })}><Txt s={15} w={800}>Study Pod+</Txt></div>
+    <div style={abs({ top: 28, left: 12 })}><Txt s={15} w={800}>Study Podster</Txt></div>
     <div className="ts-a" style={abs({ top: 56, left: 10, right: 10, padding: 10, borderRadius: 14, background: "#1c1920", ...A("ts-fadeA") })}>
       <Txt s={8.5} w={700} c="rgba(255,255,255,.55)">Your notes</Txt>
       {[96, 88, 100, 72, 90, 64].map((w, k) => <div key={k} style={{ height: 5, width: `${w}%`, borderRadius: 3, background: "rgba(255,255,255,.14)", marginTop: 8 }} />)}
@@ -499,13 +499,13 @@ function PodEarn() {
       {[["1.2K", "plays"], ["86", "followers"], ["412", "Cheer points"]].map(([n, l]) => <div key={l} style={{ flex: 1, padding: 7, borderRadius: 10, background: "#f6f6f6" }}><Txt s={13} w={800}>{n}</Txt><div style={{ fontSize: 7.5, color: "#606060" }}>{l}</div></div>)}
     </div>
     <div style={abs({ top: 102, left: 10, right: 10, padding: "9px 10px", borderRadius: 14, background: "linear-gradient(140deg,#4f5fd6,#3d4fb8)", color: "#fff" })}>
-      <Txt s={11} w={900}>Pod+ Rise</Txt><div style={{ fontSize: 8.5, opacity: .85, marginTop: 2, whiteSpace: "normal" }}>Earn from your show, at your own prices</div>
+      <Txt s={11} w={900}>Podster Rise</Txt><div style={{ fontSize: 8.5, opacity: .85, marginTop: 2, whiteSpace: "normal" }}>Earn from your show, at your own prices</div>
     </div>
     <div style={abs({ top: 150, left: 10, right: 10 })}>{row("💎", "Supporter memberships", "Your biggest fans back you monthly", 0)}{row("🎧", "Premium episodes", "Choose what's free and what's paid", 1)}{row("👏", "Cheers from LivePods", "Listeners cheer while you're live", 2)}</div>
   </Phone>;
 }
 
-/** Pod+ tour scenes, by page id (podscroll/Welcome.tsx). */
+/** Podster tour scenes, by page id (podscroll/Welcome.tsx). */
 export function PodScene({ id }: { id: string }) {
   switch (id) {
     case "swipe": return <PodSwipe />;

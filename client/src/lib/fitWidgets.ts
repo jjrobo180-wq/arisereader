@@ -1,4 +1,4 @@
-// What the Arise Fit widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
+// What the Cooked widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
 // widget for each slot below. Pure, so it's tested.
 import { CATALOG_BY_ID, PROGRAM_BY_ID, fromKg, goals, nextProgramDay, streak, type FitData } from "@shared/fit";
 import { fastingStatus } from "@shared/fitNutrition";
@@ -68,4 +68,24 @@ export function applyFitTaps(data: FitData, taps: WidgetTap[], now = Date.now())
     water = { ...water, [k]: Math.max(0, Math.min(20000, Math.round((water[k] ?? 0) + ml))) };
   }
   return water === data.water ? data : { ...data, water };
+}
+
+/** What was done on the Apple Watch (native/fit-watch): a glass of water ({ type: "tap", action, amount })
+ *  or a workout tracked there ({ type: "workout", id, name, secs, kcal, bpm, start }). A workout already
+ *  in the log (sent twice) is skipped. */
+export function applyWatchActions(data: FitData, actions: { type: string; at: number; [k: string]: unknown }[], now = Date.now()): FitData {
+  const taps = actions.filter((a) => a.type === "tap" && typeof a.action === "string").map((a) => ({ id: "fit.water", action: String(a.action), amount: Number(a.amount) || 0, at: a.at || now }));
+  let next = taps.length ? applyFitTaps(data, taps, now) : data;
+  for (const a of actions) {
+    if (a.type !== "workout") continue;
+    const id = typeof a.id === "string" && /^[\w-]{4,40}$/.test(a.id) ? a.id : `watch-${a.at}`;
+    if (next.workouts.some((w) => w.id === id)) continue;
+    const secs = Math.max(0, Math.min(86400, Math.round(Number(a.secs) || 0)));
+    if (secs < 30) continue;
+    const start = typeof a.start === "string" && !Number.isNaN(Date.parse(a.start)) ? a.start : new Date((a.at || now) - secs * 1000).toISOString();
+    const kcal = Math.round(Number(a.kcal) || 0), bpm = Math.round(Number(a.bpm) || 0);
+    const note = ["From Apple Watch", kcal ? `${kcal} active cal` : "", bpm ? `avg ${bpm} bpm` : ""].filter(Boolean).join(" · ");
+    next = { ...next, workouts: [...next.workouts, { id, date: start, name: String(a.name || "Workout").slice(0, 80), secs, exercises: [], note }] };
+  }
+  return next;
 }

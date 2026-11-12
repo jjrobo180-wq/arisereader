@@ -36,7 +36,7 @@ export type NotesPlan = {
 };
 
 export const NOTES_PLANS: Record<NotesPlanId, NotesPlan> = {
-  free: { id: "free", name: "Free", monthlyCents: 0, minutes: 60, maxSecs: 30 * 60, rollover: false, speakers: false, iep: false, extras: false, people: 1, blurb: "Try it: an hour a month, summaries only." },
+  free: { id: "free", name: "Free", monthlyCents: 0, minutes: 60, maxSecs: 2 * 3600, rollover: false, speakers: true, iep: true, extras: true, people: 1, blurb: "Everything in Notes, with 60 AI minutes a month (shared with Podster's AI)." },
   basic: { id: "basic", name: "Basic", monthlyCents: 499, minutes: 600, maxSecs: 2 * 3600, rollover: false, speakers: false, iep: false, extras: true, people: 1, blurb: "10 hours a month and every tool except speaker labels." },
   plus: { id: "plus", name: "Plus", monthlyCents: 799, yearlyCents: 7999, minutes: 1500, maxSecs: 2 * 3600, rollover: true, speakers: true, iep: true, extras: true, people: 1, blurb: "25 hours a month, speaker labels, IEP mode and rollover." },
   family: { id: "family", name: "Family", monthlyCents: 999, minutes: 2000, maxSecs: 2 * 3600, rollover: true, speakers: true, iep: true, extras: true, people: 4, blurb: "2,000 minutes shared by up to 4 people, with everything in Plus." },
@@ -74,10 +74,11 @@ export type NotesFeature =
   | "templates" | "export" | "share" | "ask" | "memo" | "planner" | "calendar" | "parent" | "translate" | "study"
   | "speakers" | "iep" | "rollover";
 
-/** Free is summaries only; Basic is everything except speaker labels (and the Plus extras); Plus and Family have it all. */
+/** Every plan has every Notes tool; plans differ in AI minutes (Free: 60 a month, shared with Podster's AI).
+ *  Only rollover stays with Plus and Family. (Basic, an older plan, keeps everything too.) */
 export function allows(plan: NotesPlanId, feature: NotesFeature): boolean {
-  if (feature === "speakers" || feature === "iep" || feature === "rollover") return plan === "plus" || plan === "family";
-  return plan !== "free";
+  if (feature === "rollover") return plan === "plus" || plan === "family";
+  return true;
 }
 /** The cheapest plan that has a feature. */
 export const planFor = (feature: NotesFeature): NotesPlanId => (feature === "speakers" || feature === "iep" || feature === "rollover" ? "plus" : "basic");
@@ -212,6 +213,9 @@ export const PROVIDER_CENTS_PER_MIN: Record<string, number> = {
 /** AI writing (summaries, answers): about half a dollar a million tokens, at four characters a token. */
 export const aiCents = (chars: number) => Math.round((chars / 4) * 0.00005 * 10_000) / 10_000;
 
+export { NOTES_THEMES, SUITE_LOOKS, isThemeId, nightLook, themeOf, themeVars, type NotesTheme, type NotesThemeId } from "./notesThemes";
+import { isThemeId, type NotesThemeId } from "./notesThemes";
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export type AudioKeep = "delete" | "30d" | "keep";
@@ -224,6 +228,12 @@ export type NotesSettings = {
   simple: boolean;
   contrast: boolean;
   large: boolean;
+  /** Night mode: the chosen look in its dark colors. */
+  night: boolean;
+  /** The look picked in Settings > Appearance. */
+  theme: NotesThemeId;
+  /** Which round of "everyone starts on the new default look" this account has seen (see THEME_REV). */
+  themeRev?: number;
   /** Ask "Let everyone know this meeting is being recorded" before each recording. */
   consent: boolean;
   template: NotesTemplateId;
@@ -232,7 +242,11 @@ export type NotesSettings = {
   /** Where action items go by default. */
   hub: "life" | "work";
 };
-export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, consent: true, template: "general", voice: "hannah", hub: "life" };
+/** The look everyone starts on: Billboard (November 2026). */
+export const DEFAULT_THEME: NotesThemeId = "x-billboard";
+/** Raised when the default look changes for everyone: an account that has not seen this round yet moves to the default once, then keeps whatever it picks. */
+export const THEME_REV = 1;
+export const DEFAULT_SETTINGS: NotesSettings = { audio: "delete", font: "standard", simple: false, contrast: false, large: false, night: false, theme: DEFAULT_THEME, themeRev: THEME_REV, consent: true, template: "general", voice: "hannah", hub: "life" };
 const VOICES = ["hannah", "autumn", "diana", "austin", "daniel", "troy"];
 export function cleanSettings(raw: unknown): NotesSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -241,7 +255,10 @@ export function cleanSettings(raw: unknown): NotesSettings {
     font: r.font === "dyslexic" ? "dyslexic" : "standard",
     simple: r.simple === true,
     contrast: r.contrast === true,
+    night: r.night === true,
     large: r.large === true,
+    theme: r.themeRev === THEME_REV && isThemeId(r.theme) ? r.theme : DEFAULT_THEME,
+    themeRev: THEME_REV,
     consent: r.consent !== false,
     template: isTemplateId(r.template) ? r.template : "general",
     voice: typeof r.voice === "string" && VOICES.includes(r.voice) ? r.voice : "hannah",
@@ -304,7 +321,7 @@ export type NoteSummary = {
   iep: IepDraft | null;
 };
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+const str = (v: unknown, max: number) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+$/, (m) => (/^ $/.test(m) ? " " : "")).replace(/(\S)\s+(?=\S)/g, "$1 ").replace(/^\s+/, "").slice(0, max);
 const arr = (v: unknown, max: number): unknown[] => (Array.isArray(v) ? v.slice(0, max) : []);
 export const isDay = (v: unknown): v is string => {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;

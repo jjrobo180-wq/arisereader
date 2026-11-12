@@ -15,7 +15,7 @@ html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 body{margin:0}
 img{max-width:100%}
 
-/* Layout: the A.R.I.S.E. family. Light To-Do surfaces (off-white page, white cards, soft blue shadows, teal-blue-purple gradient, Manrope + DM Sans) with A.R.I.S.E. Reader's deep plum for course banners and the certificate moment. Light on purpose, like arisetodo.com. */
+/* Layout: the A.R.I.S.E. family. Light To-Do surfaces (off-white page, white cards, soft blue shadows, teal-blue-purple gradient, Manrope + DM Sans) with Arise Reader's deep plum for course banners and the certificate moment. Light on purpose, like arisetodo.com. */
 :root{
   --bg:#F9FAFC; --surface:#FFFFFF; --surface-2:#F2F5FC; --ink:#1C2238; --ink-2:#4A556F; --ink-3:#69738C; --line:#E9EDF5; --line-2:#DCE4F0;
   --blue:#5169ED; --teal:#11B9AF; --purple:#8B64E9;
@@ -799,7 +799,9 @@ async function manageSocial(forUserId){
   location.href = r.url;
 }
 /** Sends people to the main site to sign up or sign in, and back here afterwards. */
-function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} location.href = path; }
+/** The main site's sign-in and sign-up screens live behind its hash router ("/#/signin"), so "/" or
+ *  "/register" would open the Arise Reader front page instead. It brings people back here after. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} const p = String(path || '/'); location.href = p.startsWith('/#') ? p : '/#' + (p === '/' ? '/signin' : p); }
 
 /* ================= STATE ================= */
 let CAT = null;                 // catalog: careers, quests, roadmap...
@@ -861,7 +863,7 @@ function renderChrome(){
       ${S.menu?`<div class="menu" role="menu"><div class="who">${av(ME.user.name,'m',true)}<div><b>${esc(ME.user.name)}</b><span>${esc(headline())}</span></div></div>
         ${role()==='student'&&ME.access?`<button data-act="tab" data-v="profile">${svg('passport')}View my profile</button>`:''}
         ${PLAN && PLAN.apps && ((role()==='teacher' && PLAN.apps.social.paidByYou) || (role()==='parent' && PLAN.bundle && PLAN.bundle.paidByYou)) ? `<button data-act="manage">${svg('star')}Manage billing</button>` : ''}
-        <a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}</div>`;
+        <a href="/">${svg('book')}Open Arise Reader</a></div>`:''}</div>`;
 }
 
 /* ================= SIGNED-OUT LANDING ================= */
@@ -873,7 +875,7 @@ function landingHTML(){
         <p class="lede" style="margin-bottom:10px">Watch Gordon Ramsay cook, Ninja talk about going pro, Shigeru Miyamoto design Mario, Steph Curry, Simone Biles and Chris Hadfield in space. Every career and course comes with videos from famous people who do it.</p>
         <p class="lede">A.R.I.S.E. Connect is like LinkedIn and LinkedIn Learning for students. Take short career courses, earn certificates for your profile, explore every path from apprenticeships to college, and celebrate wins with your class. Every student post is approved by a teacher, and there are no private messages.</p>
         <div class="join"><button class="btn" data-act="join">${svg('plus')}Sign up as a student</button><button class="btn ghost" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button><button class="btn ghost" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button></div>
-        <p class="sub small" style="margin-top:10px">Families can get Connect with Math and History in the $10/month Learning Bundle covering up to three children. Teachers can add Connect separately. A.R.I.S.E. Reader and To-Do stay free. Already have an account? <a href="/" data-act="signin">Log in</a>.</p></div>
+        <p class="sub small" style="margin-top:10px">Families can get Connect with Math and History in the $10/month Learning Bundle covering up to three children. Teachers can add Connect separately. Arise Reader and To-Do stay free. Already have an account? <a href="/" data-act="signin">Log in</a>.</p></div>
       <div class="hero-cert">${CAT.courses?certificateHTML(CAT.courses.find(c=>c.id==='musc')||CAT.courses[0], null, 'Your name', true):''}</div>
     </section>
     <div class="points">${[['Closed class community','Only your classmates and teachers see posts. No student searching or follow requests.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Teacher approval','Teachers approve students for Connect and approve every student post.'],['Every path counts','Apprenticeships, military, community college, certificates and four-year college, side by side.']].map(([t,d])=>`<div class="box pad-s"><b class="pt">${svg('check')}${t}</b><p class="sub">${d}</p></div>`).join('')}</div>
@@ -887,7 +889,7 @@ function joinHTML(){
   return `<div class="center-page"><div class="box pad stack"><div class="eyebrow">A.R.I.S.E. Connect · 30-day free trial</div>
     <h1>Hi ${esc(u.name.split(' ')[0])}, your free trial has ended.</h1>
     <p class="sub">A teacher can add A.R.I.S.E. Connect for the whole class for $7 a month, or a family can get it with Arise History and Arise Math in the $10 Learning Bundle.</p>
-    <div><a class="btn ghost" href="/">Back to A.R.I.S.E. Reader</a></div></div></div>
+    <div><a class="btn ghost" href="/">Back to Arise Reader</a></div></div></div>
     <section class="section"><div class="cat-head"><h2>Look around</h2><span class="muted">Careers are free to browse.</span></div><div class="grid">${CAT.careers.slice(0,8).map(careerCard).join('')}</div></section>`;
 }
 
@@ -1140,7 +1142,7 @@ function viewFamily(){
   const kids = S.children;
   let main;
   if (kids===null) main = '<div class="skeleton"></div>';
-  else if (!kids.length) main = `<div class="box pad stack"><h1 class="page-h">Link your child to get started</h1><p class="sub">Once your child’s A.R.I.S.E. Reader account is linked to yours, you’ll see their certificates, careers, quests and events here.</p><div><a class="btn" href="/parent-dashboard">Go to your parent dashboard</a></div></div>`;
+  else if (!kids.length) main = `<div class="box pad stack"><h1 class="page-h">Link your child to get started</h1><p class="sub">Once your child’s Arise Reader account is linked to yours, you’ll see their certificates, careers, quests and events here.</p><div><a class="btn" href="/parent-dashboard">Go to your parent dashboard</a></div></div>`;
   else {
     const k = currentChild(), p = k.profile;
     const byC = Object.keys(CAT.clusters).map(x=>({k:x, n:p.collected.filter(id=>C(id)?.c===x).length + p.saved.filter(id=>C(id)?.c===x).length})).sort((a,b)=>b.n-a.n).slice(0,4);
@@ -1174,7 +1176,7 @@ function viewFamily(){
 /* ================= TEACHER ================= */
 function viewApprovals(){
   const list = S.approvals, requests = S.accessRequests;
-  const entry = role()==='teacher' ? `<div class="box"><div class="box-head"><div><h2>Student Connect access requests</h2><p class="sub">Students can’t enter A.R.I.S.E. Connect until you approve them here. This is separate from A.R.I.S.E. Reader class approval.</p></div></div>
+  const entry = role()==='teacher' ? `<div class="box"><div class="box-head"><div><h2>Student Connect access requests</h2><p class="sub">Students can’t enter A.R.I.S.E. Connect until you approve them here. This is separate from Arise Reader class approval.</p></div></div>
     ${requests===null?'<div class="skeleton"></div>':requests.length?requests.map(p=>`<div class="invite">${av(p.name,'m')}<div class="who"><b>${esc(p.name)}</b><span class="sub">Wants to join A.R.I.S.E. Connect</span></div><div class="invite-actions"><button class="btn ghost small" data-act="review-access" data-id="${p.id}" data-v="deny">Deny</button><button class="btn small" data-act="review-access" data-id="${p.id}" data-v="approve">Approve access</button></div></div>`).join(''):'<p class="empty-in">No student access requests waiting.</p>'}</div>` : '';
   if (!ME.access) return `<div class="page narrow">${entry}</div>`;
   return `<div class="layout2 rev"><section class="stack">${entry}<div class="box"><div class="box-head"><div><h2>Post approvals</h2><p class="sub">Your students’ posts wait here until you approve them. Nobody else sees them before that.</p></div><span class="sub">${list?list.length:0} waiting</span></div>
@@ -1189,7 +1191,7 @@ function pathOptions(sel, none){ return `<option value="">${esc(none)}</option>$
 function viewAdminStudents(){
   const d = S.adm;
   const head = `<div class="box pad"><div class="eyebrow">Admin</div><h1 class="page-h" style="margin-top:6px">Add students to A.R.I.S.E. Connect</h1>
-    <p class="sub" style="margin-top:8px">Pick students, choose a career path for them if you like, and add them. Each student gets a notification in their A.R.I.S.E. Reader bell. When they tap it, Connect opens already signed in, on the career path you picked. Added students don’t need a teacher’s Connect approval or a paid plan. Their posts still go to their own teacher first.</p></div>`;
+    <p class="sub" style="margin-top:8px">Pick students, choose a career path for them if you like, and add them. Each student gets a notification in their Arise Reader bell. When they tap it, Connect opens already signed in, on the career path you picked. Added students don’t need a teacher’s Connect approval or a paid plan. Their posts still go to their own teacher first.</p></div>`;
   if (!d) return `<div class="page">${head}<div class="skeleton"></div></div>`;
   const q = S.admQ.trim().toLowerCase();
   const list = d.students.filter(s => (S.admShow==='all' || (S.admShow==='added') === s.added) && (!q || [s.name, s.username, s.teacherName||'', s.grade||''].join(' ').toLowerCase().includes(q)));
@@ -1240,7 +1242,7 @@ function viewClass(){
   return `<div class="page"><div class="box pad"><div class="eyebrow">Your class</div><h1 class="page-h" style="margin-top:6px">${ci.totals.students} student${ci.totals.students===1?'':'s'} · ${certs} certificate${certs===1?'':'s'} · ${ci.totals.questsDone} quest${ci.totals.questsDone===1?'':'s'} done</h1>
     <div class="statgrid"><div><b>${ci.totals.activeWeek}</b><span>Active this week</span></div><div><b>${ci.totals.pending}</b><span>Waiting for you</span></div><div><b>${(S.events||[]).length}</b><span>Upcoming events</span></div></div>
     ${ci.totals.pending?`<button class="btn" style="margin-top:14px" data-act="tab" data-v="approvals">Review ${ci.totals.pending} post${ci.totals.pending>1?'s':''}</button>`:''}</div>
-  <div class="box pad"><h2 class="sec-h">Students</h2>${ci.students.length?`<div class="table-wrap"><table><thead><tr><th>Student</th><th class="tnum">Certificates</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td><span class="row">${av(s.name,'s')}${esc(s.name)}</span></td><td class="tnum">${s.certificates||0}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="sub">Students appear here once you’ve approved them in A.R.I.S.E. Reader.</p>'}</div>
+  <div class="box pad"><h2 class="sec-h">Students</h2>${ci.students.length?`<div class="table-wrap"><table><thead><tr><th>Student</th><th class="tnum">Certificates</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td><span class="row">${av(s.name,'s')}${esc(s.name)}</span></td><td class="tnum">${s.certificates||0}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="sub">Students appear here once you’ve approved them in Arise Reader.</p>'}</div>
   <div class="box pad"><h2 class="sec-h">What your class is exploring</h2>${counts.length?`<div class="cbars">${counts.map(([k,n])=>`<div class="cbar"><span>${esc(CAT.clusters[k]?.name||k)}</span><span class="bar"><i style="width:${n/max*100}%;background:${clusterColor(k)}"></i></span><span class="tnum">${n}</span></div>`).join('')}</div><p class="sub small" style="margin-top:10px">Careers your students have collected. Handy for picking your next guest speaker.</p>`:'<p class="sub">Nothing collected yet. Share the link <b>arisereader.com/social</b> with your class.</p>'}</div></div>`;
 }
 
@@ -1249,12 +1251,12 @@ function connectLockHTML(){
   const status = ME.approvalStatus, teacher = ME.user.teacherName;
   const head = status==='pending' ? 'Waiting for your teacher' : status==='needs_class' ? 'Connect needs a teacher' : status==='denied' ? 'Access not approved yet' : 'Ask to join A.R.I.S.E. Connect';
   const detail = status==='pending' ? `Your request was sent to ${esc(teacher||'your teacher')}. You can use Connect once they approve it.`
-    : status==='needs_class' ? 'First, join a teacher’s class in A.R.I.S.E. Reader and get approved there.'
+    : status==='needs_class' ? 'First, join a teacher’s class in Arise Reader and get approved there.'
     : status==='denied' ? 'Your teacher has not approved Connect access. You can send another request.'
     : `Send a request to ${esc(teacher||'your teacher')} to unlock A.R.I.S.E. Connect.`;
   return `<div class="center-page"><div class="box pad stack center"><span class="lock-ico">${svg('lock')}</span><div class="eyebrow">A.R.I.S.E. Connect</div><h1 class="page-h">${head}</h1><p class="sub">${detail}</p>
   ${status==='not_requested'||status==='denied'?'<div><button class="btn" data-act="request-access">Request teacher approval</button></div>':''}
-  <div><a class="btn ghost" href="/">Back to A.R.I.S.E. Reader</a></div></div></div>`;
+  <div><a class="btn ghost" href="/">Back to Arise Reader</a></div></div></div>`;
 }
 
 /* ================= LEARNING: career courses + certificates ================= */
@@ -1779,7 +1781,7 @@ function burst(){
   S.tab = 'stars';
   if (role()==='student' && ME.assignedPath) S.lpath = ME.assignedPath.id;
   render();
-  // Opened from the "You're in A.R.I.S.E. Connect!" notification in A.R.I.S.E. Reader.
+  // Opened from the "You're in A.R.I.S.E. Connect!" notification in Arise Reader.
   if (/[?&]welcome=1/.test(location.search)) {
     try { history.replaceState(null, '', location.pathname); } catch {}
     if (role()==='student' && ME.approvalStatus==='approved') toast(ME.assignedPath ? `Welcome! Your career path: ${ME.assignedPath.title}` : 'Welcome to A.R.I.S.E. Connect!');

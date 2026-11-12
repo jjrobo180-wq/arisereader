@@ -20,7 +20,7 @@ export function HubTrialNote({ trial, which, upgradeHref, onUpgrade }: { trial: 
     <Clock3 className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
     <p className="min-w-0 flex-1 leading-6">
       <b>You're on a free trial of Arise {name} · {left}.</b>{" "}
-      If you don't upgrade, everything in {name} goes away when the trial ends{which === "work" ? " (LifeHub too)" : ""}. You'll keep your A.R.I.S.E. Reader tools, and your saved work comes back if you upgrade later.
+      If you don't upgrade, everything in {name} goes away when the trial ends{which === "work" ? " (LifeHub too)" : ""}. You'll keep your Arise Reader tools, and your saved work comes back if you upgrade later.
     </p>
     {onUpgrade
       ? <button type="button" onClick={onUpgrade} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 px-4 font-bold text-slate-950 hover:bg-amber-400">Upgrade</button>
@@ -37,7 +37,7 @@ export function HubEndedNote({ which, upgradeHref, onUpgrade, children }: { whic
       <div className="min-w-0 flex-1">
         <h2 className="text-lg font-bold text-slate-950">Arise {name} needs a plan</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          {which === "work" ? "Your caseload, calendar, tasks, notes and the rest of WorkHub (and LifeHub) are locked." : "Your lists, calendar, chores, food & fitness and the rest of LifeHub are locked."} Everything you saved is kept and comes back when you upgrade. Your A.R.I.S.E. Reader tools below still work.
+          {which === "work" ? "Your caseload, calendar, tasks, notes and the rest of WorkHub (and LifeHub) are locked." : "Your lists, calendar, chores, food & fitness and the rest of LifeHub are locked."} Everything you saved is kept and comes back when you upgrade. Your Arise Reader tools below still work.
         </p>
         {isNativeApp() && <p className="mt-2 text-sm leading-6 text-slate-600">{NATIVE_NO_PURCHASE}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
