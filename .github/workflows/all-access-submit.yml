@@ -1,0 +1,18 @@
+name: All Access submit (temporary)
+on:
+  push:
+    branches: [all-access-shot]
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          STAGE: "1"
+        run: python3 script/allAccessSubmit.py
