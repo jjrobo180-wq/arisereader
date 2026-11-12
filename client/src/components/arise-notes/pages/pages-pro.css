@@ -276,3 +276,7 @@
 html:has(.an-root.an-pro), body:has(.an-root.an-pro) { background: #f2f2f7 !important; background-image: none !important; }
 html:has(.an-root.an-pro:not(.an-pro-dark) .pp-min), body:has(.an-root.an-pro:not(.an-pro-dark) .pp-min) { background: #ffffff !important; }
 html:has(.an-root.an-pro-dark), body:has(.an-root.an-pro-dark) { background: #0f0f11 !important; }
+/* The + menu matches the plain look: a white card with dark words (dark gray in dark mode). */
+.an-root.an-pro [data-testid="notes-dock-menu"] { background: var(--an-card) !important; color: var(--an-ink) !important; box-shadow: 0 0 0 1px var(--an-line), 0 18px 40px -12px rgba(0,0,0,.25) !important; }
+.an-root.an-pro [data-testid="notes-dock-menu"] button:hover { background: color-mix(in srgb, var(--an-ink) 6%, transparent) !important; }
+.an-root.an-pro [data-testid="notes-dock-menu"] button > span { background: color-mix(in srgb, var(--an-ink) 7%, transparent) !important; color: var(--an-ink); }

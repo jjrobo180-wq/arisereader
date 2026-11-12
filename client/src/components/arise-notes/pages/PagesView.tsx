@@ -271,7 +271,6 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
       <button type="button" aria-label="Done selecting" onClick={stopSelecting}><X /></button>
     </div>}
     {undo && <div className="pp-undo" role="status" data-testid="pages-undo"><span className="min-w-0 flex-1 truncate">Deleted “{undo.title}”</span><button type="button" onClick={() => { sync.restore(undo.id); setUndo(null); say("Restored."); }}>Undo</button></div>}
-    {filter.kind !== "trash" && !wide && <button type="button" className="pp-compose" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>}
   </div>;
 
   /** The phone's first screen: your folders, with search across every note. */
@@ -287,7 +286,6 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
       </label>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-44">{state === "loading" && !metas.length ? <Spinner /> : nav}</div>
-    <button type="button" className="pp-compose" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new" aria-label="New note"><SquarePen className="h-6 w-6" /></button>
   </div>;
 
   const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
