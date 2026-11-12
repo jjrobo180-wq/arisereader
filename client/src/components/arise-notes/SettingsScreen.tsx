@@ -2,7 +2,7 @@
 // (including deleting everything), accessibility, and defaults.
 import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
-import { AudioLines, Blocks, Check, ChevronRight, Crown, Eye, LayoutGrid, LogOut, Mic, Palette, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
+import { Blocks, Check, ChevronRight, Crown, Eye, LayoutGrid, LogOut, Palette, Shield, Trash2, Type, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
@@ -43,11 +43,10 @@ export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab })
   </>;
 }
 
-function Row({ icon, label, detail, onClick, danger, testId }: { icon: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
-  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_4%,transparent)]">
-    <span className="grid h-7 w-7 shrink-0 place-items-center [&>svg]:h-[18px] [&>svg]:w-[18px]" style={{ color: danger ? "var(--an-coral)" : "var(--an-muted)" }}>{icon}</span>
-    <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block truncate text-[12.5px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
-    <ChevronRight className="h-4 w-4 shrink-0 opacity-60" style={{ color: "var(--an-muted)" }} aria-hidden />
+function Row({ label, detail, onClick, danger, testId }: { icon?: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
+  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2.5 text-left transition active:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
+    <span className="min-w-0 flex-1"><span className="block text-[16px] leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block truncate text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
+    <ChevronRight className="h-4 w-4 shrink-0 opacity-40" style={{ color: "var(--an-muted)" }} aria-hidden />
   </button>;
 }
 /** The App Gallery and the apps you've added (notesAppsCatalog.tsx). */
@@ -60,8 +59,8 @@ function AppsGroup({ ctx }: { ctx: AppCtx }) {
   </Group>;
 }
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
-  <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[.16em]" style={{ color: "var(--an-muted)" }}>{title}</h2>
-  <div className="divide-y divide-[var(--an-line)] overflow-hidden border border-[var(--an-line)] bg-[var(--an-card)]" style={{ borderRadius: "min(var(--an-radius, 18px), 22px)" }}>{children}</div>
+  <h2 className="mb-1 px-4 text-[12px] font-medium" style={{ color: "var(--an-muted)" }}>{title}</h2>
+  <div className="divide-y divide-[var(--an-line)] overflow-hidden border-y border-[var(--an-line)] bg-[var(--an-card)]">{children}</div>
 </section>;
 
 function MenuHome({ ctx }: { ctx: AppCtx }) {
@@ -70,35 +69,16 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
   const name = ctx.me.user.name || "You";
   const pct = Math.min(100, u.pct);
   const look = NOTES_THEMES.find((t) => t.id === s.theme);
-  const quick: [string, ReactNode, () => void][] = [
-    ["Record", <Mic key="r" />, () => ctx.go({ name: "record" })], ["Upload", <Upload key="u" />, () => ctx.go({ name: "upload" })],
-    ["Memo", <AudioLines key="m" />, () => ctx.go({ name: "memo" })], ["Ask AI", <Sparkles key="a" />, () => ctx.go({ name: "ask" })],
-  ];
   return <>
-    <TopBar ctx={ctx} title="You" />
-    <main className="mx-auto max-w-2xl space-y-7 px-4 pb-32 pt-5 sm:px-5" data-testid="notes-menu">
-      <section className="flex items-center gap-3.5">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-[18px] font-black" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)" }}>{name.trim().charAt(0).toUpperCase()}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-[19px] font-extrabold leading-tight tracking-tight" style={{ color: "var(--an-ink)" }}>{name}</p>
-          <p className="text-[13px]" style={{ color: "var(--an-muted)" }}>{ctx.me.planName}{u.pooled ? " · family minutes" : ""}</p></div>
-      </section>
-
-      <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} data-testid="notes-menu-minutes" className="block w-full border border-[var(--an-line)] bg-[var(--an-card)] p-4 text-left" style={{ borderRadius: "min(var(--an-radius, 16px), 18px)" }}>
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[.16em]" style={{ color: "var(--an-muted)" }}>Minutes this month</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: "var(--an-violet)" }}>Plan</p>
-        </div>
-        <p className="mt-1.5 text-[26px] font-extrabold leading-none tabular-nums tracking-tight" style={{ color: "var(--an-ink)" }}>{u.left.toLocaleString("en-US")}<span className="ml-1.5 text-[13px] font-semibold" style={{ color: "var(--an-muted)" }}>left</span></p>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-ink) 9%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1.5)}%`, background: "var(--an-violet)" }} /></div>
-        <p className="mt-2 text-[12px]" style={{ color: "var(--an-muted)" }}>{u.used.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} used · starts again {dayWords(u.resetOn)}</p>
+    <header className="an-noprint pt-[var(--sat,env(safe-area-inset-top,0px))]"><h1 className="mx-auto max-w-2xl px-4 pb-1 pt-5 text-[30px] font-bold tracking-tight sm:px-5" style={{ color: "var(--an-ink)" }}>Settings</h1></header>
+    <main className="mx-auto max-w-2xl space-y-6 pb-32 pt-3" data-testid="notes-menu">
+      <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} data-testid="notes-menu-minutes" className="block w-full border-y border-[var(--an-line)] bg-[var(--an-card)] px-4 py-3.5 text-left">
+        <div className="flex items-baseline justify-between gap-3"><p className="truncate text-[16px]" style={{ color: "var(--an-ink)" }}>{name}</p><p className="shrink-0 text-[13px]" style={{ color: "var(--an-muted)" }}>{ctx.me.planName}{u.pooled ? " · family" : ""}</p></div>
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-ink) 9%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1.5)}%`, background: "var(--an-ink)", opacity: .7 }} /></div>
+        <p className="mt-2 text-[13px]" style={{ color: "var(--an-muted)" }}>{u.left.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} minutes left · resets {dayWords(u.resetOn)}</p>
       </button>
 
-      <section aria-label="Quick actions" className="grid grid-cols-4 gap-2">
-        {quick.map(([label, icon, go]) => <button key={label} type="button" onClick={go} data-testid={`notes-menu-${label.toLowerCase().replace(/\s+/g, "-")}`} className="flex flex-col items-center gap-1.5 py-1 text-[12px] font-semibold transition active:scale-95" style={{ color: "var(--an-ink)" }}>
-          <span className="grid h-12 w-12 place-items-center rounded-full border border-[var(--an-line)] bg-[var(--an-card)] [&>svg]:h-5 [&>svg]:w-5" style={{ color: "var(--an-violet)" }}>{icon}</span>{label}</button>)}
-      </section>
-
-      <Group title="Make it yours">
+      <Group title="Preferences">
         <Row icon={<Palette />} label="Appearance" detail={s.contrast ? "High contrast is on" : `${look?.label ?? "Classic"} look`} onClick={() => ctx.go({ name: "settings", tab: "look" })} testId="notes-menu-look" />
         <Row icon={<Eye />} label="Accessibility" detail="Text size, simple text, read-aloud voice" onClick={() => ctx.go({ name: "settings", tab: "access" })} testId="notes-menu-access" />
       </Group>
