@@ -311,6 +311,22 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
   .foot nav{margin-left:0}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:880px;margin:44px auto 0}
+@media (max-width:760px){.pricing-grid{grid-template-columns:1fr}}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:24px;padding:28px;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.pcard.best{background:#1c2238;color:#fff;border:2px solid transparent;background-image:linear-gradient(#1c2238,#1c2238),var(--grad);background-origin:border-box;background-clip:padding-box,border-box}
+.pcard .ptag{align-self:flex-start;background:var(--grad);color:#fff;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:800;letter-spacing:.04em;margin-bottom:12px}
+.pcard h3{margin:0;font-size:21px}
+.pcard .amt{font-size:56px;font-weight:800;letter-spacing:-2px;line-height:1;margin:12px 0 4px}
+.pcard .amt span{font-size:16px;font-weight:600;letter-spacing:0;color:var(--muted)}
+.pcard.best .amt span,.pcard.best .pdesc,.pcard.best li small{color:#aab3c9}
+.pcard .pdesc{color:var(--muted);margin:4px 0 18px}
+.pcard ul{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:10px;flex:1}
+.pcard li{display:flex;gap:10px;font-size:15px;text-align:left}
+.pcard li::before{content:"✓";color:var(--teal);font-weight:800;flex:none}
+.pcard li small{display:block;color:var(--muted);font-size:12.5px;font-weight:500}
+.pcard .button{width:100%}
+.pfine{text-align:center;color:var(--muted);font-size:14px;margin-top:18px}
 </style>
 </head>
 <body>
@@ -351,7 +367,9 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
       <a href="#social">Social</a>
       <a href="/creators/">For creators</a>
       <a href="#earn">Make money</a>
+      <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
+      <a href="/app/?signin" data-testid="pod-home-signin">Sign in</a>
       <a class="button button-primary" href="/app/">Open Podster <svg><use href="#i-arrow"/></svg></a>
     </nav>
   </div>
@@ -635,6 +653,26 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
     </div>
   </section>
 
+  <!-- Pricing -->
+  <section class="block white" id="pricing">
+    <div class="container center">
+      <span class="eyebrow">Pricing</span>
+      <h2 class="h2">Free to listen. <span class="gradient-text">Ad-free for $10.</span></h2>
+      <p style="color:var(--muted);font-size:17px;max-width:600px;margin:12px auto 0">Podster is free with ads. Arise All Access skips the ads and lets creators earn, and it unlocks every other Arise app too.</p>
+    </div>
+    <div class="container">
+      <div class="pricing-grid">
+        <div class="pcard"><h3>Free</h3><div class="amt">$0</div><p class="pdesc">Everything you need to listen and share.</p>
+          <ul><li>Every podcast from Apple Podcasts</li><li>The swipe feed, Clips and Open Mic</li><li>Posts, replies, follows and LivePods</li><li>Make and publish your own show</li><li>Works on any phone or computer</li></ul>
+          <a class="button button-secondary" href="/app/?signup">Create free account</a></div>
+        <div class="pcard best"><span class="ptag">BEST VALUE</span><h3>Arise All Access</h3><div class="amt">$10<span> a month</span></div><p class="pdesc">One plan for every Arise app. Cancel any time.</p>
+          <ul><li><div><b>Podster</b><small>Ad-free listening, plus earning from your own show</small></div></li><li><div><b>Cooked Fitness by Arise</b><small>Premium All in one Health &amp; Fitness App, with a guest pass for a friend</small></div></li><li><div><b>Arise To Duo</b><small>Unlimited: every plugin and AI</small></div></li><li><div><b>Arise Notes</b><small>Plus: 1,500 minutes a month</small></div></li></ul>
+          <a class="button button-primary" href="/app/?signup">Get All Access</a></div>
+      </div>
+      <p class="pfine">Creator earnings are opening soon. There are no follower, play or time minimums.</p>
+    </div>
+  </section>
+
   <!-- FAQ -->
   <section class="block tint" id="faq">
     <div class="container center">
@@ -673,7 +711,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
     <div class="foot">
       <a class="logo" href="#top" style="font-size:17px"><svg viewBox="0 0 64 64" aria-hidden="true" style="width:32px;height:32px"><rect x="1" y="1" width="62" height="62" rx="18" fill="url(#lg)"/><path d="M21 17.5v29a2 2 0 0 0 3.05 1.7l23.2-14.5a2 2 0 0 0 0-3.4L24.05 15.8A2 2 0 0 0 21 17.5z" fill="#fff"/><path d="M48 9v10M43 14h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg><span>Podster</span></a>
       <span class="tag">Connect. Explore. Create. · 2026</span>
-      <nav aria-label="Footer"><a href="#feed">The feed</a><a href="#features">Features</a><a href="#social">Social</a><a href="/creators/">For creators</a><a href="#earn">Make money</a><a href="#faq">FAQ</a><a href="/app/">Open Podster</a></nav>
+      <nav aria-label="Footer"><a href="#feed">The feed</a><a href="#features">Features</a><a href="#social">Social</a><a href="/creators/">For creators</a><a href="#earn">Make money</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="/app/?signin">Sign in</a><a href="/app/">Open Podster</a></nav>
     </div>
     <p class="fine">Apple Podcasts is a trademark of Apple Inc. Podster is an independent app, not made or endorsed by Apple. The previews on this page are samples.</p>
   </div>

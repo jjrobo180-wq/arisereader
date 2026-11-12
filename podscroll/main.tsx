@@ -64,7 +64,10 @@ function App() {
   // Listening is free with no account, with ads. Ad skip is for All Access members only. Signing in is for creators (earning from their show) and keeping your place on every device.
   const pro = !!session;
   // The sign-in screen: "signin" from the Sign in button, "signup" from Become a member.
-  const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
+  // The homepage's Sign in and Create account links open here as /app/?signin and /app/?signup.
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(() => {
+    try { const q = new URLSearchParams(location.search); return q.has("signup") ? "signup" : q.has("signin") ? "signin" : null; } catch { return null; }
+  });
   const [email, setEmailState] = useState(() => read("podscroll.email") || "");
   // Signed in from before this update: use this account's own things on this device (reloads once).
   useEffect(() => { if (session && email) setAccount(email); }, [session, email]);

@@ -316,6 +316,17 @@ function ReaderPlanGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Cooked Fitness by Arise and Cooked PT on the website: signed out, their own branded sign-in
+ *  (?start=signup opens on making an account); signed in, the app. */
+function AppSignInGate({ flavor, children }: { flavor: "fit" | "trainer"; children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <div className="fixed inset-0" style={{ background: "#f2f2f4" }} />;
+  if (user) return <>{children}</>;
+  let start: "welcome" | "signup" = "welcome";
+  try { if (new URLSearchParams(window.location.search).get("start") === "signup") start = "signup"; } catch { /* welcome */ }
+  return <NativeSignIn flavor={flavor} start={start} />;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading, token } = useAuth();
   const [location] = useLocation();
@@ -604,7 +615,8 @@ function AppRoutes() {
     <Suspense fallback={<PageFallback path={routePath} />}>
     <Switch key={routePath}>
       <Route path="/fit">
-        <ProtectedRoute><FitApp /></ProtectedRoute>
+        {/* Signed out on the website: Cooked Fitness by Arise's own sign-in (from arisetodo.com/cooked/), not the To Duo homepage. */}
+        <AppSignInGate flavor="fit"><ProtectedRoute><FitApp /></ProtectedRoute></AppSignInGate>
       </Route>
       {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
       <Route path="/all-access">
@@ -626,7 +638,8 @@ function AppRoutes() {
       {/* A goal quiz a teacher sent as a link: no sign-in (shared/hubIep.ts). */}
       <Route path="/goal-quiz/:code"><GoalQuizPage /></Route>
       <Route path="/trainer">
-        <ProtectedRoute><TrainerApp /></ProtectedRoute>
+        {/* Signed out on the website: Cooked PT's own sign-in (from arisetodo.com/cooked-pt/). */}
+        <AppSignInGate flavor="trainer"><ProtectedRoute><TrainerApp /></ProtectedRoute></AppSignInGate>
       </Route>
       <Route path="/lifehub">
         {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
