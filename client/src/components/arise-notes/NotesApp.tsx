@@ -12,6 +12,7 @@ import { startApplePush } from "@/lib/applePush";
 import { isNotesApp, nativeCall } from "@/lib/nativeApp";
 import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
+import { setNotesLookup } from "@/undercover/askUndercover";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { newPageId, pagesSyncFor } from "./pages/pagesSync";
@@ -121,6 +122,17 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const tokenRef = useRef(token);
   tokenRef.current = token;
   useEffect(() => { setNotesToken(() => tokenRef.current); }, []);
+  // Every AI in Notes answers from the person's notes and the web together (askUndercover.ts).
+  useEffect(() => {
+    setNotesLookup(async (question) => {
+      const day = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+      const r = await notesApi.ask(question, day);
+      if (!r?.found || !r.answer) return null;
+      const titles = [...new Set((r.cites || []).map((c) => c.title).filter(Boolean))].slice(0, 4).join("; ");
+      return `${r.answer.replace(/\[\d{1,2}\]/g, "").trim()}${titles ? ` (from: ${titles})` : ""}`;
+    });
+    return () => setNotesLookup(null);
+  }, []);
   // The Notes iPhone app: notifications (80% of the minutes used, out of minutes, and messages from
   // the rest of Arise to this account). iOS asks once.
   useEffect(() => { if (isNotesApp() && user) void startApplePush(true); }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
