@@ -294,13 +294,14 @@ function Settings({ saved, save, onClose, onExit }: { saved: Saved; save: (s: Sa
   </div>;
 }
 
-export default function UndercoverApp({ onExit }: { onExit?: () => void } = {}) {
+export default function UndercoverApp({ onExit, ask }: { onExit?: () => void; /** Arise Notes' Ask button: the back button leaves, and the look picker never pops up. */ ask?: boolean } = {}) {
   const [saved, setSaved] = useState<Saved>(load);
   // First time: open the look picker so people see the choices and where settings live.
-  const [menu, setMenu] = useState(() => { try { return !localStorage.getItem(KEY); } catch { return false; } });
+  const [menu, setMenu] = useState(() => { if (ask) return false; try { return !localStorage.getItem(KEY); } catch { return false; } });
   const save = (s: Saved) => { setSaved(s); store(s); };
   const chat = useChat(saved.theme, saved, save);
-  const onMenu = () => setMenu(true);
+  // From the Ask button, back / close / file all just go back to the notes. The look is picked in the App Gallery.
+  const onMenu = ask && onExit ? onExit : () => setMenu(true);
   useEffect(() => {
     document.body.style.margin = "0";
     // The document looks use a serif like a word processor's; load it once.

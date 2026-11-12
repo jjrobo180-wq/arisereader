@@ -266,3 +266,13 @@
 /* The You circle on the light bar: dark circle, light letter (it was white on white). */
 .an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tab-menu"] > span { background: var(--an-faint) !important; color: #fff !important; }
 .an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tab-menu"][aria-current="page"] > span { background: var(--an-ink) !important; }
+
+/* The strip behind the clock and the page are always one color: on the Notes page the whole app
+   (root, the clock strip and the list) is plain white in light mode, with no tint or gradient. */
+.an-root.an-pro:not(.an-pro-dark):has(.pp-min) { --an-bg: #ffffff !important; background: #ffffff !important; background-image: none !important; }
+.an-root.an-pro.an-pro-dark:has(.pp-min) { background-image: none !important; }
+.an-root.an-pro { background-image: none !important; }
+.an-root.an-pro::before { background: var(--an-bg) !important; background-image: none !important; }
+html:has(.an-root.an-pro), body:has(.an-root.an-pro) { background: #f2f2f7 !important; background-image: none !important; }
+html:has(.an-root.an-pro:not(.an-pro-dark) .pp-min), body:has(.an-root.an-pro:not(.an-pro-dark) .pp-min) { background: #ffffff !important; }
+html:has(.an-root.an-pro-dark), body:has(.an-root.an-pro-dark) { background: #0f0f11 !important; }

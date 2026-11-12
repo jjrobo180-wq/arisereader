@@ -29,7 +29,6 @@ import "./notes-themes.css";
 const RecordScreen = lazy(() => import("./RecordScreen"));
 const UploadScreen = lazy(() => import("./UploadScreen"));
 const NoteScreen = lazy(() => import("./NoteScreen"));
-const AskScreen = lazy(() => import("./AskScreen"));
 const MemoScreen = lazy(() => import("./MemoScreen"));
 import { AppsStrip } from "./notesAppsCatalog";
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
@@ -258,9 +257,12 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
+  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : route.name === "settings" ? "#f2f2f7" : "#ffffff") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
+  // Ask (Undercover) paints its own top strip in its look's color, so the app doesn't paint over it.
+  const bare = route.name === "ask" || route.name === "undercover";
   useEffect(() => {
+    if (bare) return;
     const html = document.documentElement, body = document.body;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const before = [html.style.background, body.style.background, meta?.content];
@@ -283,8 +285,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: darkBackdrop ? "DARK" : "LIGHT" }).catch(() => {});
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
-  }, [backdrop, darkBackdrop, route.name]);
-  const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark", proLook && `an-prolook${archClass(look)}`, proLook && look.dark && "an-prolook-dark"].filter(Boolean).join(" ");
+  }, [backdrop, darkBackdrop, route.name, bare]);
+  const rootClass = ["an-root min-h-[100dvh]", bare && "an-bare", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark", proLook && `an-prolook${archClass(look)}`, proLook && look.dark && "an-prolook-dark"].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : suite || proLook ? suiteVars(look) : undefined;
   // The safety net: any words that end up the same color as what is behind them are switched to one that reads.
   useContrastGuard(true, `${rootClass}|${route.name}`, themed || suite || proLook ? [look.ink, look.bg] : []);
@@ -300,8 +302,9 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "record": return <RecordScreen ctx={ctx} />;
       case "upload": return <UploadScreen ctx={ctx} />;
       case "note": return <NoteScreen key={route.id} ctx={ctx} id={route.id} at={route.t} />;
-      case "ask": return <AskScreen ctx={ctx} />;
-      case "undercover": return <AppScreen key="undercover" ctx={ctx} id="undercover" />;
+      // Ask is only the chat or note in the look chosen in Undercover: no toggles, no suggestion buttons.
+      case "ask": return <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
+      case "undercover": return <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
       case "memo": return <MemoScreen ctx={ctx} />;
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;
