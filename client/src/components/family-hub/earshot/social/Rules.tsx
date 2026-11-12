@@ -5,9 +5,9 @@
 import { Flag } from "lucide-react";
 import { ActionSheet, type Api } from "./kit";
 
-/** True on the Podster website or in the Podster iPhone app (its pages run from capacitor://localhost). */
-const onPod = () => typeof window !== "undefined" && (/podscroll|podplus/i.test(location.hostname) || (window as any).__PODPLUS__ === true);
-const podBase = "https://podscroll.onrender.com";
+/** True on the Podster website (its own address or arisetodo.com/podster/) or in the Podster iPhone app (its pages run from capacitor://localhost). */
+const onPod = () => typeof window !== "undefined" && (/podscroll|podplus/i.test(location.hostname) || location.pathname.startsWith("/podster/") || (window as any).__PODPLUS__ === true);
+const podBase = "https://arisetodo.com/podster";
 const ariseBase = "https://arisetodo.com";
 export const policyLinks = () => {
   const base = onPod() ? podBase : ariseBase;

@@ -5,10 +5,10 @@ import { useState } from "react";
 import { FileText, LifeBuoy, Loader2, ShieldCheck, Trash2, Users, X } from "lucide-react";
 
 export const POD_LINKS = {
-  privacy: "https://podscroll.onrender.com/privacy/",
-  terms: "https://podscroll.onrender.com/terms/",
-  rules: "https://podscroll.onrender.com/terms/#community",
-  support: "https://podscroll.onrender.com/support/",
+  privacy: "https://arisetodo.com/podster/privacy/",
+  terms: "https://arisetodo.com/podster/terms/",
+  rules: "https://arisetodo.com/podster/terms/#community",
+  support: "https://arisetodo.com/podster/support/",
 };
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;

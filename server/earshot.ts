@@ -680,7 +680,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
 // ---------------------------------------------------------------------------
 
 const DEVICE = /^[A-Za-z0-9_-]{16,40}$/;
-const PODSCROLL_ORIGINS = ["https://podscroll.onrender.com", "https://podscroll.app", "https://www.podscroll.app"];
+const PODSCROLL_ORIGINS = ["https://arisetodo.com", "https://www.arisetodo.com", "https://podscroll.onrender.com", "https://podscroll.app", "https://www.podscroll.app"];
 /** Sites allowed to call /api/podscroll from a browser: the Podscroll site, its Render previews,
  *  anything listed in PODSCROLL_ORIGINS (comma-separated), and localhost while working on it. */
 export function podscrollAllowed(origin: string, extra: string[] = []): boolean {
