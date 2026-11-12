@@ -38,7 +38,7 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
   reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
-  fit: { name: "Cooked", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
+  fit: { name: "Cooked Fitness by Arise", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise AAC", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
   trainer: { name: "Cooked PT", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },

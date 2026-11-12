@@ -10,7 +10,7 @@ import { Apple as AppleIcon, Bell, BookOpen, Briefcase, Dumbbell, LineChart, Che
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useAuth } from "@/context/AuthContext";
 import { APPLE_LOGO_PATH, appleSignInAvailable, askApple } from "@/lib/appleSignIn";
-import { LEGAL, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
+import { LEGAL, NATIVE_APPS, nativeAppInfo, nativeFlavor, type NativeFlavor } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
@@ -82,13 +82,14 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
 
 const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif" };
 
-export default function NativeSignIn() {
+/** On the website, `flavor` picks the app's own sign-in (#/fit, #/trainer) and `start` can open on sign-up. */
+export default function NativeSignIn({ flavor: forced, start }: { flavor?: NativeFlavor; start?: "welcome" | "signup" } = {}) {
   const { login, signInWithApple } = useAuth();
   const [, navigate] = useLocation();
-  const flavor = nativeFlavor();
+  const flavor = forced ?? nativeFlavor();
   const copy = COPY[flavor];
-  const appName = nativeAppInfo().name;
-  const [screen, setScreen] = useState<Screen>("welcome");
+  const appName = NATIVE_APPS[flavor].name;
+  const [screen, setScreen] = useState<Screen>(start ?? "welcome");
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
