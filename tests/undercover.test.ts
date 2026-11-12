@@ -101,7 +101,7 @@ test("wired into the site, the app and the iPhone build", () => {
   assert.match(read("client/src/components/arise-notes/notesAppsCatalog.tsx"), /id: "undercover", name: "Undercover"/);
   assert.match(read("client/src/components/arise-notes/NotesApps.tsx"), /app\?\.id === "undercover"/);
   const ask = read("client/src/components/arise-notes/AskScreen.tsx");
-  assert.match(ask, /\["notes", "My notes"/); assert.match(ask, /\["anything", "Anything"/);
+  assert.match(ask, /\["notes", "Only my notes"/); assert.match(ask, /\["anything", "Notes \+ web"/);
   assert.match(ask, /\["chat", "Chat"/); assert.match(ask, /\["doc", "Notes"/); assert.match(ask, /\["text", "Text"/);
   assert.match(read("client/src/components/arise-notes/pages/PageScreen.tsx"), /pages-ask-bar/);
   assert.match(read("client/src/components/arise-notes/pages/PagesView.tsx"), /arise-pages-full/);

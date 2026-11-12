@@ -34,7 +34,7 @@ test("a saved look is kept, and anything else means Classic", () => {
 });
 test("the areas around the page follow the look on the iPhone", () => {
   const app = readFileSync(new URL("../client/src/components/arise-notes/NotesApp.tsx", import.meta.url), "utf8");
-  assert.match(app, /"setBackdrop", \{ color: backdrop \}/);
+  assert.match(app, /"setBackdrop", \{ color: paint \}/);
   assert.match(app, /"StatusBar", "setStyle"/);
   const swift = readFileSync(new URL("../notes/ios-app/plugins/arise-on-device/ios/Sources/AriseOnDevicePlugin/AriseOnDevicePlugin.swift", import.meta.url), "utf8");
   assert.match(swift, /CAPPluginMethod\(name: "setBackdrop"/);
