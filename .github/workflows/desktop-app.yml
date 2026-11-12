@@ -1,0 +1,77 @@
+name: Arise To Duo desktop app (Windows and Linux)
+
+# Builds the Windows installer and the Linux app (desktop/), and puts them on one fixed GitHub
+# release, "desktop", replacing the files each time. The download page (client/public/download/)
+# and the app's own updater (electron-updater, generic provider) both read from that release.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ["desktop/**", ".github/workflows/desktop-app.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-app
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Version 1.0.<run number> (so installed apps see the update)
+        run: npm pkg set version="1.0.${{ github.run_number }}"
+      - run: npm install --no-audit --no-fund
+      - name: Build
+        run: npx electron-builder --${{ matrix.target }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.blockmap
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+            desktop/dist/latest*.yml
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Put the files on the "desktop" release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          ls -la out
+          if ! gh release view desktop -R "$REPO" >/dev/null 2>&1; then
+            gh release create desktop -R "$REPO" --title "Arise To Duo for Windows and Linux" \
+              --notes "Download Arise To Duo for your computer. Windows: Arise-To-Duo-Setup.exe. Linux: the .AppImage or .deb. The app updates itself." \
+              --prerelease --target "${{ github.sha }}"
+          fi
+          gh release upload desktop out/* -R "$REPO" --clobber
+          gh release edit desktop -R "$REPO" --notes "Arise To Duo desktop 1.0.${{ github.run_number }}. Windows: Arise-To-Duo-Setup.exe. Linux: Arise-To-Duo-linux.AppImage or .deb. The app updates itself."

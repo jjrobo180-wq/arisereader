@@ -324,7 +324,7 @@ n              type="button"
                 fontSize: "0.875rem",
               }}
             >
-              Eye Gazer &amp; Non-Verbal
+              Arise AAC &amp; Non-Verbal
             </button>
             {user?.isAdmin && (
               <button
@@ -582,7 +582,7 @@ n              type="button"
       </button>
 
       <p style={{ textAlign: "center", color: "hsl(0 0% 50%)", fontSize: "0.75rem", marginTop: "1rem" }}>
-        Images are resized to max 500px and stored securely. Quizzes appear in the Eye Gazer &amp; Non-Verbal section for students.
+        Images are resized to max 500px and stored securely. Quizzes appear in the Arise AAC &amp; Non-Verbal section for students.
       </p>
     </div>
   );

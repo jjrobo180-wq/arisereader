@@ -1,5 +1,5 @@
-// Pod+ "Bring your shows": finds, in Apple's podcast directory (the catalog Pod+ plays from), each show
-// someone follows in another app, so Pod+ can follow it too. The list comes from an OPML file (the
+// Podster "Bring your shows": finds, in Apple's podcast directory (the catalog Podster plays from), each show
+// someone follows in another app, so Podster can follow it too. The list comes from an OPML file (the
 // standard export of Overcast, Pocket Casts, Castro, Podcast Addict and most podcast apps), or from
 // pasted show names and links (Apple Podcasts, Spotify and YouTube Music have no export).
 //

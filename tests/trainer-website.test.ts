@@ -1,4 +1,4 @@
-// Cooked Trainer websites (November 2026): each trainer can publish their own site at #/t/<slug>, and its contact
+// Cooked PT websites (November 2026): each trainer can publish their own site at #/t/<slug>, and its contact
 // form sends leads to their app. Run with: npx tsx --test tests/trainer-website.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

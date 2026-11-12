@@ -315,7 +315,7 @@ function AddChild({ get, onClose, onAdded }: { get: (path: string, init?: Reques
           <option value="">Select grade</option>
           {["K","1","2","3","4","5","6","7","8","9","10","11","12"].map((g) => <option value={g} key={g}>{g === "K" ? "Kindergarten" : "Grade " + g}</option>)}
         </select></Label>
-        <label className="flex items-start gap-3 rounded-xl bg-violet-50 p-3 text-sm text-violet-900"><input type="checkbox" checked={eyeGaze} onChange={(e) => setEyeGaze(e.target.checked)} className="mt-1" /><span><strong>Eye Gazer reader</strong><span className="block text-xs text-violet-700">Use the accessible Eye Gazer experience instead of the regular reader.</span></span></label>
+        <label className="flex items-start gap-3 rounded-xl bg-violet-50 p-3 text-sm text-violet-900"><input type="checkbox" checked={eyeGaze} onChange={(e) => setEyeGaze(e.target.checked)} className="mt-1" /><span><strong>Arise AAC reader</strong><span className="block text-xs text-violet-700">Use the accessible Arise AAC experience instead of the regular reader.</span></span></label>
       </> : <>
         <p className="text-sm leading-6 text-slate-600">For a child who already has an A.R.I.S.E. account, use their school handout or parent connection code. This keeps their existing books, quizzes and progress.</p>
         <Label text="Parent connection code"><input autoFocus required className={inputClass + " font-mono uppercase tracking-wider"} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Label>

@@ -90,7 +90,7 @@ export default function EyeGazeGames() {
             />
             <div className="absolute inset-0 bg-gradient-to-r from-sky-950 via-sky-900/90 to-sky-800/15" />
             <div className="absolute right-6 top-5 rounded-full border-2 border-white/70 bg-white/90 px-4 py-2 text-xs font-black uppercase tracking-wider text-sky-900 shadow-xl">
-              Eye Gazer Only
+              Arise AAC Only
             </div>
             <div className="relative max-w-[62%]">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-widest text-slate-950">

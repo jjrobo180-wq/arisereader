@@ -1,4 +1,4 @@
-// Pod+ listening extras: Fit my drive, Hours back, Ask the episode, Catch me up, timed comments.
+// Podster listening extras: Fit my drive, Hours back, Ask the episode, Catch me up, timed comments.
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";

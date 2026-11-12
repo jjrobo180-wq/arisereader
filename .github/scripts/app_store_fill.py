@@ -70,7 +70,7 @@ FOR CLASSROOMS
 - Live class games, messages from the teacher and class goals
 
 FOR EVERY KIND OF READER
-- Eye Gazer for readers who talk with their eyes
+- Arise AAC for readers who talk with their eyes
 - Big, clear buttons, read-aloud and calm colors
 
 PLANS

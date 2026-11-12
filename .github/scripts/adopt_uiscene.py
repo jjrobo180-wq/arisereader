@@ -1,4 +1,4 @@
-"""Every iPhone app here (Arise To Duo, Pod+, Arise Reader, Reader Educator): the UIScene life cycle.
+"""Every iPhone app here (Arise To Duo, Podster, Arise Reader, Reader Educator): the UIScene life cycle.
 
 Apps built with the iOS 27 SDK (Xcode 27, needed for iPhone Duo) must use scenes, or iOS stops them at
 launch ("UIScene life cycle is required for apps built with this SDK"). Capacitor 8.0's generated

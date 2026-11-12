@@ -97,7 +97,7 @@ test("Cooked and Arise Reader use their phone's own clock space; the apps iOS al
   assert.equal(Math.round((deviceTopInset(402, 874)! / 0.9) * 10) / 10, 68.9);
 });
 
-test("Pod+ clears its phone's own clock space too", async () => {
+test("Podster clears its phone's own clock space too", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   assert.match(read("podscroll/main.tsx"), /classList\.add\("pod-native"\); applyDeviceTopInset\(\);/);

@@ -1,4 +1,4 @@
-// Pod+ Stand-up: pick your favorite comedians and hear only their stand-up: sets, specials, live
+// Podster Stand-up: pick your favorite comedians and hear only their stand-up: sets, specials, live
 // shows and comedy albums, never interviews or podcast chat. An AI checks every episode
 // (server/podcastStandup.ts), suggests comedians like the ones you picked, and keeps search here
 // to stand-up only. Favorites are kept on this device.

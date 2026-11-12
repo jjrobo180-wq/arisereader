@@ -5,7 +5,7 @@ const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // own Arise App Store install. Only the metadata below lives on the hub's own record (the same
 // loose, bolted-on way Notes-app installs do, see shared/notesApp.ts); the actual image bytes
 // live in Supabase Storage (bucket "life-drive-photos"), signed URLs only, same pattern as
-// Eye Gazer's My World photos and Teacher Scenes (see server/routes.ts).
+// Arise AAC's My World photos and Teacher Scenes (see server/routes.ts).
 
 export type DriveFile = {
   id: string;

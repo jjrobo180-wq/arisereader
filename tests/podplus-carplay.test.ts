@@ -1,4 +1,4 @@
-// Pod+ in the car: what the phone hands CarPlay, how the car's resume spots come back, the build step
+// Podster in the car: what the phone hands CarPlay, how the car's resume spots come back, the build step
 // that puts the car's scene in the iPhone app, and the native files it relies on.
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -33,7 +33,7 @@ test("a round gathers the newest episodes and the hub drops old ones as time pas
   assert.equal(svc.list(6).episodes.length, 0);
 });
 
-test("Pod+ genre and topic tabs keep loading, and the news hub is on the home page", () => {
+test("Podster genre and topic tabs keep loading, and the news hub is on the home page", () => {
   const home = readFileSync(new URL("../podscroll/Home.tsx", import.meta.url), "utf8");
   assert.match(home, /<Endless key=\{chip\}/);
   assert.match(home, /more=\{moreFn\}/);

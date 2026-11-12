@@ -1,5 +1,5 @@
 // The Drive app (App Store add-on, shared/driveApp.ts): upload files — photos, PDFs, documents —
-// from a phone or computer to cloud storage. Same pattern as Eye Gazer's My World photos (server/routes.ts): a private
+// from a phone or computer to cloud storage. Same pattern as Arise AAC's My World photos (server/routes.ts): a private
 // Supabase Storage bucket, signed URLs only, never a public one.
 //
 // Storage quota: the client sends its current total bytes used (from family.drive, the metadata

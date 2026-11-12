@@ -1,4 +1,4 @@
-// Sign in with Apple for the Arise To Duo and Pod+ iPhone apps.
+// Sign in with Apple for the Arise To Duo and Podster iPhone apps.
 //
 // The app asks iOS to sign in (the Apple sheet with Face ID); iOS hands back an identity token, a JWT
 // signed by Apple. The server checks it here against Apple's published keys before trusting who it

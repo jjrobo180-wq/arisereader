@@ -54,6 +54,7 @@ jobs:
         run: |
           npm ci
           VITE_NATIVE_APP=educator npx vite build
+          bash .github/scripts/prune_educator_bundle.sh dist/public
           rm -rf educator/ios-app/www
           mkdir -p educator/ios-app/www
           cp -R dist/public/. educator/ios-app/www/

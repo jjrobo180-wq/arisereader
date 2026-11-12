@@ -185,15 +185,16 @@ test("only the admin can use any of it", async () => {
 
 test("the list shows To-Do sign-ups with names, leaves out admins, students' sample accounts and others unless asked", async () => {
   const s = setup();
-  const todo = (await s.call("GET", "/api/todo-admin/people", 1)).body;
+  const todo = (await s.call("GET", "/api/todo-admin/people", 1, {}, { role: "todo" })).body;
+  assert.equal((await s.call("GET", "/api/todo-admin/people", 1)).body.total, 7); // everyone is listed unless a kind is picked
   assert.deepEqual(todo.rows.map((r: any) => r.username), ["zed", "mia", "noah", "old"]); // newest first
   assert.equal(todo.total, 4);
   const everyone = (await s.call("GET", "/api/todo-admin/people", 1, {}, { role: "all", size: "100" })).body;
   assert.equal(everyone.total, 7); // not the admin, not "sample"
   assert.ok(!everyone.rows.some((r: any) => ["boss", "sample"].includes(r.username)));
-  const search = (await s.call("GET", "/api/todo-admin/people", 1, {}, { q: "park" })).body;
+  const search = (await s.call("GET", "/api/todo-admin/people", 1, {}, { q: "park", role: "todo" })).body;
   assert.deepEqual(search.rows.map((r: any) => r.username), ["mia"]);
-  const off = (await s.call("GET", "/api/todo-admin/people", 1, {}, { plan: "off" })).body;
+  const off = (await s.call("GET", "/api/todo-admin/people", 1, {}, { plan: "off", role: "todo" })).body;
   assert.deepEqual(off.rows.map((r: any) => r.username), ["old"]);
   assert.equal(todo.rows.find((r: any) => r.username === "zed").confirmed, false);
   assert.equal(todo.rows.find((r: any) => r.username === "old").enabled, false);

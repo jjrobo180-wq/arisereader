@@ -3,30 +3,19 @@
 // The settings sheet opens from each look's own back / close / file button, so nothing on screen
 // says "AI". In the inbox and phone doc looks, tapping the name or title hides the AI chat.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { API_BASE, apiAuthToken } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { UNDERCOVER_THEMES, answerLines, type UndercoverMsg, type UndercoverTheme } from "@shared/undercover";
+import { askAi } from "./askUndercover";
+import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 
-type Saved = { theme: UndercoverTheme; contact: string; chats: Partial<Record<UndercoverTheme, UndercoverMsg[]>> };
+type Saved = { theme: UndercoverTheme; contact: string; city: string; unit: "F" | "C"; chats: Partial<Record<UndercoverTheme, UndercoverMsg[]>> };
 const KEY = "arise-undercover-v1";
 const load = (): Saved => {
-  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && typeof s === "object") return { theme: s.theme || "text", contact: s.contact || "Sam", chats: s.chats || {} }; } catch { /* first time */ }
-  return { theme: "text", contact: "Sam", chats: {} };
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && typeof s === "object") return { theme: s.theme || "text", contact: s.contact || "Sam", city: s.city || "", unit: s.unit === "C" ? "C" : "F", chats: s.chats || {} }; } catch { /* first time */ }
+  const metric = (() => { try { return !/^en-US|^en-LR|^my/.test(navigator.language || "en-US"); } catch { return false; } })();
+  return { theme: "text", contact: "Sam", city: "", unit: metric ? "C" : "F", chats: {} };
 };
 const store = (s: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full */ } };
-
-async function askAi(theme: UndercoverTheme, messages: UndercoverMsg[]): Promise<string> {
-  const token = apiAuthToken();
-  const res = await fetch(`${API_BASE}/api/undercover/chat`, {
-    method: "POST", cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ theme, messages }),
-  }).catch(() => null);
-  if (!res) throw new Error("You seem to be offline.");
-  const d = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(d?.message || "Couldn't get an answer. Try again.");
-  return String(d?.reply || "");
-}
 
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const SERIF = "'Source Serif 4', Georgia, serif";
@@ -51,7 +40,7 @@ function useChat(theme: UndercoverTheme, saved: Saved, save: (s: Saved) => void)
     save({ ...latest.current, chats: { ...latest.current.chats, [theme]: next } });
     setBusy(true); setError("");
     try {
-      const reply = await askAi(theme, next.slice(-16));
+      const reply = await askAi(theme, next.slice(-16), { city: latest.current.city, unit: latest.current.unit });
       save({ ...latest.current, chats: { ...latest.current.chats, [theme]: [...next, { role: "assistant", content: reply }] } });
     } catch (e: any) { setError(e?.message || "Couldn't get an answer."); }
     finally { setBusy(false); }
@@ -265,10 +254,11 @@ function DocPhoneLook({ chat, onMenu }: { chat: ReturnType<typeof useChat>; onMe
 }
 
 // ─── Settings ───────────────────────────────────────────────────────────────
-function Settings({ saved, save, onClose }: { saved: Saved; save: (s: Saved) => void; onClose: () => void }) {
+function Settings({ saved, save, onClose, onExit }: { saved: Saved; save: (s: Saved) => void; onClose: () => void; onExit?: () => void }) {
   const { logout } = useAuth();
   const [contact, setContact] = useState(saved.contact);
-  const pick = (theme: UndercoverTheme) => { save({ ...saved, theme, contact: contact.trim() || "Sam" }); onClose(); };
+  const [city, setCity] = useState(saved.city);
+  const pick = (theme: UndercoverTheme) => { save({ ...saved, theme, contact: contact.trim() || "Sam", city: city.trim() }); onClose(); };
   return <div role="dialog" aria-modal="true" aria-label="Settings" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, fontFamily: FONT }} onClick={onClose}>
     <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, maxHeight: "88dvh", overflowY: "auto", background: "#fff", color: "#0f172a", borderRadius: "20px 20px 0 0", padding: `20px 20px ${BOTTOM}`, display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -285,22 +275,33 @@ function Settings({ saved, save, onClose }: { saved: Saved; save: (s: Saved) => 
       <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, fontWeight: 500 }}>Contact or group name
         <input value={contact} maxLength={30} onChange={(e) => setContact(e.target.value)} onBlur={() => save({ ...saved, contact: contact.trim() || "Sam" })} style={{ height: 44, border: "1px solid #cbd5e1", borderRadius: 10, padding: "0 12px", fontSize: 16, fontFamily: FONT }} />
       </label>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, fontSize: 14, fontWeight: 500 }}>Your city, for the weather
+          <input value={city} maxLength={60} placeholder="Uses your location if empty" onChange={(e) => setCity(e.target.value)} onBlur={() => save({ ...saved, city: city.trim() })} style={{ height: 44, border: "1px solid #cbd5e1", borderRadius: 10, padding: "0 12px", fontSize: 16, fontFamily: FONT }} />
+        </label>
+        <div role="group" aria-label="Temperature unit" style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: 10, overflow: "hidden" }}>
+          {(["F", "C"] as const).map((x) => <button key={x} aria-pressed={saved.unit === x} onClick={() => save({ ...saved, city: city.trim(), unit: x })} style={{ width: 48, height: 44, border: 0, background: saved.unit === x ? "#6d3df5" : "#fff", color: saved.unit === x ? "#fff" : "#0f172a", fontFamily: FONT, fontWeight: 600 }}>°{x}</button>)}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={() => { save({ ...saved, chats: { ...saved.chats, [saved.theme]: [] } }); onClose(); }} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#0f172a" }}>Clear this chat</button>
-        <button onClick={logout} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#b91c1c" }}>Sign out</button>
+        {onExit
+          ? <button onClick={onExit} style={{ flex: 1, height: 44, borderRadius: 10, border: 0, background: "#6d3df5", fontFamily: FONT, fontWeight: 600, color: "#fff" }}>Back to Arise Notes</button>
+          : <button onClick={logout} style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontFamily: FONT, fontWeight: 500, color: "#b91c1c" }}>Sign out</button>}
       </div>
       <p style={{ margin: 0, fontSize: 12, color: "#475569" }}>Open this screen from the back, close or file button in any look. Chats stay on this device.</p>
     </div>
   </div>;
 }
 
-export default function UndercoverApp() {
+export default function UndercoverApp({ onExit, ask }: { onExit?: () => void; /** Arise Notes' Ask button: the back button leaves, and the look picker never pops up. */ ask?: boolean } = {}) {
   const [saved, setSaved] = useState<Saved>(load);
   // First time: open the look picker so people see the choices and where settings live.
-  const [menu, setMenu] = useState(() => { try { return !localStorage.getItem(KEY); } catch { return false; } });
+  const [menu, setMenu] = useState(() => { if (ask) return false; try { return !localStorage.getItem(KEY); } catch { return false; } });
   const save = (s: Saved) => { setSaved(s); store(s); };
   const chat = useChat(saved.theme, saved, save);
-  const onMenu = () => setMenu(true);
+  // From the Ask button, back / close / file all just go back to the notes. The look is picked in the App Gallery.
+  const onMenu = ask && onExit ? onExit : () => setMenu(true);
   useEffect(() => {
     document.body.style.margin = "0";
     // The document looks use a serif like a word processor's; load it once.
@@ -311,6 +312,15 @@ export default function UndercoverApp() {
       document.head.appendChild(l);
     }
   }, []);
+  // The strip behind the phone's clock takes each look's top color (it was the host app's cream).
+  useEffect(() => {
+    const top: Record<UndercoverTheme, string> = { text: "#ffffff", group: "#0b0b0f", inbox: "#f8fafc", docNotes: "#ffffff", docComments: "#ffffff", docPhone: "#ffffff" };
+    const c = top[saved.theme] || "#ffffff";
+    const was = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = c;
+    sendBackdrop(c);
+    return () => { document.body.style.backgroundColor = was; window.dispatchEvent(new Event(BACKDROP_REFRESH)); };
+  }, [saved.theme]);
   const look = (() => {
     switch (saved.theme) {
       case "group": return <GroupLook chat={chat} contact={saved.contact === "Sam" ? "Weekend plans" : saved.contact} onMenu={onMenu} />;
@@ -321,5 +331,5 @@ export default function UndercoverApp() {
       default: return <TextLook chat={chat} contact={saved.contact} onMenu={onMenu} />;
     }
   })();
-  return <>{look}{menu && <Settings saved={saved} save={save} onClose={() => setMenu(false)} />}</>;
+  return <>{look}{menu && <Settings saved={saved} save={save} onClose={() => setMenu(false)} onExit={onExit} />}</>;
 }

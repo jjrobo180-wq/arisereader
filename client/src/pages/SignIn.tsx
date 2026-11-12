@@ -381,7 +381,7 @@ export default function SignIn() {
                 </div>
               : <div className="mt-2 grid grid-cols-2 gap-2">
                   <button disabled={submitting} onClick={() => void trySample("student")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Student</button>
-                  <button disabled={submitting} onClick={() => void trySample("eye-gaze")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Eye Gazer</button>
+                  <button disabled={submitting} onClick={() => void trySample("eye-gaze")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Arise AAC</button>
                 </div>)}
               </>
             )}

@@ -3,7 +3,7 @@
   "short_name": "Arise Notes",
   "description": "AI note taker: record or upload, get a transcript, a summary and your to-dos.",
   "id": "/notes/",
-  "start_url": "/notes/",
+  "start_url": "/notes/?app",
   "scope": "/notes/",
   "display": "standalone",
   "background_color": "#f5f4fb",

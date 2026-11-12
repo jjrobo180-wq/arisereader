@@ -49,3 +49,33 @@ export function cleanHistory(raw: unknown): UndercoverMsg[] {
 export function answerLines(text: string): string[] {
   return String(text || "").split(/\n+/).map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim()).filter(Boolean);
 }
+
+// ─── Live info: the time and the weather ─────────────────────────────────────
+
+/** Does the question ask about the weather? */
+export function wantsWeather(q: string): boolean {
+  return /\b(weather|forecast|temperature|temp|rain(ing|y)?|snow(ing|y)?|sunny|humid(ity)?|windy|umbrella|jacket|degrees|how (hot|cold|warm))\b/i.test(q);
+}
+
+/** The place named in a weather question ("weather in Denver, CO tomorrow" → "Denver, CO"). */
+export function weatherPlaceFrom(q: string): string {
+  const m = /\b(?:in|for|at|near)\s+([A-Za-z][A-Za-z .'-]{1,40}(?:,\s*[A-Za-z .]{2,30})?)/i.exec(q);
+  if (!m) return "";
+  const place = m[1].replace(/\b(today|tonight|tomorrow|this|next|right now|now|on|the|weekend|week|morning|afternoon|evening)\b.*$/i, "").replace(/[\s,.'-]+$/, "").trim();
+  return /^(the|my|here|there|it|a|an)$/i.test(place) || place.length < 2 ? "" : place;
+}
+
+/** A forecast written as plain facts for the AI to answer from. */
+export function weatherFacts(f: { place: string; unit: "F" | "C"; current: { temp: number; feels: number; code: number; wind: number; humidity: number }; days: { date: string; code: number; high: number; low: number; rain: number }[] }, describe: (code: number) => string): string {
+  const u = `°${f.unit}`, w = f.unit === "F" ? "mph" : "km/h";
+  const days = f.days.slice(0, 5).map((d) => `${d.date}: ${describe(d.code)}, high ${d.high}${u}, low ${d.low}${u}, ${d.rain}% chance of rain or snow`).join("; ");
+  return `Live weather for ${f.place} (Open-Meteo): now ${f.current.temp}${u}, feels like ${f.current.feels}${u}, ${describe(f.current.code)}, wind ${f.current.wind} ${w}, humidity ${f.current.humidity}%. Next days: ${days}.`;
+}
+
+/** "Wednesday, November 11, 2026, 10:44 AM (America/Denver)" in the person's time zone. */
+export function nowFacts(now: Date, timeZone: string): string {
+  let tz = timeZone;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { tz = "UTC"; }
+  const s = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }).format(now);
+  return `It is now ${s} (${tz}).`;
+}

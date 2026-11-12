@@ -1,4 +1,4 @@
-// Small shared facts about the built-in Eye Gazer lessons, kept apart from the lesson content
+// Small shared facts about the built-in Arise AAC lessons, kept apart from the lesson content
 // (shared/eyegaze/lessons.ts) so the site can show step names without loading every lesson.
 
 export type LessonStep = 1 | 2 | 3 | 4;

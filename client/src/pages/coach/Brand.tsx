@@ -1,4 +1,4 @@
-// Branded coaching. Cooked Trainer: set your app's name, logo and color. Cooked: your trainer's brand replaces
+// Branded coaching. Cooked PT: set your app's name, logo and color. Cooked: your trainer's brand replaces
 // Arise's accent and shows on your coach card. The web app (#/c/<slug>): your trainer's own home-screen app.
 // Shapes: shared/coachBrand.ts. Server: server/coach.ts.
 import { useEffect, useState } from "react";
@@ -53,7 +53,7 @@ async function squareLogo(f: File): Promise<string> {
   } finally { URL.revokeObjectURL(url); }
 }
 
-/** Cooked Trainer, Business: your brand. */
+/** Cooked PT, Business: your brand. */
 export function BrandCard({ token, name, say }: { token: string | null; name: string; say: (m: string) => void }) {
   const [res, setRes] = useState<{ brand: Brand; url: string } | null>(null);
   const [edit, setEdit] = useState(false);
@@ -102,7 +102,7 @@ function BrandEditor({ token, initial, name, url, onClose, onSaved }: { token: s
       <Btn disabled={busy || !b.appName.trim()} onClick={() => save(true)} testId="tr-brand-save">{busy ? "Saving…" : initial.on ? "Save" : "Turn on my brand"}</Btn>
       {initial.on && <Btn kind="ghost" disabled={busy} onClick={() => save(false)}>Turn my brand off</Btn>}
     </div>
-    <p className="mt-2 text-center text-[12px]" style={{ color: C.dim }}>Included while Cooked Trainer is in early access.</p>
+    <p className="mt-2 text-center text-[12px]" style={{ color: C.dim }}>Included while Cooked PT is in early access.</p>
   </Sheet>;
 }
 

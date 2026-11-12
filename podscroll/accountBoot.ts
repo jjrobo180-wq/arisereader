@@ -1,4 +1,4 @@
-// Runs first (main.tsx imports it before anything else): each Pod+ account keeps its own library,
+// Runs first (main.tsx imports it before anything else): each Podster account keeps its own library,
 // progress, Study Pods and downloads on this device (client/src/lib/accountStorage.ts).
 import { installAccountStorage } from "../client/src/lib/accountStorage";
 

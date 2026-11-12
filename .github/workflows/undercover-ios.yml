@@ -55,6 +55,7 @@ jobs:
         run: |
           npm ci
           VITE_NATIVE_APP=undercover npx vite build
+          bash .github/scripts/prune_own_app_bundle.sh undercover dist/public
           rm -rf undercover/ios-app/www
           mkdir -p undercover/ios-app/www
           cp -R dist/public/. undercover/ios-app/www/

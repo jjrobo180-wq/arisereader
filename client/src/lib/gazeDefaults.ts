@@ -1,6 +1,6 @@
 // Should look-to-press (dwell) and look-to-steer start on?
 //
-// Eye Gazer's games used to switch them off on any touch-screen device. But eye-gaze learners very
+// Arise AAC's games used to switch them off on any touch-screen device. But eye-gaze learners very
 // often use a tablet — with an eye tracker, or the tablet's own eye tracking — so on a tablet the
 // games ignored their eyes and seemed broken, while the same games worked on a computer. Taps keep
 // working with look-to-press on (it never reacts to a finger), so nothing is lost by leaving it on.

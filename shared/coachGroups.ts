@@ -1,7 +1,7 @@
 
 /** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
 const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
-// Cooked Trainer groups (November 2026): a trainer puts clients in a group with a page (posts, photos, comments,
+// Cooked PT groups (November 2026): a trainer puts clients in a group with a page (posts, photos, comments,
 // likes, pinned posts), a group chat, and challenges like a 21-day sugar reset with daily check-offs and a
 // leaderboard. Members see their groups in Cooked (My trainer → Groups). Server: server/coachGroups.ts.
 

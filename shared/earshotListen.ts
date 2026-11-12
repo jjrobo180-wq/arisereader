@@ -1,4 +1,4 @@
-// Pod+ / Earshot listening extras, the parts both the server and the app use:
+// Podster / Earshot listening extras, the parts both the server and the app use:
 // - Fit my drive: picks episodes that fill a drive's minutes as closely as possible.
 // - Hours back: a weekly tally of the time skipped ads, intros and a faster speed gave back.
 // - Ask the episode and Catch me up: the transcript sent to the AI, and its answer checked.

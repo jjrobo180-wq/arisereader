@@ -2,7 +2,7 @@
   "name": "podplus-ios",
   "private": true,
   "version": "0.1.0",
-  "description": "Pod+ iOS app project (App Store preparation)",
+  "description": "Podster iOS app project (App Store preparation)",
   "scripts": {
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",

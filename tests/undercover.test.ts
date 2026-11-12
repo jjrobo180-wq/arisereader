@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import express from "express";
 import { registerUndercoverRoutes } from "../server/undercover";
-import { UNDERCOVER_THEMES, answerLines, cleanHistory, undercoverSystemPrompt } from "../shared/undercover";
+import { UNDERCOVER_THEMES, answerLines, cleanHistory, nowFacts, undercoverSystemPrompt, wantsWeather, weatherPlaceFrom } from "../shared/undercover";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -51,10 +51,61 @@ test("chat route: signed in only, sends the look's style, answers", async () => 
   } finally { server.close(); }
 });
 
+test("weather questions and places", () => {
+  assert.ok(wantsWeather("whats the weather tomorrow"));
+  assert.ok(wantsWeather("do i need an umbrella"));
+  assert.ok(!wantsWeather("summarize the meeting"));
+  assert.equal(weatherPlaceFrom("weather in Denver, CO tomorrow"), "Denver, CO");
+  assert.equal(weatherPlaceFrom("is it going to rain in Paris this weekend"), "Paris");
+  assert.equal(weatherPlaceFrom("whats the weather today"), "");
+  assert.match(nowFacts(new Date("2026-11-11T17:44:00Z"), "America/Denver"), /Wednesday, November 11, 2026.*10:44.*America\/Denver/);
+  assert.match(nowFacts(new Date("2026-11-11T17:44:00Z"), "Not/AZone"), /\(UTC\)/);
+});
+
+test("chat route: knows the time and gets the real weather", async () => {
+  const seen: string[] = [];
+  const asked: any[] = [];
+  const app = express();
+  app.use(express.json());
+  const auth = (req: any, _res: any, next: any) => { req.user = { id: 3 }; next(); };
+  registerUndercoverRoutes(app, auth, {
+    now: () => Date.parse("2026-11-11T17:44:00Z"),
+    ask: async (system) => { seen.push(system); return "ok"; },
+    weather: async (where, unit) => { asked.push({ where, unit }); return { place: "Denver, Colorado, US", unit, current: { temp: 41, feels: 37, code: 3, wind: 8, humidity: 50 }, days: [{ date: "2026-11-11", code: 61, high: 45, low: 30, rain: 70 }] }; },
+  });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((r) => server.once("listening", () => r()));
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  const post = (body: unknown) => fetch(`${base}/api/undercover/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    await post({ messages: [{ role: "user", content: "what day is it" }], tz: "America/Denver" });
+    assert.match(seen[0], /Wednesday, November 11, 2026/);
+    assert.equal(asked.length, 0);
+    await post({ messages: [{ role: "user", content: "weather in Denver tomorrow?" }], tz: "America/Denver", place: "Boston" });
+    assert.deepEqual(asked[0], { where: { place: "Denver" }, unit: "F" });
+    assert.match(seen[1], /now 41°F.*Rain, high 45°F, low 30°F, 70% chance/);
+    await post({ messages: [{ role: "user", content: "is it raining" }], lat: 39.74, lon: -104.99, unit: "C" });
+    assert.deepEqual(asked[1], { where: { lat: 39.74, lon: -104.99, place: undefined }, unit: "C" });
+    await post({ messages: [{ role: "user", content: "whats the weather" }] });
+    assert.equal(asked.length, 2);
+    assert.match(seen[3], /Ask which city/);
+  } finally { server.close(); }
+});
+
 test("wired into the site, the app and the iPhone build", () => {
   assert.match(read("server/routes.ts"), /registerUndercoverRoutes\(app, authMiddleware\)/);
   assert.match(read("vite.config.ts"), /client", "undercover", "index.html"/);
   assert.match(read("client/src/App.tsx"), /isUndercoverApp\(\)/);
+  const notes = read("client/src/components/arise-notes/NotesApp.tsx");
+  assert.match(notes, /case "undercover": return <AppScreen key="undercover"/);
+  assert.match(read("client/src/components/arise-notes/notesAppsCatalog.tsx"), /id: "undercover", name: "Undercover"/);
+  assert.match(read("client/src/components/arise-notes/NotesApps.tsx"), /app\?\.id === "undercover"/);
+  const ask = read("client/src/components/arise-notes/AskScreen.tsx");
+  assert.match(ask, /\["notes", "Only my notes"/); assert.match(ask, /\["anything", "Notes \+ web"/);
+  assert.match(ask, /\["chat", "Chat"/); assert.match(ask, /\["doc", "Notes"/); assert.match(ask, /\["text", "Text"/);
+  assert.match(read("client/src/components/arise-notes/pages/PageScreen.tsx"), /pages-ask-bar/);
+  assert.match(read("client/src/components/arise-notes/pages/PagesView.tsx"), /arise-pages-full/);
+  assert.match(read("server/undercover.ts"), /note so far/);
   assert.match(read("client/src/lib/aiConsent.ts"), /undercover\\\/chat/);
   assert.equal(JSON.parse(read("undercover/ios-app/capacitor.config.json")).appId, "com.arisereader.undercover");
   assert.match(read(".github/workflows/undercover-ios.yml"), /VITE_NATIVE_APP=undercover/);
