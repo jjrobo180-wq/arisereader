@@ -21,7 +21,8 @@ export type BookDetail = Book & { chapters: BookChapter[]; secs: number; link: s
 /** What's playing: the book, the chapter (0-based) and where in it to start. */
 export type Reading = { book: BookDetail; ch: number; at: number };
 
-const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
+// On arisetodo.com/podster/ the Arise server is this same site; elsewhere it's the Arise server's own address.
+const API = String(import.meta.env.VITE_PODSCROLL_API || (import.meta.env.BASE_URL === "/podster/" ? location.origin : "https://arisereader.onrender.com")).replace(/\/$/, "");
 const ACCENT = "#ff6a1f";
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 /** Listening choices, kept on this device. boost, even and silence are for members (they need the

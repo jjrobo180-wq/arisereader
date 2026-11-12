@@ -31,7 +31,8 @@ import { configureAiVoice } from "../client/src/lib/aiVoice";
 
 // The shared social screens read this to link to Podster's own policies and support (social/Rules.tsx).
 (window as any).__PODPLUS__ = true;
-const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
+// On arisetodo.com/podster/ the Arise server is this same site; elsewhere it's the Arise server's own address.
+const API = String(import.meta.env.VITE_PODSCROLL_API || (import.meta.env.BASE_URL === "/podster/" ? location.origin : "https://arisereader.onrender.com")).replace(/\/$/, "");
 // Spoken lines (recaps, Read along) use the AI voices on the Arise server, never the phone's robot voice.
 configureAiVoice({ base: API });
 const KEY = "podscroll.v1";
@@ -86,7 +87,7 @@ function App() {
   }, []);
 
   useEffect(() => { const t = setTimeout(() => write(KEY, JSON.stringify(es)), 200); return () => clearTimeout(t); }, [es]);
-  useEffect(() => { if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
+  useEffect(() => { if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register(import.meta.env.BASE_URL + "sw.js").catch(() => {}); }, []);
 
   // Ads are skipped for All Access members and heard by everyone else (there's no switch for it).
   const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => { const n = fn(e); return n.settings.adMode === adMode ? n : { ...n, settings: { ...n.settings, adMode } }; }), [adMode]);
@@ -171,8 +172,8 @@ function App() {
 
   const shareLink = useCallback((show: { id: string }, ep: { id: string }) => {
     const origin = location.protocol === "capacitor:"
-      ? String(import.meta.env.VITE_PODSCROLL_SITE || "https://podscroll.onrender.com").replace(/\/$/, "")
-      : location.origin;
+      ? String(import.meta.env.VITE_PODSCROLL_SITE || "https://arisetodo.com/podster").replace(/\/$/, "")
+      : location.origin + import.meta.env.BASE_URL.replace(/\/$/, "");
     return `${origin}/app/?s=${show.id}&e=${ep.id}`;
   }, []);
 

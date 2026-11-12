@@ -55,3 +55,31 @@ test("Podster homepage has pricing and Sign in, and the app opens sign-in from t
   assert.ok(home.includes("$10<span> a month"));
   assert.match(read("podscroll/main.tsx"), /q\.has\("signup"\) \? "signup" : q\.has\("signin"\) \? "signin"/);
 });
+
+test("Podster is built into arisetodo.com at /podster/", () => {
+  const build = read("script/build.ts");
+  assert.match(build, /PODSTER_BASE = "\/podster\/"/);
+  assert.match(build, /configFile: "podscroll\/vite\.config\.ts", build: \{ outDir: path\.resolve\("dist\/public\/podster"\)/);
+  assert.match(build, /links outside \/podster\//, "the build fails if a link leaves /podster/");
+  assert.match(read("podscroll/vite.config.ts"), /process\.env\.PODSTER_BASE \|\| "\/"/);
+  // The worker and install file work in any folder.
+  const sw = read("podscroll/public/sw.js");
+  assert.ok(sw.includes('const BASE = self.location.pathname.replace(/sw\\.js$/, "")') && !/"\/app\/"/.test(sw));
+  const manifest = JSON.parse(read("podscroll/public/manifest.webmanifest"));
+  assert.equal(manifest.start_url, "app/");
+  assert.ok(manifest.icons.every((i: { src: string }) => !i.src.startsWith("/")));
+  assert.match(read("podscroll/main.tsx"), /register\(import\.meta\.env\.BASE_URL \+ "sw\.js"\)/);
+  // Same-site API on arisetodo.com, and the live-party socket accepts it.
+  assert.match(read("podscroll/main.tsx"), /BASE_URL === "\/podster\/" \? location\.origin/);
+  assert.match(read("server/earshot.ts"), /PODSCROLL_ORIGINS = \["https:\/\/arisetodo\.com", "https:\/\/www\.arisetodo\.com"/);
+});
+
+test("the old Podster address forwards to arisetodo.com/podster/", () => {
+  for (const f of ["podscroll/index.html", "podscroll/app/index.html", "podscroll/creators/index.html", "podscroll/public/privacy/index.html", "podscroll/public/terms/index.html", "podscroll/public/support/index.html"]) {
+    const s = read(f);
+    assert.ok(s.includes('if(location.hostname==="podscroll.onrender.com")location.replace("https://arisetodo.com/podster"+location.pathname'), f);
+  }
+  for (const f of ["client/public/cooked-landing.html", "client/public/cooked-pt-landing.html", "podscroll/Account.tsx", "client/src/components/family-hub/earshot/social/Rules.tsx"]) {
+    assert.ok(!read(f).includes("https://podscroll.onrender.com/"), `${f} uses the new address`);
+  }
+});

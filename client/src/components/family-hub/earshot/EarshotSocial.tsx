@@ -204,7 +204,9 @@ function Rail({ label, n, on, onClick, children }: { label: string; n?: number; 
 }
 export function shareLink(ctx: Ctx, post: Post) {
   const ep = shown(post).episode;
-  const url = `${location.origin}${ep ? `/?s=${ep.showId}&e=${ep.id}` : ""}`;
+  // Podster on arisetodo.com lives at /podster/; its homepage opens shared episodes in the player.
+  const root = location.pathname.startsWith("/podster/") ? "/podster/" : "/";
+  const url = `${location.origin}${ep ? `${root}?s=${ep.showId}&e=${ep.id}` : root === "/" ? "" : root}`;
   const text = shown(post).clip?.quote ? `“${shown(post).clip!.quote}” — ${ep?.show ?? ""}` : shown(post).caption || ep?.title || "Podster";
   if (navigator.share) void navigator.share({ title: ep?.title || "Podster", text, url }).catch(() => {});
   else void navigator.clipboard?.writeText(`${text} ${url}`).then(() => ctx.say("Link copied."), () => ctx.say(url));
