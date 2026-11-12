@@ -261,6 +261,8 @@ export type Workspace = {
   iepNotes?: import("./hubIep").IepNote[];
   /** Files kept with progress checks: scanned worksheets, probes, work samples (shared/hubIep.ts). */
   pmFiles?: import("./hubIep").PmFile[];
+  /** The IEP Prep checklist: planning-period jobs that repeat, checked off day by day (shared/hubPrep.ts). */
+  prepChecks?: import("./hubPrep").PrepCheck[];
   /** The case manager lets the others at their school see their minutes, view only (see shared/hubMinutesDay.ts). */
   minutesShared?: boolean;
   /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
