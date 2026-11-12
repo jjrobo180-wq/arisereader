@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SwipeItem } from "./SwipeItem";
 import type { ListNote } from "../api";
-import { AudioLines, Upload, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
+import { AudioLines, Upload, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
 import { Btn, IconBtn, Notice, Sheet, Spinner, Toggle, shortDate, useToast } from "../ui";
@@ -121,9 +121,8 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
   // Record a meeting straight into a new note (PageScreen records; typing @ariserecord does too).
   const recordMeeting = () => { try { sessionStorage.setItem("arise-pages-record", "1"); } catch { /* opens without recording */ } void create(PAGE_TEMPLATES[0]); };
   const nav = <nav className="pp-nav" aria-label="Folders" data-testid="pages-folders">
-    <button type="button" onClick={recordMeeting} data-testid="pages-record" className="mb-3 flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-white shadow-sm transition active:scale-[.98]" style={{ background: "var(--an-violet, #6d3df5)", color: "var(--an-on-accent, #fff)" }}>
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20"><Mic className="h-5 w-5" aria-hidden /></span>
-      <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold">Record a meeting</span><span className="block truncate text-[13px] opacity-85">Into a new note. Or type @ariserecord in any note.</span></span>
+    <button type="button" onClick={recordMeeting} data-testid="pages-record" className="pp-record" title="Records into a new note. Or type @ariserecord in any note.">
+      <span className="pp-record-dot" aria-hidden /><span className="flex-1">Record a meeting</span><Mic className="h-4 w-4 opacity-60" aria-hidden />
     </button>
     <ul className="pp-group">
       <FolderRow on={false} icon={<Upload />} label="Upload a recording" onClick={() => ctx.go({ name: "upload" })} testId="pages-upload" />
@@ -131,18 +130,18 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
     </ul>
     <ul className="pp-group">
       <FolderRow on={on({ kind: "all" })} icon={<FileText />} label="All notes" count={live.length} onClick={() => pick({ kind: "all" })} testId="pages-folder-all" />
-      <FolderRow on={on({ kind: "pinned" })} icon={<Pin />} label="Pinned" count={count((m) => m.pinned)} onClick={() => pick({ kind: "pinned" })} />
-      <FolderRow on={on({ kind: "ink" })} icon={<PenLine />} label="Handwritten" count={count((m) => m.kind === "ink")} onClick={() => pick({ kind: "ink" })} />
-      <FolderRow on={on({ kind: "locked" })} icon={<Lock />} label="Locked" count={count((m) => m.locked)} onClick={() => pick({ kind: "locked" })} />
+      {/* Pinned, Handwritten and Locked only show when they have notes (or are open), to keep the list short. */}
+      {(count((m) => m.pinned) > 0 || filter.kind === "pinned") && <FolderRow on={on({ kind: "pinned" })} icon={<Pin />} label="Pinned" count={count((m) => m.pinned)} onClick={() => pick({ kind: "pinned" })} />}
+      {(count((m) => m.kind === "ink") > 0 || filter.kind === "ink") && <FolderRow on={on({ kind: "ink" })} icon={<PenLine />} label="Handwritten" count={count((m) => m.kind === "ink")} onClick={() => pick({ kind: "ink" })} />}
+      {(count((m) => m.locked) > 0 || filter.kind === "locked") && <FolderRow on={on({ kind: "locked" })} icon={<Lock />} label="Locked" count={count((m) => m.locked)} onClick={() => pick({ kind: "locked" })} />}
     </ul>
-    <div className="pp-grouphead"><h3>My folders</h3><button type="button" onClick={() => { setEditFolder(null); setSheet("folder"); }} data-testid="pages-new-folder"><FolderPlus className="h-4 w-4" />New folder</button></div>
+    <div className="pp-grouphead"><h3>Folders</h3><button type="button" onClick={() => { setEditFolder(null); setSheet("folder"); }} data-testid="pages-new-folder" aria-label="New folder" title="New folder"><Plus className="h-4 w-4" /></button></div>
     {folders.length ? <ul className="pp-group">{folders.map((f) => <FolderRow key={f.id} on={on({ kind: "folder", id: f.id })} icon={<FolderIcon />} tint={f.color || undefined} label={f.name} count={count((m) => m.folderId === f.id)}
       onClick={() => pick({ kind: "folder", id: f.id })} onEdit={() => { setEditFolder(f); setSheet("folder"); }} testId="pages-folder" />)}</ul>
-      : <button type="button" className="pp-group pp-empty-folder" onClick={() => { setEditFolder(null); setSheet("folder"); }}><FolderPlus className="h-5 w-5" /><span><b>Make your first folder</b><small>Work, school, home: keep notes where you'll find them.</small></span></button>}
+      : <button type="button" className="pp-empty-folder" onClick={() => { setEditFolder(null); setSheet("folder"); }}><FolderPlus className="h-4 w-4" />New folder</button>}
     {tags.length > 0 && <><div className="pp-grouphead"><h3>Tags</h3></div>
       <div className="flex flex-wrap gap-1.5 px-1">{tags.map((t) => <button key={t} type="button" className="pp-tag" aria-pressed={filter.kind === "tag" && filter.tag === t} onClick={() => pick({ kind: "tag", tag: t })}><Hash className="h-3 w-3" />{t}</button>)}</div></>}
     <ul className="pp-group mt-5"><FolderRow on={on({ kind: "trash" })} icon={<Trash2 />} label="Recently Deleted" count={metas.filter((m) => m.deletedAt).length} onClick={() => pick({ kind: "trash" })} /></ul>
-    <p className="pp-trust"><ShieldCheck className="h-4 w-4 shrink-0" />{SYNC_WORDS[state]} across your devices. Locked notes are encrypted on this device with your notes password.</p>
   </nav>;
 
   const filterName = filter.kind === "all" ? "All notes" : filter.kind === "pinned" ? "Pinned" : filter.kind === "ink" ? "Handwritten" : filter.kind === "locked" ? "Locked" : filter.kind === "trash" ? "Recently Deleted" : filter.kind === "tag" ? `#${filter.tag}` : folders.find((f) => f.id === filter.id)?.name ?? "Folder";
@@ -165,7 +164,6 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
         {settings.vault && key && <button type="button" className="an-round-btn" aria-label="Lock locked notes now" onClick={() => { lockNow(); say("Locked notes are locked."); }}><LockOpen className="h-[18px] w-[18px]" /></button>}
         {!wide && <button type="button" className="an-round-btn" aria-label={grid ? "Show as a list" : "Show as cards"} onClick={() => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, view: grid ? "list" : "grid" } })}>{grid ? <ListIcon className="h-[18px] w-[18px]" /> : <Grid2X2 className="h-[18px] w-[18px]" />}</button>}
         {filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="Record a meeting into a new note" onClick={recordMeeting} data-testid="pages-record-list"><Mic className="h-[18px] w-[18px]" /></button>}
-        {filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="Upload a recording" onClick={() => ctx.go({ name: "upload" })} data-testid="pages-upload-list"><Upload className="h-[18px] w-[18px]" /></button>}
         <button type="button" className="an-round-btn" aria-label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-[18px] w-[18px]" /></button>
       </div>
       <label className="an-search block"><span className="sr-only">Search notes</span>
@@ -186,7 +184,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
           {sec.label && <h3 className="pp-section">{sec.label}</h3>}
           <ul className={grid ? "an-masonry" : "pp-rows"} style={sec.label ? undefined : { marginTop: ".5rem" }}>{sec.items.map((m, i) => card(m, i))}</ul>
         </section>)}</div>}
-      {filter.kind === "all" && !q.trim() && recorded.length > 0 && <section aria-label="Recorded meetings" data-testid="pages-recorded">
+      {filter.kind === "all" && !q.trim() && recorded.length > 0 && <section aria-label="Recorded meetings" data-testid="pages-recorded" className="pp-recorded">
         <h3 className="pp-section">Recorded meetings</h3>
         <ul className="pp-rows">{recorded.map((n) => <li key={n.id}><button type="button" className="pp-row" onClick={() => ctx.go({ name: "note", id: n.id })} data-testid="pages-recorded-row">
           <span className="pp-row-icon" aria-hidden><AudioLines /></span>
@@ -217,13 +215,13 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
 
   const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
 
-  return <div className="flex h-[100dvh] min-h-0 flex-col" data-testid="pages-view">
+  return <div className="pp-min flex h-[100dvh] min-h-0 flex-col" data-testid="pages-view">
     {(!openId || wide) && !(wide && full && openId) && tabs}
     <div className="flex min-h-0 flex-1">
       {wide ? <>
         {!(full && openId) && <aside ref={sideRef} style={{ overscrollBehavior: "contain" }} className="hidden w-[260px] shrink-0 overflow-y-auto border-r border-[var(--an-line)] px-3 py-4 lg:block">{nav}</aside>}
         {!(full && openId) && <section className="w-[360px] shrink-0 border-r border-[var(--an-line)]">{list}</section>}
-        <main className="min-w-0 flex-1">{editor ?? <div className="grid h-full place-items-center text-center text-[15px] text-[var(--an-muted)]"><div><div className="an-empty-stack"><i /><i /><i><PenLine className="h-7 w-7" strokeWidth={1.8} /></i></div><p className="an-display text-[24px] text-[var(--an-ink)]">Choose a note</p><p className="mt-1">or start a new one.</p><Btn kind="primary" className="mt-5 !min-h-12 !px-6" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new-empty"><Plus className="h-4 w-4" />New note</Btn></div></div>}</main>
+        <main className="min-w-0 flex-1">{editor ?? <div className="pp-blank"><p>No note selected</p><button type="button" onClick={() => create(PAGE_TEMPLATES[0])} data-testid="pages-new-empty"><Plus className="h-4 w-4" />New note</button></div>}</main>
       </> : <main className="min-w-0 flex-1">{editor ?? (pane === "folders" ? folderScreen : list)}</main>}
     </div>
     {sheet === "new" && <Sheet title="New note" onClose={() => setSheet("")} wide>
