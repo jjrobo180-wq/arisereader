@@ -1,0 +1,27 @@
+name: AriseToDuoMac
+options:
+  bundleIdPrefix: com.arisereader
+  deploymentTarget:
+    macOS: "13.0"
+targets:
+  AriseToDuo:
+    type: application
+    platform: macOS
+    sources: [AriseToDuo]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.arisereader.arisetodo
+        PRODUCT_NAME: Arise To Duo
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: AriseToDuo/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Arise To Duo
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 A.R.I.S.E."
+        CODE_SIGN_ENTITLEMENTS: AriseToDuo/AriseToDuo.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+        ARCHS: "arm64 x86_64"
+        ONLY_ACTIVE_ARCH: NO

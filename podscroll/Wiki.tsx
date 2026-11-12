@@ -1,4 +1,4 @@
-// Pod+ Wiki podcasts: search Wikipedia (or pick today's featured or most-read articles) and listen to
+// Podster Wiki podcasts: search Wikipedia (or pick today's featured or most-read articles) and listen to
 // any article read by an AI voice, section by section, with speed and voice choices. Wikipedia text
 // is CC BY-SA 4.0: every episode credits the article with a link, on screen and in the reading.
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
@@ -116,7 +116,7 @@ function WikiViewInner({ onBack, start }: { onBack: () => void; start?: string |
   </div>;
 }
 
-/** A small bar for a Wiki podcast that is playing or paused while you're elsewhere in Pod+. */
+/** A small bar for a Wiki podcast that is playing or paused while you're elsewhere in Podster. */
 export function WikiMini({ lift, onOpen }: { lift: boolean; onOpen: (title: string) => void }) {
   const [, bump] = useState(0);
   useEffect(() => subscribeWiki(() => bump((n) => n + 1)), []);

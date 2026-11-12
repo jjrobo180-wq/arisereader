@@ -94,7 +94,7 @@ test("OpenAI is off by default: chat goes straight to the backup without calling
   assert.deepEqual(r.calls.map((c) => c.url), ["https://api.groq.com/openai/v1/chat/completions"]);
 });
 
-test("Pod+ questions go to Perplexity, and to the backup if Perplexity fails", async () => {
+test("Podster questions go to Perplexity, and to the backup if Perplexity fails", async () => {
   const { perplexityJson } = await import("../server/perplexityAsk");
   let sent: any = null;
   const ok = perplexityJson(async () => "pplx-1", async () => "backup", (async (_u: any, init: any) => { sent = JSON.parse(init.body); return new Response(JSON.stringify({ choices: [{ message: { content: '{"answer":"Yes [1][2]."}' } }] }), { status: 200 }); }) as any);

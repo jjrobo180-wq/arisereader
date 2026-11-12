@@ -1,4 +1,4 @@
-// The Arise All Access pop-up in the iPhone apps (To Duo, Fit, Notes, Pod+). Sign-up screens no longer show
+// The Arise All Access pop-up in the iPhone apps (To Duo, Fit, Notes, Podster). Sign-up screens no longer show
 // All Access; instead, once a person has made their account and finished the app's tutorial, this pops up once
 // per account on this phone. It is skipped for anyone who already has All Access. Buying inside it follows the
 // same rules as everywhere else (components/AllAccessOffer.tsx: Apple in-app purchase, or the US website link).

@@ -89,7 +89,7 @@ export function fromPerplexity(body: any): any {
   const text = String(body?.choices?.[0]?.message?.content ?? "").replace(/\[\d+\](?:\[\d+\])*/g, "").replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "").trim();
   return { id: body?.id ?? "pplx", object: "chat.completion", model: body?.model ?? "sonar", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: text } }], usage: body?.usage };
 }
-/** One JSON answer straight from Perplexity (used when Groq is out for Pod+'s ad reading). Throws
+/** One JSON answer straight from Perplexity (used when Groq is out for Podster's ad reading). Throws
  *  "busy" when there's no key or it fails, so callers handle it like Groq being busy. */
 export async function perplexityChat(system: string, user: string, timeoutMs = 45_000): Promise<string> {
   const key = await pplxKey().catch(() => "");

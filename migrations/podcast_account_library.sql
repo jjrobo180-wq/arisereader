@@ -1,4 +1,4 @@
--- Pod+: a signed-in account's listening library (shows followed, saved, liked, Pod Modes, resume
+-- Podster: a signed-in account's listening library (shows followed, saved, liked, Pod Modes, resume
 -- spots), saved by the phone so the Apple TV app and other signed-in devices can show it
 -- (server/podcastAccounts.ts /api/podscroll/account/library). Goes with the account.
 create table if not exists public.podcast_account_library (

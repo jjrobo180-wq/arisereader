@@ -54,6 +54,7 @@ jobs:
         run: |
           npm ci
           VITE_NATIVE_APP=trainer npx vite build
+          bash .github/scripts/prune_own_app_bundle.sh trainer dist/public
           rm -rf trainer/ios-app/www
           mkdir -p trainer/ios-app/www
           cp -R dist/public/. trainer/ios-app/www/

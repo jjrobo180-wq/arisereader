@@ -1,6 +1,6 @@
-"""Pod+ in the car: CarPlay (native/arise-carplay).
+"""Podster in the car: CarPlay (native/arise-carplay).
 
-Run after configure-ios.py and adopt_uiscene.py (both Pod+ workflows do):
+Run after configure-ios.py and adopt_uiscene.py (both Podster workflows do):
     python3 configure-carplay.py ios/App/App/Info.plist [--entitlements ios/App/App/App.entitlements]
 
   - Info.plist: a CarPlay scene next to the phone's window (PodCarPlaySceneDelegate draws the car's
@@ -41,7 +41,7 @@ if "PodCarPlaySceneDelegate" not in src:
     if marker not in src:
         sys.exit("AppDelegate.swift has no scene configuration hook: run adopt_uiscene.py first")
     hook = marker + """
-        // Pod+ in the car: CarPlay gets its own scene (native/arise-carplay).
+        // Podster in the car: CarPlay gets its own scene (native/arise-carplay).
         if connectingSceneSession.role.rawValue == \"""" + ROLE + """\" {
             let car = UISceneConfiguration(name: "CarPlay", sessionRole: connectingSceneSession.role)
             car.delegateClass = NSClassFromString("PodCarPlaySceneDelegate")

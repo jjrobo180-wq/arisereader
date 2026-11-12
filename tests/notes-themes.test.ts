@@ -34,7 +34,7 @@ test("a saved look is kept, and anything else means Classic", () => {
 });
 test("the areas around the page follow the look on the iPhone", () => {
   const app = readFileSync(new URL("../client/src/components/arise-notes/NotesApp.tsx", import.meta.url), "utf8");
-  assert.match(app, /"setBackdrop", \{ color: backdrop \}/);
+  assert.match(app, /"setBackdrop", \{ color: paint \}/);
   assert.match(app, /"StatusBar", "setStyle"/);
   const swift = readFileSync(new URL("../notes/ios-app/plugins/arise-on-device/ios/Sources/AriseOnDevicePlugin/AriseOnDevicePlugin.swift", import.meta.url), "utf8");
   assert.match(swift, /CAPPluginMethod\(name: "setBackdrop"/);
@@ -128,14 +128,14 @@ test("the Notes tab looks serious and professional in every look, with real fold
   const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
   const app = read("client/src/components/arise-notes/NotesApp.tsx"), view = read("client/src/components/arise-notes/pages/PagesView.tsx"), css = read("client/src/components/arise-notes/pages/pages-pro.css");
   // The look's colors, fonts and shapes stay out of the Notes tab; it's neutral light or dark.
-  assert.match(app, /const pro = \(route\.name === "pages" \|\| route\.name === "page"\) && !s\?\.contrast;/);
+  assert.match(app, /const pro = route\.name !== "ask" && route\.name !== "undercover" && !s\?\.contrast;/);
   assert.match(app, /const themed = !pro && /);
   assert.match(css, /\.an-root\.an-pro \{[^}]*--an-bg: #f2f2f7 !important/);
   assert.match(css, /\.an-root\.an-pro\.an-pro-dark \{/);
   assert.match(css, /\.an-pro \.an-l-bar \{/);
   // A folder list first on a phone, with your own folders, edit, counts and a way back.
   assert.match(view, /data-testid="pages-folder-screen"/);
-  assert.match(view, /<h3>My folders<\/h3>/);
+  assert.match(view, /<h3>Folders<\/h3>/);
   assert.match(view, /data-testid="pages-back-folders"/);
   assert.match(view, /data-testid="pages-folder-edit"/);
   assert.match(view, /className="pp-row"/);

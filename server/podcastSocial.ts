@@ -72,7 +72,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   allowed?: (req: any) => boolean;
   /** Cuts a clip's audio (server/earshot.ts: from the listener's own copy when it can). */
   cutClip?: CutClip;
-  /** Publishing an episode needs a creator (on Pod+, someone signed in with their email). */
+  /** Publishing an episode needs a creator (on Podster, someone signed in with their email). */
   isCreator?: (req: any) => boolean;
 }) {
   const P = `${o.prefix}/social`;
@@ -90,7 +90,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     console.error("[earshot] social:", e?.message || e);
     res.status(500).json({ message: "That didn't work. Try again." });
   };
-  // The verified official account must be controlled by its signed-in Pod+ account,
+  // The verified official account must be controlled by its signed-in Podster account,
   // not solely by the anonymous device ID that was used before email sign-in.
   let officialOwner: { voter: string | null; at: number } | null = null;
   async function officialVoter(): Promise<string | null> {
@@ -106,7 +106,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     try {
       const owner = await officialVoter();
       if (owner && owner === o.voterOf(req)) {
-        res.status(401).json({ message: "Sign in to your Pod+ account to manage the official profile." });
+        res.status(401).json({ message: "Sign in to your Podster account to manage the official profile." });
         return;
       }
       next();
@@ -124,7 +124,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     res.status(400).json({ message: refusedWords(v.reason), filtered: true });
     return true;
   };
-  const appName = P.startsWith("/api/podscroll") ? "Pod+" : "Earshot (LifeHub)";
+  const appName = P.startsWith("/api/podscroll") ? "Podster" : "Earshot (LifeHub)";
 
   // Comments, notifications, clips and reposts need migrations/podcast_social_v2.sql. Checked once a
   // minute until it's there, so running it turns them on without a restart.
@@ -296,7 +296,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     try {
       if (await refuseWords(res, handle, name, bio, location)) return;
       const voter = o.voterOf(req);
-      // A new profile needs the community rules agreed to first (Pod+ and LifeHub show them).
+      // A new profile needs the community rules agreed to first (Podster and LifeHub show them).
       if (req.body?.agreed !== true && !(await myProfile(voter))) return res.status(400).json({ message: "Agree to the community rules to make your profile.", needRules: true });
       const { data: taken, error: e1 } = await db().from("podcast_profiles").select("voter").eq("handle", handle).maybeSingle();
       check(e1);
@@ -420,7 +420,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
         ? all.map((p) => ({
             p,
             // Official podcast recommendations appear to everyone, even without a follow.
-            // Reserve the first slots for the latest genuine shares by our verified Pod+ account.
+            // Reserve the first slots for the latest genuine shares by our verified Podster account.
             featured: p.author.handle === OFFICIAL_HANDLE && !!p.author.verified && p.kind === "share" && !!p.episode,
             s: forYouScore({ likes: p.likes, comments: p.comments, reposts: p.reposts, at: p.at, followed: follows.has(voterOfPost.get(p.id) || ""), media: !!p.media?.length || !!p.episode, mine: p.mine }, now),
           }))

@@ -1,4 +1,4 @@
-// Pod+ Music: public domain music (Beethoven, Mozart, Bach, old jazz and blues) from the Internet
+// Podster Music: public domain music (Beethoven, Mozart, Bach, old jazz and blues) from the Internet
 // Archive, through /api/podscroll/music (server/music.ts). Only recordings marked public domain are
 // listed, so everything here is free to play. Tap an album to see its tracks; the bar at the bottom
 // keeps playing while you browse, and moves on to the next track by itself.

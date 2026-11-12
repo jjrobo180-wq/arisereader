@@ -1,5 +1,6 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
+import { registerIepAiRoutes } from "./iepAi";
 import { dedupeBooks } from "./bookDedupe";
 import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
@@ -1289,7 +1290,7 @@ export async function registerRoutes(
   /** Fire and forget: an alert never slows down or breaks the request that caused it. */
   const alertAdmin = (event: Parameters<typeof adminAlerts.notify>[0], alert: Alert) => { void adminAlerts.notify(event, alert); };
   const personName = (user: any) => String(user?.displayName || user?.display_name || user?.username || "Someone");
-  // Pod+ and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
+  // Podster and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
   // reported posts, people and messages are looked at within 24 hours (App Review Guideline 1.2).
   onSocialReport((r) => alertAdmin("problem_report", {
     title: `${r.app}: a ${r.what} was reported`,
@@ -1610,7 +1611,7 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Pod+).
+        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Podster).
         priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
@@ -1741,8 +1742,8 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
-  // Pod+'s AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
-  // the signed-in Arise user, or (in the Pod+ app) the Arise account with the Pod+ sign-in's email.
+  // Podster's AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
+  // the signed-in Arise user, or (in the Podster app) the Arise account with the Podster sign-in's email.
   configureAiMinutes({
     accountOf: async (req: any) => {
       const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
@@ -1756,8 +1757,8 @@ export async function registerRoutes(
     left: (id) => notesMinutes.left(id),
     spend: (id, m, kind) => notesMinutes.spend(id, m, kind),
   });
-  // Ad-free Pod+ is part of Arise All Access. In To Duo the listener is the Arise account; in the Pod+
-  // app it's the Arise account with the same email as the person's Pod+ sign-in.
+  // Ad-free Podster is part of Arise All Access. In To Duo the listener is the Arise account; in the Podster
+  // app it's the Arise account with the same email as the person's Podster sign-in.
   const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
   const allAccessListener = async (req: any): Promise<boolean> => {
     const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
@@ -1779,7 +1780,7 @@ export async function registerRoutes(
   };
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener });
-  // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
+  // Contact us (server/supportContact.ts): Arise To Duo's and Podster's Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {
       const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -1816,6 +1817,7 @@ export async function registerRoutes(
   setInterval(runBookDedupe, 6 * 60 * 60 * 1000).unref?.();
   // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
   registerGoalQuizRoutes(app, authMiddleware);
+  registerIepAiRoutes(app, authMiddleware);
   // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
   registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
   // The no-login lesson plan link a teacher gives their school.
@@ -5055,6 +5057,10 @@ export async function registerRoutes(
       if (r === "admin") throw new Error("Admin accounts can't be switched off.");
     },
     confirm: (userId) => storage.approveTeacherAccount(userId),
+    deleteAccount: async (userId) => {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Deleting accounts is not set up on this server.");
+      return deleteUserAccount(userId);
+    },
   });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
@@ -9892,7 +9898,7 @@ Important:
   });
 
   // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
-  // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
+  // Podster): a real AI voice, made once and kept (voice-cache). Signed in or not (the Podster app and the
   // public pages have no Arise sign-in), so it is limited by address and by length instead.
   const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy", "calm"]);
   const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
@@ -13191,13 +13197,26 @@ Important:
         } catch {}
       }
 
-      const { error } = await adminDb.from("users").delete().eq("id", userId);
+      // The database refuses while any other table still points at the person. Each time it names the one in
+      // the way: clear what points at them there (or, where that is not allowed, let go of them), then try again.
+      let error: any = null;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        ({ error } = await adminDb.from("users").delete().eq("id", userId));
+        if (!error) break;
+        const m = /foreign key constraint "([^"]+)" on table "([^"]+)"/i.exec(error.message || "");
+        if (!m) break;
+        const [, constraint, table] = m;
+        const column = constraint.startsWith(`${table}_`) && constraint.endsWith("_fkey") ? constraint.slice(table.length + 1, -5) : "";
+        if (!column) { console.error("[admin-delete] Blocked by", table, constraint); return { blockedBy: table }; }
+        const gone = await adminDb.from(table).delete().eq(column, userId);
+        if (gone.error) {
+          const kept = await adminDb.from(table).update({ [column]: null }).eq(column, userId);
+          if (kept.error) { console.error("[admin-delete] Could not clear", table, column, gone.error.message, kept.error.message); return { blockedBy: table }; }
+        }
+      }
       if (error) {
         const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
-        if (blocked) {
-          console.error("[admin-delete] Blocked by", blocked[1]);
-          return { blockedBy: blocked[1] };
-        }
+        if (blocked) { console.error("[admin-delete] Blocked by", blocked[1]); return { blockedBy: blocked[1] }; }
         throw new Error(error.message);
       }
 
@@ -13230,7 +13249,7 @@ Important:
   });
 
   // Admin: delete many accounts at once, by kind (students, Arise AAC users, teachers, parents, Arise To Duo and
-  // Pod+ accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
+  // Podster accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
   // first gets the exact count, then must send "DELETE <count>" back; it runs in the background, one account
   // at a time through deleteUserAccount (everything that belongs to each goes too), and can be watched.
   const BULK_KINDS = ["student", "eyegazer", "teacher", "parent", "todo"] as const;

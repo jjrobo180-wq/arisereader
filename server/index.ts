@@ -105,6 +105,48 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
+// The Arise Notes homepage. arisetodo.com/notes/ shows the Notes landing page to visitors who aren't
+// signed in (and to search engines). Anyone with a sign-in cookie gets the app as before, and so does
+// /notes/?app (the landing page's Sign in buttons, the installed app and app links), so links into
+// the app keep working. Only the exact address /notes/ is matched: /notes without the slash still
+// goes to the static handler, which adds the slash.
+app.get("/notes/", (req, res, next) => {
+  if (!req.originalUrl.split("?")[0].endsWith("/notes/")) return next();
+  res.setHeader("Vary", "Cookie");
+  if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  if (req.query.app !== undefined || (typeof req.query.signin === "string" && req.query.signin)) return next();
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", "notes-landing.html")
+    : path.resolve(process.cwd(), "client", "public", "notes-landing.html");
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").sendFile(page);
+});
+
+// Cooked Fitness by Arise and Cooked PT homepages. Signed-out visitors (and search engines) get the
+// landing page; anyone already signed in goes straight into the app. /cooked and /cooked-pt without
+// the slash land on the page too.
+const COOKED_SITES: Record<string, { file: string; app: string }> = {
+  "/cooked/": { file: "cooked-landing.html", app: "/app#/fit" },
+  "/cooked-pt/": { file: "cooked-pt-landing.html", app: "/app#/trainer" },
+};
+app.get(["/cooked", "/cooked-pt"], (req, res, next) => {
+  const p = req.originalUrl.split("?")[0];
+  if (p !== "/cooked" && p !== "/cooked-pt") return next();
+  const q = req.originalUrl.indexOf("?");
+  res.redirect(301, p + "/" + (q >= 0 ? req.originalUrl.slice(q) : ""));
+});
+app.get(["/cooked/", "/cooked-pt/"], (req, res, next) => {
+  const site = COOKED_SITES[req.originalUrl.split("?")[0]];
+  if (!site) return next();
+  res.setHeader("Vary", "Cookie");
+  if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return res.redirect(302, site.app);
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", site.file)
+    : path.resolve(process.cwd(), "client", "public", site.file);
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").sendFile(page);
+});
+
 // The light To-Do homepage has an inline pricing section. Old /pricing
 // links must not fall through into the dark React app on this hostname.
 app.get("/pricing", (req, res, next) => {
@@ -191,7 +233,7 @@ app.use(/^\/api\/para-teams\/[^/]+\/apps\/data$/, express.json({ limit: "3mb" })
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
 // Arise Office files and premium-app data: big workbooks and documents are saved here whole.
 app.use("/api/docs", express.json({ limit: "11mb" }));
-// Pod+ Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
+// Podster Studio: notes from a PDF or a photo (JSON with the file inside), and recorded lectures and
 // meetings (raw audio, a few minutes at a time). Before the global JSON parser, for their size.
 app.use(/^\/api\/(podscroll|earshot)\/studio\/read$/, express.json({ limit: "14mb" }));
 app.use(/^\/api\/(podscroll|earshot)\/studio\/transcribe$/, express.raw({ type: "*/*", limit: "26mb" }));

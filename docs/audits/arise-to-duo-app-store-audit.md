@@ -51,7 +51,7 @@ no-purchase page inside the app; the type check found no missing imports today.
   4. Call the prune script right after `npx vite build` in all three workflows.
   5. Add a guard to `ota-publish.yml` for `todo`: fail the job if the zip is over 60 MB.
 - **Check:** the `ota-todo-*` notice in the workflow run shows a size under 60 MB; books, avatars and the
-  Pod+ sample still load in the app with Wi-Fi on.
+  Podster sample still load in the app with Wi-Fi on.
 
 ### 2. No privacy manifest (`PrivacyInfo.xcprivacy`) anywhere in the project
 

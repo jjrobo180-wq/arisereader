@@ -77,12 +77,20 @@ test("every update offered carries the zip's checksum (the phone's updater refus
   assert.match(readFileSync("server/ota.ts", "utf8"), /checksum: next\.checksum/);
 });
 
-test("the iPhone apps update while open, like the website: on open, on coming back, and every few minutes", () => {
+test("the iPhone apps get new web code quietly: downloaded in the background, used when the app is next in the background", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const native = read("client/src/lib/nativeApp.ts");
   assert.match(native, /export async function liveUpdateNow/);
-  assert.match(native, /await u\.set\(\{ id: bundle\.id \}\)/);
   assert.match(native, /visibilitychange/);
   assert.match(read("client/src/main.tsx"), /keepLiveUpdated\(\);/);
-  assert.match(read(".github/scripts/ota_setup.py"), /"directUpdate": "always"/);
+  // Never a reload while the app is on screen: the downloaded copy waits (next), and the updater
+  // itself switches over only when the app goes to the background.
+  const live = native.slice(native.indexOf("export async function liveUpdateNow"), native.indexOf("export async function checkForUpdateNow"));
+  assert.ok(!/u\.set\(/.test(live), "liveUpdateNow never reloads");
+  assert.match(live, /await u\.next\(\{ id: bundle\.id \}\)/);
+  assert.match(read(".github/scripts/ota_setup.py"), /"directUpdate": False,/);
+  assert.ok(!/"directUpdate": "always"/.test(read(".github/scripts/ota_setup.py")));
+  // Only the Settings button switches at once, because someone asked for it.
+  const button = native.slice(native.indexOf("export async function checkForUpdateNow"), native.indexOf("export function keepLiveUpdated"));
+  assert.match(button, /await u\.set\(\{ id: bundle\.id \}\)/);
 });

@@ -1,5 +1,5 @@
 // Backup speech-to-text: Deepgram (nova-3). Used when Groq's free speech-to-text is out for the
-// hour, so Pod+ keeps reading episodes for ads and audiobooks keep their transcripts. Needs
+// hour, so Podster keeps reading episodes for ads and audiobooks keep their transcripts. Needs
 // DEEPGRAM_API_KEY on the server (deepgram.com gives a starting credit; then about $0.0043 a minute).
 // Answers in the same shape as Whisper: segments (sentences with times) and word timings.
 export type Transcript = { segments: { start: number; end: number; text: string }[]; words: { start: number; end: number; word: string }[] };

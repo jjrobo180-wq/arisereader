@@ -38,7 +38,7 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
   reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
-  fit: { name: "Cooked", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
+  fit: { name: "Cooked Fitness by Arise", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },
   eyegaze: { name: "Arise AAC", bundle: "com.arisereader.eyegazer", api: "https://arisetodo.com" },
   trainer: { name: "Cooked PT", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
@@ -121,10 +121,10 @@ export function markAppReadyWhenDrawn(): void {
   window.setTimeout(tick, 800);
 }
 
-/** Live updates while the app is open, like the website: the newest web code is fetched in the background and
- *  switched to right away (the updater reloads the page; unsaved typing is kept by the hub's draft copy), so
- *  nobody has to close the app twice. Checked shortly after it opens, whenever it comes back to the screen,
- *  and every few minutes while it's on screen. */
+/** Live updates while the app is open: the newest web code is downloaded in the background and switched to
+ *  the next time the app goes to the background or opens again — never while it's on screen. Reloading on the
+ *  spot (a few seconds after opening, or when coming back) showed up as the app freezing and losing its place.
+ *  Builds whose updater already does this by itself (autoUpdate on) are left to it, so the code isn't downloaded twice. */
 const updater = () => {
   const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
   const p = cap?.Plugins?.CapacitorUpdater;
@@ -133,13 +133,18 @@ const updater = () => {
   return null;
 };
 let checking = false, lastCheck = 0;
-/** `applyNow` switches to the new copy at once (only the first check after launch, before anything is on screen);
- *  otherwise it waits for the next time the app is opened, so a screen never reloads while someone is using it. */
-export async function liveUpdateNow(force = false, applyNow = false): Promise<"none" | "applied" | "failed"> {
+/** Downloads newer web code, if any, and queues it for the next time the app goes to the background or opens.
+ *  It never reloads the screen (only "Check for updates" in Settings does, because someone asked for it). */
+export async function liveUpdateNow(force = false): Promise<"none" | "applied" | "failed"> {
   if (!isNativeApp() || checking || (!force && Date.now() - lastCheck < 60_000)) return "none";
   const u = updater(); if (!u) return "none";
   checking = true; lastCheck = Date.now();
   try {
+    // The app's own updater already checks, downloads and switches over in the background: nothing to add.
+    if (typeof u.isAutoUpdateEnabled === "function") {
+      const auto: any = await u.isAutoUpdateEnabled().catch(() => null);
+      if (auto?.enabled === true) return "none";
+    }
     const latest: any = await u.getLatest();
     const version = String(latest?.version || ""), url = String(latest?.url || "");
     if (!version || !url || latest?.error) return "none";
@@ -150,16 +155,38 @@ export async function liveUpdateNow(force = false, applyNow = false): Promise<"n
     sessionStorage.setItem(`arise-live-${version}`, String(tries + 1));
     const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
     if (!bundle?.id) return "failed";
-    if (applyNow || typeof u.next !== "function") await u.set({ id: bundle.id }); // reloads into the new copy
-    else await u.next({ id: bundle.id }); // used the next time the app opens
+    if (typeof u.next !== "function") return "none"; // very old updater: leave it to the next app build
+    await u.next({ id: bundle.id }); // used the next time the app goes to the background or opens
     return "applied";
   } catch { return "failed"; } finally { checking = false; }
 }
+/** Settings → "Check for updates": does the whole check now and says in plain words what happened,
+ *  so a phone that isn't updating shows why. Switches to the new copy right away when there is one. */
+export async function checkForUpdateNow(): Promise<string> {
+  if (!isNativeApp()) return "This is the website: it always has the newest version. Reload the page to get it.";
+  const u = updater();
+  if (!u) return "This app can't update itself (the updater isn't in this build). It needs a new TestFlight build.";
+  let cur: any = null;
+  try { cur = await u.current(); } catch { /* unknown */ }
+  const running = String(cur?.bundle?.version || "builtin"), shipped = String(cur?.native || "");
+  let latest: any;
+  try { latest = await u.getLatest(); } catch (e: any) { return `Couldn't reach the update server (${e?.message || e}). Running ${running}.`; }
+  const version = String(latest?.version || ""), url = String(latest?.url || "");
+  if (!version || !url || latest?.error) return `Up to date: no newer version for this app (running ${running}${shipped ? `, app ${shipped}` : ""}; server said: ${latest?.message || latest?.error || "nothing new"}).`;
+  if (running === version) return `Up to date (${version}).`;
+  try {
+    const bundle: any = await u.download({ url, version, ...(latest.checksum ? { checksum: latest.checksum } : {}) });
+    if (!bundle?.id) return `Downloaded ${version} but it couldn't be opened.`;
+    await u.set({ id: bundle.id }); // reloads into the new copy
+    return `Updating to ${version}…`;
+  } catch (e: any) { return `Found ${version} but the download failed: ${e?.message || e}`; }
+}
 export function keepLiveUpdated(): void {
   if (!isNativeApp() || typeof document === "undefined") return;
-  window.setTimeout(() => void liveUpdateNow(true, true), 6000);
+  // Well after the first screen is up, so the download never competes with opening the app.
+  window.setTimeout(() => void liveUpdateNow(true), 30_000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void liveUpdateNow(); });
-  window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(true); }, 5 * 60_000);
+  window.setInterval(() => { if (document.visibilityState === "visible") void liveUpdateNow(); }, 10 * 60_000);
 }
 
 /** The hash to open for a notification's link. Links are written "/#/lifehub?go=tasks", and this page
