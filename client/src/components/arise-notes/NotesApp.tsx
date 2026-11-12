@@ -320,7 +320,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
     {/* Notes has no tutorial: the All Access pop-up comes once, a little after the first open (iPhone app only). */}
-    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Fit and Podster." />}
+    {mode === "standalone" && <AllAccessPopup userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise All Access gives you 1,500 minutes, plus the extras in To Duo, Cooked Fitness by Arise and Podster." />}
   </div>;
 }
 
