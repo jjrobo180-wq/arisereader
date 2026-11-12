@@ -40,10 +40,28 @@ const clock12 = (hm: string) => {
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
 /** Reminders due now that have not been sent yet (`sent` holds keys already sent; all start with "todo:"). */
-export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: string, sent: Record<string, unknown> = {}): TodoReminder[] {
+/** The phone plans reminders for every five minutes of the next three days (864 checks in a row). Checking
+ *  and copying the whole hub (every event, recipe, note…) on each one took seconds and froze the app a few
+ *  seconds after every change. prepareTodoReminders does it once; dueTodoReminders then uses that copy. */
+const PREPARED = Symbol("prepared-todo-reminders");
+export function prepareTodoReminders(workspace: unknown): Record<string | symbol, any> {
   const ws = (workspace && typeof workspace === "object" ? workspace : {}) as Record<string, any>;
-  const family = cleanFamily(ws.family);
-  const tasks: any[] = (Array.isArray(ws.tasks) ? ws.tasks : []).filter((t) => t && typeof t.title === "string" && !t.done);
+  if (ws[PREPARED as any]) return ws;
+  // `tasks` stays every task (the evening summary counts the ones done today); `openTasks` are the ones still to do.
+  const openTasks: any[] = (Array.isArray(ws.tasks) ? ws.tasks : []).filter((t) => t && typeof t.title === "string" && !t.done);
+  // A day's events are worked out once per run and reused for each of that day's 288 five-minute steps.
+  return { ...ws, family: cleanFamily(ws.family), openTasks, eventsByDay: new Map<string, ReturnType<typeof eventsOn>>(), [PREPARED]: true };
+}
+function eventsFor(ws: Record<string | symbol, any>, family: ReturnType<typeof cleanFamily>, date: string) {
+  const memo = ws.eventsByDay as Map<string, ReturnType<typeof eventsOn>>;
+  let list = memo.get(date);
+  if (!list) { list = eventsOn(family, date); memo.set(date, list); }
+  return list;
+}
+export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: string, sent: Record<string, unknown> = {}): TodoReminder[] {
+  const ws = prepareTodoReminders(workspace);
+  const family = ws.family as ReturnType<typeof cleanFamily>;
+  const tasks: any[] = ws.openTasks;
   const prefs = family.notify;
   const { date, minutes } = localParts(nowMs, timeZone);
   const out: TodoReminder[] = [];
@@ -70,7 +88,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
   const now = (hm: string) => { const at = clockMinutes(hm); return minutes >= at && minutes < at + SEND_WINDOW_MINUTES; };
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay() as Weekday;
 
-  const events = isOn("calendar", family) ? eventsOn(family, date) : [];
+  const events = isOn("calendar", family) ? eventsFor(ws, family, date) : [];
   for (const e of events) {
     if (!e.time || !soon(e.time)) continue;
     const key = `todo:event:${e.id}:${date}:${e.time}`;

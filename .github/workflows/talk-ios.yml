@@ -55,6 +55,7 @@ jobs:
         run: |
           npm ci
           VITE_NATIVE_APP=talk npx vite build
+          bash .github/scripts/prune_own_app_bundle.sh talk dist/public
           rm -rf talk/ios-app/www
           mkdir -p talk/ios-app/www
           cp -R dist/public/. talk/ios-app/www/
