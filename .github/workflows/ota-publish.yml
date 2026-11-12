@@ -49,6 +49,10 @@ jobs:
               PODPLUS_IOS=1 npx vite build --config podscroll/vite.config.ts
               node podscroll/ios-app/prepare-web.mjs
               echo "OUT=podscroll/dist" >> "$GITHUB_ENV" ;;
+            notes)
+              VITE_NATIVE_APP=notes npx vite build
+              bash .github/scripts/prune_notes_bundle.sh dist/public
+              echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
             todo)
               npx vite build
               bash .github/scripts/prune_todo_bundle.sh dist/public
