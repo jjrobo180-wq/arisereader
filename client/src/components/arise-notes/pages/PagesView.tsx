@@ -5,7 +5,7 @@
 // paper…), in the look you chose for new notes.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SwipeItem } from "./SwipeItem";
-import { AudioLines, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
+import { AudioLines, Upload, ChevronLeft, ChevronRight, FileText, LayoutGrid, Mic, Folder as FolderIcon, FolderPlus, Grid2X2, Hash, LayoutTemplate, List as ListIcon, Lock, LockOpen, MoreHorizontal, PenLine, Pin, Plus, RotateCcw, Search, Settings2, ShieldCheck, SquarePen, Trash2 } from "lucide-react";
 import { DEFAULT_LOOK, PAGE_TEMPLATES, PAPER_THEMES, TRASH_DAYS, blankInkPage, cleanLook, pageTitle, type Folder, type Page, type PageMeta, type PageTemplate } from "@shared/arisePages";
 import { api } from "../api";
 import { Btn, IconBtn, Notice, Sheet, Spinner, Toggle, shortDate, useToast } from "../ui";
@@ -125,7 +125,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
       <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold">Record a meeting</span><span className="block truncate text-[13px] opacity-85">Into a new note. Or type @ariserecord in any note.</span></span>
     </button>
     <ul className="pp-group">
-      <FolderRow on={false} icon={<AudioLines />} label="Recordings and AI notes" onClick={() => ctx.go({ name: "home" })} testId="pages-recordings" />
+      <FolderRow on={false} icon={<Upload />} label="Upload a recording" onClick={() => ctx.go({ name: "upload" })} testId="pages-upload" />
       <FolderRow on={false} icon={<LayoutGrid />} label="Apps" onClick={() => ctx.go({ name: "apps" })} testId="pages-apps" />
     </ul>
     <ul className="pp-group">
@@ -164,6 +164,7 @@ export default function PagesView({ ctx, openId, tabs }: { ctx: AppCtx; openId: 
         {settings.vault && key && <button type="button" className="an-round-btn" aria-label="Lock locked notes now" onClick={() => { lockNow(); say("Locked notes are locked."); }}><LockOpen className="h-[18px] w-[18px]" /></button>}
         {!wide && <button type="button" className="an-round-btn" aria-label={grid ? "Show as a list" : "Show as cards"} onClick={() => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, view: grid ? "list" : "grid" } })}>{grid ? <ListIcon className="h-[18px] w-[18px]" /> : <Grid2X2 className="h-[18px] w-[18px]" />}</button>}
         {filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="Record a meeting into a new note" onClick={recordMeeting} data-testid="pages-record-list"><Mic className="h-[18px] w-[18px]" /></button>}
+        {filter.kind !== "trash" && <button type="button" className="an-round-btn" aria-label="Upload a recording" onClick={() => ctx.go({ name: "upload" })} data-testid="pages-upload-list"><Upload className="h-[18px] w-[18px]" /></button>}
         <button type="button" className="an-round-btn" aria-label="Notes settings" onClick={() => setSheet("settings")}><Settings2 className="h-[18px] w-[18px]" /></button>
       </div>
       <label className="an-search block"><span className="sr-only">Search notes</span>

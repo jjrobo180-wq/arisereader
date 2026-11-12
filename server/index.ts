@@ -105,6 +105,23 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
+// The Arise Notes homepage. arisetodo.com/notes/ shows the Notes landing page to visitors who aren't
+// signed in (and to search engines). Anyone with a sign-in cookie gets the app as before, and so does
+// /notes/?app (the landing page's Sign in buttons, the installed app and app links), so links into
+// the app keep working. Only the exact address /notes/ is matched: /notes without the slash still
+// goes to the static handler, which adds the slash.
+app.get("/notes/", (req, res, next) => {
+  if (!req.originalUrl.split("?")[0].endsWith("/notes/")) return next();
+  res.setHeader("Vary", "Cookie");
+  if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  if (req.query.app !== undefined || (typeof req.query.signin === "string" && req.query.signin)) return next();
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", "notes-landing.html")
+    : path.resolve(process.cwd(), "client", "public", "notes-landing.html");
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").sendFile(page);
+});
+
 // The light To-Do homepage has an inline pricing section. Old /pricing
 // links must not fall through into the dark React app on this hostname.
 app.get("/pricing", (req, res, next) => {
