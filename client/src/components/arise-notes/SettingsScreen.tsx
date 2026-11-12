@@ -16,6 +16,7 @@ import { TabBar, TopBar, openSplit, type AppCtx } from "./NotesApp";
 import LookPicker from "@/components/looks/LookPicker";
 import { AppIcon, NOTES_APPS, useNotesApps } from "./notesAppsCatalog";
 import AllAccessOffer from "@/components/AllAccessOffer";
+import "./pages/pages-pro.css";
 
 type Tab = "plan" | "look" | "family" | "privacy" | "access";
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;

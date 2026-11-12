@@ -246,7 +246,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const look = s?.night ? nightLook(themeOf(s?.theme)) : themeOf(s?.theme);
   // The Notes tab (typed and handwritten notes) always has a plain, professional look: neutral surfaces,
   // the system's own type and real folders. Dark when the look or night mode is dark.
-  const pro = (route.name === "pages" || route.name === "page") && !s?.contrast;
+  const pro = (route.name === "pages" || route.name === "page" || route.name === "settings") && !s?.contrast;
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
   // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
   // page: their colors and type replace the neutral ones there (notes-suite.css).
