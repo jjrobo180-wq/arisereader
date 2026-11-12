@@ -12,7 +12,7 @@ on:
       - 'client/src/**'
 env:
   # The App Store version of this build (see "Prepare beta icon and build number").
-  APP_VERSION: "1.1"
+  APP_VERSION: "1.2"
 jobs:
   signed-archive:
     # GitHub's Xcode 27 image (Apple Silicon): builds with the iOS 27.1 SDK, for iPhone Duo.
