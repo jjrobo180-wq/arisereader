@@ -1,6 +1,4 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
-import WorkHubTour from "@/components/WorkHubTour";
-import ReaderFirstRun from "@/components/ReaderFirstRun";
 import NativeBack from "@/components/NativeBack";
 
 import ForcePasswordChange from "@/components/ForcePasswordChange";
@@ -25,6 +23,14 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { lastKnownLocked, readerLocked, teacherLocked, usePlan } from "@/lib/plan";
 import { useState, useEffect, lazy, Suspense, type ComponentType } from "react";
 const FitApp = lazy(() => import("@/pages/fit/FitApp"));
+// Not on anyone's first screen, so not in the code every app loads at start (tests/startup-size.test.ts).
+const WorkHubTour = lazy(() => import("@/components/WorkHubTour"));
+const ReaderFirstRun = lazy(() => import("@/components/ReaderFirstRun"));
+const AssessmentPopup = lazy(() => import("./components/AssessmentPopup"));
+const ClassTeachersPopup = lazy(() => import("./components/ClassTeachersPopup"));
+const PointsSideTab = lazy(() => import("./components/PointsSideTab"));
+const AvatarWorldSideTab = lazy(() => import("./components/AvatarWorldSideTab"));
+const AdvisoryChallengePopup = lazy(() => import("./components/AdvisoryChallenge"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
 const TrainerSitePage = lazy(() => import("@/pages/coach/TrainerSite"));
@@ -56,18 +62,7 @@ function getTokenFromCookie(): string | null {
 import SignIn from "./pages/SignIn";
 import NativeSignIn from "./pages/NativeSignIn";
 import { startAppleSync } from "./lib/appleStore";
-import Register from "./pages/Register";
-import TeacherSignup from "./pages/TeacherSignup";
-import ParentSignup from "./pages/ParentSignup";
-import QuizPermission from "./pages/QuizPermission";
-import ResetPassword from "./pages/ResetPassword";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
-import AssessmentPopup from "./components/AssessmentPopup";
-import ClassTeachersPopup from "./components/ClassTeachersPopup";
-import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
-import PointsSideTab from "./components/PointsSideTab";
-import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
-import AdvisoryChallengePopup from "./components/AdvisoryChallenge";
 import ClubPlayGate from "./components/ClubPlayGate";
 import NotFound from "./pages/not-found";
 
@@ -138,6 +133,11 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+const Register = lazyPage(() => import("./pages/Register"));
+const TeacherSignup = lazyPage(() => import("./pages/TeacherSignup"));
+const ParentSignup = lazyPage(() => import("./pages/ParentSignup"));
+const QuizPermission = lazyPage(() => import("./pages/QuizPermission"));
+const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
 const TodoAdmin = lazyPage(() => import("./pages/TodoAdmin"));
 const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const ClassGoalBoard = lazyPage(() => import("./pages/ClassGoalBoard"));
@@ -573,20 +573,32 @@ function AppRoutes() {
   useEffect(() => { if (onReaderDomain) ReaderSubscribe.preload(); }, [onReaderDomain]);
   const hubAdult = isHubAccount(user);
   const hubUserId = hubAdult ? user?.id : undefined;
+  // In the iPhone and iPad apps none of this runs: their code is already on the device, so a preload
+  // saves nothing, and preparing WorkHub's code (about 1 MB) or both hubs' data while someone is tapping
+  // froze the screen for a moment right after the app opened. On the website it waits until the page
+  // is idle, so it never competes with the first taps.
   useEffect(() => {
-    if (!hubAdult) return;
-    let code = 0, copy = 0;
+    if (!hubAdult || isNativeApp()) return;
+    let code = 0, copy = 0, idle = 0;
+    const whenIdle = (fn: () => void) => {
+      const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, o?: { timeout: number }) => number);
+      if (ric) idle = ric(fn, { timeout: 4000 }); else code = window.setTimeout(fn, 1200);
+    };
     const run = () => {
       TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload();
-      copy = window.setTimeout(() => {
+      copy = window.setTimeout(() => whenIdle(() => {
         if (!token || !hubUserId) return;
         void import("@/components/teacher-hub/useHubWorkspace").then((m) => m.prefetchWorkHub(hubUserId, token)).catch(() => {});
         void import("@/lib/useTodoCloud").then((m) => m.prefetchLifeHub(hubUserId, token)).catch(() => {});
-      }, 1500);
+      }), 1500);
     };
-    const later = () => { code = window.setTimeout(run, 300); };
+    const later = () => { code = window.setTimeout(() => whenIdle(run), 1500); };
     if (document.readyState === "complete") later(); else window.addEventListener("load", later, { once: true });
-    return () => { window.removeEventListener("load", later); window.clearTimeout(code); window.clearTimeout(copy); };
+    return () => {
+      window.removeEventListener("load", later); window.clearTimeout(code); window.clearTimeout(copy);
+      const cic = (window as any).cancelIdleCallback as undefined | ((id: number) => void);
+      if (idle && cic) cic(idle);
+    };
   }, [hubAdult, hubUserId, token]);
   if (isLoading) {
     return (
@@ -1157,6 +1169,7 @@ function AppInner() {
   return (
     <>
       {/* The Reader iPhone app keeps the screen clean: no tabs on the right edge (points, Avatar World). */}
+      <Suspense fallback={null}>
       {overlays && isStudent && !isEyeGazeStudent && !isReaderApp() && <PointsSideTab />}
       {overlays && isStudent && !isEyeGazeStudent && !isReaderApp() && <AvatarWorldSideTab />}
       {/* The Advisory Challenge pop-up replaces the Halloread welcome and the "your standing" pop-up
@@ -1168,6 +1181,7 @@ function AppInner() {
       {overlays && !isAdminPreview && !isReaderApp() && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
       {/* The Reader iPhone apps' first run: notifications (or a daily reading reminder) and a tour. */}
       {isReaderApp() && user && !isAdminPreview && !(nativeFlavor() === "reader" && !isStudent) && !readerLocked(readerPlan) && <ReaderFirstRun userId={user.id} />}
+      </Suspense>
       <ParaJoinResume />
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />

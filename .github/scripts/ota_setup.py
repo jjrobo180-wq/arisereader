@@ -37,8 +37,11 @@ cfg.setdefault("plugins", {})["CapacitorUpdater"] = {
     "autoDeleteFailed": True,
     "autoDeletePrevious": True,
     "resetWhenUpdate": True,
-    # Newer app builds also switch to new web code as soon as it arrives, and look for it every 10 minutes.
-    "directUpdate": "always",
+    # New web code is downloaded in the background (checked every 10 minutes) and switched to only when
+    # the app goes to the background, never while it's on screen. The old setting (direct updates "always") reloaded the
+    # app the moment an update finished downloading, at launch and in the middle of use, which people
+    # saw as the app freezing (tests/ota.test.ts).
+    "directUpdate": False,
     "periodCheckDelay": 600,
 }
 json.dump(cfg, open(path, "w"), indent=2)
