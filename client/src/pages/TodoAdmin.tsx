@@ -9,7 +9,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { usd } from "@shared/plans";
 import {
   PAGE_SIZES, PLAN_FILTERS, PLAN_FILTER_LABEL, ROLE_FILTERS, ROLE_LABEL, SORTS, SORT_LABEL, TRIAL_CHOICES,
-  type Overview, type Person, type PersonSort, type PlanFilter, type RoleFilter,
+  type Overview, type Person, type PersonSort, type PlanFilter, type RoleFilter, type ProgramId, type ProgramPerson, type ProgramStats,
 } from "@shared/todoAdmin";
 import { lockPageScroll } from "@/lib/scrollLock";
 
@@ -303,6 +303,96 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
   );
 }
 
+// ─── Programs: each app's memberships, on their own ──────────────────────
+
+type ProgramList = { rows: ProgramPerson[]; page: number; pages: number; total: number; searching: boolean };
+
+/** One program: its numbers, its members, and the buttons to give or end a free membership, or delete an account. */
+function ProgramPanel({ stats, onChanged }: { stats: ProgramStats; onChanged: () => void }) {
+  const api = useApi();
+  const [list, setList] = useState<ProgramList | null>(null);
+  const [typed, setTyped] = useState("");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [days, setDays] = useState(30);
+  const [busy, setBusy] = useState<number | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { const t = window.setTimeout(() => { setQ(typed.trim()); setPage(1); }, 300); return () => window.clearTimeout(t); }, [typed]);
+  const load = useCallback(async () => {
+    try { setList(await api<ProgramList>(`/api/todo-admin/programs/${stats.id}/people?${new URLSearchParams({ q, page: String(page) })}`)); }
+    catch (e: any) { setMsg({ ok: false, text: e.message }); }
+  }, [api, stats.id, q, page]);
+  useEffect(() => { void load(); }, [load]);
+  const run = async (p: ProgramPerson, job: () => Promise<unknown>, done: string) => {
+    if (busy) return;
+    setBusy(p.id); setMsg(null);
+    try { await job(); setMsg({ ok: true, text: done }); await load(); onChanged(); }
+    catch (e: any) { setMsg({ ok: false, text: e.message }); }
+    finally { setBusy(null); }
+  };
+  const who = (p: ProgramPerson) => p.name || p.username;
+  const give = (p: ProgramPerson) => run(p, () => api(`/api/todo-admin/people/${p.id}/program`, { method: "POST", body: { program: stats.id, days } }), `${who(p)} now has a free ${stats.name} membership.`);
+  const end = (p: ProgramPerson) => { if (window.confirm(`End ${who(p)}'s free ${stats.name} membership now?`)) void run(p, () => api(`/api/todo-admin/people/${p.id}/program/end`, { method: "POST", body: { program: stats.id } }), `${who(p)}'s free membership has ended.`); };
+  const remove = (p: ProgramPerson) => {
+    const typedName = window.prompt(`Delete ${who(p)}'s whole Arise account for good?\n\nThis removes them from every Arise program, not only ${stats.name}, and it can't be undone.\n\nType their username (${p.username}) to delete.`);
+    if (typedName === null) return;
+    void run(p, () => api(`/api/todo-admin/people/${p.id}`, { method: "DELETE", body: { confirm: typedName } }), `${who(p)}'s account was deleted.`);
+  };
+  return (
+    <div className="space-y-4" data-testid={`program-${stats.id}`}>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <Stat label="Members" value={n(stats.members)} sub={stats.about} tone="good" />
+        <Stat label="Paying" value={n(stats.paying)} />
+        <Stat label="Free from you" value={n(stats.given)} sub="Trials and gifts" />
+        <Stat label="Payment failed" value={n(stats.pastDue)} tone={stats.pastDue ? "warn" : undefined} />
+        <Stat label="Cancelling" value={n(stats.canceling)} />
+        <Stat label="Ended" value={n(stats.ended)} />
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_12rem]">
+        <label className="relative block">
+          <span className="sr-only">Search everyone by name, username or email</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input className={`${field} pl-9`} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search anyone to give a membership" type="search" autoComplete="off" />
+        </label>
+        {stats.canGive && <select className={field} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="How long a free membership lasts">{TRIAL_CHOICES.map((c) => <option key={c.days} value={c.days}>Give: {c.label}</option>)}</select>}
+      </div>
+      {!stats.canGive && <p className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">{stats.name} plans are switched on and off in the Reader admin, under Schools &amp; plans. Here you can see who has one and delete accounts.</p>}
+      {msg && <p role="status" className={`rounded-xl p-3 text-sm font-semibold ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>{msg.text}</p>}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        {!list && <div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
+        {list && list.rows.length === 0 && <div className="p-8 text-center text-sm text-slate-500">{list.searching ? "No one matches that search." : `No one has a ${stats.name} membership yet. Search for a person to give one.`}</div>}
+        {list && list.rows.length > 0 && <ul className="divide-y divide-slate-100">
+          {list.rows.map((p) => (
+            <li key={p.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 ${busy === p.id ? "opacity-60" : ""}`}>
+              <div className="min-w-0 flex-1 basis-56">
+                <div className="truncate font-bold text-slate-900">{who(p)} {!p.enabled && <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">Off</span>}</div>
+                <div className="truncate text-xs text-slate-500">@{p.username}{p.email ? ` · ${p.email}` : ""} · {p.role === "todo" ? "To Duo account" : p.role}</div>
+              </div>
+              <div className="min-w-0 basis-44">
+                <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TIER_STYLE[p.plan.tier] || "bg-slate-100 text-slate-700"}`}>{p.plan.label}</span>
+                {p.plan.detail && <div className="mt-0.5 truncate text-xs text-slate-500">{p.plan.detail}</div>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {stats.canGive && (p.given
+                  ? <button type="button" className={btnLine} disabled={!!busy} onClick={() => end(p)}>End free membership</button>
+                  : (p.plan.tier === "free" || p.plan.tier === "ended") && <button type="button" className={btnMain} disabled={!!busy} onClick={() => void give(p)}><Gift className="h-4 w-4" /> Give membership</button>)}
+                <button type="button" className={btnDanger} disabled={!!busy} onClick={() => remove(p)}>Delete account</button>
+              </div>
+            </li>
+          ))}
+        </ul>}
+      </div>
+      {list && list.pages > 1 && <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-slate-600">{n(list.total)} people · page {list.page} of {list.pages}</p>
+        <div className="flex gap-2">
+          <button type="button" className={btnLine} disabled={list.page <= 1} onClick={() => setPage(list.page - 1)} aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" className={btnLine} disabled={list.page >= list.pages} onClick={() => setPage(list.page + 1)} aria-label="Next page"><ChevronRight className="h-4 w-4" /></button>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 // ─── The list ────────────────────────────────────────────────────────────
 
 function PersonRow({ p, showMoney, onOpen, onToggle, busy }: { p: Person; showMoney: boolean; onOpen: () => void; onToggle: (next: boolean) => void; busy: boolean }) {
@@ -356,6 +446,10 @@ export default function TodoAdmin() {
   const [toggling, setToggling] = useState<number | null>(null);
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
   const ticket = useRef(0);
+  const [programs, setPrograms] = useState<ProgramStats[] | null>(null);
+  const [program, setProgram] = useState<ProgramId | "people">("people");
+  const loadPrograms = useCallback(async () => { try { setPrograms((await api<{ programs: ProgramStats[] }>("/api/todo-admin/programs")).programs); } catch { /* the tabs show without numbers */ } }, [api]);
+  useEffect(() => { void loadPrograms(); }, [loadPrograms]);
 
   useEffect(() => { const t = window.setTimeout(() => { setQ(typed.trim()); setPage(1); }, 300); return () => window.clearTimeout(t); }, [typed]);
 
@@ -377,7 +471,7 @@ export default function TodoAdmin() {
   }, [api, role, plan, sort, q, page, size]);
   useEffect(() => { void loadOverview(); }, [loadOverview]);
   useEffect(() => { void loadList(); }, [loadList]);
-  const refresh = () => { void loadOverview(); void loadList(); };
+  const refresh = () => { void loadOverview(); void loadList(); void loadPrograms(); };
 
   async function toggle(p: Person, next: boolean) {
     if (toggling) return;
@@ -404,13 +498,25 @@ export default function TodoAdmin() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-2">
             <a href="#/lifehub" aria-label="Back to LifeHub" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100"><ArrowLeft className="h-5 w-5" /></a>
-            <div className="min-w-0"><div className="truncate text-base font-black sm:text-lg">To-Do Admin</div><div className="hidden truncate text-xs text-slate-500 sm:block">People, plans and payments for Arise To Duo</div></div>
+            <div className="min-w-0"><div className="truncate text-base font-black sm:text-lg">Arise Admin</div><div className="hidden truncate text-xs text-slate-500 sm:block">People, memberships and payments, program by program</div></div>
           </div>
           <button type="button" onClick={refresh} className={btnLine} aria-label="Refresh"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /><span className="hidden sm:inline">Refresh</span></button>
         </div>
       </header>
 
       <div className="mx-auto max-w-6xl space-y-8 px-3 py-5 sm:px-5 sm:py-8">
+        <Section title="Programs" hint="Each program on its own: its members and numbers, free memberships, and deleting accounts.">
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0" role="tablist" aria-label="Program" data-testid="program-tabs">
+            <button type="button" role="tab" aria-selected={program === "people"} onClick={() => setProgram("people")} className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${program === "people" ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>Everyone and payments</button>
+            {(programs ?? []).map((p) => (
+              <button key={p.id} type="button" role="tab" aria-selected={program === p.id} onClick={() => setProgram(p.id)}
+                className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${program === p.id ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{p.name} ({n(p.members)})</button>
+            ))}
+          </div>
+          {program !== "people" && programs?.find((p) => p.id === program) && <ProgramPanel key={program} stats={programs.find((p) => p.id === program)!} onChanged={refresh} />}
+        </Section>
+
+        {program === "people" && <>
         <OverviewPanel data={overview} error={overviewError} onRetry={() => void loadOverview()} />
 
         <Section title="People" hint="Tap a person for their details, plan and payments. The switch turns their account on or off.">
@@ -460,6 +566,7 @@ export default function TodoAdmin() {
             </div>
           )}
         </Section>
+        </>}
         <p className="flex items-center gap-2 text-xs text-slate-500"><Users className="h-3.5 w-3.5" /> Only you can see this page.</p>
       </div>
 

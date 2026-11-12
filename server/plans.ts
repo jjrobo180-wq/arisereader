@@ -1942,6 +1942,38 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
     });
   };
+  /** Every plan record of these kinds, by person (the admin's program tabs). */
+  const programInfos = async (kinds: readonly PlanKind[]): Promise<Map<number, PlanInfo[]>> => {
+    const index = await readIndex();
+    const out = new Map<number, PlanInfo[]>();
+    for (const kind of kinds) for (const id of index[kind] || []) {
+      const g = await readGrant(kind, id);
+      if (g) out.set(id, [...(out.get(id) || []), infoFromGrant(g, now())]);
+    }
+    return out;
+  };
+  /** A free membership in one program: for some days, or with no end (days = 0). Not while they are paying for it. */
+  const giveProgram = async (userId: number, kinds: readonly PlanKind[], give: PlanKind, days: number, note: string) => {
+    await serial(async () => {
+      for (const kind of kinds) {
+        const held = await readGrant(kind, userId, true);
+        if (held && held.source !== "admin" && grantLive(held, now())) throw new Refused("They are paying for this already. Cancel their plan first if you want to replace it.", 409);
+      }
+      await saveGrant({
+        kind: give, ownerId: userId, source: "admin", status: "active", seats: 1, trial: true,
+        endsAt: days > 0 ? iso(now() + days * DAY) : null, updatedAt: iso(now()),
+        note: note.replace(/\s+/g, " ").trim().slice(0, 120) || undefined,
+      });
+    });
+  };
+  /** Ends a free membership the admin gave in one program. */
+  const endProgram = async (userId: number, give: PlanKind) => {
+    await serial(async () => {
+      const held = await readGrant(give, userId, true);
+      if (!held || held.source !== "admin" || held.status === "canceled") throw new Refused("They have no free membership here to end.", 404);
+      await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
+    });
+  };
   /** Cancels a paid plan: at the end of the period they paid for, or right now. */
   const cancelPaid = async (userId: number, when: "period_end" | "now") => {
     let sub = "";
@@ -1988,7 +2020,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { cents: charge.cents - charge.refundedCents, at: charge.at };
   };
 
-  return { notesPlan: notesPlanOf, fitPlusOwn, allAccess: allAccessOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { { const g = await readGrant("all_access", userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return "all_access" as const; } for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  return { notesPlan: notesPlanOf, fitPlusOwn, allAccess: allAccessOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, programInfos, giveProgram, endProgram, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { { const g = await readGrant("all_access", userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return "all_access" as const; } for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;
