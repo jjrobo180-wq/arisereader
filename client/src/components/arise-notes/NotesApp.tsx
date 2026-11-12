@@ -245,7 +245,8 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const look = s?.night ? nightLook(themeOf(s?.theme)) : themeOf(s?.theme);
   // The Notes tab (typed and handwritten notes) always has a plain, professional look: neutral surfaces,
   // the system's own type and real folders. Dark when the look or night mode is dark.
-  const pro = (route.name === "pages" || route.name === "page" || route.name === "settings") && !s?.contrast;
+  // Every screen has the same plain look (Ask paints its own, in the look chosen in Undercover).
+  const pro = route.name !== "ask" && route.name !== "undercover" && !s?.contrast;
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
   // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
   // page: their colors and type replace the neutral ones there (notes-suite.css).
@@ -257,7 +258,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
   const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
-  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : route.name === "settings" ? "#f2f2f7" : "#ffffff") : themed ? look.bg : "#f5f4fb";
+  const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : route.name === "pages" || route.name === "page" ? "#ffffff" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
   // Ask (Undercover) paints its own top strip in its look's color, so the app doesn't paint over it.
   const bare = route.name === "ask" || route.name === "undercover";
@@ -337,7 +338,6 @@ export function TopBar({ ctx, title, back, right }: { ctx: AppCtx; title?: React
       {back ? <IconBtn label="Back" onClick={back}><ChevronLeft className="h-6 w-6" /></IconBtn> : <Logo size={34} />}
       <div className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight">{title ?? "Arise Notes"}</div>
       {right}
-      <MinutesPill ctx={ctx} />
     </div>
   </header>;
 }

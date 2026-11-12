@@ -128,7 +128,7 @@ test("the Notes tab looks serious and professional in every look, with real fold
   const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
   const app = read("client/src/components/arise-notes/NotesApp.tsx"), view = read("client/src/components/arise-notes/pages/PagesView.tsx"), css = read("client/src/components/arise-notes/pages/pages-pro.css");
   // The look's colors, fonts and shapes stay out of the Notes tab; it's neutral light or dark.
-  assert.match(app, /const pro = \(route\.name === "pages" \|\| route\.name === "page" \|\| route\.name === "settings"\) && !s\?\.contrast;/);
+  assert.match(app, /const pro = route\.name !== "ask" && route\.name !== "undercover" && !s\?\.contrast;/);
   assert.match(app, /const themed = !pro && /);
   assert.match(css, /\.an-root\.an-pro \{[^}]*--an-bg: #f2f2f7 !important/);
   assert.match(css, /\.an-root\.an-pro\.an-pro-dark \{/);
