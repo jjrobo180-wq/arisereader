@@ -67,7 +67,7 @@ function parseHash(h: string): Route {
   switch (p[0]) {
     case "record": return { name: "record" };
     case "upload": return { name: "upload" };
-    case "home": case "recordings": return { name: "home" };
+    case "home": case "recordings": return { name: "pages" };
     case "note": return p[1] ? { name: "note", id: p[1], t: p[2] ? Number(p[2]) : undefined } : { name: "pages" };
     case "ask": return { name: "ask" };
     case "undercover": return { name: "undercover" };
@@ -289,7 +289,7 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
       case "page": return <PagesView ctx={ctx} openId={route.id} tabs={<TabBar ctx={ctx} on="pages" />} />;
       case "apps": return <AppsScreen ctx={ctx} />;
       case "app": return <AppScreen key={route.id} ctx={ctx} id={route.id} />;
-      default: return <><Home ctx={ctx} notes={notes} onExit={onExit} /><TabBar ctx={ctx} on="ai" /></>;
+      default: return <PagesView ctx={ctx} openId={null} tabs={<TabBar ctx={ctx} on="pages" />} />; // "home" (the old Recordings page) is gone: Notes is the main page
     }
   })();
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">

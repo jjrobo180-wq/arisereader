@@ -18,15 +18,15 @@ test("typed commands are found and taken out", async () => {
   assert.deepEqual(take("<p>@ariserecorded</p>").c, []);
 });
 
-test("Notes tab is the main page, with Record a meeting and Recordings", () => {
+test("Notes tab is the main page, with Record a meeting and Upload", () => {
   const app = read("client/src/components/arise-notes/NotesApp.tsx");
   assert.match(app, /default: return \{ name: "pages" \}/);
   assert.match(app, /return bare \? \{ name: "pages" \}/);
   const view = read("client/src/components/arise-notes/pages/PagesView.tsx");
   assert.match(view, /data-testid="pages-record"/);
-  assert.match(view, /testId="pages-recordings"/);
+  assert.match(view, /testId="pages-upload"/);
   const page = read("client/src/components/arise-notes/pages/PageScreen.tsx");
   assert.match(page, /takeCommands\(patch\.html\)/);
   assert.match(page, /data-testid="pages-rec-bar"/);
-  assert.match(read("client/src/components/arise-notes/NotesDock.tsx"), />Recordings</);
+  assert.doesNotMatch(read("client/src/components/arise-notes/NotesDock.tsx"), />Recordings</);
 });
