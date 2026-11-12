@@ -252,19 +252,26 @@ function Shell({ mode, hub = "life", onExit, startNote }: { mode: "standalone" |
     const html = document.documentElement, body = document.body;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const before = [html.style.background, body.style.background, meta?.content];
-    html.style.background = backdrop;
-    body.style.background = backdrop;
-    if (meta) meta.content = backdrop;
+    // The strip behind the status bar takes the page's own painted color, so the top of the app runs all the way up.
+    let paint = backdrop;
+    try {
+      const root = document.querySelector<HTMLElement>('[data-testid="arise-notes"]');
+      const c = root ? getComputedStyle(root).backgroundColor : "";
+      if (c && !/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)|transparent/i.test(c)) paint = c;
+    } catch { /* keep the guess */ }
+    html.style.background = paint;
+    body.style.background = paint;
+    if (meta) meta.content = paint;
     // The page doesn't stretch past its ends, so the bottom bar and the top stay put.
     const overscroll = [html.style.overscrollBehavior, body.style.overscrollBehavior];
     html.style.overscrollBehavior = "none";
     body.style.overscrollBehavior = "none";
     if (isNotesApp()) {
-      void nativeCall(/ariseondevice/i, "AriseOnDevice", "setBackdrop", { color: backdrop }).catch(() => {});
+      void nativeCall(/ariseondevice/i, "AriseOnDevice", "setBackdrop", { color: paint }).catch(() => {});
       void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: darkBackdrop ? "DARK" : "LIGHT" }).catch(() => {});
     }
     return () => { html.style.background = before[0] ?? ""; body.style.background = before[1] ?? ""; if (meta && before[2]) meta.content = before[2]; html.style.overscrollBehavior = overscroll[0]; body.style.overscrollBehavior = overscroll[1]; };
-  }, [backdrop, darkBackdrop]);
+  }, [backdrop, darkBackdrop, route.name]);
   const rootClass = ["an-root min-h-[100dvh]", s?.font === "dyslexic" && "an-dyslexic", s?.simple && "an-simple", s?.contrast && "an-contrast", s?.night && !s?.contrast && !pro && "an-night", s?.large && "an-large", pro && "an-pro", proDark && "an-pro-dark", themed && "an-themed", themed && `an-theme-${look.id}${archClass(look)}`, suite && "an-suite", suite && `an-suite-${look.id}`, suite && look.dark && "an-suite-dark", proLook && `an-prolook${archClass(look)}`, proLook && look.dark && "an-prolook-dark"].filter(Boolean).join(" ");
   const rootStyle = themed ? themeVars(look) as CSSProperties : suite || proLook ? suiteVars(look) : undefined;
   // The safety net: any words that end up the same color as what is behind them are switched to one that reads.

@@ -280,9 +280,8 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
         : content ? <InkBody content={content} pencilOnly={settings.prefs.pencilOnly} edit={(p) => { edit(p); if (p.ink) readInk(p.ink); }} onPencilOnly={(v) => sync.saveSettings({ ...settings, prefs: { ...settings.prefs, pencilOnly: v } })} title={title} />
           : <Spinner />}
 
-    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Arise's reply" data-testid="pages-reply-bar">
-      <Sparkles className="h-4 w-4 shrink-0 text-[var(--an-violet)]" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Arise's reply</span>
+    {reply && !reply.waiting && content && page.kind === "text" && !trashed && <div className={`an-noprint sticky z-20 mx-3 mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-lg ring-1 ring-[var(--an-line)] ${askOn ? "bottom-[4.5rem]" : "bottom-[max(.75rem,env(safe-area-inset-bottom))]"}`} role="group" aria-label="Reply" data-testid="pages-reply-bar">
+      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">Reply</span>
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={mergeIt} className="min-h-11 rounded-xl bg-[var(--an-violet)] px-3 text-[14px] font-bold text-white" data-testid="pages-reply-merge">Merge into note</button>
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={deleteIt} className="min-h-11 rounded-xl px-3 text-[14px] font-bold text-[var(--an-muted)] ring-1 ring-[var(--an-line)]" data-testid="pages-reply-delete">Delete</button>
     </div>}
