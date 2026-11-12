@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { NOTES_PLANS } from "../shared/ariseNotes";
 
+const ALL_ACCESS_PRICE = 10;
+
 const page = readFileSync("client/public/notes-landing.html", "utf8");
 const server = readFileSync("server/index.ts", "utf8");
 
@@ -35,14 +37,23 @@ test("the homepage matches the other Arise homepages and shows every part of Not
   for (const use of new Set((page.match(/href="#i-[a-z]+"/g) ?? []).map((u) => u.slice(6, -1)))) assert.match(page, new RegExp(`<symbol id="${use.slice(1)}"`), `icon ${use}`);
 });
 
-test("the prices on the homepage are the real Notes prices", () => {
-  for (const id of ["basic", "plus", "family"] as const) {
-    const p = NOTES_PLANS[id];
-    assert.ok(page.includes(`$${(p.monthlyCents / 100).toFixed(2)}`), `${id} price`);
-    assert.ok(page.includes(p.minutes.toLocaleString("en-US")), `${id} minutes`);
-  }
-  assert.ok(page.includes(`$${((NOTES_PLANS.plus.yearlyCents ?? 0) / 100).toFixed(2)} a year`));
-  assert.ok(page.includes(`${NOTES_PLANS.free.minutes} AI minutes a month`));
+test("the homepage shows the same two plans as the app: Free and Arise All Access", () => {
+  const pricing = page.slice(page.indexOf('id="pricing"'), page.indexOf('id="faq"'));
+  assert.equal((pricing.match(/class="pricing-card"/g) ?? []).length, 2);
+  assert.match(pricing, /\$0 <span>\/ month/);
+  assert.match(pricing, /Arise All Access/);
+  assert.ok(pricing.includes(`$${ALL_ACCESS_PRICE} <span>/ month`));
+  assert.ok(pricing.includes(`${NOTES_PLANS.free.minutes} AI minutes a month`));
+  assert.ok(pricing.includes(`${NOTES_PLANS.plus.minutes.toLocaleString("en-US")} minutes a month`));
+  assert.doesNotMatch(page, /\$4\.99|\$7\.99|\$9\.99/, "no separate Notes plans on the homepage");
+});
+
+test("the top of the page is about meeting notes and Undercover AI", () => {
+  const hero = page.slice(page.indexOf('<section class="hero">'), page.indexOf('class="intro-strip"'));
+  assert.match(hero, /Meeting notes/);
+  assert.match(hero, /Undercover/);
+  assert.match(hero, /class="uc-card"/);
+  assert.match(hero, /class="nm-window"/);
 });
 
 test("Sign up links open the create-account form", () => {

@@ -71,7 +71,7 @@ test("a trainer makes a group of their own clients; members post, like, comment 
   assert.equal((await call("GET", "/api/coach/groups", 103)).body.groups.length, 0);
   assert.equal((await call("GET", `/api/coach/groups/${g.id}`, 103)).status, 403);
   assert.equal((await call("GET", `/api/coach/groups/${g.id}`, 555)).status, 403);
-  assert.equal((await call("GET", `/api/coach/groups/${g.id.replace(/.$/, "z")}`, 101)).status, 404);
+  assert.equal((await call("GET", `/api/coach/groups/${g.id.replace(/.$/, (c: string) => (c === "z" ? "y" : "z"))}`, 101)).status, 404);
 
   // Posts, likes, comments, pins.
   const p1 = (await call("POST", `/api/coach/groups/${g.id}/posts`, 7, { text: "Welcome! Introduce yourselves.", pinned: true })).body.post;
