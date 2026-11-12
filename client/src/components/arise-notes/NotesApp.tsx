@@ -351,7 +351,7 @@ export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | 
   // One bar in every look: Arise To Duo's floating pill (NotesDock.tsx). The look still colors the + button.
   return <NotesDock on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} go={{
     home: () => ctx.go({ name: "home" }), notes: () => ctx.go({ name: "pages" }), record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }),
-    memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "ask" }), menu: () => ctx.go({ name: "settings" }),
+    memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "undercover" }), menu: () => ctx.go({ name: "settings" }),
     newNote: () => { try { sessionStorage.setItem("arise-notes-new", "1"); } catch { /* the list opens without the sheet */ } ctx.go({ name: "pages" }); window.dispatchEvent(new Event("arise-notes-new")); },
   }} />;
 }
