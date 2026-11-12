@@ -214,3 +214,9 @@
 .pp-blank p { margin: 0; }
 .pp-blank button { display: inline-flex; align-items: center; gap: .35rem; padding: .4rem .8rem; border-radius: 8px; font-size: .86rem; font-weight: 600; color: var(--an-ink); box-shadow: inset 0 0 0 1px var(--an-line); }
 .pp-blank button:hover { background: color-mix(in srgb, var(--an-ink) 5%, transparent); }
+
+/* The bottom bar on the Notes page: light, slim and quiet instead of a dark slab over the list. */
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tabs"] { background: rgba(255,255,255,.88) !important; box-shadow: 0 0 0 1px var(--an-line), 0 10px 26px -16px rgba(0,0,0,.3) !important; backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); max-width: 20rem; padding: .2rem .4rem; }
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tabs"] > button:not([data-testid="notes-tab-record"]) { color: var(--an-faint) !important; min-height: 2.6rem; }
+.an-root.an-pro:not(.an-pro-dark) [data-testid="notes-tabs"] > button[aria-current="page"] { color: var(--an-ink) !important; }
+.an-root.an-pro [data-testid="notes-tabs"] > [data-testid="notes-tab-record"] { width: 2.5rem !important; height: 2.5rem !important; background: var(--an-ink) !important; color: var(--an-bg) !important; box-shadow: none !important; }

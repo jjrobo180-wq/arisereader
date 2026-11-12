@@ -5057,6 +5057,10 @@ export async function registerRoutes(
       if (r === "admin") throw new Error("Admin accounts can't be switched off.");
     },
     confirm: (userId) => storage.approveTeacherAccount(userId),
+    deleteAccount: async (userId) => {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Deleting accounts is not set up on this server.");
+      return deleteUserAccount(userId);
+    },
   });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);

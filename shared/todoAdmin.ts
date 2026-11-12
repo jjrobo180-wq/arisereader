@@ -60,19 +60,20 @@ const dayWords = (iso: string | null) => {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Denver" });
 };
 
-export function planView(info: PlanInfo | null, vip: boolean, now: number): PlanView {
+export function planView(info: PlanInfo | null, vip: boolean, now: number, /** Another program's membership name (Notes Plus, Cooked+…). */ called?: string): PlanView {
   if (vip) return { tier: "vip", label: "Free forever (VIP)", detail: "On the admin's VIP list", endsAt: null, canceling: false, unlimited: true };
   if (!info) return { tier: "free", label: "Free", detail: "", endsAt: null, canceling: false, unlimited: false };
   const family = info.kind === "todo_family";
   const price = info.kind === "todo_unlimited_year" ? `${usd(UNLIMITED_YEARLY_CENTS)}/year` : info.kind === "todo_unlimited" ? `${usd(UNLIMITED_MONTHLY_CENTS)}/month` : "";
-  const name = family ? "LifeHub family plan" : "Unlimited";
+  const name = called ?? (family ? "LifeHub family plan" : "Unlimited");
+  const free = called ?? "Unlimited";
   if (!info.live) {
     return { tier: "ended", label: "Free", detail: `${info.source === "admin" ? (info.trial ? "Free trial" : "Free access") : name} ended${info.endsAt ? ` ${dayWords(info.endsAt)}` : ""}`, endsAt: info.endsAt, canceling: false, unlimited: false };
   }
   if (info.source === "admin") {
     return info.endsAt
-      ? { tier: "trial", label: "Free trial", detail: `Unlimited until ${dayWords(info.endsAt)}`, endsAt: info.endsAt, canceling: false, unlimited: true }
-      : { tier: "gift", label: "Free access", detail: "Unlimited, no end date", endsAt: null, canceling: false, unlimited: true };
+      ? { tier: "trial", label: "Free trial", detail: `${free} until ${dayWords(info.endsAt)}`, endsAt: info.endsAt, canceling: false, unlimited: true }
+      : { tier: "gift", label: "Free access", detail: `${free}, no end date`, endsAt: null, canceling: false, unlimited: true };
   }
   if (info.status === "past_due") return { tier: "past_due", label: "Payment failed", detail: `${name}${price ? ` · ${price}` : ""} · card was declined`, endsAt: info.endsAt, canceling: false, unlimited: !family };
   return {
@@ -177,4 +178,39 @@ export function monthlyRecurringCents(people: Pick<Person, "plan">[], infoOf: (p
   }
   return cents;
 }
+// ─── Programs: every Arise app with its own membership, each in its own tab of the admin ───
+export type ProgramId = "todo" | "notes" | "fit" | "all" | "reader";
+export type Program = { id: ProgramId; name: string; about: string; /** The plan records that count as this program's membership. */ kinds: readonly PlanKind[]; /** What a free membership from the admin is saved as (null: not given from here). */ give: PlanKind | null; membership: string };
+export const PROGRAMS: readonly Program[] = [
+  { id: "todo", name: "Arise To Duo", about: "To Duo Unlimited", kinds: ["todo_unlimited", "todo_unlimited_year", "todo_family"], give: "todo_unlimited", membership: "Unlimited" },
+  { id: "notes", name: "Arise Notes", about: "Notes Basic, Plus and Family", kinds: ["notes_basic", "notes_plus", "notes_plus_year", "notes_family"], give: "notes_plus", membership: "Notes Plus" },
+  { id: "fit", name: "Cooked", about: "Cooked+ (Cooked and Cooked PT)", kinds: ["fit_plus"], give: "fit_plus", membership: "Cooked+" },
+  { id: "all", name: "All Access + Podster", about: "Every app's paid tier, and ad-free Podster", kinds: ["all_access"], give: "all_access", membership: "All Access" },
+  { id: "reader", name: "Arise Reader", about: "Teacher plans (school plans are in the Reader admin)", kinds: ["teacher", "bundle_teacher"], give: null, membership: "Teacher plan" },
+];
+export const programOf = (id: unknown): Program | null => PROGRAMS.find((p) => p.id === id) ?? null;
+/** Of one person's records in one program, the one that matters: running before ended, paid before given. */
+export function bestOf(list: PlanInfo[]): PlanInfo | null {
+  const rank = (i: PlanInfo) => (i.live ? 0 : 10) + (i.source === "admin" ? 2 : 0);
+  return [...list].sort((a, b) => rank(a) - rank(b))[0] ?? null;
+}
+export type ProgramMembership = { id: ProgramId; name: string; label: string; tier: PlanTier };
+export type ProgramRow = { id: ProgramId; name: string; canGive: boolean; plan: PlanView; given: boolean };
+export type ProgramStats = { id: ProgramId; name: string; about: string; canGive: boolean; members: number; paying: number; given: number; pastDue: number; canceling: number; ended: number };
+export type ProgramPerson = Pick<Person, "id" | "name" | "username" | "email" | "role" | "createdAt" | "enabled" | "lastActiveAt"> & { plan: PlanView; given: boolean };
+export function programStats(prog: Program, views: { plan: PlanView; info: PlanInfo | null }[]): ProgramStats {
+  const st: ProgramStats = { id: prog.id, name: prog.name, about: prog.about, canGive: !!prog.give, members: 0, paying: 0, given: 0, pastDue: 0, canceling: 0, ended: 0 };
+  for (const { plan, info } of views) {
+    if (!info) continue;
+    if (plan.tier === "ended") { st.ended++; continue; }
+    if (plan.tier === "free") continue;
+    st.members++;
+    if (plan.tier === "paid" || plan.tier === "past_due") st.paying++;
+    if (plan.tier === "trial" || plan.tier === "gift") st.given++;
+    if (plan.tier === "past_due") st.pastDue++;
+    if (plan.canceling) st.canceling++;
+  }
+  return st;
+}
+
 export { ZERO_ROLES };
