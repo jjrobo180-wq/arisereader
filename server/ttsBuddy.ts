@@ -153,7 +153,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     if (wait) return bad(res, 429, `That's a lot of worksheets today. Try again in ${waitWords(wait)}.`);
     readsByTeacher.fail(tid); readsByPlace.fail(place);
     let raw: any;
-    try { raw = looseJson(await readPhotos(images)); } catch (e: any) { console.error("[tts-buddy] read failed:", e?.message); return bad(res, 502, e?.message || "Couldn't read that worksheet. Try again."); }
+    try { raw = looseJson(await readPhotos(images)); } catch (e: any) { console.error("[tts-buddy] read failed:", e?.message); return res.status(502).json({ message: e?.message || "Couldn't read that worksheet. Try again.", detail: String(e?.detail || "").slice(0, 600) }); }
     const ws = cleanWorksheet({ ...raw, pages: images.length }, randomUUID(), iso());
     if (!ws.items.length) return bad(res, 422, "That doesn't look like a worksheet I can read. Try a clearer photo, straight on, with the whole page in view.");
     await kv.set(K.w(ws.id), { owner: tid, ws } satisfies WsRec);
@@ -345,6 +345,7 @@ export async function readPage(image: string, page: number, pages: number, chat:
   const text = `${READ_PROMPT}\n\n${pages > 1 ? `This is page ${page} of ${pages}.` : "Here is the worksheet."} Reply with the JSON only.`;
   const messages = [{ role: "user", content: [{ type: "text", text }, { type: "image_url", image_url: { url: image } }] }];
   let lastStatus = 0;
+  const why: string[] = [];
   const tries: [string, string, string][] = [];
   if (process.env.GROQ_API_KEY) for (const m of VISION_MODELS()) tries.push([`${GROQ}/chat/completions`, process.env.GROQ_API_KEY, m]);
   if (openAiOn()) tries.push(["https://api.openai.com/v1/chat/completions", process.env.OPENAI_API_KEY!, "gpt-4.1"]);
@@ -353,7 +354,7 @@ export async function readPage(image: string, page: number, pages: number, chat:
     for (let attempt = 0; attempt < 4; attempt++) {
       let r: Response;
       try { r = await chat(url, key, { model, temperature: 0, max_tokens: 6000, ...(json ? { response_format: { type: "json_object" } } : {}), messages }); }
-      catch (e: any) { if (attempt < 2) { await wait(1500); continue; } lastStatus = -1; break; }
+      catch (e: any) { why.push(`${model}: ${e?.name || "network"}`); if (attempt < 2) { await wait(1500); continue; } lastStatus = -1; break; }
       if (r.ok) {
         const body: any = await r.json().catch(() => null);
         const parsed = looseJson(body?.choices?.[0]?.message?.content || "");
@@ -362,16 +363,19 @@ export async function readPage(image: string, page: number, pages: number, chat:
         lastStatus = 422; break;
       }
       lastStatus = r.status;
-      const why = await r.text().catch(() => "");
-      console.error(`[tts-buddy] ${model} page ${page}: ${r.status} ${why.slice(0, 300)}`);
-      if (r.status === 400 && json && /response_format|json/i.test(why)) { json = false; continue; }
+      const reason = await r.text().catch(() => "");
+      console.error(`[tts-buddy] ${model} page ${page}: ${r.status} ${reason.slice(0, 300)}`);
+      why.push(`${model.split("/").pop()}: ${r.status} ${(looseJson(reason)?.error?.message || reason).toString().replace(/gsk_\w+|sk-\w+/g, "[key]").slice(0, 160)}`);
+      if (r.status === 400 && json && /response_format|json/i.test(reason)) { json = false; continue; }
       if (r.status === 429 || r.status >= 500) { await wait(Math.min(12, Number(r.headers.get("retry-after")) || 2 * 2 ** attempt) * 1000); continue; }
       break; // this model can't take it (retired, too big): the next one
     }
   }
-  if (lastStatus === 429) throw new Error("The reader is busy right now. Try again in a minute.");
-  if (lastStatus === 413) throw new Error("That photo is too big. Try again, a little farther back.");
-  throw new Error(lastStatus === 422 ? "Couldn't make out the questions on that page. Try a clearer photo, straight on, in good light." : "Couldn't reach the worksheet reader. Try again in a moment.");
+  if (!tries.length) why.push("no vision key");
+  const fail = (m: string) => Object.assign(new Error(m), { detail: why.join(" | ") });
+  if (lastStatus === 429) throw fail("The reader is busy right now. Try again in a minute.");
+  if (lastStatus === 413) throw fail("That photo is too big. Try again, a little farther back.");
+  throw fail(lastStatus === 422 ? "Couldn't make out the questions on that page. Try a clearer photo, straight on, in good light." : "Couldn't reach the worksheet reader. Try again in a moment.");
 }
 
 /** All the pages at once; the items come back in page order as one worksheet. */
