@@ -1,0 +1,49 @@
+{
+  "bundle": "com.arisereader.trainer",
+  "name": "Cooked PT: Coach Your Clients",
+  "subtitle": "Personal trainer software",
+  "category": [
+    "HEALTH_AND_FITNESS",
+    "BUSINESS"
+  ],
+  "privacyUrl": "https://arisetodo.com/privacy/",
+  "supportUrl": "https://arisetodo.com/support/",
+  "marketingUrl": "https://arisetodo.com/",
+  "copyright": "2026 Arise",
+  "keywords": "personal trainer,coach,clients,training plan,workout builder,fitness business,check-in,PT,gym",
+  "promo": "Coach every client from your phone. See their workouts, food and progress from Cooked, send plans, message them and run your schedule.",
+  "description": "Cooked PT is the coaching app for personal trainers. Your clients use Cooked, and what they choose to share shows up for you automatically.\n\nYOUR CLIENTS\n- See each client's workouts, food, weigh-ins and steps, only with their permission\n- Set goals, habits and nutrition targets\n- Keep private notes only you can see\n\nPLANS\n- Build workouts and multi-week programs in your library\n- Put workouts on a client's calendar and see when they're done\n- Start from templates or let the builder draft a program for you to edit\n\nMESSAGES AND SCHEDULE\n- One inbox for every client, with quick replies\n- Book sessions in person, by live video or online\n- Reminders before each session\n\nYOUR BUSINESS\n- A profile with your specialties, certifications and prices\n- Group coaching\n- Get paid by clients directly through your own booking and payment links\n\nYour clients connect from the Cooked app, and they decide what you can see. Cooked PT is free to download and use with your clients.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
+  "age": {
+    "yes": [
+      "healthOrWellnessTopics",
+      "messagingAndChat",
+      "userGeneratedContent"
+    ],
+    "levels": {}
+  },
+  "reviewNotes": "Sign in with the account above (tap Sign in, then use the username and password). It's a sample trainer account with one sample client, Maya Brooks, who shares her Cooked data, so the client list, client details, messages and schedule all have content. Clients connect to a trainer from the Cooked app. Notifications are asked for so trainers hear about new client messages.",
+  "shots": [
+    "Clients",
+    "Client",
+    "Inbox",
+    "Library"
+  ],
+  "headlines": [
+    [
+      "Every client,<br>one screen",
+      "Workouts, food and progress, shared by them"
+    ],
+    [
+      "Know how they're<br>really doing",
+      "Goals, habits and private notes"
+    ],
+    [
+      "Message clients<br>in one inbox",
+      "Quick replies and session reminders"
+    ],
+    [
+      "Build plans<br>in minutes",
+      "Workouts and multi-week programs"
+    ]
+  ]
+}
