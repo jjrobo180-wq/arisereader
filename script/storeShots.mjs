@@ -31,7 +31,7 @@ if (APP !== "podster") {
 }
 
 for (const [kind, opts] of Object.entries(devices)) {
-  const ctx = await browser.newContext({ ...opts, permissions: ["microphone"], colorScheme: "light", timezoneId: "America/Denver", locale: "en-US" });
+  const ctx = await browser.newContext({ ...opts, permissions: ["microphone", "camera", "geolocation"], geolocation: { latitude: 39.7392, longitude: -104.9903 }, colorScheme: "light", timezoneId: "America/Denver", locale: "en-US" });
   if (cookie) await ctx.addCookies([{ name: "arise_session", value: cookie, domain: ".arisetodo.com", path: "/", sameSite: "Lax", expires: Math.floor(Date.now() / 1000) + 86400 }]);
   const page = await ctx.newPage();
   page.setDefaultTimeout(20000);
@@ -50,47 +50,88 @@ for (const [kind, opts] of Object.entries(devices)) {
       if (!closed) break;
     }
   }
+  // Something further down the screen is scrolled to first.
+  const reach = async (loc) => { await loc.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {}); return visible(loc); };
   async function tap(name, opts = {}) {
-    const b = page.getByRole(opts.role || "button", { name, exact: !!opts.exact }).first();
-    if (await visible(b)) { await b.click(); await wait(opts.after ?? 2500); return true; }
-    const t = page.getByText(name, { exact: !!opts.exact }).first();
-    if (await visible(t)) { await t.click(); await wait(opts.after ?? 2500); return true; }
+    const within = opts.within ? page.locator(opts.within) : page;
+    const b = within.getByRole(opts.role || "button", { name, exact: !!opts.exact }).first();
+    if (await reach(b)) { await b.click(); await wait(opts.after ?? 2500); return true; }
+    const l = within.getByRole("link", { name, exact: !!opts.exact }).first();
+    if (await reach(l)) { await l.click(); await wait(opts.after ?? 2500); return true; }
+    const t = within.getByText(name, { exact: !!opts.exact }).first();
+    if (await reach(t)) { await t.click(); await wait(opts.after ?? 2500); return true; }
     console.log(`  (no "${name}" on ${kind})`);
     return false;
   }
+  // A full load each time: changing only the #part keeps whatever was open (the player, a sheet).
+  const goto = async (hash, ms = 5000) => { await page.goto("about:blank"); await page.goto(`${SITE}${START}${hash}`, { waitUntil: "domcontentloaded" }); await wait(ms); await clear(); };
+  // No clearing here: it would close a sheet the step just opened (a client's details).
   async function shot(n, label) {
-    await clear();
+    await page.evaluate(() => { window.scrollTo(0, 0); for (const el of document.querySelectorAll("main, [data-scroll], .overflow-y-auto")) el.scrollTop = 0; }).catch(() => {});
+    await wait(400);
     await page.screenshot({ path: `store-shots/raw/${kind}-${n}.png` });
     console.log(`ok ${kind}-${n} ${label} ${page.url()}`);
   }
   const steps = {
     cooked: [
       ["Today", async () => {}],
-      ["Train", () => tap(/^Train$/)],
-      ["Food", () => tap(/^Food$/)],
-      ["Progress", async () => { if (!(await tap(/^Stats$/))) { await tap(/^Plugins$/); await tap(/Progress/); } }],
+      ["Train", () => tap(/^Train$/i, { within: "nav" })],
+      ["Form check", async () => { await tap(/AI form check/i, { after: 6000 }); }],
+      ["Food", async () => { await goto(""); await tap(/^Food$/i, { within: "nav" }); }],
+      ["Eat out", async () => { await tap(/^Eat out$/i, { after: 8000 }); }],
+      ["Find a trainer", async () => { await goto("", 7000); await tap(/^Today$/i, { within: "nav", after: 3000 }); await tap(/Find a trainer/i, { after: 5000 }); }],
+      ["Add-ons", async () => { await goto(""); await tap(/^Plugins$/i, { within: "nav" }); }],
+      ["Themes", async () => { await goto("", 7000); await tap(/^Today$/i, { within: "nav", after: 3000 }); await tap(/^Settings$/i, { after: 3000 });
+        const a = page.getByRole("radiogroup", { name: "Appearance" }).first(); await reach(a);
+        await page.evaluate(() => { const g = document.querySelector('[data-testid="fit-theme"]'); g?.scrollIntoView({ block: "start" }); g?.closest("[class*=overflow-y]")?.scrollBy(0, -90); }); await wait(1200); }],
     ],
     cookedpt: [
-      ["Clients", () => tap(/^Clients$/)],
-      ["Client", async () => { await tap(/^Clients$/, { after: 1500 }); await tap("Maya Brooks", { after: 3500 }); }],
-      ["Inbox", async () => { await page.keyboard.press("Escape"); await wait(800); await clear(); await tap(/^Inbox$/); await tap("Maya Brooks", { after: 3000 }); }],
-      ["Library", async () => { await page.keyboard.press("Escape"); await wait(800); await clear(); await tap(/^Library$/); }],
+      ["Clients", () => tap(/^Clients/i, { within: "nav" })],
+      ["Website", async () => { await tap(/^Business/i, { within: "nav", after: 3000 }); await tap(/^Build my website$/i, { after: 3500 }) || await tap(/^Edit$/i, { after: 3500 });
+        const pv = page.getByTestId("tr-site-preview").first(); if (await visible(pv)) { await pv.click(); await wait(4000); } }],
+      ["Business", async () => { await goto(""); await tap(/^Business/i, { within: "nav", after: 3000 }); }],
+      // The client opened from the inbox, where the sample client is always at the top.
+      ["Client", async () => { await tap(/^Inbox/i, { within: "nav", after: 2500 }); await tap(/Logged lunch/i, { after: 4000 }); }],
+      ["Inbox", async () => { await goto(""); await tap(/^Inbox/i, { within: "nav" }); }],
+      ["Library", async () => { await goto(""); await tap(/^Library/i, { within: "nav" }); }],
     ],
     notes: [
-      ["Home", async () => {}],
-      ["Note", async () => {
-        await tap("Weekly team check-in", { after: 3500 });
+      // A written note asking Arise for help: "@arise …" on a line, answered right under it.
+      ["At Arise", async () => {
+        await goto("", 6000); if (kind === "iphone") await tap(/^All notes/i, { after: 2000 });
+        await tap(/^New note$/i, { after: 2500 }); await tap(/^Blank/i, { after: 3000 });
+        const ed = page.locator('[contenteditable="true"]').first();
+        if (await reach(ed)) { await ed.click();
+          for (const line of ["Launch week", "Beta went out Monday: 40 sign-ups and two bugs to fix.", "Newsletter draft due Thursday."]) { await page.keyboard.type(line, { delay: 15 }); await page.keyboard.press("Enter"); }
+          await page.keyboard.type("@arise make a checklist for launch week", { delay: 25 }); await page.keyboard.press("Enter");
+          await wait(25000); await page.keyboard.press("Escape").catch(() => {}); await page.evaluate(() => document.activeElement?.blur?.()).catch(() => {}); await wait(800); } }],
+      ["Recordings", async () => { await goto("", 6000); if (kind === "iphone") await tap(/^All notes/i); }],
+      ["Summary", async () => { await tap(/Weekly team check-in/i, { after: 3500 });
         const w = page.getByTestId("notes-summarize").first();
-        if (await visible(w)) { await w.click(); await page.waitForSelector('[data-testid="notes-summarize"]', { state: "detached", timeout: 90000 }).catch(() => {}); await wait(2500); }
-      }],
-      ["Record", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await clear(); await tap(/^Record$/, { after: 3500 }); }],
-      ["Ask", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await clear(); await tap(/^Ask/, { after: 3000 }); }],
+        if (await visible(w)) { await w.click(); await page.waitForSelector('[data-testid="notes-summarize"]', { state: "detached", timeout: 90000 }).catch(() => {}); await wait(2500); } }],
+      ["Transcript", () => tap(/^Transcript$/i, { after: 2500 })],
+      ["Record", () => goto("#/record", 5000)],
+      ["Undercover", async () => { await goto("#/undercover", 5000);
+        const box = page.getByPlaceholder(/^(Text message|Message)$/).first();
+        if (await visible(box)) { await box.fill("What did we decide in today's team check-in?"); await box.press("Enter"); await wait(20000); } }],
+      ["Add-ons", () => goto("#/apps", 5000)],
+      ["Design", () => goto("#/app/design", 7000)],
+      ["Sheets", () => goto("#/app/sheets", 7000)],
+      ["Docs", () => goto("#/app/docs", 7000)],
     ],
     podster: [
-      ["Home", async () => {}],
-      ["Feed", async () => { const ep = page.locator("main button, main a").filter({ has: page.locator("img") }).nth(2); if (await visible(ep)) { await ep.click(); await wait(4000); } }],
-      ["Audiobooks", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await tap(/^Audiobooks$/, { after: 4000 }); }],
-      ["Radio", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await tap(/^Radio$/, { after: 4000 }); }],
+      // A show whose cover is its logo (a random pick can be a photo of a real person).
+      ["Feed", async () => { await goto("#/search/" + encodeURIComponent("Science Magazine Podcast"), 7000);
+        await tap(/Science Magazine Podcast/i, { after: 8000 }); await tap(/Play from the first episode/i, { after: 6000 }); }],
+      ["Study", async () => { await goto("#/study", 5000);
+        const box = page.locator("textarea").first();
+        if (await visible(box)) { await box.fill("Photosynthesis happens in the chloroplasts of plant cells. Light reactions in the thylakoids use sunlight to split water, release oxygen, and make ATP and NADPH. The Calvin cycle in the stroma uses that ATP and NADPH to turn carbon dioxide into glucose. Chlorophyll absorbs mostly red and blue light and reflects green, which is why leaves look green.");
+          const go = page.getByRole("button", { name: /Make my Study Pod/i }).first();
+          if (await visible(go)) { await go.click(); await page.getByText(/Key points/i).first().waitFor({ timeout: 90000 }).catch(() => {}); await wait(2000); } } }],
+      ["Social", async () => { await goto("", 5000); if (kind === "iphone") await tap(/^Menu$/, { after: 1200 }); await tap(/^Social$/, { after: 5000 }); }],
+      ["Membership", async () => { await goto("", 6000); }],
+      ["Audiobooks", () => goto("#/books", 6000)],
+      ["Radio", () => goto("#/radio", 6000)],
     ],
   }[APP];
   await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" });

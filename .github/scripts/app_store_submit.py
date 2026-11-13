@@ -19,6 +19,9 @@ BUNDLE = os.environ.get("BUNDLE", "com.arisereader.reader")
 MODE = os.environ.get("MODE", "check")
 WANT_VERSION = os.environ.get("VERSION", "").strip()
 ATTACH_DIR = os.environ.get("ATTACH_DIR", "").strip()
+# A folder named for the app (app-review/<bundle>/) holds that app's own recording; it wins over the shared folder.
+if ATTACH_DIR and os.path.isdir(os.path.join(ATTACH_DIR, os.environ.get("BUNDLE", "com.arisereader.reader"))):
+    ATTACH_DIR = os.path.join(ATTACH_DIR, os.environ.get("BUNDLE", "com.arisereader.reader"))
 review_detail_id = None
 problems, notes = [], []
 
@@ -156,6 +159,30 @@ if MODE != "submit":
     sys.exit(0)
 if problems:
     sys.exit("Not submitted: fix the items above first.")
+
+# An app whose build carries a Watch app needs one Apple Watch screenshot: store/<app>/watch.png (422x514, Ultra).
+SLUGS = {"com.arisereader.notes": "notes", "com.arisereader.podplus": "podster", "com.arisereader.fit": "cooked", "com.arisereader.trainer": "cookedpt"}
+watch = f"store/{SLUGS.get(os.environ.get('BUNDLE', ''), '-')}/watch.png"
+if version and os.path.isfile(watch):
+    import hashlib
+    import time
+    blob = open(watch, "rb").read()
+    for loc in q(f"appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
+        sets = q(f"appStoreVersionLocalizations/{loc['id']}/appScreenshotSets")["data"]
+        if any(x["attributes"]["screenshotDisplayType"].startswith("APP_WATCH") for x in sets):
+            continue
+        st = api("appScreenshotSets", {"data": {"type": "appScreenshotSets", "attributes": {"screenshotDisplayType": "APP_WATCH_ULTRA"},
+                 "relationships": {"appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"]}}}}})["data"]
+        shot = api("appScreenshots", {"data": {"type": "appScreenshots", "attributes": {"fileName": "watch.png", "fileSize": len(blob)},
+                   "relationships": {"appScreenshotSet": {"data": {"type": "appScreenshotSets", "id": st["id"]}}}}})["data"]
+        for op in shot["attributes"]["uploadOperations"]:
+            req = urllib.request.Request(op["url"], data=blob[op["offset"]:op["offset"] + op["length"]], method=op["method"],
+                                         headers={h["name"]: h["value"] for h in op.get("requestHeaders", [])})
+            urllib.request.urlopen(req, timeout=120).read()
+        api(f"appScreenshots/{shot['id']}", {"data": {"type": "appScreenshots", "id": shot["id"],
+            "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(blob).hexdigest()}}}, method="PATCH")
+        print(f"Added the Apple Watch screenshot ({loc['attributes']['locale']}).")
+        time.sleep(20)
 
 # Files for App Review (a screen recording): reserve, upload each part, then commit with its checksum.
 if ATTACH_DIR and os.path.isdir(ATTACH_DIR):

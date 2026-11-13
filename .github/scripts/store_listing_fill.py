@@ -130,9 +130,18 @@ def availability():
             url = r.get("links", {}).get("next")
         print(f"     United States only ({changed} countries changed)")
         return
+    # A new availability has to name every territory, each on or off.
+    ids, url = [], "https://api.appstoreconnect.apple.com/v1/territories?limit=200"
+    while url:
+        r = api(url)
+        ids += [t["id"] for t in r["data"]]
+        url = r.get("links", {}).get("next")
     api("https://api.appstoreconnect.apple.com/v2/appAvailabilities", {"data": {"type": "appAvailabilities", "attributes": {"availableInNewTerritories": False}, "relationships": {
-        "app": {"data": {"type": "apps", "id": APP}}, "territoryAvailabilities": {"data": [{"type": "territoryAvailabilities", "id": "${t0}"}]}}},
-        "included": [{"type": "territoryAvailabilities", "id": "${t0}", "attributes": {"available": True}, "relationships": {"territory": {"data": {"type": "territories", "id": "USA"}}}}]})
+        "app": {"data": {"type": "apps", "id": APP}}, "territoryAvailabilities": {"data": [{"type": "territoryAvailabilities", "id": f"${{t{i}}}"} for i in range(len(ids))]}}},
+        "included": [{"type": "territoryAvailabilities", "id": f"${{t{i}}}", "attributes": {"available": t == "USA"}, "relationships": {"territory": {"data": {"type": "territories", "id": t}}}} for i, t in enumerate(ids)]})
+    print(f"     United States only (of {len(ids)} countries)")
+
+
 step("available in the United States only", availability)
 step("content rights: third-party content, with the rights to it", lambda: api(f"apps/{APP}", {"data": {"type": "apps", "id": APP, "attributes": {"contentRightsDeclaration": "USES_THIRD_PARTY_CONTENT"}}}, method="PATCH"))
 

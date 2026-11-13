@@ -23,7 +23,8 @@ on:
         default: shots
 jobs:
   listing:
-    runs-on: ubuntu-latest
+    # 24.04: Playwright has no Chromium for newer Ubuntu yet (the Reader listing uses the same).
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: app-store
     permissions:
@@ -51,7 +52,7 @@ jobs:
         if: always()
         with: { name: "store-shots-${{ github.event.inputs.app }}", path: store-shots }
       - name: Screenshots to the store-shots-<app> branch (to look at)
-        if: always()
+        if: always() && hashFiles('store-shots/**') != ''
         working-directory: store-shots
         run: |
           git init -q -b "store-shots-$APP"
