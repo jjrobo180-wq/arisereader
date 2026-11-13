@@ -1,7 +1,7 @@
 // TTS Buddy's calls to the server (server/ttsBuddy.ts) and the voice player that lights up each word as it's said.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
-import { wordAt, type WordTime } from "@shared/ttsBuddy";
+import { wordAt, type Item, type WordTime, type Worksheet } from "@shared/ttsBuddy";
 
 const store = {
   get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -38,7 +38,8 @@ export async function shrinkPhoto(file: File): Promise<string> {
   try {
     const img = await new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("That photo couldn't be opened.")); i.src = url; });
     // The reader takes about 4 MB per page, so step down the size and quality until it fits (usually the first try).
-    for (const [side, q] of [[1800, 0.82], [1600, 0.75], [1400, 0.7], [1200, 0.65]] as const) {
+    // 1600px is plenty for printed worksheet text and uploads about a quarter faster than 1800px.
+    for (const [side, q] of [[1600, 0.8], [1400, 0.75], [1300, 0.7], [1200, 0.65]] as const) {
       const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
       const c = document.createElement("canvas");
       c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
@@ -202,3 +203,18 @@ export function snapBox(img: HTMLImageElement, box: [number, number, number, num
   }
   return [x0 / w, y0 / h, x1 / w, y1 / h].map((v) => Math.round(v * 1000)) as [number, number, number, number];
 }
+
+/** Pictures: the reader marked where each one is; cut them out of that page's photo here and save them. */
+export async function cutPictures(ws: Worksheet, items: Item[], photoSrc: string, page: number) {
+  const figs = items.filter((i) => i.figure && !i.figure.img && i.figure.page === page);
+  if (!figs.length) return;
+  const photo = await loadImage(photoSrc);
+  for (const it of figs) {
+    try {
+      const box = snapBox(photo, it.figure!.box);
+      const image = await cropPhoto(photo, box, 12);
+      await call(`/teacher/worksheets/${ws.id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { image, page, box, alt: it.figure!.alt } });
+    } catch { /* the teacher can add it in the editor */ }
+  }
+}
+

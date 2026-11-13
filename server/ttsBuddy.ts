@@ -621,7 +621,11 @@ export async function readWorksheet(images: string[], read = readPage): Promise<
   return JSON.stringify({ title: pages.find((p) => p.title.trim())?.title || "", items: pages.flatMap((p, i) => p.items.map((it: any) => (it?.figure && typeof it.figure === "object" ? { ...it, figure: { ...it.figure, page: i + 1 } } : it))) });
 }
 
-const VOICE_VERSION = "v2";
+// v3: one voice for everything (Deepgram's Aura), so clips made before don't mix two voices.
+const VOICE_VERSION = "v3";
+const deepgramKey = () => process.env.DEEPGRAM_API_KEY || process.env.DEEPGRAM_KEY || "";
+/** The one voice TTS Buddy speaks in: warm, clear, unhurried (BUDDY_VOICE can pick another Aura voice). */
+const BUDDY_AURA = () => process.env.BUDDY_VOICE || "aura-2-luna-en";
 const BUCKET = "buddy-voice";
 /** The site's own read-aloud voice (server/groqVoice.ts: Groq's Orpheus, then Deepgram's Aura, then OpenAI's).
  *  "autumn" is the warm, unhurried one. Then Groq's Whisper hears it back with the time of every word, so the words
@@ -651,10 +655,37 @@ export function createBuddyVoice(opts: { storage?: () => any } = {}) {
     return { words: [], duration: 0 };
   }
 
+  /** Deepgram's Aura: answers in well under a second, as one MP3 with nothing stitched together, and isn't
+   *  stopped by a burst of requests the way Groq's voice was (which then switched some clips to another voice). */
+  async function aura(text: string): Promise<{ audio: Buffer; type: string } | null> {
+    const key = deepgramKey(); if (!key) return null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await fetch(`https://api.deepgram.com/v1/speak?model=${encodeURIComponent(BUDDY_AURA())}&encoding=mp3`, { method: "POST", headers: { Authorization: `Token ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ text: text.slice(0, 1900) }), signal: AbortSignal.timeout(20_000) });
+        if (r.ok) return { audio: Buffer.from(await r.arrayBuffer()), type: "audio/mpeg" };
+        console.warn("[tts-buddy] aura:", r.status, (await r.text().catch(() => "")).slice(0, 160));
+        if (r.status !== 429 && r.status < 500) return null;
+      } catch (e: any) { console.warn("[tts-buddy] aura:", e?.message); }
+      await new Promise((ok) => setTimeout(ok, 600 * (attempt + 1)));
+    }
+    return null;
+  }
+  /** When each word is said, from Deepgram's listening (fast, and not limited like Groq's). */
+  async function deepgramTimings(audio: Buffer, type: string): Promise<{ words: Timed[]; duration: number } | null> {
+    const key = deepgramKey(); if (!key) return null;
+    try {
+      const r = await fetch("https://api.deepgram.com/v1/listen?model=nova-3&language=en&punctuate=false&smart_format=false", { method: "POST", headers: { Authorization: `Token ${key}`, "Content-Type": type }, body: new Uint8Array(audio), signal: AbortSignal.timeout(20_000) });
+      if (!r.ok) { console.warn("[tts-buddy] deepgram timings:", r.status); return null; }
+      const j: any = await r.json();
+      const words = (j?.results?.channels?.[0]?.alternatives?.[0]?.words || []).map((w: any) => ({ word: String(w.punctuated_word || w.word), start: Number(w.start) || 0, end: Number(w.end) || 0 }));
+      return { words, duration: Number(j?.metadata?.duration) || 0 };
+    } catch (e: any) { console.warn("[tts-buddy] deepgram timings:", e?.message); return null; }
+  }
+
   async function make(text: string): Promise<Spoken> {
-    const { aiSpeech } = await import("./groqVoice");
-    const s = await aiSpeech(text, "autumn");
-    const t = await timings(s.audio, s.type);
+    let s = await aura(text);
+    if (!s) { const { aiSpeech } = await import("./groqVoice"); s = await aiSpeech(text, "autumn"); } // last resort: the site's other voices
+    const t = (s.type === "audio/mpeg" && (await deepgramTimings(s.audio, s.type))) || (await timings(s.audio, s.type));
     // Without timings the page spreads the words evenly; about 2.6 words a second at this pace.
     return { audio: s.audio, type: s.type, words: t.words, duration: t.duration || Math.max(1, text.split(/\s+/).length / 2.6) };
   }

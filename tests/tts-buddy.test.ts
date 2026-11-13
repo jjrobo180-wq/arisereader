@@ -354,7 +354,7 @@ test("accommodations failing (AI down) say so plainly; the pages use them", asyn
   assert.equal(d.status, 502); assert.match(d.body.message, /Couldn't write supports/); assert.match(d.body.detail, /chat 503/);
   const lap = read("client/src/pages/buddy/BuddyLaptop.tsx");
   for (const k of ["acc.simple", "acc.steps", "acc.bank", "acc.starter", "acc.vocab", "acc.fewer", "acc.big", "acc.mic", "<Figure "]) assert.ok(lap.includes(k), `laptop uses ${k}`);
-  const teach = read("client/src/pages/buddy/BuddyTeacher.tsx");
+  const teach = read("client/src/pages/buddy/BuddyTeacher.tsx") + read("client/src/pages/buddy/buddyApi.ts");
   for (const k of ["snapBox(photo, it.figure!.box)", "CropFixer", "SupportsEditor", "AccSwitches", "/supports`"]) assert.ok(teach.includes(k), `teacher has ${k}`);
 });
 
@@ -520,15 +520,17 @@ test("adding pages: each page read on its own, its steps go on the end with thei
   assert.equal((await call("POST", `/api/buddy/teacher/worksheets/${wid}/pages`, { "x-buddy-teacher": "someone-else-0123456789abcdefghijklmnop" }, { image: PHOTO })).status, 404);
 });
 
-test("the phone sends a long worksheet a page at a time and keeps going past a page that fails", () => {
-  const teach = read("client/src/pages/buddy/BuddyTeacher.tsx");
-  assert.match(teach, /body: \{ images: \[pages\[i\]\] \}/, "the first page alone");
-  assert.match(teach, /`\/teacher\/worksheets\/\$\{ws\.id\}\/pages`/, "then each next page on its own");
-  assert.match(teach, /Reading page \$\{i \+ 1\} of \$\{pages\.length\}/);
-  assert.match(teach, /missed\.push\(i \+ 1\)/); assert.match(teach, /tap Add a page/);
-  assert.match(teach, /testId="buddy-add-page"/);
+test("the phone reads each page as it's snapped and opens the editor after page 1", () => {
+  const teach = read("client/src/pages/buddy/BuddyTeacher.tsx"), r = read("client/src/pages/buddy/buddyReader.ts");
+  assert.match(r, /body: \{ images: \[p\.photo\] \}/, "the first page alone");
+  assert.match(r, /`\/teacher\/worksheets\/\$\{this\.wid\}\/pages`/, "then each next page on its own");
+  assert.match(teach, /reader\.add\(await Promise\.all/, "reading starts when the photo is taken");
+  assert.match(teach, /const ws = await reader\.first\(\); reader\.handedOver = true; onDone\(ws\)/, "opens after page 1");
+  assert.match(teach, /data-testid="buddy-more-pages"/); assert.match(teach, /testId="buddy-add-page"/);
   assert.match(read("server/index.ts"), /worksheets\\\/\[\^\/\]\+\\\/pages\$\/, express\.json\(\{ limit: "6mb" \}\)/);
+  assert.match(read("client/src/pages/buddy/buddyApi.ts"), /\[1600, 0\.8\]/, "a little smaller photos upload faster");
 });
+
 
 test("an info button on every screen explains what TTS Buddy is and how it helps (a student version too)", async () => {
   const info = read("client/src/pages/buddy/BuddyInfo.tsx");
@@ -542,4 +544,81 @@ test("an info button on every screen explains what TTS Buddy is and how it helps
   // Questions are numbered in order across pages (each page's own "1." would repeat), and skipped ones are a tap away.
   assert.match(lap, /\{qIndex \+ 1\}<\/span>/); assert.match(lap, /I skipped/);
   assert.match(read("client/src/pages/buddy/BuddyTeacher.tsx"), /\{i \+ 1\}\. \{q\.text\}/);
+});
+
+
+// ---------------- Faster reading and one voice (Nov 13) ----------------
+import { WorksheetReader } from "../client/src/pages/buddy/buddyReader";
+
+function fakeServer(opts: { failPage?: number; delay?: number } = {}) {
+  const log: string[] = []; let ws: any = null; let n = 0; let reading = 0, most = 0;
+  const api = async (path: string, o: any = {}): Promise<any> => {
+    log.push(`${o.method || (o.body ? "POST" : "GET")} ${path}`);
+    if (path === "/teacher/read" || path.endsWith("/pages")) {
+      reading++; most = Math.max(most, reading); await new Promise((x) => setTimeout(x, opts.delay ?? 5)); reading--;
+      n++; if (opts.failPage === n) throw new Error(`page ${n} unreadable`);
+      const item = { id: `p${n}`, kind: "short", number: "", text: `Question from photo ${o.body.images?.[0] ?? o.body.image}`, say: "", choices: [], figure: null, supports: null };
+      if (!ws) { ws = { id: "w1", title: "Packet", pages: 1, createdAt: "", items: [item] }; return { worksheet: ws }; }
+      ws.pages++; ws.items.push(item); return { worksheet: ws, added: [item.id], page: ws.pages };
+    }
+    if (o.method === "PUT") { ws = { ...ws, items: o.body.items }; return { worksheet: ws }; }
+    return { worksheet: ws };
+  };
+  return { api, log, get ws() { return ws; }, get most() { return most; } };
+}
+const tick = (ms = 15) => new Promise((x) => setTimeout(x, ms));
+
+test("pages start reading as they're snapped, one at a time, and the editor can open after page 1", async () => {
+  const srv = fakeServer({ delay: 20 }); const cut: number[] = [];
+  const r = new WorksheetReader(srv.api as any, async (_w, _i, _p, page) => { cut.push(page); });
+  r.add(["A"]); await tick(5);
+  r.add(["B", "C"]); // snapped while page 1 is still reading
+  const first = await r.first();
+  assert.equal(first.items.length, 1, "opens with page 1 while the rest keep reading"); assert.equal(r.busy, true);
+  while (r.busy) await tick();
+  assert.equal(srv.most, 1, "never two pages at once");
+  assert.deepEqual(srv.ws.items.map((i: any) => i.text), ["Question from photo A", "Question from photo B", "Question from photo C"]);
+  assert.deepEqual(cut, [1, 2, 3], "each page's pictures are cut from its own photo");
+  assert.deepEqual(r.fresh, ["p1", "p2", "p3"], "the editor is told about every page that came in");
+});
+
+test("a page taken away is dropped (even if it was already read); a page that fails doesn't stop the rest", async () => {
+  const srv = fakeServer({ failPage: 2 });
+  const r = new WorksheetReader(srv.api as any, async () => {});
+  r.add(["A", "B", "C", "D"]);
+  while (r.busy) await tick();
+  assert.deepEqual(r.progress, { done: 4, total: 4, missed: [2] });
+  assert.deepEqual(srv.ws.items.map((i: any) => i.text), ["Question from photo A", "Question from photo C", "Question from photo D"]);
+  await r.remove(r.pages[2].key); // photo C, already read
+  assert.deepEqual(srv.ws.items.map((i: any) => i.text), ["Question from photo A", "Question from photo D"]);
+  assert.equal(r.live.length, 3);
+  // A new worksheet after the last one was handed over starts fresh.
+  r.handedOver = true; r.add(["E"]); assert.equal(r.wid, ""); assert.equal(r.live.length, 1);
+});
+
+test("no page readable: opening says so instead of waiting forever", async () => {
+  const srv = fakeServer({ failPage: 1 });
+  const r = new WorksheetReader(srv.api as any, async () => {});
+  r.add(["A"]);
+  await assert.rejects(r.first(), /page 1 unreadable/);
+});
+
+test("one voice for everything: Deepgram's Aura (fast, one MP3), with Deepgram's word timings", async () => {
+  const { createBuddyVoice } = await import("../server/ttsBuddy");
+  const env = { ...process.env }; const realFetch = globalThis.fetch; const calls: string[] = [];
+  process.env.DEEPGRAM_API_KEY = "dg_test"; process.env.GROQ_API_KEY = "gsk_test0123456789";
+  globalThis.fetch = (async (url: any, init: any) => {
+    const u = String(url); calls.push(u.replace(/\?.*/, ""));
+    if (u.startsWith("https://api.deepgram.com/v1/speak")) { assert.match(u, /model=aura-2-luna-en/); assert.match(u, /encoding=mp3/); return new Response(new Uint8Array([1, 2, 3]), { status: 200 }); }
+    if (u.startsWith("https://api.deepgram.com/v1/listen")) return new Response(JSON.stringify({ metadata: { duration: 1.4 }, results: { channels: [{ alternatives: [{ words: [{ word: "what", punctuated_word: "What", start: 0.1, end: 0.3 }, { word: "is", start: 0.3, end: 0.5 }] }] }] } }), { status: 200 });
+    throw new Error(`unexpected ${u}`);
+  }) as any;
+  try {
+    const store = new Map<string, any>();
+    const storage = () => ({ from: () => ({ download: async (k: string) => ({ data: store.has(k) ? new Blob([store.get(k)]) : null }), upload: async (k: string, v: any) => { store.set(k, v); return {}; } }), createBucket: async () => ({}) });
+    const v = createBuddyVoice({ storage });
+    const s = await v.speak("What is 3?");
+    assert.equal(s.type, "audio/mpeg"); assert.equal(s.duration, 1.4); assert.deepEqual(s.words.map((w) => w.word), ["What", "is"]);
+    assert.deepEqual(calls, ["https://api.deepgram.com/v1/speak", "https://api.deepgram.com/v1/listen"], "no Groq voice, no stitching");
+  } finally { globalThis.fetch = realFetch; process.env = env; }
 });
