@@ -2,7 +2,7 @@
 // and link each laptop by the 4-digit code on its screen. Answers come in live.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Image as ImageIcon, Laptop as LaptopIcon, Loader2, Plus, RotateCcw, Send, Sparkles, Trash2, Unlink, Volume2, X } from "lucide-react";
-import { ACC_KEYS, ACC_LABEL, LETTERS, cleanAcc, type Acc, type Item, type ItemKind, type Laptop, type Supports, type Worksheet } from "@shared/ttsBuddy";
+import { ACC_KEYS, ACC_LABEL, LETTERS, cleanAcc, isAnswered, type Acc, type Item, type ItemKind, type Laptop, type Supports, type Worksheet } from "@shared/ttsBuddy";
 import { API_BASE } from "@/lib/queryClient";
 import { B, BRAND_FONT, FONT, call, cropPhoto, loadImage, shrinkPhoto, snapBox, teacherKey, useBuddyFont, useVoice, type Clip } from "./buddyApi";
 import { BuddyMark } from "./BuddyMark";
@@ -169,7 +169,7 @@ function LaptopRow({ l, n, open, onToggle, reload, say, worksheetId }: { l: Lapt
     {open && <div className="border-t px-3 pb-3 pt-2" style={{ borderColor: B.line }}>
       <p className="mb-1.5 text-[14px] font-bold" style={{ color: B.dim }}>Accommodations for {label}</p>
       <AccSwitches compact acc={acc} onChange={(a) => void patch({ acc: a }, "Updated. The laptop changes in a few seconds.")} />
-      <div className="mt-3">{ws ? ws.items.filter((i) => i.kind !== "read").map((q, i) => <div key={q.id} className="py-1.5 text-[15px]"><p style={{ color: B.dim }}>{q.number || i + 1}. {q.text}</p><p className="font-bold">{(l.answers[q.id] || "").trim() || <span style={{ color: B.dim, fontWeight: 400 }}>No answer yet</span>}</p></div>) : <Loader2 className="h-5 w-5 animate-spin" />}</div>
+      <div className="mt-3">{ws ? ws.items.filter((i) => i.kind !== "read").map((q, i) => <div key={q.id} className="py-1.5 text-[15px]"><p style={{ color: B.dim }}>{q.number || i + 1}. {q.text}</p><p className="font-bold">{isAnswered(q, l.answers[q.id]) ? l.answers[q.id].trim() : <span style={{ color: B.dim, fontWeight: 400 }}>No answer yet</span>}</p></div>) : <Loader2 className="h-5 w-5 animate-spin" />}</div>
       <div className="mt-3 flex flex-wrap gap-2">
         <Btn kind="soft" className="!min-h-10 !text-[14px]" onClick={() => { const v = prompt("Name or seat", l.name); if (v != null) void patch({ name: v }, "Renamed"); }}>Rename</Btn>
         <Btn kind="soft" className="!min-h-10 !text-[14px]" onClick={() => void patch({ restart: true }, "Started over")}><RotateCcw className="h-4 w-4" />Start over</Btn>

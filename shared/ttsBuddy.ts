@@ -105,6 +105,8 @@ export function pictureFor(items: Item[], index: number): Item | null {
   }
   return null;
 }
+/** A real answer: not empty, and not just the sentence starter the app put in the box. */
+export const isAnswered = (item: Item, answer: string | undefined) => { const a = (answer || "").trim(); return !!a && a !== (item.supports?.starter || "").trim(); };
 export const questionCount = (w: Worksheet) => w.items.filter((i) => i.kind !== "read").length;
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 

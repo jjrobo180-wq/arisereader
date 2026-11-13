@@ -25,7 +25,7 @@ import { createMemoryKv, type FitKv } from "./fitKv";
 import { fitVisionTargets } from "./fit";
 import {
   LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, SUPPORTS_PROMPT, alignWords, classCode, cleanAcc, cleanFigure, cleanName, cleanSupports,
-  cleanWorksheet, estimateTimes, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
+  cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
   type Acc, type Laptop, type Timed, type Worksheet,
 } from "../shared/ttsBuddy";
 
@@ -149,7 +149,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   const progressOf = (rec: LaptopRec, ws: Worksheet | null) => {
     const l = rec.laptop!;
     const qs = ws ? ws.items.filter((i) => i.kind !== "read") : [];
-    return { ...l, answered: qs.filter((q) => (l.answers[q.id] || "").trim()).length, questions: qs.length, worksheetTitle: ws?.title || "" };
+    return { ...l, answered: qs.filter((q) => isAnswered(q, l.answers[q.id])).length, questions: qs.length, worksheetTitle: ws?.title || "" };
   };
   const bad = (res: any, status: number, message: string) => res.status(status).json({ message });
 

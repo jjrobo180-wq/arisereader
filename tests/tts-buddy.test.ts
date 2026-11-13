@@ -362,3 +362,11 @@ test("a shared picture (a number line several questions use) shows on each of th
   const items = [mk("dir", "read", "aaaaaa111111"), mk("q1", "short"), mk("q2", "choice"), mk("part2", "read"), mk("q3", "short"), mk("q4", "short", "bbbbbb222222"), mk("q5", "long")];
   assert.deepEqual(items.map((_, i) => pictureFor(items as any, i)?.id ?? null), ["dir", "dir", "dir", null, null, "q4", "q4"]);
 });
+
+test("a sentence starter the app put in the box doesn't count as an answer", async () => {
+  const { isAnswered } = await import("../shared/ttsBuddy");
+  const it: any = { supports: { starter: "The number line helps me because" } };
+  assert.equal(isAnswered(it, "The number line helps me because "), false);
+  assert.equal(isAnswered(it, "The number line helps me because 50% is under 2."), true);
+  assert.equal(isAnswered({ supports: null } as any, "  "), false); assert.equal(isAnswered({ supports: null } as any, "4"), true);
+});

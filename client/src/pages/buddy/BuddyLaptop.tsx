@@ -2,7 +2,7 @@
 // read aloud with each word lit up as it's said. No account, no typing needed to get started.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Lightbulb, Loader2, Mic, Pause, Square, Turtle, Volume2 } from "lucide-react";
-import { LETTERS, cleanAcc, pictureFor, tokens, type Acc, type Item, type Worksheet } from "@shared/ttsBuddy";
+import { LETTERS, cleanAcc, isAnswered, pictureFor, tokens, type Acc, type Item, type Worksheet } from "@shared/ttsBuddy";
 import { B, BRAND_FONT, BuddyError, FONT, call, figurePath, saveLaptop, savedLaptop, useAuthedImage, useBuddyFont, useRecorder, useVoice, type Clip, type LaptopId, type Playing } from "./buddyApi";
 import { BuddyMark } from "./BuddyMark";
 
@@ -156,7 +156,7 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   const on = (part: string): Playing => (voice.playing && voice.playing.itemId === item.id && voice.playing.part === part ? voice.playing : null);
   const readAll = () => { tapped.current = true; if (voice.playing) voice.stop(); else void voice.play(item.id, parts(item)); };
   const setAnswer = (v: string) => setAnswers((a) => ({ ...a, [item.id]: v }));
-  const answeredCount = questions.filter((q) => (answers[q.id] || "").trim()).length;
+  const answeredCount = questions.filter((q) => isAnswered(q, answers[q.id])).length;
   const nextHint = () => { tapped.current = true; const n = Math.min(hints + 1, sp?.steps.length || 0); setHints(n); void voice.play(item.id, [`h${n - 1}`]); };
   const mic = async () => {
     setMicMsg("");
@@ -186,7 +186,7 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
         {RATES.map((x) => <button key={x.r} type="button" role="radio" aria-checked={rate === x.r} onClick={() => setRate(x.r)} className="flex items-center gap-1 rounded-[9px] px-2.5 py-1.5 text-[14px] font-bold" style={{ background: rate === x.r ? B.ink : "transparent", color: rate === x.r ? "#fff" : B.dim }}>{x.r < 1 && <Turtle className="h-4 w-4" />}{x.label}</button>)}
       </div>
     </header>
-    <div className="mt-3 flex gap-1.5" aria-hidden>{ws.items.map((it, i) => <button key={it.id} type="button" tabIndex={-1} onClick={() => { tapped.current = true; setStep(i); }} className="h-2.5 flex-1 rounded-full" style={{ background: i === step ? B.accent : it.kind !== "read" && (answers[it.id] || "").trim() ? B.green : B.line }} />)}</div>
+    <div className="mt-3 flex gap-1.5" aria-hidden>{ws.items.map((it, i) => <button key={it.id} type="button" tabIndex={-1} onClick={() => { tapped.current = true; setStep(i); }} className="h-2.5 flex-1 rounded-full" style={{ background: i === step ? B.accent : it.kind !== "read" && isAnswered(it, answers[it.id]) ? B.green : B.line }} />)}</div>
 
     <main className="mt-6 flex-1">
       <div className="rounded-[24px] p-6 sm:p-8" style={{ background: B.card, border: `2px solid ${B.line}` }} data-testid="buddy-question">
