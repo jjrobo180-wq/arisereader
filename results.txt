@@ -1,0 +1,27 @@
+ok   phone-doc-open  frame 390x844 editor 390x844  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-doc-home  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-sheet-open  frame 390x844 editor 390x844  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-sheet-home  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-slides-open  frame 390x844 editor 390x844  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-slides-home  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-design-open  frame 390x844 editor 390x844  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-design-home  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   laptop-doc-open  frame 1366x860 editor 1366x860  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   laptop-sheet-open  frame 1366x860 editor 1366x860  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   laptop-slides-open  frame 1366x860 editor 1366x860  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   laptop-design-open  frame 1366x860 editor 1366x860  errors: Failed to load resource: the server responded with a status of 404 (Not Found)
+ok   phone-design-home-light
+ok   phone-design-home-dark
+ok   phone-design-home-dark-templates
+ok   laptop-design-home-light
+ok   phone-design-templates
+ok   phone-design-elements
+ok   phone-design-text-selected  (selection toolbar showing)
+ok   phone-design-magic
+ok   laptop-design-text-selected  (selection toolbar showing)
+ok   laptop-design-download
+ok   phone-sharing  people: G / Grandma / You share 2 · Invite sent to grandma@example.com | V / Vanessa / Accountability · Our family
+ok   phone-sharing-person  people: G / Grandma / You share 2 · Invite sent to grandma@example.com | V / Vanessa / Accountability · Our family
+ok   phone-link-top  space under the Send button 20px  first app: Accountability
+ok   phone-link-bottom  space under the Send button 40px  first app: Accountability
+ok   phone-link-all-apps  space under the Send button 40px  first app: Accountability
