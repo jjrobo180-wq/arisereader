@@ -462,3 +462,13 @@ test("weak supports get a second try; picture-label steps fold into the step abo
   assert.match(q.supports.simple, /^Do this:/); assert.deepEqual(q.supports.steps, ["Look."], "kept from the first try");
   assert.equal(q.supports.vocab[0].w, "fraction"); assert.ok(n >= 2);
 });
+
+test("arisereader.com/buddy opens TTS Buddy too, even for a student signed in to a Reader account without a plan", () => {
+  const main = read("client/src/main.tsx");
+  assert.match(main, /path === "\/buddy"/);
+  assert.match(main, /\(arisetodo\|arisereader\)\\\.com\$\/i\.test\(window\.location\.hostname\) \? "\/app"/);
+  const app = read("client/src/App.tsx");
+  assert.match(app, /const buddyPage = /); assert.match(app, /readerPlanLocked && !buddyPage/);
+  // The Reader homepage (what "/" is for anyone signed out on arisereader.com) sends #/ links on to the app.
+  assert.match(read("client/public/reader-landing.html"), /location\.replace\("\/app" \+ location\.search \+ location\.hash\)/);
+});

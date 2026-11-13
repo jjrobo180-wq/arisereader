@@ -621,7 +621,10 @@ function AppRoutes() {
       </div>
     );
   }
-  if (readerPlanLocked && !["/subscribe", "/billing", "/scholarship"].includes(routePath.split("?")[0])) {
+  // TTS Buddy (arisereader.com/buddy) is free and needs no account: a student signed in to Arise Reader on a school
+  // laptop still gets their worksheet, never the Reader plan page.
+  const buddyPage = /^\/buddy(\/|$)/.test(routePath.split("?")[0]);
+  if (readerPlanLocked && !buddyPage && !["/subscribe", "/billing", "/scholarship"].includes(routePath.split("?")[0])) {
     if (isReaderPage() && !isReaderApp()) { window.location.replace("/#/subscribe"); return null; }
     if (isReaderPage()) { window.location.hash = "#/subscribe"; return null; }
     return <Redirect to="/subscribe" replace />;
