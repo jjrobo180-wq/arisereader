@@ -228,6 +228,8 @@ app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
 // Arise Math "Snap a problem": a photo or screenshot of one math problem (shrunk on the device first).
 app.use("/api/math/photo-help", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "8mb" }));
+// TTS Buddy: up to 4 worksheet photos (shrunk on the phone first). No account: server/ttsBuddy.ts.
+app.use("/api/buddy/teacher/read", express.json({ limit: "16mb" }));
 // Arise Math "Test Prep": up to 6 photos of practice sheets in one request (each shrunk on the device first).
 app.use(/^\/api\/math\/prep$/, (req, res, next) => { if (req.method !== "POST") return next(); authMiddleware(req, res, next).catch(next); }, express.json({ limit: "26mb" }));
 

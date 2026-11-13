@@ -27,6 +27,8 @@ const FitApp = lazy(() => import("@/pages/fit/FitApp"));
 const TrainerApp = lazy(() => import("@/pages/trainer/TrainerApp"));
 const TrainersPage = lazy(() => import("@/pages/coach/TrainersPage"));
 const TrainerSitePage = lazy(() => import("@/pages/coach/TrainerSite"));
+// TTS Buddy: worksheets read aloud on a student's laptop (shared/ttsBuddy.ts). No sign-in.
+const TtsBuddyPage = lazy(() => import("@/pages/buddy/TtsBuddy"));
 const BrandAppPage = lazy(() => import("@/pages/coach/Brand"));
 const NotesApp = lazy(() => import("@/components/arise-notes/NotesApp"));
 const TalkApp = lazy(() => import("@/pages/talk/TalkApp"));
@@ -616,6 +618,9 @@ function AppRoutes() {
       <Route path="/trainers"><TrainersPage /></Route>
       {/* A trainer's own website, built in Arise Trainer (shared/coachSite.ts). No sign-in. */}
       <Route path="/t/:slug"><TrainerSitePage /></Route>
+      {/* TTS Buddy (arisetodo.com/buddy): the teacher's phone and the student's laptop. No sign-in. */}
+      <Route path="/buddy"><TtsBuddyPage /></Route>
+      <Route path="/buddy/:mode">{(p: any) => <TtsBuddyPage mode={p.mode} />}</Route>
       {/* A trainer's own branded web app (shared/coachBrand.ts). No sign-in to see it. */}
       <Route path="/c/:slug"><BrandAppPage /></Route>
       {/* Arise Talk: the talking boards (no account needed). */}
@@ -1092,7 +1097,7 @@ function AppRoutes() {
 const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
   // Trainer websites (#/t/<slug>) belong to the trainer: no Arise pop-ups or install prompts for their visitors.
-  const read = () => { const p = window.location.hash.replace(/^#/, "").split("?")[0]; return FULLSCREEN_GAME_ROUTES.includes(p) || p.startsWith("/t/") || p.startsWith("/c/"); };
+  const read = () => { const p = window.location.hash.replace(/^#/, "").split("?")[0]; return FULLSCREEN_GAME_ROUTES.includes(p) || p.startsWith("/t/") || p.startsWith("/c/") || p === "/buddy" || p.startsWith("/buddy/"); };
   const [inGame, setInGame] = useState(read);
   useEffect(() => {
     const update = () => setInGame(read());

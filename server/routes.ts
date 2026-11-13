@@ -121,6 +121,8 @@ import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type ConnectInvite, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
+import { registerTtsBuddyRoutes } from "./ttsBuddy";
+import { createSupabaseKv } from "./fitKv";
 import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerClassGoalRoutes } from "./classGoals";
@@ -2176,6 +2178,8 @@ export async function registerRoutes(
       notify: (id, message) => notifyUser(id, message),
     },
   });
+  // TTS Buddy: a teacher snaps a worksheet, a child's laptop reads it aloud one question at a time (server/ttsBuddy.ts).
+  registerTtsBuddyRoutes(app, { kv: createSupabaseKv() });
   // Arise Math "Snap a problem": photo or typed problem → step-by-step help without the answer. See server/ariseMathPhoto.ts.
   registerMathPhotoRoutes(app, authMiddleware, { gradeOf: async (id) => (await studentGrades())[String(id)] || null });
   // Arise Math "Test Prep": practice sheets or a lesson name → lessons and practice for an upcoming test. See server/ariseMathPrep.ts.
