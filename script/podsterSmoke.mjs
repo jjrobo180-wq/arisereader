@@ -20,9 +20,12 @@ for (const signedIn of [false, true]) {
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e?.message || e)));
+  page.on("console", (m) => { if (m.type() === "error") console.log("console:", m.text().slice(0, 200)); });
+  page.on("requestfailed", (r) => console.log("failed:", r.url().slice(0, 120)));
   await page.goto("https://pod.local/app/", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
   const text = (await page.evaluate(() => document.body.innerText)).trim();
+  console.log("html:", (await page.evaluate(() => document.body.innerHTML.length)), (await page.evaluate(() => [...document.scripts].map((x) => x.src).join(" "))));
   console.log(signedIn ? "signed in:" : "signed out:", errs.length ? `ERRORS ${errs.join(" | ")}` : "no errors", "| text chars:", text.length);
   if (errs.length || text.length < 20) bad++;
   await page.screenshot({ path: `pod-${signedIn ? "in" : "out"}.png` });
