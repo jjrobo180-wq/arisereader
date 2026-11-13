@@ -25,7 +25,7 @@ import { createMemoryKv, type FitKv } from "./fitKv";
 import { fitVisionTargets } from "./fit";
 import {
   LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, SUPPORTS_PROMPT, alignWords, classCode, cleanAcc, cleanFigure, cleanName, cleanSupports,
-  cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
+  PICTURE_TEXT, cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
   type Acc, type Laptop, type Timed, type Worksheet,
 } from "../shared/ttsBuddy";
 
@@ -97,7 +97,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   const speak = deps.speak ?? createBuddyVoice().speak;
   const aiConfigured = deps.aiConfigured ?? buddyAiReady;
   const files = deps.files ?? createMemoryFiles();
-  const askText = deps.askText ?? siteChat;
+  const askText = deps.askText ?? bestTextAi;
   const hear = deps.hear ?? groqHear;
   const draftsByTeacher = createAttemptLimiter({ max: 60, windowMs: 24 * 3600_000, now });
   const hearsByLaptop = createAttemptLimiter({ max: 300, windowMs: 3600_000, now });
@@ -153,6 +153,32 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   };
   const bad = (res: any, status: number, message: string) => res.status(status).json({ message });
 
+  /** Supports (accommodations) are written by the AI as soon as a worksheet is read — and for older worksheets, the
+   *  first time they're opened — in the background, so nothing waits on them. Laptops pick them up on their next check. */
+  const drafting = new Map<string, Promise<{ made: number; errors: string[] }>>();
+  const tried = new Set<string>();
+  const draft = (wid: string, onlyIds?: string[]) => {
+    const running = drafting.get(wid); if (running) return running;
+    const p = (async () => {
+      const first = await getWs(wid); if (!first) return { made: 0, errors: ["gone"] };
+      const want = onlyIds ? first.ws.items.filter((i) => onlyIds.includes(i.id)) : first.ws.items;
+      const groups: string[][] = []; for (let i = 0; i < want.length; i += 6) groups.push(want.slice(i, i + 6).map((x) => x.id));
+      const found = new Map<string, any>(); const errors: string[] = [];
+      await Promise.all(groups.map(async (ids) => {
+        try { const out = looseJson(await askText(SUPPORTS_PROMPT, supportsInput(first.ws, ids))); for (const sItem of Array.isArray(out?.items) ? out.items : []) if (ids.includes(sItem?.id)) found.set(sItem.id, sItem); }
+        catch (e: any) { errors.push(String(e?.message || e).slice(0, 200)); console.error("[tts-buddy] supports:", e?.message); }
+      }));
+      // Into the newest copy (the teacher may have edited while this ran).
+      const latest = await getWs(wid); if (!latest) return { made: 0, errors };
+      let made = 0;
+      for (const it of latest.ws.items) { const raw = found.get(it.id); const sp = raw ? cleanSupports(raw, it.choices.length) : null; if (sp) { it.supports = sp; made++; } }
+      if (made) await kv.set(K.w(wid), latest);
+      return { made, errors };
+    })().finally(() => drafting.delete(wid));
+    drafting.set(wid, p); tried.add(wid);
+    return p;
+  };
+
   // ---------------- Teacher ----------------
   app.get("/api/buddy/teacher", async (req: any, res: any) => {
     res.set?.("Cache-Control", "no-store");
@@ -190,18 +216,22 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     // The page photos are kept, so pictures can be cut out of them (now on the phone, or fixed later on any device).
     await Promise.all(images.map((img, i) => { const f = dataUrl(img); return f ? files.put(`page/${ws.id}/${i + 1}`, f.data, f.type).catch((e) => console.error("[tts-buddy] page save:", e?.message)) : null; }));
     await kv.set(K.w(ws.id), { owner: tid, ws } satisfies WsRec);
+    void draft(ws.id);
     const t = await getTeacher(tid);
     const dropped = t.worksheets.slice(LIMITS.worksheets - 1);
     t.worksheets = [ws.id, ...t.worksheets].slice(0, LIMITS.worksheets);
     for (const id of dropped) await kv.set(K.w(id), null);
     await kv.set(K.t(tid), t);
-    res.json({ worksheet: ws });
+    res.json({ worksheet: ws, drafting: true });
   });
 
   app.get("/api/buddy/teacher/worksheets/:wid", async (req: any, res: any) => {
+    res.set?.("Cache-Control", "no-store");
     const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
     const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
-    res.json({ worksheet: r.ws });
+    // A worksheet from before supports existed (or whose first try failed) gets them now, once per server start.
+    if (!r.ws.items.some((i) => i.supports) && !drafting.has(r.ws.id) && !tried.has(r.ws.id) && aiConfigured()) void draft(r.ws.id);
+    res.json({ worksheet: r.ws, drafting: drafting.has(r.ws.id) });
   });
 
   app.put("/api/buddy/teacher/worksheets/:wid", async (req: any, res: any) => {
@@ -212,6 +242,9 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     // Saved pictures are the server's to point at: an edit keeps the item's picture, or removes it, but never invents one.
     const before = new Map(r.ws.items.map((i) => [i.id, i.figure]));
     for (const it of ws.items) { const old = before.get(it.id); it.figure = it.figure && old ? { ...it.figure, img: old.img, page: old.page, box: old.box } : null; }
+    // Supports written in the background after the phone loaded the worksheet aren't lost by saving its older copy.
+    const sup = new Map(r.ws.items.map((i) => [i.id, i.supports]));
+    for (const it of ws.items) if (!it.supports && sup.get(it.id)) it.supports = sup.get(it.id)!;
     await kv.set(K.w(ws.id), { owner: tid, ws } satisfies WsRec);
     res.json({ worksheet: ws });
   });
@@ -340,6 +373,18 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     res.set?.("Cache-Control", "private, max-age=3600"); res.type(f.type); res.send(f.data);
   });
 
+  /** A photo of a page, for a worksheet read before photos were kept (or to replace a blurry one). */
+  app.put("/api/buddy/teacher/worksheets/:wid/pages/:n", async (req: any, res: any) => {
+    const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
+    const r = await ownWs(tid, req.params.wid); const n = Number(req.params.n);
+    if (!r || !(n >= 1 && n <= Math.min(LIMITS.pages, r.ws.pages + 1))) return bad(res, 404, "That page is gone.");
+    const f = typeof req.body?.image === "string" && IMAGE_RE.test(req.body.image) && req.body.image.length <= MAX_IMAGE ? dataUrl(req.body.image) : null;
+    if (!f) return bad(res, 400, "That photo didn't come through. Try again.");
+    await files.put(`page/${r.ws.id}/${n}`, f.data, f.type);
+    if (n > r.ws.pages) { r.ws.pages = n; await kv.set(K.w(r.ws.id), r); }
+    res.json({ ok: true, pages: r.ws.pages });
+  });
+
   /** A picture cut out of a page photo (on the teacher's phone), or {remove: true}. */
   app.put("/api/buddy/teacher/worksheets/:wid/figures/:itemId", async (req: any, res: any) => {
     const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
@@ -353,6 +398,10 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
       if (!f || !fig || fig.page > r.ws.pages) return bad(res, 400, "That picture didn't come through. Try again.");
       fig.img = randomBytes(6).toString("hex");
       await files.put(`fig/${r.ws.id}/${it.id}/${fig.img}`, f.data, f.type);
+      // An older reading wrote the picture out as "[picture of …]": now the real picture is there, that text becomes
+      // its description (heard with "Hear about the picture") instead of being read as part of the question.
+      const m = PICTURE_TEXT.exec(it.text);
+      if (m) { if (!fig.alt) fig.alt = m[0].trim().replace(/^\[|\]$/g, "").replace(/^(?:a |an )?(?:picture|image|photo|drawing|illustration) of /i, "").slice(0, 200); it.text = it.text.replace(PICTURE_TEXT, " ").replace(/[ \t]{2,}/g, " ").trim(); it.say = ""; }
       it.figure = fig;
     }
     await kv.set(K.w(r.ws.id), r);
@@ -382,22 +431,10 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
     const wait = draftsByTeacher.retryAfter(tid); if (wait) return bad(res, 429, `Try again in ${waitWords(wait)}.`);
     draftsByTeacher.fail(tid);
-    const want = Array.isArray(req.body?.itemIds) ? r.ws.items.filter((i) => req.body.itemIds.includes(i.id)) : r.ws.items;
-    const groups: string[][] = [];
-    for (let i = 0; i < want.length; i += 6) groups.push(want.slice(i, i + 6).map((x) => x.id));
-    let made = 0; const errors: string[] = [];
-    await Promise.all(groups.map(async (ids) => {
-      try {
-        const out = looseJson(await askText(SUPPORTS_PROMPT, supportsInput(r.ws, ids)));
-        for (const s of Array.isArray(out?.items) ? out.items : []) {
-          const it = r.ws.items.find((i) => i.id === s?.id && ids.includes(i.id)); if (!it) continue;
-          const sp = cleanSupports(s, it.choices.length); if (sp) { it.supports = sp; made++; }
-        }
-      } catch (e: any) { errors.push(String(e?.message || e)); console.error("[tts-buddy] supports:", e?.message); }
-    }));
-    if (!made) return res.status(502).json({ message: "Couldn't make accommodations right now. Try again in a moment.", detail: errors.join(" | ").slice(0, 400) });
-    await kv.set(K.w(r.ws.id), r);
-    res.json({ worksheet: r.ws, made });
+    const ids = Array.isArray(req.body?.itemIds) ? r.ws.items.filter((i) => req.body.itemIds.includes(i.id)).map((i) => i.id) : undefined;
+    const out = await draft(r.ws.id, ids);
+    if (!out.made) return res.status(502).json({ message: "Couldn't write supports right now. Try again in a moment.", detail: out.errors.join(" | ").slice(0, 400) });
+    res.json({ worksheet: (await getWs(r.ws.id))!.ws, made: out.made });
   });
 
   /** The accommodations newly linked laptops start with (each laptop can be changed after). */
@@ -615,4 +652,22 @@ async function groqHear(audio: Buffer, mime: string): Promise<string> {
   const r = await fetch(`${GROQ}/audio/transcriptions`, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(30_000) });
   if (!r.ok) throw new Error(`hear ${r.status}`);
   return String((await r.json())?.text || "");
+}
+
+/** The strongest text AI this site has: xAI's Grok (the same key and model Arise Fit's photo scans use), then the
+ *  site's usual chat route. */
+async function bestTextAi(system: string, user: string): Promise<string> {
+  const xai = fitVisionTargets().find((t) => t.provider === "xai");
+  if (xai) {
+    try {
+      const r = await fetch(xai.url, {
+        method: "POST", headers: { Authorization: `Bearer ${xai.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: xai.model, store: false, max_output_tokens: 8000, instructions: system, input: [{ role: "user", content: [{ type: "input_text", text: user }] }], text: { format: { type: "json_object" } } }),
+        signal: AbortSignal.timeout(120_000),
+      });
+      if (r.ok) { const text = replyText(await r.json(), "responses"); if (looseJson(text)) return text; }
+      else console.error("[tts-buddy] grok text:", r.status, (await r.text().catch(() => "")).slice(0, 200));
+    } catch (e: any) { console.error("[tts-buddy] grok text:", e?.message); }
+  }
+  return siteChat(system, user);
 }

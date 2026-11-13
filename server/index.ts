@@ -274,6 +274,7 @@ app.use("/api/math/photo-help", (req, res, next) => { authMiddleware(req, res, n
 app.use("/api/buddy/teacher/read", express.json({ limit: "16mb" }));
 // TTS Buddy pictures cut from a page photo, and a student's spoken answer.
 app.use(/^\/api\/buddy\/teacher\/worksheets\/[^/]+\/figures\/[^/]+$/, express.json({ limit: "4mb" }));
+app.use(/^\/api\/buddy\/teacher\/worksheets\/[^/]+\/pages\/[^/]+$/, express.json({ limit: "6mb" }));
 app.use(/^\/api\/buddy\/laptop\/[^/]+\/hear$/, express.json({ limit: "6mb" }));
 // Arise Math "Test Prep": up to 6 photos of practice sheets in one request (each shrunk on the device first).
 app.use(/^\/api\/math\/prep$/, (req, res, next) => { if (req.method !== "POST") return next(); authMiddleware(req, res, next).catch(next); }, express.json({ limit: "26mb" }));

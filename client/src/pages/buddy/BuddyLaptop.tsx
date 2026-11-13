@@ -99,6 +99,10 @@ export function Figure({ wid, item, auth, onHear, big }: { wid: string; item: It
   </figure>;
 }
 
+function Helper({ on, onClick, children, testId }: { on?: boolean; onClick: () => void; children: React.ReactNode; testId?: string }) {
+  return <button type="button" onClick={onClick} aria-pressed={on} data-testid={testId} className="rounded-full px-4 py-2.5 text-[17px] font-bold" style={{ background: on ? B.ink : B.soft, color: on ? "#fff" : B.ink, border: `2px solid ${on ? B.ink : "#ffd4bf"}` }}>{children}</button>;
+}
+
 function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "ready" }>; onGone: () => void }) {
   const ws = st.worksheet;
   const acc = cleanAcc(st.acc);
@@ -106,7 +110,10 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   const [answers, setAnswers] = useState<Record<string, string>>(st.answers);
   const [rate, setRate] = useState(() => { try { return Number(localStorage.getItem("tts-buddy-rate")) || 1; } catch { return 1; } });
   const [auto, setAuto] = useState(true);
-  const [original, setOriginal] = useState(false);
+  // The student's own choices. They stay on from question to question once turned on.
+  const [easy, setEasy] = useState(false);
+  const [two, setTwo] = useState(false);
+  const [bigOn, setBigOn] = useState(acc.big);
   const [hints, setHints] = useState(0);
   const [micBusy, setMicBusy] = useState(false);
   const [micMsg, setMicMsg] = useState("");
@@ -117,18 +124,19 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   const item = ws.items[Math.min(step, ws.items.length - 1)];
   const sp = item.supports;
   const pic = pictureFor(ws.items, Math.min(step, ws.items.length - 1));
-  const simpleOn = acc.simple && !!sp?.simple && !original;
+  const simpleOn = acc.simple && !!sp?.simple && easy;
+  const canTwo = acc.fewer && !!sp && sp.keep.length >= 2 && item.choices.length > 2;
   const qPart = simpleOn ? "s" : "q";
   const qText = simpleOn ? sp!.simple : item.text;
-  const shownChoices = item.choices.map((c, i) => ({ c, i })).filter(({ i }) => !(acc.fewer && sp && sp.keep.length >= 2) || sp.keep.includes(i));
+  const shownChoices = item.choices.map((c, i) => ({ c, i })).filter(({ i }) => !(canTwo && two) || sp!.keep.includes(i));
   const parts = (it: Item) => {
-    const s = it.supports; const simple = acc.simple && !!s?.simple && !original;
-    const keep = acc.fewer && s && s.keep.length >= 2 ? s.keep : it.choices.map((_, i) => i);
+    const s = it.supports; const simple = acc.simple && !!s?.simple && easy;
+    const keep = acc.fewer && two && s && s.keep.length >= 2 && it.choices.length > 2 ? s.keep : it.choices.map((_, i) => i);
     return [simple ? "s" : "q", ...keep.map((i) => `c${i}`)];
   };
   const questions = ws.items.filter((i) => i.kind !== "read");
   const qIndex = questions.indexOf(item);
-  const big = acc.big;
+  const big = bigOn;
 
   // Answers and the step go back to the teacher's phone (a moment after the last change).
   const save = useRef<ReturnType<typeof setTimeout>>();
@@ -143,11 +151,10 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   // hints over, and put the sentence starter in an empty written answer.
   const tapped = useRef(false);
   useEffect(() => {
-    setHints(0); setOriginal(false); setMicMsg("");
+    setHints(0); setMicMsg("");
     if (done) { voice.stop(); return; }
     voice.prefetch(item.id, parts(item));
     const next = ws.items[step + 1]; if (next) voice.prefetch(next.id, [parts(next)[0]]);
-    if (acc.starter && sp?.starter && item.kind !== "choice" && item.kind !== "read" && !(answers[item.id] || "").trim()) setAnswers((a) => ({ ...a, [item.id]: `${sp.starter} ` }));
     if (auto && tapped.current) void voice.play(item.id, parts(item)); else voice.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, done]);
@@ -182,6 +189,7 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
     <header className="flex items-center gap-3">
       <BuddyMark size={36} />
       <div className="min-w-0 flex-1"><p className="truncate text-[18px] font-bold">{ws.title}</p><p className="text-[14px]" style={{ color: B.dim }}>{st.name ? `${st.name} · ` : ""}{item.kind === "read" ? "Read first" : `Question ${qIndex + 1} of ${questions.length}`}</p></div>
+      <button type="button" onClick={() => setBigOn((b) => !b)} aria-pressed={bigOn} aria-label="Bigger text" data-testid="buddy-big" className="rounded-[12px] px-3 py-1.5 font-bold" style={{ background: bigOn ? B.ink : B.card, color: bigOn ? "#fff" : B.ink, border: `2px solid ${bigOn ? B.ink : B.line}` }}><span className="text-[15px]">A</span><span className="text-[22px]">A</span></button>
       <div className="flex rounded-[12px] p-1" style={{ background: B.card, border: `2px solid ${B.line}` }} role="radiogroup" aria-label="Reading speed">
         {RATES.map((x) => <button key={x.r} type="button" role="radio" aria-checked={rate === x.r} onClick={() => setRate(x.r)} className="flex items-center gap-1 rounded-[9px] px-2.5 py-1.5 text-[14px] font-bold" style={{ background: rate === x.r ? B.ink : "transparent", color: rate === x.r ? "#fff" : B.dim }}>{x.r < 1 && <Turtle className="h-4 w-4" />}{x.label}</button>)}
       </div>
@@ -194,7 +202,7 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
           {item.kind !== "read" && <span className="grid h-12 min-w-12 shrink-0 place-items-center rounded-full px-2 text-[22px] font-bold text-white" style={{ background: B.ink, fontFamily: BRAND_FONT }}>{item.number || qIndex + 1}</span>}
           <p className={`flex-1 ${qSize}`} data-testid="buddy-qtext"><Words text={qText} word={on(qPart)?.word ?? -1} active={!!on(qPart)} /></p>
         </div>
-        {acc.simple && sp?.simple && <button type="button" onClick={() => { voice.stop(); setOriginal((o) => !o); }} className="mt-2 text-[15px] font-bold underline" style={{ color: B.dim }} data-testid="buddy-original">{original ? "Show it in simpler words" : item.kind === "read" ? "Read the whole thing" : "Show the original question"}</button>}
+
         {pic && <Figure wid={ws.id} item={pic} auth={{ laptop: me }} big={big} onHear={() => { tapped.current = true; void voice.play(pic.id, ["p"]); }} />}
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button type="button" onClick={readAll} data-testid="buddy-read" className="flex items-center gap-3 rounded-full py-3 pl-3 pr-6 text-[20px] font-bold text-white" style={{ background: voice.playing ? B.ink : B.blue, boxShadow: `0 5px 0 ${voice.playing ? "#000" : "#1f4fa8"}` }}>
@@ -203,6 +211,11 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
           </button>
           {acc.steps && sp && sp.steps.length > 0 && hints < sp.steps.length && <button type="button" onClick={nextHint} data-testid="buddy-hint" className="flex items-center gap-2 rounded-full px-5 py-3 text-[19px] font-bold" style={{ background: B.mark, color: B.ink }}><Lightbulb className="h-6 w-6" />{hints ? "Another hint" : "I need help"}</button>}
         </div>
+        {/* Helpers the student turns on themselves (their teacher can turn any of them off). */}
+        {((acc.simple && sp?.simple) || canTwo) && <div className="mt-4 flex flex-wrap gap-2" data-testid="buddy-helpers">
+          {acc.simple && sp?.simple && <Helper on={easy} testId="buddy-easy" onClick={() => { tapped.current = true; const next = !easy; setEasy(next); voice.stop(); if (next) setTimeout(() => void voice.play(item.id, ["s"]), 50); }}>{easy ? "✓ Easier words" : item.kind === "read" ? "Make it shorter" : "Easier words"}</Helper>}
+          {canTwo && <Helper on={two} testId="buddy-two" onClick={() => { tapped.current = true; setTwo(!two); }}>{two ? "✓ Just 2 choices" : "Just 2 choices"}</Helper>}
+        </div>}
         {acc.steps && sp && hints > 0 && <ol className="mt-4 space-y-2" data-testid="buddy-hints">{sp.steps.slice(0, hints).map((h, i) => <li key={i} className={`flex items-start gap-3 rounded-[14px] p-3 ${big ? "text-[24px]" : "text-[19px]"}`} style={{ background: B.soft }}>
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[16px] font-bold text-white" style={{ background: B.accent }}>{i + 1}</span>
           <span className="flex-1"><Words text={h} word={on(`h${i}`)?.word ?? -1} active={!!on(`h${i}`)} /></span>
@@ -235,6 +248,8 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
           <MicBtn />
         </div>
         {micMsg && <p className="mt-2 text-[16px]" style={{ color: B.accentDeep }}>{micMsg}</p>}
+        {acc.starter && sp?.starter && !(answers[item.id] || "").trim().toLowerCase().startsWith(sp.starter.trim().toLowerCase()) && <div className="mt-3">
+          <Helper testId="buddy-starter" onClick={() => { const cur = (answers[item.id] || "").trim(); setAnswer(`${sp.starter} ${cur}`.trimEnd() + " "); void voice.play(item.id, ["st"]); }}>Start my sentence: “{sp.starter}…”</Helper></div>}
         {acc.bank && sp && sp.bank.length > 0 && item.kind === "short" && <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="buddy-bank"><span className="text-[15px] font-bold" style={{ color: B.dim }}>Word bank:</span>
           {sp.bank.map((w) => <button key={w} type="button" onClick={() => setAnswer(w)} className={`rounded-[12px] px-4 py-2 font-bold ${big ? "text-[26px]" : "text-[20px]"}`} style={{ background: answers[item.id] === w ? B.soft : B.card, border: `2px solid ${answers[item.id] === w ? B.accent : B.line}` }}>{w}</button>)}</div>}
       </div>}

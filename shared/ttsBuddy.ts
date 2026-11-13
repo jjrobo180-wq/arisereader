@@ -24,21 +24,24 @@ export type Supports = {
 /** One step of the worksheet: directions or a passage to read ("read"), or a question. */
 export type Item = { id: string; kind: ItemKind; number: string; text: string; say: string; choices: string[]; figure: Figure | null; supports: Supports | null };
 export type Worksheet = { id: string; title: string; items: Item[]; createdAt: string; pages: number };
-/** Accommodations switched on for one student (the teacher sets them; a class default applies to new laptops). */
+/** The helpers a student can use. All on unless the teacher turns some off (for the class or one student); "big"
+ *  starts the student in bigger text (they can switch it themselves either way). */
 export type Acc = { simple: boolean; steps: boolean; starter: boolean; bank: boolean; vocab: boolean; fewer: boolean; big: boolean; mic: boolean };
 export const ACC_KEYS: (keyof Acc)[] = ["simple", "steps", "bank", "starter", "vocab", "fewer", "big", "mic"];
 export const ACC_LABEL: Record<keyof Acc, [string, string]> = {
-  simple: ["Simpler words", "Questions in plainer words; passages shortened to a simple summary (the original is one tap away)"],
-  steps: ["Step-by-step hints", "A Help button that gives one hint at a time"],
-  bank: ["Word bank", "Tap a word to answer short questions"],
-  starter: ["Sentence starters", "Written answers start with a few words to build on"],
-  vocab: ["Word meanings", "Hard words are underlined; tap to hear what they mean"],
-  fewer: ["Fewer choices", "Multiple choice shows 2 choices instead of 4"],
-  big: ["Bigger text", "Larger letters and more space between lines"],
-  mic: ["Say the answer", "A microphone button types what they say"],
+  simple: ["Easier words", "An Easier words button: the question in plain, short sentences; passages as a short summary"],
+  steps: ["Hints", "An I need help button that gives one hint at a time, read aloud"],
+  bank: ["Word bank", "Answer choices to tap for short answers"],
+  starter: ["Sentence starters", "A Start my sentence button for written answers"],
+  vocab: ["Tricky words", "Hard words to tap and hear explained"],
+  fewer: ["2 choices", "A Just 2 choices button for multiple choice"],
+  big: ["Start with big text", "Bigger letters from the start (students can switch it too)"],
+  mic: ["Say the answer", "A microphone that types what they say"],
 };
 export const noAcc = (): Acc => ({ simple: false, steps: false, starter: false, bank: false, vocab: false, fewer: false, big: false, mic: false });
-export const cleanAcc = (raw: any): Acc => { const a = noAcc(); for (const k of ACC_KEYS) a[k] = raw?.[k] === true; return a; };
+/** Every helper available, normal text size: what students get unless the teacher changes it. */
+export const defaultAcc = (): Acc => ({ simple: true, steps: true, starter: true, bank: true, vocab: true, fewer: true, big: false, mic: true });
+export const cleanAcc = (raw: any): Acc => { const a = defaultAcc(); if (raw && typeof raw === "object") for (const k of ACC_KEYS) if (typeof raw[k] === "boolean") a[k] = raw[k]; return a; };
 /** What a child's laptop shows, and what the teacher sees about it. */
 export type Laptop = { id: string; name: string; worksheetId: string; answers: Record<string, string>; step: number; done: boolean; seen: string; linkedAt: string; acc: Acc };
 
@@ -213,14 +216,17 @@ Rules:
 - If the photo isn't a worksheet or can't be read, return {"title": "", "items": []}.`;
 
 // ---------- Accommodations, drafted by the AI ----------
-export const SUPPORTS_PROMPT = `You help a special education teacher make accommodations for a worksheet a child will hear read aloud.
-For EACH item you're given, write:
-- "simple": the same question in plainer, shorter words (about a 2nd-grade reading level), keeping its meaning and anything the child needs to answer. For a "read" item (directions or a passage), a short, simple summary in 1 to 3 short sentences. Never give the answer.
-- "steps": 2 to 4 hints, each one short sentence, that walk the child toward the answer one step at a time without saying it. For "read" items, [].
-- "starter": for "short" and "long" items, a sentence starter of 3 to 8 words that begins a good answer without giving it away (for math, ""). Otherwise "".
-- "bank": for "short" items, 3 to 5 single words or short phrases, one of them the correct answer, the others believable but wrong, in random order. Otherwise [].
-- "vocab": up to 3 words from the item a young reader may not know, each {"w": word, "m": a meaning a 7-year-old understands, one short sentence}. [] if none.
-- "keep": for "choice" items, the indexes (0 = first choice) of exactly 2 choices: the correct one and the most reasonable wrong one. For true/false, [0, 1]. Otherwise [].
+export const SUPPORTS_PROMPT = `You are an experienced special education teacher. A student who struggles with reading (and maybe math) will do this worksheet on a laptop, hearing every word read aloud. Write the supports a great teacher would write: specific to THIS question, using its real numbers, words and picture. Short and concrete. Work each problem out yourself first (don't write that part) so your hints, word bank and choices are correct.
+
+For EACH item you're given:
+- "simple": the item rewritten for a struggling 2nd-3rd grade reader. Short sentences (12 words at most each), everyday words, every number and fact needed kept, and the task said as a direct instruction ("Find…", "Write…", "Pick…"). It must be clearly easier than the original, never a copy of it. For a "read" item: a passage becomes 2-3 short sentences with the main ideas; directions become 1-2 short steps.
+- "steps": for questions, 2-4 hints in order. Each hint is one specific action with this question's real numbers or picture ("Find 10 on the top line." — not "Look at the number line."). The last hint leaves the student one small step from the answer. Never state the answer. For "read" items, [].
+- "starter": for "long" items, the first 4-8 words of a good answer (not the answer itself). For "short" items whose answer is a sentence, the same; otherwise "". For others, "".
+- "bank": for "short" items answered with a word, number or short phrase: 3 or 4 options, one of them the correct answer, the others mistakes a student would really make. In random order. Otherwise [].
+- "vocab": up to 3 words or terms this student might not know (like "ratio", "percent", "double number line", "predict"), each {"w": the word as written, "m": what it means in words a 7-year-old understands, 15 words at most, with a tiny example if that helps}. Skip easy words. [] if none.
+- "keep": for "choice" items, the indexes (0 = first choice) of exactly 2 choices: the correct one and the most tempting wrong one. True/false: [0, 1]. Otherwise [].
 Reply with JSON only: {"items": [{"id": string, "simple": string, "steps": string[], "starter": string, "bank": string[], "vocab": [{"w": string, "m": string}], "keep": number[]}]}`;
 /** The worksheet as the AI sees it when drafting accommodations (passages give context for the questions). */
-export const supportsInput = (w: Worksheet, ids?: string[]) => JSON.stringify({ title: w.title, items: w.items.filter((i) => !ids || ids.includes(i.id)).map((i) => ({ id: i.id, kind: i.kind, number: i.number, text: i.text, choices: i.choices, picture: i.figure?.alt || undefined })), context: ids ? w.items.filter((i) => i.kind === "read").map((i) => i.text).join("\n\n").slice(0, 4000) : undefined });
+export const supportsInput = (w: Worksheet, ids?: string[]) => JSON.stringify({ title: w.title, items: w.items.filter((i) => !ids || ids.includes(i.id)).map((i) => ({ id: i.id, kind: i.kind, number: i.number, text: i.text, choices: i.choices, picture: i.figure?.alt || undefined })), context: w.items.filter((i) => i.kind === "read" && !(ids || []).includes(i.id)).map((i) => i.text + (i.figure?.alt ? ` [picture: ${i.figure.alt}]` : "")).join("\n\n").slice(0, 4000) || undefined });
+/** Text like "[picture of a double number line …]" that an older reading put in place of a picture. */
+export const PICTURE_TEXT = /\s*\[(?:picture|image|diagram|graph|chart|table|photo|drawing|figure|illustration)\b[^\]]*\]\s*/i;

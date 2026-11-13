@@ -125,7 +125,7 @@ function ClassPanel({ home, current, reload, say }: { home: Home; current: Summa
     try { await call("/teacher/link", { teacher: true, body: { code, name, worksheetId: current.id } }); setCode(""); setName(""); say("Linked. The worksheet is on that laptop now."); reload(); }
     catch (e: any) { say(e.message); } finally { setBusy(false); }
   };
-  const setDefault = async (acc: Acc, everyone = false) => { try { const r = await call<{ changed: number }>("/teacher/acc", { teacher: true, body: { acc, everyone } }); say(everyone ? `Set for ${r.changed} laptop${r.changed === 1 ? "" : "s"}` : "Saved for new laptops"); reload(); } catch (e: any) { say(e.message); } };
+  const setDefault = async (acc: Acc, everyone = false) => { try { const r = await call<{ changed: number }>("/teacher/acc", { teacher: true, body: { acc, everyone } }); say(r.changed ? `Changed for the class (${r.changed} laptop${r.changed === 1 ? "" : "s"})` : "Changed for the class"); reload(); } catch (e: any) { say(e.message); } };
   const anyOn = ACC_KEYS.filter((k) => home.acc?.[k]);
   return <section className="mt-5 rounded-[22px] p-5" style={{ background: B.card, border: `2px solid ${B.line}` }} data-testid="buddy-class">
     <p className="text-[14px] font-bold uppercase tracking-wide" style={{ color: B.dim }}>On laptops now</p>
@@ -141,10 +141,9 @@ function ClassPanel({ home, current, reload, say }: { home: Home; current: Summa
       <Btn className="mt-3 w-full" disabled={code.length !== 4 || busy} onClick={link} testId="buddy-link">{busy ? "Linking…" : "Link laptop"}</Btn>
     </div>
     <button type="button" onClick={() => setShowAcc((x) => !x)} className="mt-4 flex w-full items-center gap-2 text-left" data-testid="buddy-class-acc-toggle">
-      <span className="flex-1"><span className="block text-[16px] font-bold">Accommodations for new laptops</span><span className="text-[13px]" style={{ color: B.dim }}>{anyOn.length ? anyOn.map((k) => ACC_LABEL[k][0]).join(", ") : "None. Each laptop can have its own; tap a laptop below."}</span></span>
+      <span className="flex-1"><span className="block text-[16px] font-bold">Student helpers</span><span className="text-[13px]" style={{ color: B.dim }}>{anyOn.length >= ACC_KEYS.length - 1 ? "All on: every student can use easier words, hints, a word bank and more. Tap to turn some off." : anyOn.length ? `On: ${anyOn.map((k) => ACC_LABEL[k][0]).join(", ")}` : "All off (test mode)."}</span></span>
       <ChevronDown className={`h-5 w-5 transition-transform ${showAcc ? "rotate-180" : ""}`} /></button>
-    {showAcc && <div className="mt-2"><AccSwitches acc={cleanAcc(home.acc)} onChange={(a) => void setDefault(a)} />
-      {home.laptops.length > 0 && <Btn kind="soft" className="mt-2 w-full !text-[15px]" onClick={() => void setDefault(cleanAcc(home.acc), true)}>Use these for every linked laptop now</Btn>}</div>}
+    {showAcc && <div className="mt-2"><p className="mb-1 text-[13px]" style={{ color: B.dim }}>For the whole class. Change one student by tapping their laptop below.</p><AccSwitches acc={cleanAcc(home.acc)} onChange={(a) => void setDefault(a, true)} /></div>}
     <p className="mt-5 text-[16px] font-bold">{home.laptops.length ? `${home.laptops.length} laptop${home.laptops.length === 1 ? "" : "s"}` : "No laptops linked yet"}</p>
     <div className="mt-2 space-y-2">{home.laptops.map((l, i) => <LaptopRow key={l.id} l={l} n={i} open={openLaptop === l.id} onToggle={() => setOpenLaptop((x) => (x === l.id ? "" : l.id))} reload={reload} say={say} worksheetId={current.id} />)}</div>
   </section>;
@@ -162,12 +161,12 @@ function LaptopRow({ l, n, open, onToggle, reload, say, worksheetId }: { l: Lapt
     <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 p-3 text-left">
       <LaptopIcon className="h-6 w-6 shrink-0" style={{ color: away ? B.dim : B.green }} />
       <span className="min-w-0 flex-1"><span className="block truncate text-[17px] font-bold">{label}</span>
-        <span className="text-[13px]" style={{ color: B.dim }}>{l.done ? "Finished" : `${l.answered} of ${l.questions} answered`}{away ? " · not seen lately" : ""}{l.worksheetId !== worksheetId ? ` · ${l.worksheetTitle}` : ""}{accOn.length ? ` · ${accOn.length} accommodation${accOn.length === 1 ? "" : "s"}` : ""}</span>
+        <span className="text-[13px]" style={{ color: B.dim }}>{l.done ? "Finished" : `${l.answered} of ${l.questions} answered`}{away ? " · not seen lately" : ""}{l.worksheetId !== worksheetId ? ` · ${l.worksheetTitle}` : ""}{accOn.length < ACC_KEYS.length - 1 ? ` · ${accOn.length ? `${ACC_KEYS.length - 1 - accOn.filter((k) => k !== "big").length} helper${ACC_KEYS.length - 1 - accOn.filter((k) => k !== "big").length === 1 ? "" : "s"} off` : "helpers off"}` : ""}</span>
         <span className="mt-1.5 block h-2 overflow-hidden rounded-full" style={{ background: B.line }}><span className="block h-full rounded-full" style={{ width: `${pct}%`, background: l.done ? B.green : B.accent }} /></span></span>
       {l.done && <Check className="h-6 w-6" style={{ color: B.green }} />}
     </button>
     {open && <div className="border-t px-3 pb-3 pt-2" style={{ borderColor: B.line }}>
-      <p className="mb-1.5 text-[14px] font-bold" style={{ color: B.dim }}>Accommodations for {label}</p>
+      <p className="mb-1.5 text-[14px] font-bold" style={{ color: B.dim }}>Helpers {label} can use</p>
       <AccSwitches compact acc={acc} onChange={(a) => void patch({ acc: a }, "Updated. The laptop changes in a few seconds.")} />
       <div className="mt-3">{ws ? ws.items.filter((i) => i.kind !== "read").map((q, i) => <div key={q.id} className="py-1.5 text-[15px]"><p style={{ color: B.dim }}>{q.number || i + 1}. {q.text}</p><p className="font-bold">{isAnswered(q, l.answers[q.id]) ? l.answers[q.id].trim() : <span style={{ color: B.dim, fontWeight: 400 }}>No answer yet</span>}</p></div>) : <Loader2 className="h-5 w-5 animate-spin" />}</div>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -183,15 +182,22 @@ function LaptopRow({ l, n, open, onToggle, reload, say, worksheetId }: { l: Lapt
 function CropFixer({ ws, item, onDone, onClose, say }: { ws: Worksheet; item: Item; onDone: (w: Worksheet) => void; onClose: () => void; say: (m: string) => void }) {
   const [page, setPage] = useState(item.figure?.page || 1);
   const [box, setBox] = useState<[number, number, number, number]>(item.figure?.box || [150, 150, 850, 500]);
-  const [src, setSrc] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  const [src, setSrc] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false); const [missing, setMissing] = useState(false); const [reload, setReload] = useState(0);
+  const pageInput = useRef<HTMLInputElement>(null);
+  const addPage = async (files: FileList | null) => {
+    const f = files?.[0]; if (!f) return;
+    setBusy(true);
+    try { const image = await shrinkPhoto(f); await call(`/teacher/worksheets/${ws.id}/pages/${page}`, { method: "PUT", teacher: true, body: { image } }); setReload((n) => n + 1); }
+    catch (e: any) { say(e.message); } finally { setBusy(false); if (pageInput.current) pageInput.current.value = ""; }
+  };
   const frame = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    let gone = false; let made = ""; setSrc(""); setErr("");
+    let gone = false; let made = ""; setSrc(""); setErr(""); setMissing(false);
     fetch(`${API_BASE}/api/buddy/teacher/worksheets/${ws.id}/pages/${page}`, { headers: { "x-buddy-teacher": teacherKey() } })
-      .then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || "That page photo isn't available."); return r.blob(); })
-      .then((b) => { if (!gone) { made = URL.createObjectURL(b); setSrc(made); } }).catch((e) => !gone && setErr(e.message));
+      .then(async (r) => { if (r.status === 404) { if (!gone) setMissing(true); return null; } if (!r.ok) throw new Error("That page photo isn't available."); return r.blob(); })
+      .then((b) => { if (b && !gone) { made = URL.createObjectURL(b); setSrc(made); } }).catch((e) => !gone && setErr(e.message));
     return () => { gone = true; if (made) URL.revokeObjectURL(made); };
-  }, [ws.id, page]);
+  }, [ws.id, page, reload]);
   const drag = (mode: "move" | "tl" | "br") => (e: React.PointerEvent) => {
     e.preventDefault(); e.stopPropagation();
     const el = frame.current; if (!el) return;
@@ -216,7 +222,10 @@ function CropFixer({ ws, item, onDone, onClose, say }: { ws: Worksheet; item: It
     <div className="flex items-center gap-2 p-3 text-white"><button type="button" onClick={onClose} className="p-2" aria-label="Close"><X className="h-6 w-6" /></button><p className="flex-1 text-[17px] font-bold">Drag the box around the picture</p>
       {ws.pages > 1 && <select value={page} onChange={(e) => setPage(Number(e.target.value))} className="rounded-[8px] px-2 py-1 text-[15px] text-black" aria-label="Page">{Array.from({ length: ws.pages }, (_, i) => <option key={i} value={i + 1}>Page {i + 1}</option>)}</select>}</div>
     <div className="flex flex-1 items-center justify-center overflow-hidden p-3">
-      {err ? <p className="max-w-xs text-center text-[16px] text-white">{err}</p> : !src ? <Loader2 className="h-8 w-8 animate-spin text-white" /> :
+      <input ref={pageInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void addPage(e.target.files)} data-testid="buddy-page-input" />
+      {missing ? <div className="max-w-xs text-center text-white"><p className="text-[18px] font-bold">Take a photo of {ws.pages > 1 ? `page ${page}` : "the worksheet"}</p><p className="mt-1 text-[15px] opacity-80">This worksheet was snapped before pictures were saved. Take one photo of the page, then drag the box around the picture.</p>
+        <Btn className="mt-4 w-full" onClick={() => pageInput.current?.click()} disabled={busy} testId="buddy-page-snap"><Camera className="h-5 w-5" />{busy ? "Saving…" : "Take the photo"}</Btn></div>
+      : err ? <p className="max-w-xs text-center text-[16px] text-white">{err}</p> : !src ? <Loader2 className="h-8 w-8 animate-spin text-white" /> :
         <div ref={frame} className="relative inline-block max-h-full select-none">
           <img src={src} alt={`Page ${page}`} className="block max-h-[70vh] w-auto max-w-full" draggable={false} />
           <div className="absolute touch-none" onPointerDown={drag("move")} style={{ left: `${box[0] / 10}%`, top: `${box[1] / 10}%`, width: `${(box[2] - box[0]) / 10}%`, height: `${(box[3] - box[1]) / 10}%`, border: `3px solid ${B.accent}`, boxShadow: "0 0 0 9999px rgba(0,0,0,.45)", cursor: "move" }}>
@@ -228,6 +237,8 @@ function CropFixer({ ws, item, onDone, onClose, say }: { ws: Worksheet; item: It
     <div className="flex gap-2 p-3"><Btn kind="soft" className="flex-1" onClick={onClose}>Cancel</Btn><Btn className="flex-[2]" disabled={!src || busy} onClick={save} testId="buddy-crop-save">{busy ? "Saving…" : "Use this picture"}</Btn></div>
   </div>;
 }
+
+const supportsSummary = (it: Item) => { const s = it.supports!; return [s.simple && "easier words", s.steps.length && `${s.steps.length} hints`, s.bank.length && "word bank", s.starter && "sentence starter", s.vocab.length && `${s.vocab.length} tricky word${s.vocab.length === 1 ? "" : "s"}`, s.keep.length && "2 choices"].filter(Boolean).join(" · "); };
 
 /** The AI-drafted accommodations for one item, editable. */
 function SupportsEditor({ it, onChange }: { it: Item; onChange: (s: Supports) => void }) {
@@ -257,7 +268,24 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
   const [drafting, setDrafting] = useState(false);
   const [openSup, setOpenSup] = useState<Record<string, boolean>>({});
   const [cropping, setCropping] = useState<Item | null>(null);
-  useEffect(() => { call<{ worksheet: Worksheet }>(`/teacher/worksheets/${id}`, { teacher: true }).then((r) => setWs(r.worksheet)).catch((e) => { say(e.message); onBack(); }); }, [id, say, onBack]);
+  const [writing, setWriting] = useState(false);
+  // Supports are written in the background right after a worksheet is read (or the first time an older one opens):
+  // keep checking until they're in, and add them to the questions without touching anything being edited.
+  useEffect(() => {
+    let gone = false; let timer: ReturnType<typeof setTimeout>;
+    const get = async (first: boolean) => {
+      try {
+        const r = await call<{ worksheet: Worksheet; drafting: boolean }>(`/teacher/worksheets/${id}`, { teacher: true });
+        if (gone) return;
+        if (first) setWs(r.worksheet);
+        else setWs((cur) => cur && { ...cur, items: cur.items.map((it) => (it.supports ? it : { ...it, supports: r.worksheet.items.find((x) => x.id === it.id)?.supports ?? null })) });
+        setWriting(r.drafting);
+        if (r.drafting) timer = setTimeout(() => void get(false), 2500);
+      } catch (e: any) { if (first && !gone) { say(e.message); onBack(); } }
+    };
+    void get(true);
+    return () => { gone = true; clearTimeout(timer); };
+  }, [id, say, onBack]);
   const fetchClip = useCallback((itemId: string, part: string) => call<Clip>("/speak", { teacher: true, body: { worksheetId: id, itemId, part } }), [id]);
   const voice = useVoice(fetchClip, 1);
   const edit = (i: number, patch: Partial<Item>) => { setWs((w) => w && { ...w, items: w.items.map((it, j) => (j === i ? { ...it, ...patch, ...(patch.text != null ? { say: "" } : {}) } : it)) }); setDirty(true); };
@@ -266,7 +294,7 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
   const remove = async () => { if (!confirm("Delete this worksheet?")) return; try { await call(`/teacher/worksheets/${id}`, { method: "DELETE", teacher: true }); onBack(); } catch (e: any) { say(e.message); } };
   const draft = async () => {
     setDrafting(true);
-    try { if (dirty && !(await save())) return; const r = await call<{ worksheet: Worksheet; made: number }>(`/teacher/worksheets/${id}/supports`, { method: "POST", teacher: true, body: {} }); setWs(r.worksheet); setOpenSup(Object.fromEntries(r.worksheet.items.map((i) => [i.id, true]))); say(`Accommodations ready for ${r.made} step${r.made === 1 ? "" : "s"}. Check them, then turn them on per student.`); }
+    try { if (dirty && !(await save())) return; const r = await call<{ worksheet: Worksheet; made: number }>(`/teacher/worksheets/${id}/supports`, { method: "POST", teacher: true, body: {} }); setWs(r.worksheet); setOpenSup(Object.fromEntries(r.worksheet.items.map((i) => [i.id, true]))); say(`Supports rewritten for ${r.made} step${r.made === 1 ? "" : "s"}`); }
     catch (e: any) { say(e.message); } finally { setDrafting(false); }
   };
   const removePicture = async (it: Item) => { try { const r = await call<{ worksheet: Worksheet }>(`/teacher/worksheets/${id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { remove: true } }); setWs(r.worksheet); } catch (e: any) { say(e.message); } };
@@ -278,10 +306,10 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
       <button type="button" onClick={remove} aria-label="Delete worksheet" className="p-2" style={{ color: B.dim }}><Trash2 className="h-5 w-5" /></button></div>
     <input value={ws.title} onChange={(e) => { setWs({ ...ws, title: e.target.value.slice(0, 80) }); setDirty(true); }} aria-label="Worksheet title" className="mt-1 w-full bg-transparent text-[26px] font-bold outline-none" />
     <p className="text-[15px]" style={{ color: B.dim }}>{qs} question{qs === 1 ? "" : "s"}{ws.items.length > qs ? ` and ${ws.items.length - qs} reading step${ws.items.length - qs === 1 ? "" : "s"}` : ""}. Check the words, then send it. Tap the speaker to hear it.</p>
-    <div className="mt-4 rounded-[16px] p-4" style={{ background: B.card, border: `2px solid ${B.line}` }}>
-      <p className="text-[17px] font-bold">Accommodations</p>
-      <p className="text-[14px]" style={{ color: B.dim }}>{withSupports ? `Ready for ${withSupports} of ${ws.items.length} steps. Edit any of them below; turn them on for each student under Link a laptop.` : "Simpler wording, short summaries, hints, a word bank, sentence starters, word meanings and fewer choices, drafted for every question. You can edit them, then turn them on for each student."}</p>
-      <Btn kind={withSupports ? "soft" : "ink"} className="mt-3 w-full" onClick={draft} disabled={drafting} testId="buddy-draft">{drafting ? <><Loader2 className="h-5 w-5 animate-spin" />Writing accommodations…</> : <><Sparkles className="h-5 w-5" />{withSupports ? "Write them again" : "Make accommodations"}</>}</Btn>
+    <div className="mt-3 flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-[14px]" style={{ background: writing ? B.soft : B.card, border: `2px solid ${B.line}` }} data-testid="buddy-supports-status">
+      {writing || drafting ? <><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><span className="flex-1">Writing supports for each question (easier words, hints, word bank, tricky words)…</span></>
+        : withSupports ? <><Check className="h-4 w-4 shrink-0" style={{ color: B.green }} /><span className="flex-1">Supports ready for every student. Tap <b>Supports</b> on a question to check or edit them.</span><button type="button" onClick={draft} className="font-bold" style={{ color: B.blue }}>Rewrite</button></>
+        : <><span className="flex-1">No supports yet.</span><button type="button" onClick={draft} className="font-bold" style={{ color: B.blue }} data-testid="buddy-draft">Write them</button></>}
     </div>
     <div className="mt-4 space-y-3">{ws.items.map((it, i) => {
       const speaking = voice.playing?.itemId === it.id && voice.playing.part === "q" ? voice.playing : null;
@@ -299,13 +327,14 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
         <div className="mt-2 flex flex-wrap gap-3 text-[14px] font-bold" style={{ color: B.blue }}>
           {it.figure?.img ? <><button type="button" onClick={() => setCropping(it)} data-testid="buddy-fix-picture">Fix picture</button><button type="button" onClick={() => void removePicture(it)} style={{ color: B.dim }}>Remove picture</button></>
             : <button type="button" onClick={() => setCropping(it)} className="flex items-center gap-1"><ImageIcon className="h-4 w-4" />Add a picture from the worksheet</button>}
-          <button type="button" onClick={() => setOpenSup((o) => ({ ...o, [it.id]: !o[it.id] }))} className="ml-auto" data-testid="buddy-sup-toggle">{it.supports ? "Accommodations" : "Add accommodations"} {openSup[it.id] ? "▴" : "▾"}</button>
+          <button type="button" onClick={() => setOpenSup((o) => ({ ...o, [it.id]: !o[it.id] }))} className="ml-auto" data-testid="buddy-sup-toggle">{it.supports ? "Supports" : "Add supports"} {openSup[it.id] ? "▴" : "▾"}</button>
         </div>
         {it.kind === "choice" && <div className="mt-2 space-y-1.5">{it.choices.map((c, ci) => <div key={ci} className="flex items-center gap-2">
           <span className="w-6 text-center text-[15px] font-bold" style={{ color: B.dim }}>{LETTERS[ci]}</span>
           <input value={c} onChange={(e) => edit(i, { choices: it.choices.map((x, k) => (k === ci ? e.target.value : x)) })} aria-label={`Answer ${LETTERS[ci]}`} className="min-w-0 flex-1 rounded-[8px] px-2 py-1.5 text-[16px] outline-none" style={{ background: B.bg }} />
           {it.choices.length > 2 && <button type="button" aria-label={`Remove answer ${LETTERS[ci]}`} onClick={() => edit(i, { choices: it.choices.filter((_, k) => k !== ci) })} style={{ color: B.dim }}><X className="h-4 w-4" /></button>}</div>)}
           {it.choices.length < 6 && <button type="button" onClick={() => edit(i, { choices: [...it.choices, ""] })} className="ml-8 text-[14px] font-bold" style={{ color: B.blue }}>+ Add answer</button>}</div>}
+        {it.supports && !openSup[it.id] && <p className="mt-1.5 text-[13px]" style={{ color: B.dim }}>{supportsSummary(it)}</p>}
         {openSup[it.id] && <SupportsEditor it={it} onChange={(sp) => edit(i, { supports: sp })} />}
       </div>;
     })}</div>

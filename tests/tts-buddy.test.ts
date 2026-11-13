@@ -46,7 +46,7 @@ const setup = () => {
   const { app, call } = fakeApp();
   const speak = async (text: string): Promise<Spoken> => { spoken.push(text); const ws = text.split(" "); return { audio: Buffer.from("mp3"), duration: ws.length * 0.4, words: ws.map((w, i) => ({ word: w.replace(/[.,]/g, ""), start: i * 0.4, end: i * 0.4 + 0.35 })) }; };
   const seq = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.15, 0.25, 0.35];
-  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => AI_REPLY, speak, aiConfigured: () => true, rand: () => seq[n++ % seq.length] });
+  registerTtsBuddyRoutes(app, { askText: async () => "{}", kv: createMemoryKv(), readPhotos: async () => AI_REPLY, speak, aiConfigured: () => true, rand: () => seq[n++ % seq.length] });
   return { call, spoken };
 };
 const T = { "x-buddy-teacher": "teacher-key-0123456789abcdefghijklmnopqrstuv" };
@@ -155,7 +155,7 @@ test("the whole class flow: snap, link a laptop by its code, it reads aloud, ans
 
 test("a photo that isn't a worksheet gets a clear message, and reading is limited per day", async () => {
   const { app, call } = fakeApp();
-  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => '{"title":"","items":[]}', speak: async () => { throw new Error("x"); }, aiConfigured: () => true });
+  registerTtsBuddyRoutes(app, { askText: async () => "{}", kv: createMemoryKv(), readPhotos: async () => '{"title":"","items":[]}', speak: async () => { throw new Error("x"); }, aiConfigured: () => true });
   const r = await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
   assert.equal(r.status, 422); assert.match(r.body.message, /clearer photo/);
   assert.equal((await call("POST", "/api/buddy/teacher/read", T, { images: [] })).status, 400);
@@ -246,7 +246,9 @@ test("pictures: a box on the page (clamped, ordered, not tiny); accommodations c
   assert.deepEqual(sp.keep, [1, 3]); assert.deepEqual(sp.vocab, [{ w: "lodge", m: "a beaver home" }]);
   assert.equal(cleanSupports({ simple: "", steps: [] }, 0), null);
   assert.deepEqual(cleanSupports({ keep: [2] }, 4), null, "one kept choice isn't 'fewer choices'");
-  assert.deepEqual(cleanAcc({ simple: true, mic: "yes", bogus: true }), { simple: true, steps: false, starter: false, bank: false, vocab: false, fewer: false, big: false, mic: false });
+  // Helpers are all on unless the teacher turns one off; "big" (start in big text) is off unless turned on.
+  assert.deepEqual(cleanAcc(undefined), { simple: true, steps: true, starter: true, bank: true, vocab: true, fewer: true, big: false, mic: true });
+  assert.deepEqual(cleanAcc({ simple: false, mic: "yes", bogus: true }), { simple: false, steps: true, starter: true, bank: true, vocab: true, fewer: true, big: false, mic: true });
   const it: any = { id: "q1", kind: "choice", number: "1", text: "T", say: "", choices: ["a", "b"], figure: { page: 1, box: [0, 0, 500, 500], alt: "a double number line", img: "abc123" }, supports: sp };
   assert.equal(spokenFor(it, "s"), "What cuts trees?"); assert.equal(spokenFor(it, "h1"), "Find teeth."); assert.equal(spokenFor(it, "v0"), "lodge. a beaver home");
   assert.equal(spokenFor(it, "p"), "Picture: a double number line"); assert.equal(spokenFor(it, "h7"), "");
@@ -263,7 +265,7 @@ test("pictures end to end: page photos kept, the phone's crop saved, shown to th
   const { app, call } = fakeApp();
   const files = createMemoryFiles();
   const reply = JSON.stringify({ title: "Ratios", items: [{ kind: "short", number: "1", text: "Use the double number line. What percent is 3?", figure: { box: [100, 200, 900, 400], alt: "double number line, 0 to 6 on top, 0% to 150% on the bottom" } }, { kind: "short", number: "2", text: "What is 50% of 6?" }] });
-  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), files, readPhotos: async () => reply, speak: async () => ({ audio: Buffer.from("x"), words: [], duration: 1 }), aiConfigured: () => true });
+  registerTtsBuddyRoutes(app, { askText: async () => "{}", kv: createMemoryKv(), files, readPhotos: async () => reply, speak: async () => ({ audio: Buffer.from("x"), words: [], duration: 1 }), aiConfigured: () => true });
   const r = await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
   const ws = r.body.worksheet; const q1 = ws.items[0];
   assert.equal(q1.text, "Use the double number line. What percent is 3?", "no [picture of …] in the words");
@@ -314,11 +316,11 @@ test("accommodations: AI drafts them, the teacher sets them per student, the lap
   assert.ok(asked.every((u) => JSON.parse(u).items.length <= 6), "drafted a few at a time");
 
   // Class default for new laptops, then one student changed on their own.
-  await call("POST", "/api/buddy/teacher/acc", T, { acc: { simple: true, steps: true } });
+  await call("POST", "/api/buddy/teacher/acc", T, { acc: { simple: true, steps: true, mic: false } });
   const lap = await call("POST", "/api/buddy/laptop"); const L = { "x-buddy-laptop": lap.body.key };
   await call("POST", "/api/buddy/teacher/link", T, { code: lap.body.code, worksheetId: ws.id, name: "Ava" });
   let got = await call("GET", `/api/buddy/laptop/${lap.body.id}`, L);
-  assert.equal(got.body.acc.simple, true); assert.equal(got.body.acc.mic, false);
+  assert.equal(got.body.acc.simple, true); assert.equal(got.body.acc.mic, false); assert.equal(got.body.acc.bank, true, "not mentioned = still on");
   assert.equal(got.body.worksheet.items[0].supports.simple.startsWith("Easy:"), true);
   // The voice reads the simpler wording and the hints.
   const s1 = await call("POST", "/api/buddy/speak", L, { laptopId: lap.body.id, worksheetId: ws.id, itemId: ws.items[1].id, part: "s" });
@@ -349,7 +351,7 @@ test("accommodations failing (AI down) say so plainly; the pages use them", asyn
   registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => AI_REPLY, askText: async () => { throw new Error("chat 503"); }, aiConfigured: () => true });
   const ws = (await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] })).body.worksheet;
   const d = await call("POST", `/api/buddy/teacher/worksheets/${ws.id}/supports`, T, {});
-  assert.equal(d.status, 502); assert.match(d.body.message, /Couldn't make accommodations/); assert.match(d.body.detail, /chat 503/);
+  assert.equal(d.status, 502); assert.match(d.body.message, /Couldn't write supports/); assert.match(d.body.detail, /chat 503/);
   const lap = read("client/src/pages/buddy/BuddyLaptop.tsx");
   for (const k of ["acc.simple", "acc.steps", "acc.bank", "acc.starter", "acc.vocab", "acc.fewer", "acc.big", "acc.mic", "<Figure "]) assert.ok(lap.includes(k), `laptop uses ${k}`);
   const teach = read("client/src/pages/buddy/BuddyTeacher.tsx");
@@ -369,4 +371,47 @@ test("a sentence starter the app put in the box doesn't count as an answer", asy
   assert.equal(isAnswered(it, "The number line helps me because "), false);
   assert.equal(isAnswered(it, "The number line helps me because 50% is under 2."), true);
   assert.equal(isAnswered({ supports: null } as any, "  "), false); assert.equal(isAnswered({ supports: null } as any, "4"), true);
+});
+
+test("supports are written by themselves: right after reading (no button), and kept when the phone saves an older copy", async () => {
+  const { app, call } = fakeApp();
+  let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
+  const askText = async (_s: string, user: string) => { await gate; return JSON.stringify({ items: JSON.parse(user).items.map((i: any) => ({ id: i.id, simple: `Easy: ${i.text}`, steps: ["Look.", "Think."] })) }); };
+  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => AI_REPLY, askText, speak: async () => ({ audio: Buffer.from("x"), words: [], duration: 1 }), aiConfigured: () => true });
+  const r = await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
+  assert.equal(r.body.drafting, true);
+  const ws = r.body.worksheet;
+  assert.equal((await call("GET", `/api/buddy/teacher/worksheets/${ws.id}`, T)).body.drafting, true);
+  // The teacher edits while they're being written; then they arrive.
+  const mine = { ...ws, title: "Fractions!" };
+  release(); await new Promise((x) => setTimeout(x, 20));
+  const after = await call("GET", `/api/buddy/teacher/worksheets/${ws.id}`, T);
+  assert.equal(after.body.drafting, false);
+  assert.ok(after.body.worksheet.items.every((i: any) => i.supports?.simple?.startsWith("Easy:")));
+  const saved = await call("PUT", `/api/buddy/teacher/worksheets/${ws.id}`, T, mine);
+  assert.equal(saved.body.worksheet.title, "Fractions!");
+  assert.ok(saved.body.worksheet.items.every((i: any) => i.supports?.simple), "the older copy didn't wipe them");
+  // Students get every helper without the teacher setting anything up.
+  const lap = await call("POST", "/api/buddy/laptop"); const L = { "x-buddy-laptop": lap.body.key };
+  await call("POST", "/api/buddy/teacher/link", T, { code: lap.body.code, worksheetId: ws.id });
+  const got = await call("GET", `/api/buddy/laptop/${lap.body.id}`, L);
+  assert.deepEqual(got.body.acc, { simple: true, steps: true, starter: true, bank: true, vocab: true, fewer: true, big: false, mic: true });
+  assert.ok(got.body.worksheet.items[1].supports.steps.length);
+});
+
+test("older worksheets: a page photo can be added later, and a real picture replaces the '[picture of …]' text", async () => {
+  const { app, call } = fakeApp();
+  const files = createMemoryFiles();
+  const old = JSON.stringify({ title: "Ratios", items: [{ kind: "read", text: "Do Now: What do you notice? [picture of a double number line. The top line is labeled 'cups' and has numbers 0, 5, 10.]", choices: [] }] });
+  registerTtsBuddyRoutes(app, { askText: async () => "{}", kv: createMemoryKv(), files, readPhotos: async () => old, aiConfigured: () => true });
+  const ws = (await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] })).body.worksheet;
+  await files.del([`page/${ws.id}/1`]); // as if it was read before photos were kept
+  assert.equal((await call("GET", `/api/buddy/teacher/worksheets/${ws.id}/pages/1`, T)).status, 404);
+  assert.equal((await call("PUT", `/api/buddy/teacher/worksheets/${ws.id}/pages/1`, T, { image: PHOTO })).status, 200);
+  assert.equal((await call("GET", `/api/buddy/teacher/worksheets/${ws.id}/pages/1`, T)).status, 200);
+  assert.equal((await call("PUT", `/api/buddy/teacher/worksheets/${ws.id}/pages/3`, T, { image: PHOTO })).status, 404, "no skipping pages");
+  const put = await call("PUT", `/api/buddy/teacher/worksheets/${ws.id}/figures/${ws.items[0].id}`, T, { image: "data:image/jpeg;base64,/9j/CROP", page: 1, box: [50, 300, 950, 500] });
+  const it = put.body.worksheet.items[0];
+  assert.equal(it.text, "Do Now: What do you notice?");
+  assert.match(it.figure.alt, /^a double number line\. The top line is labeled 'cups'/);
 });
