@@ -37,11 +37,16 @@ export async function shrinkPhoto(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("That photo couldn't be opened.")); i.src = url; });
-    const scale = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement("canvas");
-    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
-    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.82);
+    // The reader takes about 4 MB per page, so step down the size and quality until it fits (usually the first try).
+    for (const [side, q] of [[1800, 0.82], [1600, 0.75], [1400, 0.7], [1200, 0.65]] as const) {
+      const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+      const g = c.getContext("2d")!; g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL("image/jpeg", q);
+      if (url.length <= 3_500_000) return url;
+    }
+    throw new Error("That photo is too big. Try again, a little farther back.");
   } finally { URL.revokeObjectURL(url); }
 }
 

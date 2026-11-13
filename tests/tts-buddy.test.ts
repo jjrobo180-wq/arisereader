@@ -168,3 +168,57 @@ test("the site: arisetodo.com/buddy opens it, the routes and server are wired, n
   assert.match(read("server/routes.ts"), /registerTtsBuddyRoutes\(app, \{ kv: createSupabaseKv\(\) \}\)/);
   assert.match(read("server/index.ts"), /"\/api\/buddy\/teacher\/read", express\.json\(\{ limit: "16mb" \}\)/);
 });
+
+// The bug this caught (Nov 12): photos were sent to OpenAI's chat, which this site quietly forwards to Groq's
+// text-only model (server/aiProvider.ts), so every worksheet failed. Photos must go to Groq's vision model.
+import { looseJson, readPage, readWorksheet, buddyAiReady } from "../server/ttsBuddy";
+const reply = (status: number, body: any, headers: Record<string, string> = {}) => new Response(typeof body === "string" ? body : JSON.stringify(body), { status, headers });
+const ok = (content: string) => reply(200, { choices: [{ message: { content } }] });
+
+test("worksheet photos go to Groq's vision model, never OpenAI's redirected chat", async () => {
+  const env = { ...process.env };
+  process.env.GROQ_API_KEY = "gsk_test"; delete process.env.USE_OPENAI; process.env.OPENAI_API_KEY = "sk-old";
+  try {
+    assert.equal(buddyAiReady(), true);
+    const calls: any[] = [];
+    const page = await readPage(PHOTO, 1, 1, async (url, key, body) => { calls.push({ url, key, body }); return ok('{"title":"Spelling","items":[{"kind":"short","text":"Spell cat."}]}'); });
+    assert.equal(page.title, "Spelling"); assert.equal(page.items.length, 1);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /^https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions$/);
+    assert.equal(calls[0].key, "gsk_test");
+    assert.match(calls[0].body.model, /llama-4-scout/);
+    const parts = calls[0].body.messages[0].content;
+    assert.equal(parts[1].type, "image_url"); assert.equal(parts[1].image_url.url, PHOTO, "the photo itself is sent");
+    assert.match(parts[0].text, /classroom worksheet/);
+
+    // A retired model → the next vision model; JSON mode refused → asked again without it; fenced JSON still read.
+    const seen: string[] = [];
+    const p2 = await readPage(PHOTO, 2, 3, async (_u, _k, body) => {
+      seen.push(`${body.model}|${body.response_format ? "json" : "plain"}`);
+      if (/scout/.test(body.model)) return reply(404, { error: { message: "model_not_found" } });
+      if (body.response_format) return reply(400, { error: { message: "response_format json_object not supported" } });
+      return ok('Here you go:\n```json\n{"title":"","items":[{"kind":"read","text":"Page two."}]}\n```');
+    });
+    assert.deepEqual(seen, ["meta-llama/llama-4-scout-17b-16e-instruct|json", "meta-llama/llama-4-maverick-17b-128e-instruct|json", "meta-llama/llama-4-maverick-17b-128e-instruct|plain"]);
+    assert.equal(p2.items[0].text, "Page two.");
+
+    // Nothing works → a plain message, not a crash.
+    await assert.rejects(readPage(PHOTO, 1, 1, async () => reply(401, "bad key")), /Couldn't reach the worksheet reader/);
+  } finally { process.env = env; }
+});
+
+test("several pages are read separately (each fits Groq's size limit) and come back in order", async () => {
+  const merged = JSON.parse(await readWorksheet(["a", "b"], async (img, page) => ({ title: page === 1 ? "" : "Page 2 title", items: [{ kind: "short", text: `from ${img}` }] })));
+  assert.equal(merged.title, "Page 2 title");
+  assert.deepEqual(merged.items.map((i: any) => i.text), ["from a", "from b"]);
+  assert.deepEqual(looseJson('```json\n{"a":1}\n```'), { a: 1 }); assert.equal(looseJson("nope"), null);
+});
+
+test("the voice is the site's working voice (Groq/Deepgram), with Groq's Whisper for word times", () => {
+  const src = read("server/ttsBuddy.ts");
+  assert.match(src, /aiSpeech\(text, "autumn"\)/);
+  assert.match(src, /audio\/transcriptions`, process\.env\.GROQ_API_KEY, "whisper-large-v3-turbo"/);
+  assert.doesNotMatch(src, /gpt-4o-mini-tts/, "OpenAI's voice is off on this site");
+  assert.match(src, /data:\$\{spoken\.type \|\| "audio\/mpeg"\}/, "WAV from Groq plays as WAV");
+  assert.match(read("client/src/pages/buddy/buddyApi.ts"), /url\.length <= 3_500_000/);
+});

@@ -27,7 +27,7 @@ import {
   normClass, normPair, pairCode, questionCount, shownFor, spokenFor, tokens, type Laptop, type Timed, type Worksheet,
 } from "../shared/ttsBuddy";
 
-export type Spoken = { audio: Buffer; words: Timed[]; duration: number };
+export type Spoken = { audio: Buffer; type?: string; words: Timed[]; duration: number };
 export type BuddyDeps = {
   kv?: FitKv;
   /** Reads the worksheet photos with the AI; returns its JSON reply. */
@@ -40,7 +40,8 @@ export type BuddyDeps = {
 };
 
 const IMAGE_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
-const MAX_IMAGE = 5_000_000;
+/** Groq takes about 4 MB per request, so each page must stay under that once it's text. */
+const MAX_IMAGE = 3_700_000;
 const hash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
 const KEY_RE = /^[A-Za-z0-9_-]{32,80}$/;
 
@@ -66,9 +67,9 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   const now = deps.now ?? Date.now;
   const rand = deps.rand ?? Math.random;
   const kv = cachedKv(deps.kv ?? createMemoryKv());
-  const readPhotos = deps.readPhotos ?? openAiRead;
+  const readPhotos = deps.readPhotos ?? ((images: string[]) => readWorksheet(images));
   const speak = deps.speak ?? createBuddyVoice().speak;
-  const aiConfigured = deps.aiConfigured ?? (() => !!process.env.OPENAI_API_KEY);
+  const aiConfigured = deps.aiConfigured ?? buddyAiReady;
   const readsByTeacher = createAttemptLimiter({ max: LIMITS.readsPerDay, windowMs: 24 * 3600_000, now });
   // A whole school usually shares one internet address, so the per-address limits are roomy.
   const readsByPlace = createAttemptLimiter({ max: LIMITS.readsPerDay * 10, windowMs: 24 * 3600_000, now });
@@ -144,14 +145,15 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     res.set?.("Cache-Control", "no-store");
     const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
     if (!aiConfigured()) return bad(res, 503, "Reading worksheets isn't turned on yet.");
+    const sent = Array.isArray(req.body?.images) ? req.body.images.length : 0;
     const images: string[] = Array.isArray(req.body?.images) ? req.body.images.filter((s: unknown) => typeof s === "string" && IMAGE_RE.test(s) && s.length <= MAX_IMAGE).slice(0, LIMITS.pages) : [];
-    if (!images.length) return bad(res, 400, "Add a photo of the worksheet.");
+    if (!images.length) return bad(res, 400, sent ? "That photo is too big or isn't a picture. Take it again." : "Add a photo of the worksheet.");
     const place = clientAddress(req);
     const wait = Math.max(readsByTeacher.retryAfter(tid), readsByPlace.retryAfter(place));
     if (wait) return bad(res, 429, `That's a lot of worksheets today. Try again in ${waitWords(wait)}.`);
     readsByTeacher.fail(tid); readsByPlace.fail(place);
     let raw: any;
-    try { raw = JSON.parse(await readPhotos(images)); } catch (e: any) { return bad(res, 502, e?.message && !/JSON/.test(e.message) ? e.message : "Couldn't read that worksheet. Try a clearer photo, straight on, in good light."); }
+    try { raw = looseJson(await readPhotos(images)); } catch (e: any) { console.error("[tts-buddy] read failed:", e?.message); return bad(res, 502, e?.message || "Couldn't read that worksheet. Try again."); }
     const ws = cleanWorksheet({ ...raw, pages: images.length }, randomUUID(), iso());
     if (!ws.items.length) return bad(res, 422, "That doesn't look like a worksheet I can read. Try a clearer photo, straight on, with the whole page in view.");
     await kv.set(K.w(ws.id), { owner: tid, ws } satisfies WsRec);
@@ -311,63 +313,109 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     try { spoken = await speak(said); } catch (e: any) { console.error("[tts-buddy] voice failed:", e?.message); return bad(res, 503, "The voice isn't available right now."); }
     const shown = tokens(shownFor(item, part)).map((t) => t.w);
     const words = spoken.words.length ? alignWords(shown, spoken.words, spoken.duration) : estimateTimes(shown, spoken.duration);
-    res.json({ audio: `data:audio/mpeg;base64,${spoken.audio.toString("base64")}`, words, duration: spoken.duration });
+    res.json({ audio: `data:${spoken.type || "audio/mpeg"};base64,${spoken.audio.toString("base64")}`, words, duration: spoken.duration });
   });
 }
 
 // ---------------- The AI pieces ----------------
-async function openAiRead(images: string[]): Promise<string> {
-  const content: any[] = [{ type: "text", text: `Here ${images.length === 1 ? "is the worksheet" : `are the ${images.length} pages of the worksheet, in order`}.` }];
-  for (const url of images) content.push({ type: "image_url", image_url: { url, detail: "high" } });
-  let r: Response;
-  try {
-    r = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.TTS_BUDDY_MODEL || "gpt-4.1", temperature: 0, max_tokens: 8000, response_format: { type: "json_object" }, messages: [{ role: "system", content: READ_PROMPT }, { role: "user", content }] }),
-      signal: AbortSignal.timeout(90_000),
-    });
-  } catch (e: any) { throw new Error(e?.name === "TimeoutError" ? "That took too long. Try one page at a time." : "Can't reach the reader right now. Try again in a moment."); }
-  if (!r.ok) { console.error("[tts-buddy] read failed:", r.status); throw new Error(r.status === 429 ? "Busy right now. Try again in a minute." : "Couldn't read that worksheet. Try a clearer photo."); }
-  const j: any = await r.json().catch(() => null);
-  return String(j?.choices?.[0]?.message?.content || "");
+// This site's AI runs on Groq (server/aiProvider.ts: OpenAI is off, and any request to OpenAI's chat is quietly sent
+// to Groq's text-only model, which can't see photos). So the worksheet photos go straight to Groq's vision model,
+// one page per request (Groq takes up to about 4 MB per request), and OpenAI is used only when the site turns it on.
+const openAiOn = () => !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "routed-to-grok" && process.env.USE_OPENAI === "1";
+export const buddyAiReady = () => !!process.env.GROQ_API_KEY || openAiOn();
+const GROQ = "https://api.groq.com/openai/v1";
+const VISION_MODELS = () => Array.from(new Set([process.env.GROQ_VISION_MODEL, "meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"].filter(Boolean) as string[]));
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** The JSON in a model's reply, even when it wrapped it in a code fence or a sentence. */
+export function looseJson(text: string): any {
+  const t = String(text || "").trim();
+  try { return JSON.parse(t); } catch { /* look inside */ }
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch { /* not JSON */ } }
+  return null;
 }
 
-const VOICE_VERSION = "v1";
-const BUCKET = "buddy-voice";
-const INSTRUCTIONS = "You are a warm, patient teacher reading a worksheet aloud to one child at school. Read clearly and naturally, a little slower than normal conversation, with a friendly, calm tone, like a real person sitting beside them. Pause briefly at commas and between sentences. Never sound robotic, rushed or babyish. Say exactly the input text and nothing else.";
+type Chat = (url: string, key: string, body: any) => Promise<Response>;
+const post: Chat = (url, key, body) => fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(90_000) });
 
-/** gpt-4o-mini-tts makes the voice; whisper-1 then hears it back with the time of every word, so the words on screen
- *  light up exactly when they're said. Each piece of text is made once and kept (memory, then Supabase Storage). */
-export function createBuddyVoice(opts: { apiKey?: string; storage?: () => any } = {}) {
-  const key = () => opts.apiKey ?? process.env.OPENAI_API_KEY;
+/** One page → {title, items}. Retries when busy, tries the next vision model if one is retired, and drops JSON mode
+ *  if a model refuses it. */
+export async function readPage(image: string, page: number, pages: number, chat: Chat = post): Promise<{ title: string; items: any[] }> {
+  const text = `${READ_PROMPT}\n\n${pages > 1 ? `This is page ${page} of ${pages}.` : "Here is the worksheet."} Reply with the JSON only.`;
+  const messages = [{ role: "user", content: [{ type: "text", text }, { type: "image_url", image_url: { url: image } }] }];
+  let lastStatus = 0;
+  const tries: [string, string, string][] = [];
+  if (process.env.GROQ_API_KEY) for (const m of VISION_MODELS()) tries.push([`${GROQ}/chat/completions`, process.env.GROQ_API_KEY, m]);
+  if (openAiOn()) tries.push(["https://api.openai.com/v1/chat/completions", process.env.OPENAI_API_KEY!, "gpt-4.1"]);
+  for (const [url, key, model] of tries) {
+    let json = true;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      let r: Response;
+      try { r = await chat(url, key, { model, temperature: 0, max_tokens: 6000, ...(json ? { response_format: { type: "json_object" } } : {}), messages }); }
+      catch (e: any) { if (attempt < 2) { await wait(1500); continue; } lastStatus = -1; break; }
+      if (r.ok) {
+        const body: any = await r.json().catch(() => null);
+        const parsed = looseJson(body?.choices?.[0]?.message?.content || "");
+        if (parsed && Array.isArray(parsed.items)) return { title: String(parsed.title || ""), items: parsed.items };
+        if (attempt < 1) continue; // asked again once: models sometimes trip on long JSON
+        lastStatus = 422; break;
+      }
+      lastStatus = r.status;
+      const why = await r.text().catch(() => "");
+      console.error(`[tts-buddy] ${model} page ${page}: ${r.status} ${why.slice(0, 300)}`);
+      if (r.status === 400 && json && /response_format|json/i.test(why)) { json = false; continue; }
+      if (r.status === 429 || r.status >= 500) { await wait(Math.min(12, Number(r.headers.get("retry-after")) || 2 * 2 ** attempt) * 1000); continue; }
+      break; // this model can't take it (retired, too big): the next one
+    }
+  }
+  if (lastStatus === 429) throw new Error("The reader is busy right now. Try again in a minute.");
+  if (lastStatus === 413) throw new Error("That photo is too big. Try again, a little farther back.");
+  throw new Error(lastStatus === 422 ? "Couldn't make out the questions on that page. Try a clearer photo, straight on, in good light." : "Couldn't reach the worksheet reader. Try again in a moment.");
+}
+
+/** All the pages at once; the items come back in page order as one worksheet. */
+export async function readWorksheet(images: string[], read = readPage): Promise<string> {
+  const pages = await Promise.all(images.map((img, i) => read(img, i + 1, images.length)));
+  return JSON.stringify({ title: pages.find((p) => p.title.trim())?.title || "", items: pages.flatMap((p) => p.items) });
+}
+
+const VOICE_VERSION = "v2";
+const BUCKET = "buddy-voice";
+/** The site's own read-aloud voice (server/groqVoice.ts: Groq's Orpheus, then Deepgram's Aura, then OpenAI's).
+ *  "autumn" is the warm, unhurried one. Then Groq's Whisper hears it back with the time of every word, so the words
+ *  on screen light up when they're said. Each piece of text is made once and kept (memory, then Supabase Storage). */
+export function createBuddyVoice(opts: { storage?: () => any } = {}) {
   const memory = new Map<string, Spoken>();
   const inFlight = new Map<string, Promise<Spoken>>();
   let bucket: Promise<unknown> | null = null;
   const storage = async () => (opts.storage ? opts.storage() : (await import("./supabase")).getAdminSupabase().storage);
   const remember = (id: string, s: Spoken) => { memory.delete(id); memory.set(id, s); while (memory.size > 400) memory.delete(memory.keys().next().value as string); };
 
-  async function make(text: string): Promise<Spoken> {
-    const apiKey = key(); if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
-    const r = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: "marin", input: text, instructions: INSTRUCTIONS, response_format: "mp3" }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!r.ok) throw new Error(`speech ${r.status}`);
-    const audio = Buffer.from(await r.arrayBuffer());
-    let words: Timed[] = []; let duration = 0;
-    try {
+  async function timings(audio: Buffer, type: string): Promise<{ words: Timed[]; duration: number }> {
+    const ask = async (url: string, key: string, model: string) => {
       const form = new FormData();
-      form.append("file", new Blob([new Uint8Array(audio)], { type: "audio/mpeg" }), "speech.mp3");
-      form.append("model", "whisper-1"); form.append("language", "en");
+      form.append("file", new Blob([new Uint8Array(audio)], { type }), type === "audio/wav" ? "speech.wav" : "speech.mp3");
+      form.append("model", model); form.append("language", "en");
       form.append("response_format", "verbose_json"); form.append("timestamp_granularities[]", "word");
-      const t = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: AbortSignal.timeout(30_000) });
-      if (t.ok) { const j: any = await t.json(); duration = Number(j.duration) || 0; words = (j.words || []).map((w: any) => ({ word: String(w.word), start: Number(w.start) || 0, end: Number(w.end) || 0 })); }
-    } catch { /* the page spreads the words evenly instead */ }
-    // Without timings, about 2.6 words a second at this pace is close enough for even spreading.
-    if (!duration) duration = Math.max(1, text.split(/\s+/).length / 2.6);
-    return { audio, words, duration };
+      const t = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(30_000) });
+      if (!t.ok) throw new Error(`timings ${t.status} ${(await t.text().catch(() => "")).slice(0, 200)}`);
+      const j: any = await t.json();
+      return { duration: Number(j.duration) || 0, words: (j.words || []).map((w: any) => ({ word: String(w.word), start: Number(w.start) || 0, end: Number(w.end) || 0 })) };
+    };
+    try {
+      if (process.env.GROQ_API_KEY) return await ask(`${GROQ}/audio/transcriptions`, process.env.GROQ_API_KEY, "whisper-large-v3-turbo");
+      if (openAiOn()) return await ask("https://api.openai.com/v1/audio/transcriptions", process.env.OPENAI_API_KEY!, "whisper-1");
+    } catch (e: any) { console.warn("[tts-buddy] word timings:", e?.message); }
+    return { words: [], duration: 0 };
+  }
+
+  async function make(text: string): Promise<Spoken> {
+    const { aiSpeech } = await import("./groqVoice");
+    const s = await aiSpeech(text, "autumn");
+    const t = await timings(s.audio, s.type);
+    // Without timings the page spreads the words evenly; about 2.6 words a second at this pace.
+    return { audio: s.audio, type: s.type, words: t.words, duration: t.duration || Math.max(1, text.split(/\s+/).length / 2.6) };
   }
 
   return {
@@ -379,16 +427,20 @@ export function createBuddyVoice(opts: { apiKey?: string; storage?: () => any } 
         p = (async () => {
           try {
             const s = await storage();
-            const [a, m] = await Promise.all([s.from(BUCKET).download(`${id}.mp3`), s.from(BUCKET).download(`${id}.json`)]);
-            if (a.data && m.data) { const meta = JSON.parse(await m.data.text()); return { audio: Buffer.from(await a.data.arrayBuffer()), words: meta.words || [], duration: meta.duration || 0 }; }
+            const m = await s.from(BUCKET).download(`${id}.json`);
+            if (m.data) {
+              const meta = JSON.parse(await m.data.text());
+              const a = await s.from(BUCKET).download(`${id}.${meta.type === "audio/wav" ? "wav" : "mp3"}`);
+              if (a.data) return { audio: Buffer.from(await a.data.arrayBuffer()), type: meta.type || "audio/mpeg", words: meta.words || [], duration: meta.duration || 0 };
+            }
           } catch { /* not saved yet */ }
           const made = await make(text);
           void (async () => {
             try {
               const s = await storage();
-              await (bucket ??= s.createBucket(BUCKET, { public: false, fileSizeLimit: "4MB" }).catch(() => null));
-              await s.from(BUCKET).upload(`${id}.mp3`, made.audio, { contentType: "audio/mpeg", upsert: true });
-              await s.from(BUCKET).upload(`${id}.json`, Buffer.from(JSON.stringify({ words: made.words, duration: made.duration })), { contentType: "application/json", upsert: true });
+              await (bucket ??= s.createBucket(BUCKET, { public: false, fileSizeLimit: "8MB" }).catch(() => null));
+              await s.from(BUCKET).upload(`${id}.${made.type === "audio/wav" ? "wav" : "mp3"}`, made.audio, { contentType: made.type, upsert: true });
+              await s.from(BUCKET).upload(`${id}.json`, Buffer.from(JSON.stringify({ type: made.type, words: made.words, duration: made.duration })), { contentType: "application/json", upsert: true });
             } catch { /* made again next time */ }
           })();
           return made;
