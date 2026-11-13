@@ -26,7 +26,7 @@
     "Today",
     "Train",
     "Food",
-    "Progress"
+    "Plugins"
   ],
   "headlines": [
     [
@@ -42,8 +42,8 @@
       "Calories, macros and meal prep"
     ],
     [
-      "See it<br>add up",
-      "Weigh-ins, records and streaks"
+      "Add only<br>what you need",
+      "Sleep, fasting, runs and 20+ more"
     ]
   ]
 }

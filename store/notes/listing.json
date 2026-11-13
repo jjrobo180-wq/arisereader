@@ -21,10 +21,10 @@
   },
   "reviewNotes": "Sign in with the account above (tap Sign in, then use the username and password). It's a sample account with Arise All Access switched on and three sample notes. Open a note to see its transcript; tap Write the summary to see the AI summary. Recording asks for the microphone only when you tap Record. Audio is sent to our speech-to-text and AI providers to make the transcript and summary, as the privacy policy says. To test buying, Arise All Access is the in-app subscription on the plan screen in Settings.",
   "shots": [
-    "Home",
-    "Note",
-    "Record",
-    "Ask"
+    "Recordings",
+    "Summary",
+    "Transcript",
+    "Record"
   ],
   "headlines": [
     [
@@ -36,12 +36,12 @@
       "Key points, decisions and action items"
     ],
     [
-      "Tap record.<br>That's it.",
-      "Meetings, classes and voice memos"
+      "Who said<br>what, word for word",
+      "A full transcript with speakers"
     ],
     [
-      "Ask your<br>notes anything",
-      "Answers from what was really said"
+      "Tap record.<br>That's it.",
+      "Meetings, classes and voice memos"
     ]
   ]
 }

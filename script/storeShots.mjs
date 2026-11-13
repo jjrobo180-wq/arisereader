@@ -50,47 +50,53 @@ for (const [kind, opts] of Object.entries(devices)) {
       if (!closed) break;
     }
   }
+  // Something further down the screen is scrolled to first.
+  const reach = async (loc) => { await loc.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {}); return visible(loc); };
   async function tap(name, opts = {}) {
-    const b = page.getByRole(opts.role || "button", { name, exact: !!opts.exact }).first();
-    if (await visible(b)) { await b.click(); await wait(opts.after ?? 2500); return true; }
-    const t = page.getByText(name, { exact: !!opts.exact }).first();
-    if (await visible(t)) { await t.click(); await wait(opts.after ?? 2500); return true; }
+    const within = opts.within ? page.locator(opts.within) : page;
+    const b = within.getByRole(opts.role || "button", { name, exact: !!opts.exact }).first();
+    if (await reach(b)) { await b.click(); await wait(opts.after ?? 2500); return true; }
+    const l = within.getByRole("link", { name, exact: !!opts.exact }).first();
+    if (await reach(l)) { await l.click(); await wait(opts.after ?? 2500); return true; }
+    const t = within.getByText(name, { exact: !!opts.exact }).first();
+    if (await reach(t)) { await t.click(); await wait(opts.after ?? 2500); return true; }
     console.log(`  (no "${name}" on ${kind})`);
     return false;
   }
+  const goto = async (hash, ms = 5000) => { await page.goto(`${SITE}${START}${hash}`, { waitUntil: "domcontentloaded" }); await wait(ms); await clear(); };
   async function shot(n, label) {
     await clear();
+    await page.evaluate(() => { window.scrollTo(0, 0); for (const el of document.querySelectorAll("main, [data-scroll], .overflow-y-auto")) el.scrollTop = 0; }).catch(() => {});
+    await wait(400);
     await page.screenshot({ path: `store-shots/raw/${kind}-${n}.png` });
     console.log(`ok ${kind}-${n} ${label} ${page.url()}`);
   }
   const steps = {
     cooked: [
       ["Today", async () => {}],
-      ["Train", () => tap(/^Train$/)],
-      ["Food", () => tap(/^Food$/)],
-      ["Progress", async () => { if (!(await tap(/^Stats$/))) { await tap(/^Plugins$/); await tap(/Progress/); } }],
+      ["Train", () => tap(/^Train$/i, { within: "nav" })],
+      ["Food", () => tap(/^Food$/i, { within: "nav" })],
+      ["Plugins", () => tap(/^Plugins$/i, { within: "nav" })],
     ],
     cookedpt: [
-      ["Clients", () => tap(/^Clients$/)],
-      ["Client", async () => { await tap(/^Clients$/, { after: 1500 }); await tap("Maya Brooks", { after: 3500 }); }],
-      ["Inbox", async () => { await page.keyboard.press("Escape"); await wait(800); await clear(); await tap(/^Inbox$/); await tap("Maya Brooks", { after: 3000 }); }],
-      ["Library", async () => { await page.keyboard.press("Escape"); await wait(800); await clear(); await tap(/^Library$/); }],
+      ["Clients", () => tap(/^Clients/i, { within: "nav" })],
+      ["Client", async () => { await tap("Maya Brooks", { after: 3500 }); }],
+      ["Inbox", async () => { await goto(""); await tap(/^Inbox/i, { within: "nav" }); await tap("Maya Brooks", { after: 3000 }); }],
+      ["Library", async () => { await goto(""); await tap(/^Library/i, { within: "nav" }); }],
     ],
     notes: [
-      ["Home", async () => {}],
-      ["Note", async () => {
-        await tap("Weekly team check-in", { after: 3500 });
+      ["Recordings", async () => { if (kind === "iphone") await tap(/^All notes/i); }],
+      ["Summary", async () => { await tap(/Weekly team check-in/i, { after: 3500 });
         const w = page.getByTestId("notes-summarize").first();
-        if (await visible(w)) { await w.click(); await page.waitForSelector('[data-testid="notes-summarize"]', { state: "detached", timeout: 90000 }).catch(() => {}); await wait(2500); }
-      }],
-      ["Record", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await clear(); await tap(/^Record$/, { after: 3500 }); }],
-      ["Ask", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await clear(); await tap(/^Ask/, { after: 3000 }); }],
+        if (await visible(w)) { await w.click(); await page.waitForSelector('[data-testid="notes-summarize"]', { state: "detached", timeout: 90000 }).catch(() => {}); await wait(2500); } }],
+      ["Transcript", () => tap(/^Transcript$/i, { after: 2500 })],
+      ["Record", () => goto("#/record", 5000)],
     ],
     podster: [
       ["Home", async () => {}],
       ["Feed", async () => { const ep = page.locator("main button, main a").filter({ has: page.locator("img") }).nth(2); if (await visible(ep)) { await ep.click(); await wait(4000); } }],
-      ["Audiobooks", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await tap(/^Audiobooks$/, { after: 4000 }); }],
-      ["Radio", async () => { await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" }); await wait(5000); await tap(/^Radio$/, { after: 4000 }); }],
+      ["Audiobooks", () => goto("#/books", 6000)],
+      ["Radio", () => goto("#/radio", 6000)],
     ],
   }[APP];
   await page.goto(`${SITE}${START}`, { waitUntil: "domcontentloaded" });
