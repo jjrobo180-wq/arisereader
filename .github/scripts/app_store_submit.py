@@ -19,6 +19,9 @@ BUNDLE = os.environ.get("BUNDLE", "com.arisereader.reader")
 MODE = os.environ.get("MODE", "check")
 WANT_VERSION = os.environ.get("VERSION", "").strip()
 ATTACH_DIR = os.environ.get("ATTACH_DIR", "").strip()
+# A folder named for the app (app-review/<bundle>/) holds that app's own recording; it wins over the shared folder.
+if ATTACH_DIR and os.path.isdir(os.path.join(ATTACH_DIR, os.environ.get("BUNDLE", "com.arisereader.reader"))):
+    ATTACH_DIR = os.path.join(ATTACH_DIR, os.environ.get("BUNDLE", "com.arisereader.reader"))
 review_detail_id = None
 problems, notes = [], []
 
