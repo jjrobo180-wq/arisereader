@@ -63,7 +63,8 @@ for (const [kind, opts] of Object.entries(devices)) {
     console.log(`  (no "${name}" on ${kind})`);
     return false;
   }
-  const goto = async (hash, ms = 5000) => { await page.goto(`${SITE}${START}${hash}`, { waitUntil: "domcontentloaded" }); await wait(ms); await clear(); };
+  // A full load each time: changing only the #part keeps whatever was open (the player, a sheet).
+  const goto = async (hash, ms = 5000) => { await page.goto("about:blank"); await page.goto(`${SITE}${START}${hash}`, { waitUntil: "domcontentloaded" }); await wait(ms); await clear(); };
   async function shot(n, label) {
     await clear();
     await page.evaluate(() => { window.scrollTo(0, 0); for (const el of document.querySelectorAll("main, [data-scroll], .overflow-y-auto")) el.scrollTop = 0; }).catch(() => {});
@@ -80,7 +81,7 @@ for (const [kind, opts] of Object.entries(devices)) {
     ],
     cookedpt: [
       ["Clients", () => tap(/^Clients/i, { within: "nav" })],
-      ["Client", async () => { await tap("Maya Brooks", { after: 3500 }); }],
+      ["Client", async () => { await tap(/^Maya/i, { within: "main", after: 3500 }) || await tap(/Maya/i, { after: 3500 }); }],
       ["Inbox", async () => { await goto(""); await tap(/^Inbox/i, { within: "nav" }); await tap("Maya Brooks", { after: 3000 }); }],
       ["Library", async () => { await goto(""); await tap(/^Library/i, { within: "nav" }); }],
     ],
