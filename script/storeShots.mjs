@@ -79,9 +79,9 @@ for (const [kind, opts] of Object.entries(devices)) {
       ["Form check", async () => { await tap(/AI form check/i, { after: 6000 }); }],
       ["Food", async () => { await goto(""); await tap(/^Food$/i, { within: "nav" }); }],
       ["Eat out", async () => { await tap(/^Eat out$/i, { after: 8000 }); }],
-      ["Find a trainer", async () => { await goto(""); await tap(/Find a trainer/i, { after: 5000 }); }],
+      ["Find a trainer", async () => { await goto("", 9000); await tap(/Find a trainer/i, { after: 5000 }); }],
       ["Add-ons", async () => { await goto(""); await tap(/^Plugins$/i, { within: "nav" }); }],
-      ["Themes", async () => { await goto(""); await tap(/^Settings$/i, { after: 2500 });
+      ["Themes", async () => { await goto("", 9000); await tap(/^Settings$/i, { after: 3000 });
         const a = page.getByRole("radiogroup", { name: "Appearance" }).first(); await reach(a);
         await page.evaluate(() => { const g = document.querySelector('[data-testid="fit-theme"]'); g?.scrollIntoView({ block: "start" }); g?.closest("[class*=overflow-y]")?.scrollBy(0, -90); }); await wait(1200); }],
     ],
@@ -108,7 +108,9 @@ for (const [kind, opts] of Object.entries(devices)) {
       ["Docs", () => goto("#/app/docs", 7000)],
     ],
     podster: [
-      ["Feed", async () => { const ep = page.locator("main button, main a").filter({ has: page.locator("img") }).nth(2); if (await visible(ep)) { await ep.click(); await wait(4000); } }],
+      // A show whose cover is its logo (a random pick can be a photo of a real person).
+      ["Feed", async () => { await goto("#/search/" + encodeURIComponent("Science Magazine Podcast"), 7000);
+        const ep = page.locator("main button, main a").filter({ has: page.locator("img") }).first(); if (await visible(ep)) { await ep.click(); await wait(5000); } }],
       ["Study", async () => { await goto("#/study", 5000);
         const box = page.locator("textarea").first();
         if (await visible(box)) { await box.fill("Photosynthesis happens in the chloroplasts of plant cells. Light reactions in the thylakoids use sunlight to split water, release oxygen, and make ATP and NADPH. The Calvin cycle in the stroma uses that ATP and NADPH to turn carbon dioxide into glucose. Chlorophyll absorbs mostly red and blue light and reflects green, which is why leaves look green.");
