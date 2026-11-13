@@ -304,7 +304,7 @@ test("accommodations: AI drafts them, the teacher sets them per student, the lap
   const asked: string[] = [];
   const askText = async (_sys: string, user: string) => {
     asked.push(user); const items = JSON.parse(user).items;
-    return JSON.stringify({ items: items.map((i: any) => ({ id: i.id, simple: `Easy: ${i.text}`, steps: ["Think about it.", "Look again."], starter: i.kind === "long" ? "I think" : "", bank: i.kind === "short" ? ["mud", "sand", "rocks"] : [], vocab: [{ w: "lodge", m: "a beaver's home" }], keep: i.kind === "choice" ? [1, 3] : [] })) });
+    return JSON.stringify({ items: items.map((i: any) => ({ id: i.id, simple: `Easy: short words for ${i.id}`, steps: ["Think about it.", "Look again."], starter: i.kind === "long" ? "I think" : "", bank: i.kind === "short" ? ["mud", "sand", "rocks"] : [], vocab: [{ w: "lodge", m: "a beaver's home" }], keep: i.kind === "choice" ? [1, 3] : [] })) });
   };
   const heard: string[] = [];
   registerTtsBuddyRoutes(app, { kv: createMemoryKv(), files: createMemoryFiles(), readPhotos: async () => AI_REPLY, askText, hear: async (a, mime) => { heard.push(mime); return "they cut trees with teeth"; }, speak: async (t) => ({ audio: Buffer.from(t), words: [], duration: 1 }), aiConfigured: () => true });
@@ -312,7 +312,7 @@ test("accommodations: AI drafts them, the teacher sets them per student, the lap
   const d = await call("POST", `/api/buddy/teacher/worksheets/${ws.id}/supports`, T, {});
   assert.equal(d.status, 200, JSON.stringify(d.body)); assert.equal(d.body.made, ws.items.length);
   const q1 = d.body.worksheet.items.find((i: any) => i.kind === "choice");
-  assert.equal(q1.supports.simple, `Easy: ${q1.text}`); assert.deepEqual(q1.supports.keep.length, q1.choices.length > 3 ? 2 : 0);
+  assert.equal(q1.supports.simple, `Easy: short words for ${q1.id}`); assert.deepEqual(q1.supports.keep.length, q1.choices.length > 3 ? 2 : 0);
   assert.ok(asked.every((u) => JSON.parse(u).items.length <= 6), "drafted a few at a time");
 
   // Class default for new laptops, then one student changed on their own.
@@ -376,7 +376,7 @@ test("a sentence starter the app put in the box doesn't count as an answer", asy
 test("supports are written by themselves: right after reading (no button), and kept when the phone saves an older copy", async () => {
   const { app, call } = fakeApp();
   let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
-  const askText = async (_s: string, user: string) => { await gate; return JSON.stringify({ items: JSON.parse(user).items.map((i: any) => ({ id: i.id, simple: `Easy: ${i.text}`, steps: ["Look.", "Think."] })) }); };
+  const askText = async (_s: string, user: string) => { await gate; return JSON.stringify({ items: JSON.parse(user).items.map((i: any) => ({ id: i.id, simple: `Easy: short words for ${i.id}`, steps: ["Look.", "Think."] })) }); };
   registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => AI_REPLY, askText, speak: async () => ({ audio: Buffer.from("x"), words: [], duration: 1 }), aiConfigured: () => true });
   const r = await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
   assert.equal(r.body.drafting, true);
@@ -414,4 +414,29 @@ test("older worksheets: a page photo can be added later, and a real picture repl
   const it = put.body.worksheet.items[0];
   assert.equal(it.text, "Do Now: What do you notice?");
   assert.match(it.figure.alt, /^a double number line\. The top line is labeled 'cups'/);
+});
+
+test("supports quality guards: 'easier' copies are dropped, each step only hears about the picture it shows", async () => {
+  const { sameWords, supportsInput } = await import("../shared/ttsBuddy");
+  assert.equal(sameWords("20 cups is what percent of 5 cups?", "20 cups is what percent of 5 cups?"), true);
+  assert.equal(sameWords("Explain how the double number line helped you solve problem 2.", "Explain how the double number line helped you solve problem 2"), true);
+  assert.equal(sameWords("Find 20 on the top line. What percent is it?", "20 cups is what percent of 5 cups?"), false);
+  const fig = (alt: string) => ({ page: 1, box: [0, 0, 500, 500], alt, img: "abcdef123456" });
+  const ws: any = { id: "w", title: "T", pages: 1, createdAt: "", items: [
+    { id: "a", kind: "read", number: "", text: "Do Now", say: "", choices: [], supports: null, figure: fig("chocolate milk line, 5 cups = 50%") },
+    { id: "b", kind: "short", number: "", text: "What do you notice?", say: "", choices: [], supports: null, figure: null },
+    { id: "c", kind: "read", number: "", text: "Activity 1", say: "", choices: [], supports: null, figure: null },
+    { id: "d", kind: "short", number: "1", text: "300% of 5 cups?", say: "", choices: [], supports: null, figure: null } ] };
+  const inp = JSON.parse(supportsInput(ws, ["b", "d"]));
+  assert.equal(inp.items.find((i: any) => i.id === "b").picture, "chocolate milk line, 5 cups = 50%", "shares the Do Now picture");
+  assert.equal(inp.items.find((i: any) => i.id === "d").picture, undefined, "a new section doesn't see it");
+  assert.doesNotMatch(inp.context, /chocolate/);
+  // A drafted 'easier' copy is dropped on the server.
+  const { app, call } = fakeApp();
+  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => AI_REPLY, askText: async (_s, u) => JSON.stringify({ items: JSON.parse(u).items.map((i: any) => ({ id: i.id, simple: i.text, steps: ["Look closely."] })) }), aiConfigured: () => true });
+  const w = (await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] })).body.worksheet;
+  await new Promise((x) => setTimeout(x, 20));
+  const got = (await call("GET", `/api/buddy/teacher/worksheets/${w.id}`, T)).body.worksheet;
+  assert.ok(got.items.every((i: any) => !i.supports || i.supports.simple === ""), "no copy kept as 'easier'");
+  assert.ok(got.items.some((i: any) => i.supports?.steps.length), "the rest of the supports are kept");
 });

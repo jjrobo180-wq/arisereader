@@ -25,7 +25,7 @@ import { createMemoryKv, type FitKv } from "./fitKv";
 import { fitVisionTargets } from "./fit";
 import {
   LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, SUPPORTS_PROMPT, alignWords, classCode, cleanAcc, cleanFigure, cleanName, cleanSupports,
-  PICTURE_TEXT, cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
+  PICTURE_TEXT, sameWords, cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
   type Acc, type Laptop, type Timed, type Worksheet,
 } from "../shared/ttsBuddy";
 
@@ -156,6 +156,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   /** Supports (accommodations) are written by the AI as soon as a worksheet is read — and for older worksheets, the
    *  first time they're opened — in the background, so nothing waits on them. Laptops pick them up on their next check. */
   const drafting = new Map<string, Promise<{ made: number; errors: string[] }>>();
+  const lastDraft = new Map<string, { by: string; at: number; errors: string[] }>();
   const tried = new Set<string>();
   const draft = (wid: string, onlyIds?: string[]) => {
     const running = drafting.get(wid); if (running) return running;
@@ -171,7 +172,12 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
       // Into the newest copy (the teacher may have edited while this ran).
       const latest = await getWs(wid); if (!latest) return { made: 0, errors };
       let made = 0;
-      for (const it of latest.ws.items) { const raw = found.get(it.id); const sp = raw ? cleanSupports(raw, it.choices.length) : null; if (sp) { it.supports = sp; made++; } }
+      for (const it of latest.ws.items) {
+        const raw = found.get(it.id); if (!raw) continue;
+        if (typeof raw.simple === "string" && sameWords(raw.simple, it.text)) raw.simple = "";
+        const sp = cleanSupports(raw, it.choices.length); if (sp) { it.supports = sp; made++; }
+      }
+      lastDraft.set(wid, { by: lastTextAi.by, at: Date.now(), errors });
       if (made) await kv.set(K.w(wid), latest);
       return { made, errors };
     })().finally(() => drafting.delete(wid));
@@ -231,7 +237,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
     // A worksheet from before supports existed (or whose first try failed) gets them now, once per server start.
     if (!r.ws.items.some((i) => i.supports) && !drafting.has(r.ws.id) && !tried.has(r.ws.id) && aiConfigured()) void draft(r.ws.id);
-    res.json({ worksheet: r.ws, drafting: drafting.has(r.ws.id) });
+    res.json({ worksheet: r.ws, drafting: drafting.has(r.ws.id), supportsBy: lastDraft.get(r.ws.id)?.by || "" });
   });
 
   app.put("/api/buddy/teacher/worksheets/:wid", async (req: any, res: any) => {
@@ -656,8 +662,10 @@ async function groqHear(audio: Buffer, mime: string): Promise<string> {
 
 /** The strongest text AI this site has: xAI's Grok (the same key and model Arise Fit's photo scans use), then the
  *  site's usual chat route. */
+export const lastTextAi = { by: "" };
 async function bestTextAi(system: string, user: string): Promise<string> {
   const xai = fitVisionTargets().find((t) => t.provider === "xai");
+  lastTextAi.by = xai ? "grok (trying)" : "site chat (no xAI key)";
   if (xai) {
     try {
       const r = await fetch(xai.url, {
@@ -665,9 +673,9 @@ async function bestTextAi(system: string, user: string): Promise<string> {
         body: JSON.stringify({ model: xai.model, store: false, max_output_tokens: 8000, instructions: system, input: [{ role: "user", content: [{ type: "input_text", text: user }] }], text: { format: { type: "json_object" } } }),
         signal: AbortSignal.timeout(120_000),
       });
-      if (r.ok) { const text = replyText(await r.json(), "responses"); if (looseJson(text)) return text; }
-      else console.error("[tts-buddy] grok text:", r.status, (await r.text().catch(() => "")).slice(0, 200));
-    } catch (e: any) { console.error("[tts-buddy] grok text:", e?.message); }
+      if (r.ok) { const text = replyText(await r.json(), "responses"); if (looseJson(text)) { lastTextAi.by = `grok ${xai.model}`; return text; } lastTextAi.by = "site chat (grok gave no JSON)"; }
+      else { const why = (await r.text().catch(() => "")).slice(0, 160); console.error("[tts-buddy] grok text:", r.status, why); lastTextAi.by = `site chat (grok ${r.status}: ${why.replace(/(xai|gsk|sk)-?\w{8,}/g, "[key]")})`; }
+    } catch (e: any) { console.error("[tts-buddy] grok text:", e?.message); lastTextAi.by = `site chat (grok ${e?.name || "error"})`; }
   }
   return siteChat(system, user);
 }

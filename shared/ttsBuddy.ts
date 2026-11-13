@@ -210,23 +210,37 @@ Rules:
 - "number": the question's own number or letter as printed ("1", "2a"), or "" if none.
 - In "text", write a blank line to fill in as "____".
 - "say" is how to read the text aloud, only when it differs from "text": math and symbols in words ("3/4" → "three fourths", "5 × 6 = ____" → "five times six equals blank", "<" → "is less than"), "____" → "blank", abbreviations spelled out. Otherwise "".
-- Pictures: if an item has a picture, diagram, number line, graph, table or chart the child needs to see, do NOT describe it in "text". Instead add "figure": {"box": [left, top, right, bottom], "alt": "a short description"} — the box around the whole picture, as numbers from 0 to 1000 measured across the photo's width (left, right) and down its height (top, bottom). Make the box a little generous so nothing is cut off. A picture shared by several questions goes on the first of them (or on the "read" item before them).
+- Pictures: if an item has a picture, diagram, number line, graph, table or chart the child needs to see, do NOT describe it in "text". Instead add "figure": {"box": [left, top, right, bottom], "alt": "a short description"} — the box around the whole picture, as numbers from 0 to 1000 measured across the photo's width (left, right) and down its height (top, bottom). Make the box a little generous so nothing is cut off. A picture shared by several questions goes on the first of them (or on the "read" item before them). The words and numbers written on or around a picture (its labels, axis numbers, the tick marks of a number line) are part of the picture: don't copy them into "text", and don't make a separate item just for a picture — attach it to the item it belongs to (like the "Do Now" it goes with).
 - Ignore handwriting, answers already filled in, page numbers, the name/date line, and copyright lines.
 - "title" is the worksheet's title, or a short description of it.
 - If the photo isn't a worksheet or can't be read, return {"title": "", "items": []}.`;
 
 // ---------- Accommodations, drafted by the AI ----------
 export const SUPPORTS_PROMPT = `You are an experienced special education teacher. A student who struggles with reading (and maybe math) will do this worksheet on a laptop, hearing every word read aloud. Write the supports a great teacher would write: specific to THIS question, using its real numbers, words and picture. Short and concrete. Work each problem out yourself first (don't write that part) so your hints, word bank and choices are correct.
+Each item stands alone: hints for a question are only about that question. Only talk about a picture (a number line, graph, table) if that item has a "picture" — pictures elsewhere on the page may use different numbers.
 
 For EACH item you're given:
-- "simple": the item rewritten for a struggling 2nd-3rd grade reader. Short sentences (12 words at most each), everyday words, every number and fact needed kept, and the task said as a direct instruction ("Find…", "Write…", "Pick…"). It must be clearly easier than the original, never a copy of it. For a "read" item: a passage becomes 2-3 short sentences with the main ideas; directions become 1-2 short steps.
+- "simple": the item rewritten for a struggling 2nd-3rd grade reader. Short sentences (12 words at most each), everyday words, every number and fact needed kept, and the task said as a direct instruction ("Find…", "Write…", "Pick…"). It must be clearly easier than the original and never the same words: even a short question gets rewritten (start with the action, split it into two short sentences, swap hard words for easy ones). For a "read" item: a passage becomes 2-3 short sentences with the main ideas; directions become 1-2 short steps.
 - "steps": for questions, 2-4 hints in order. Each hint is one specific action with this question's real numbers or picture ("Find 10 on the top line." — not "Look at the number line."). The last hint leaves the student one small step from the answer. Never state the answer. For "read" items, [].
 - "starter": for "long" items, the first 4-8 words of a good answer (not the answer itself). For "short" items whose answer is a sentence, the same; otherwise "". For others, "".
 - "bank": for "short" items answered with a word, number or short phrase: 3 or 4 options, one of them the correct answer, the others mistakes a student would really make. In random order. Otherwise [].
-- "vocab": up to 3 words or terms this student might not know (like "ratio", "percent", "double number line", "predict"), each {"w": the word as written, "m": what it means in words a 7-year-old understands, 15 words at most, with a tiny example if that helps}. Skip easy words. [] if none.
+- "vocab": up to 3 words or terms this student might not know — always include math words like "percent", "ratio", "fraction", "double number line", "correspond", and school words like "explain", "predict", "notice", "wonder" when they appear — each {"w": the word as written, "m": what it means in words a 7-year-old understands, 15 words at most, with a tiny example if that helps}. Skip easy words. [] if none.
 - "keep": for "choice" items, the indexes (0 = first choice) of exactly 2 choices: the correct one and the most tempting wrong one. True/false: [0, 1]. Otherwise [].
+Before you reply, check: every "simple" uses different words from its item; every hint is about its own item; the correct answer is in "bank" and "keep".
 Reply with JSON only: {"items": [{"id": string, "simple": string, "steps": string[], "starter": string, "bank": string[], "vocab": [{"w": string, "m": string}], "keep": number[]}]}`;
 /** The worksheet as the AI sees it when drafting accommodations (passages give context for the questions). */
-export const supportsInput = (w: Worksheet, ids?: string[]) => JSON.stringify({ title: w.title, items: w.items.filter((i) => !ids || ids.includes(i.id)).map((i) => ({ id: i.id, kind: i.kind, number: i.number, text: i.text, choices: i.choices, picture: i.figure?.alt || undefined })), context: w.items.filter((i) => i.kind === "read" && !(ids || []).includes(i.id)).map((i) => i.text + (i.figure?.alt ? ` [picture: ${i.figure.alt}]` : "")).join("\n\n").slice(0, 4000) || undefined });
+export const supportsInput = (w: Worksheet, ids?: string[]) => JSON.stringify({ title: w.title, items: w.items.map((i, n) => ({ i, n })).filter(({ i }) => !ids || ids.includes(i.id)).map(({ i, n }) => ({ id: i.id, kind: i.kind, number: i.number, text: i.text, choices: i.choices, picture: (i.figure?.alt || boxedPicture(w.items, n)) || undefined })), context: w.items.filter((i) => i.kind === "read" && !(ids || []).includes(i.id)).map((i) => i.text).join("\n\n").slice(0, 4000) || undefined });
+/** The description of the picture a step shows, counting a shared picture from the steps above it (see pictureFor). */
+function boxedPicture(items: Item[], index: number): string {
+  for (let i = index; i >= 0; i--) { const it = items[i]; if (it.figure) return it.figure.alt; if (it.kind === "read" && i !== index) return ""; }
+  return "";
+}
+/** An "easier words" version that's really the same words isn't easier: drop it so the button never does nothing. */
+export function sameWords(a: string, b: string): boolean {
+  const w = (s: string) => s.toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim().split(" ").filter(Boolean);
+  const x = w(a), y = w(b); if (!x.length || !y.length) return false;
+  const ys = new Set(y); const shared = x.filter((t) => ys.has(t)).length;
+  return shared / Math.max(x.length, y.length) > 0.85;
+}
 /** Text like "[picture of a double number line …]" that an older reading put in place of a picture. */
 export const PICTURE_TEXT = /\s*\[(?:picture|image|diagram|graph|chart|table|photo|drawing|figure|illustration)\b[^\]]*\]\s*/i;
