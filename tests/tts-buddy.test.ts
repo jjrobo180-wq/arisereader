@@ -353,7 +353,7 @@ test("accommodations failing (AI down) say so plainly; the pages use them", asyn
   const lap = read("client/src/pages/buddy/BuddyLaptop.tsx");
   for (const k of ["acc.simple", "acc.steps", "acc.bank", "acc.starter", "acc.vocab", "acc.fewer", "acc.big", "acc.mic", "<Figure "]) assert.ok(lap.includes(k), `laptop uses ${k}`);
   const teach = read("client/src/pages/buddy/BuddyTeacher.tsx");
-  for (const k of ["cropPhoto(pages[", "CropFixer", "SupportsEditor", "AccSwitches", "/supports`"]) assert.ok(teach.includes(k), `teacher has ${k}`);
+  for (const k of ["snapBox(photo, it.figure!.box)", "CropFixer", "SupportsEditor", "AccSwitches", "/supports`"]) assert.ok(teach.includes(k), `teacher has ${k}`);
 });
 
 test("a shared picture (a number line several questions use) shows on each of them, until a new section", async () => {

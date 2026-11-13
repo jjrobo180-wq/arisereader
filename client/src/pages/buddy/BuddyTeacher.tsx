@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Image as ImageIcon, Laptop as LaptopIcon, Loader2, Plus, RotateCcw, Send, Sparkles, Trash2, Unlink, Volume2, X } from "lucide-react";
 import { ACC_KEYS, ACC_LABEL, LETTERS, cleanAcc, type Acc, type Item, type ItemKind, type Laptop, type Supports, type Worksheet } from "@shared/ttsBuddy";
 import { API_BASE } from "@/lib/queryClient";
-import { B, BRAND_FONT, FONT, call, cropPhoto, loadImage, shrinkPhoto, teacherKey, useBuddyFont, useVoice, type Clip } from "./buddyApi";
+import { B, BRAND_FONT, FONT, call, cropPhoto, loadImage, shrinkPhoto, snapBox, teacherKey, useBuddyFont, useVoice, type Clip } from "./buddyApi";
 import { BuddyMark } from "./BuddyMark";
 import { Figure, Words } from "./BuddyLaptop";
 
@@ -81,7 +81,12 @@ function Snap({ onDone, say, aiReady, first }: { onDone: (ws: Worksheet) => void
       const figs = r.worksheet.items.filter((i) => i.figure && !i.figure.img && pages[i.figure.page - 1]);
       if (figs.length) setStage(`Cutting out ${figs.length} picture${figs.length === 1 ? "" : "s"}…`);
       for (const it of figs) {
-        try { const image = await cropPhoto(pages[it.figure!.page - 1], it.figure!.box); await call(`/teacher/worksheets/${r.worksheet.id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { image, page: it.figure!.page, box: it.figure!.box, alt: it.figure!.alt } }); }
+        try {
+          const photo = await loadImage(pages[it.figure!.page - 1]);
+          const box = snapBox(photo, it.figure!.box);
+          const image = await cropPhoto(photo, box, 12);
+          await call(`/teacher/worksheets/${r.worksheet.id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { image, page: it.figure!.page, box, alt: it.figure!.alt } });
+        }
         catch { /* the teacher can add it in the editor */ }
       }
       setPages([]); onDone(r.worksheet);

@@ -170,3 +170,35 @@ export function useRecorder() {
   useEffect(() => () => { try { rec.current?.stop(); } catch { /* fine */ } }, []);
   return { on, start, stop };
 }
+
+/** The reader's box around a picture is a guess (it often cuts off the end of a number line or a label). This fits
+ *  it to the picture itself: first trims blank edges, then grows sideways while the drawing keeps going, and only a
+ *  little up or down, so the question text above and below stays out. Returns the box in thousandths. */
+export function snapBox(img: HTMLImageElement, box: [number, number, number, number]): [number, number, number, number] {
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  const s = Math.min(1, 900 / Math.max(W, H)); const w = Math.max(1, Math.round(W * s)), h = Math.max(1, Math.round(H * s));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d", { willReadFrequently: true }); if (!g) return box;
+  g.drawImage(img, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data;
+  let sum = 0, n = 0; for (let i = 0; i < d.length; i += 16) { sum += d[i] + d[i + 1] + d[i + 2]; n++; }
+  const dark = sum / n / 3 - 60; // ink: clearly darker than the paper (photos of paper are grey, not white)
+  const ink = (x: number, y: number) => { const i = (y * w + x) * 4; return (d[i] + d[i + 1] + d[i + 2]) / 3 < dark; };
+  const colInk = (x: number, a: number, b: number) => { for (let y = a; y <= b; y++) if (ink(x, y)) return true; return false; };
+  const rowInk = (y: number, a: number, b: number) => { for (let x = a; x <= b; x++) if (ink(x, y)) return true; return false; };
+  let x0 = Math.max(0, Math.round((box[0] / 1000) * w)), y0 = Math.max(0, Math.round((box[1] / 1000) * h));
+  let x1 = Math.min(w - 1, Math.round((box[2] / 1000) * w)), y1 = Math.min(h - 1, Math.round((box[3] / 1000) * h));
+  while (x0 < x1 && !colInk(x0, y0, y1)) x0++; while (x1 > x0 && !colInk(x1, y0, y1)) x1--;
+  while (y0 < y1 && !rowInk(y0, x0, x1)) y0++; while (y1 > y0 && !rowInk(y1, x0, x1)) y1--;
+  if (x1 - x0 < 8 || y1 - y0 < 8) return box; // nothing drawn there: keep the reader's box
+  const bx = Math.max(3, Math.round(w * 0.02)), by = Math.max(2, Math.round(h * 0.008));
+  for (let k = 0; k < 300; k++) {
+    let grew = false;
+    for (let x = x0 - 1; x >= Math.max(0, x0 - bx); x--) if (colInk(x, y0, y1)) { x0 = x; grew = true; break; }
+    for (let x = x1 + 1; x <= Math.min(w - 1, x1 + bx); x++) if (colInk(x, y0, y1)) { x1 = x; grew = true; break; }
+    for (let y = y0 - 1; y >= Math.max(0, y0 - by); y--) if (rowInk(y, x0, x1)) { y0 = y; grew = true; break; }
+    for (let y = y1 + 1; y <= Math.min(h - 1, y1 + by); y++) if (rowInk(y, x0, x1)) { y1 = y; grew = true; break; }
+    if (!grew) break;
+  }
+  return [x0 / w, y0 / h, x1 / w, y1 / h].map((v) => Math.round(v * 1000)) as [number, number, number, number];
+}
