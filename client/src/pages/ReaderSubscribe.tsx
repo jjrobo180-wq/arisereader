@@ -8,7 +8,7 @@ import { BookOpen, Check, ExternalLink, LogOut, Trash2 } from "lucide-react";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { isNativeApp } from "@/lib/nativeApp";
+import { isNativeApp, openOutside } from "@/lib/nativeApp";
 import { usePlan } from "@/lib/plan";
 import { PLANS, usd } from "@shared/plans";
 
@@ -69,8 +69,7 @@ export default function ReaderSubscribe() {
       const d = await r.json().catch(() => ({}));
       if (r.ok && typeof d.code === "string" && /^[a-f0-9]{64}$/.test(d.code)) url = `https://www.arisereader.com/?signin=${d.code}${role === "parent" ? "&pay=family" : ""}#/subscribe`;
     } catch { /* plain link below */ }
-    try { if (window.open(url, "_blank")) return; } catch { /* below */ }
-    window.location.href = url;
+    openOutside(url);
   };
   const payFamily = async () => {
     setBusy(true); setError("");

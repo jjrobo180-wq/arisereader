@@ -2,7 +2,7 @@
 // episode opens the swipe feed on it, so listening always happens there. Everything shown is real:
 // shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAutoHideHeader } from "../client/src/hooks/useAutoHideHeader";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Mic2 } from "lucide-react";
@@ -123,7 +123,7 @@ const WHY: { h: string; p: string }[] = [
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal, visible = true, nowPod = null, onPodToggle, onPodOpen }: {
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, paid = false, allAccess, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal, visible = true, nowPod = null, onPodToggle, onPodOpen }: {
   /** On screen (it keeps running, hidden, while the swipe player is open). */
   visible?: boolean;
   /** The podcast playing in the swipe player, with its pause button and a way back to it. */
@@ -135,6 +135,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   onOpenFeed: (start?: { showId: string; episodeId: string; ep?: PodEpisode; next?: PodEpisode[] }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => void;
   onEditInterests: () => void;
   pro: boolean;
+  /** On Arise All Access (ad-free). */
+  paid?: boolean;
+  /** The All Access offer (in-app price, or the link to buy it on Podster's page on arisetodo.com). */
+  allAccess?: ReactNode;
   onJoin: () => void;
   onSignIn: () => void;
   email: string;
@@ -561,7 +565,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Account & privacy", <ShieldCheck size={22} strokeWidth={1.8} />, false, () => setPrivacyOpen(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
-        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Podster Member.</b> Your show can earn, and your place is kept on every device.</p>
+        ? <><p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Podster Member.</b> Your show can earn, and your place is kept on every device.{paid ? " Ad-free with Arise All Access." : ""}</p>
+          {!paid && allAccess && <div className="mx-1 mt-3" data-testid="pod-all-access">{allAccess}</div>}</>
         : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
           <p className="text-sm font-semibold">Podster Membership</p>
           <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free, with ads. Arise All Access skips the ads and lets you get paid for your own show.</p>

@@ -5,19 +5,25 @@
 import { useEffect, useState } from "react";
 import { Crown, X } from "lucide-react";
 import AllAccessOffer from "@/components/AllAccessOffer";
+import type { AllAccessApp } from "@shared/allAccess";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
 
 const SEEN = (id: unknown) => `arise-all-access-intro-v1:${id}`;
 const seen = (id: unknown) => { try { return localStorage.getItem(SEEN(id)) === "1"; } catch { return false; } };
 
-export default function AllAccessPopup({ userId, token, ready, doneKey, dark = false, apiBase = API_BASE, intro }: {
+export default function AllAccessPopup({ userId, token, ready, doneKey, dark = false, apiBase = API_BASE, intro, app = "todo", handoff, isMember }: {
   userId: unknown; token: string | null | undefined;
   /** The app's tutorial is finished (or pass doneKey: the localStorage key its tutorial sets when done). */
   ready?: boolean; doneKey?: string;
   dark?: boolean; apiBase?: string;
   /** One line about what the free version of this app includes. */
   intro?: string;
+  /** Which app: the website page wears its name and colors. */
+  app?: AllAccessApp;
+  /** Podster: its own sign-in code maker, and its own "already a member?" check (its accounts are separate). */
+  handoff?: () => Promise<string | null>;
+  isMember?: () => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
   const [tutorialDone, setTutorialDone] = useState(false);
@@ -33,9 +39,8 @@ export default function AllAccessPopup({ userId, token, ready, doneKey, dark = f
     if (!go || !token || !userId || !isNativeApp() || seen(userId)) return;
     let alive = true;
     const t = window.setTimeout(() => {
-      fetch(`${apiBase}/api/all-access`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((s) => { if (alive && !(s?.live || s?.admin)) setOpen(true); })
+      (isMember ? isMember().then((m) => ({ live: m })) : fetch(`${apiBase}/api/all-access`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((r) => (r.ok ? r.json() : null)))
+        .then((s) => { if (alive && s && !(s.live || s.admin)) setOpen(true); })
         .catch(() => { /* try next time */ });
     }, 1200);
     return () => { alive = false; window.clearTimeout(t); };
@@ -50,7 +55,7 @@ export default function AllAccessPopup({ userId, token, ready, doneKey, dark = f
       </div>
       <h2 className="mt-3 text-[22px] font-bold leading-tight">You're all set. Want more?</h2>
       <p className={`mt-1.5 text-[15px] leading-snug ${dark ? "text-white/70" : "text-[#6b6879]"}`}>{intro || "Everything you need is free to use. Arise All Access unlocks the extras in every Arise app with one plan."}</p>
-      <AllAccessOffer dark={dark} className="mt-4" note={NATIVE_NO_PURCHASE} authToken={token} onBought={close} />
+      <AllAccessOffer dark={dark} className="mt-4" note={NATIVE_NO_PURCHASE} authToken={handoff ? null : token} app={app} handoff={handoff} onBought={close} />
       <button type="button" onClick={close} className={`mt-3 h-11 w-full text-[15px] font-semibold ${dark ? "text-white/80" : "text-[#5b4fe0]"}`} data-testid="all-access-popup-later">Not now</button>
     </div>
   </div>;

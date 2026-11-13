@@ -10,6 +10,14 @@ const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as
 
 /** True inside the iPhone app (the bundled page, not the website in Safari). */
 export const isNativeApp = (): boolean => typeof window !== "undefined" && window.location.protocol === "capacitor:";
+/** Opens a website outside the app, once. In the iPhone apps the app hands the address to Safari; it must
+ *  not also be loaded a second way, or a one-use sign-in link is spent before the visible tab uses it. */
+export function openOutside(url: string): void {
+  if (isNativeApp()) { try { window.open(url, "_blank"); } catch { /* nothing else: never twice */ } return; }
+  let opened: Window | null = null;
+  try { opened = window.open(url, "_blank"); } catch { opened = null; }
+  if (!opened) window.location.href = url;
+}
 
 /** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
  *  Arise Reader for students ("reader"), or Arise Reader Educator for teachers and parents. */

@@ -4,13 +4,17 @@
 //  - Elsewhere, without in-app purchase: what's included, no price or link (App Review 3.1.1).
 import { useEffect, useState, type MouseEvent } from "react";
 import { Check, ExternalLink, Loader2 } from "lucide-react";
-import { ALL_ACCESS, usRegion } from "@shared/allAccess";
-import { LEGAL } from "@/lib/nativeApp";
+import { ALL_ACCESS, allAccessLink, type AllAccessApp, usRegion } from "@shared/allAccess";
+import { LEGAL, openOutside } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
 import { allAccessApplePrice, appStoreCountry, appleStoreReady, buyAllAccessWithApple, restoreApplePurchases } from "@/lib/appleStore";
 
-export default function AllAccessOffer({ dark = false, className = "", note, authToken, onBought }: {
+export default function AllAccessOffer({ dark = false, className = "", note, authToken, onBought, app = "todo", handoff }: {
   dark?: boolean; className?: string; note?: string;
+  /** Which app this is in: the website page wears its name and colors. */
+  app?: AllAccessApp;
+  /** Makes the one-use sign-in code (Podster, whose accounts are its own). Left out: the Arise session's. */
+  handoff?: () => Promise<string | null>;
   /** The signed-in account's session; without it (on sign-up) the in-app button asks them to make an account first. */
   authToken?: string | null; onBought?: () => void;
 }) {
@@ -45,16 +49,18 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
   // Signed in: Safari opens the All Access page already signed in (a one-use code, never the password or
   // token). Signed out, or if the code can't be made: the plain link, where they sign in or make an account.
   const openSite = async (e: MouseEvent) => {
-    if (!authToken) return; // the plain link
+    if (!authToken && !handoff) return; // the plain link
     e.preventDefault();
-    let url = ALL_ACCESS.url;
+    let code: string | null = null;
     try {
-      const r = await fetch(`${API_BASE}/api/auth/web-handoff/start`, { method: "POST", headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" });
-      const d = await r.json().catch(() => ({}));
-      if (r.ok && typeof d.code === "string" && /^[a-f0-9]{64}$/.test(d.code)) url = ALL_ACCESS.url.replace("/app#", `/app?signin=${d.code}#`);
-    } catch { /* plain link */ }
-    try { if (window.open(url, "_blank")) return; } catch { /* below */ }
-    window.location.href = url;
+      if (handoff) code = await handoff();
+      else {
+        const r = await fetch(`${API_BASE}/api/auth/web-handoff/start`, { method: "POST", headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && typeof d.code === "string") code = d.code;
+      }
+    } catch { /* the plain link, where they sign in */ }
+    openOutside(allAccessLink(app, code));
   };
   const ink = dark ? "text-white" : "text-[#111018]", soft = dark ? "text-white/65" : "text-[#6b6879]";
   const inApp = apple && !!applePrice;
@@ -72,7 +78,7 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
           <button type="button" onClick={() => void restore()} disabled={!!busy} className={`mt-1 h-9 w-full text-[13px] font-semibold ${dark ? "text-white/80" : "text-[#5b4fe0]"}`}>{busy === "restore" ? "Restoring…" : "Restore purchases"}</button>
         </>
       : <p className={`mt-3 text-[12.5px] ${soft}`}>Make your free account, then subscribe right in the app.</p>)}
-    {us && <a href={ALL_ACCESS.url} target="_blank" rel="noreferrer" onClick={(e) => void openSite(e)} data-testid="all-access-offer-link" className={inApp ? `mt-1 flex h-10 w-full items-center justify-center gap-1.5 text-[13.5px] font-semibold ${dark ? "text-white/80" : "text-[#5b4fe0]"}` : "mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[#5b4fe0] text-[15px] font-semibold text-white active:opacity-80"}>{inApp ? `Or get it on arisetodo.com for ${ALL_ACCESS.price}` : "Get it on arisetodo.com"}<ExternalLink className="h-4 w-4" aria-hidden /></a>}
+    {us && <a href={allAccessLink(app)} target="_blank" rel="noreferrer" onClick={(e) => void openSite(e)} data-testid="all-access-offer-link" className={inApp ? `mt-1 flex h-10 w-full items-center justify-center gap-1.5 text-[13.5px] font-semibold ${dark ? "text-white/80" : "text-[#5b4fe0]"}` : "mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[#5b4fe0] text-[15px] font-semibold text-white active:opacity-80"}>{inApp ? `Or get it on arisetodo.com for ${ALL_ACCESS.price}` : "Get it on arisetodo.com"}<ExternalLink className="h-4 w-4" aria-hidden /></a>}
     {!inApp && !us && <p className={`mt-3 text-[12.5px] ${soft}`}>{note ?? "Already have it? It works here when you sign in."}</p>}
     {msg && <p role="status" className={`mt-2 text-[13px] ${ink}`}>{msg}</p>}
     {inApp && <p className={`mt-2 text-[11px] leading-snug ${soft}`}>Renews monthly at {applePrice} until cancelled. Payment is charged to your Apple ID; cancel any time in Settings › Apple ID › Subscriptions at least 24 hours before it renews. <a href={LEGAL.terms} target="_blank" rel="noreferrer" className="underline">Terms of Use</a> · <a href={LEGAL.privacy} target="_blank" rel="noreferrer" className="underline">Privacy Policy</a></p>}

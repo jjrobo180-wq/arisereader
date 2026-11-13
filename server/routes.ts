@@ -1528,7 +1528,26 @@ export async function registerRoutes(
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
     "todo_required", "Arise LifeHub needs Arise All Access.",
   ));
-  registerAdminHandoffRoutes(app, authMiddleware);
+  registerAdminHandoffRoutes(app, authMiddleware, {
+    // Podster's accounts are its own; All Access lives on the Arise account with the same (verified)
+    // email. Its "Get it on arisetodo.com" opens that account signed in, made now if there isn't one.
+    emailAccount: async (email) => {
+      if (!looksLikeEmail(email)) return null;
+      const pattern = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const { data } = await getAdminSupabase().from("users").select("id, role, is_admin, created_at").ilike("email", pattern).is("archived_at", null).order("created_at", { ascending: false }).limit(20);
+      const adults = (data || []).filter((u: any) => !u.is_admin && u.role !== "student");
+      let user: any = null;
+      for (const u of adults) { const g = await plans.allAccess(Number(u.id), { id: Number(u.id) } as any).catch(() => null); if (g?.live) { user = await storage.getUser(Number(u.id)); break; } }
+      if (!user && adults[0]) user = await storage.getUser(Number(adults[0].id));
+      if (!user) {
+        const username = await appleUsername(email, false, async (n) => !!(await storage.getUserByUsername(n)));
+        user = await storage.createUser({ username, password: await bcrypt.hash(randomBytes(24).toString("base64url"), 10), displayName: email.split("@")[0].slice(0, 40) || "Podster listener", email, role: "todo", approvedByTeacher: true, accountApproved: true });
+      }
+      if (!user || user.archivedAt) return null;
+      const session = await storage.createSession(Number(user.id));
+      return { token: session.token, user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: false, role: user.role, approvedByTeacher: true, accountApproved: true, email: user.email, schoolId: user.school_id ?? null, totalPoints: user.totalPoints || 0 } };
+    },
+  });
   // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
   const tvId = () => `tv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   registerTvLinkRoutes(app, authMiddleware, {
@@ -7720,6 +7739,9 @@ export async function registerRoutes(
       const { blockedBy } = await deleteUserAccount(userId);
       if (blockedBy) {
         await archiveProfile(userId, true, userId).catch(() => "missing");
+        // The email and username are free at once, so the same email can make a new account right away.
+        await getAdminSupabase().from("users").update({ email: null, username: `deleted-${userId}-${Date.now().toString(36)}`, student_number: null }).eq("id", userId).then(() => {}, () => {});
+        clearCache("allUsers");
         alertAdmin("problem_report", { title: "Finish deleting an account", summary: `${who} deleted their account; ${blockedBy.replace(/_/g, " ")} still points at it.`, lines: [["User id", userId], ["Blocked by", blockedBy]], note: "The account is archived (signed out and hidden). Remove the rows in that table, then delete the user under Admin > Users.", ref: `u${userId}` });
         return res.json({ ok: true, pending: true, message: "Your account is closed and signed out. The last of its data is removed within 7 days." });
       }

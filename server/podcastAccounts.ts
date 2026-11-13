@@ -6,6 +6,7 @@ import type { Express, RequestHandler } from "express";
 import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { AppleTokenError, PODPLUS_APP, appleRefreshToken, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
+import { issueEmailHandoff } from "./adminHandoff";
 import { CODE_MINUTES, CODE_TRIES, CODE_WAIT_SECS, CODES_PER_DAY, cleanEmail } from "../shared/earshotCreators";
 
 export type Account = { id: number; email: string; device: string };
@@ -192,6 +193,19 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
       console.error("[podscroll] apple sign-in:", e?.message || e);
       res.status(500).json({ message: "Sign in with Apple didn't work just now. Try again." });
     }
+  });
+
+  /** "Get it on arisetodo.com": a one-use code that opens the All Access page in Safari signed in to the
+   *  Arise account for this verified email (made then if there isn't one). Never the session itself. */
+  const handoffs = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.post(`${P}/web-handoff`, gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const email = cleanEmail(req.creator?.email);
+    if (!email) return res.status(401).json({ message: "Sign in to Podster first." });
+    if (tooMany(handoffs, `h${req.creator.id}`, res)) return;
+    const code = issueEmailHandoff(email);
+    if (!code) return res.status(429).json({ message: "Please retry in a moment." });
+    res.json({ code });
   });
 
   /** Delete my Podster account and everything made with it (App Store Guideline 5.1.1(v)). Works signed

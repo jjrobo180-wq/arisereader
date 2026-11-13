@@ -42,7 +42,7 @@ test("no plans are sold inside the iPhone app (App Review 3.1.1)", () => {
   assert.match(s, /const native = isNativeApp\(\);/);
   assert.match(s, /if \(!native\) notesApi\.billing\(\)/, "billing isn't even loaded in the app");
   // In the app: the All Access offer (Apple's in-app purchase, or the website link where Apple allows it), never Stripe.
-  assert.match(s, /\{native \? <AllAccessOffer note=\{NATIVE_NO_PURCHASE\}.*?\/> : !bill \? <Spinner \/> : <>/, "no Stripe prices, buy buttons or billing links");
+  assert.match(s, /\{native \? <AllAccessOffer app="notes" note=\{NATIVE_NO_PURCHASE\}.*?\/> : !bill \? <Spinner \/> : <>/, "no Stripe prices, buy buttons or billing links");
 });
 
 test("the iOS project: light, the microphone with a reason, live updates from our own server", () => {

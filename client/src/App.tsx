@@ -61,6 +61,8 @@ function getTokenFromCookie(): string | null {
 }
 import SignIn from "./pages/SignIn";
 import NativeSignIn from "./pages/NativeSignIn";
+import { allAccessFor } from "@/lib/allAccessFor";
+import { ALL_ACCESS_APPS, type AllAccessApp } from "@shared/allAccess";
 import { startAppleSync } from "./lib/appleStore";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import ClubPlayGate from "./components/ClubPlayGate";
@@ -291,7 +293,7 @@ function StudentSetupGate({ children }: { children: React.ReactNode }) {
 
 /** "?signin=<code>" from the Reader iPhone app's plan button: one-use, so the person lands in Safari signed in. */
 const readHandoffCode = () => { try { const c = new URLSearchParams(window.location.search).get("signin") || ""; return /^[a-f0-9]{64}$/.test(c) ? c : ""; } catch { return ""; } };
-function WebHandoff() {
+function WebHandoff({ app }: { app?: AllAccessApp } = {}) {
   const { completeWebHandoff } = useAuth();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -299,8 +301,18 @@ function WebHandoff() {
     try { const u = new URL(window.location.href); u.searchParams.delete("signin"); window.history.replaceState(null, "", u.toString()); } catch { /* keep the address */ }
     completeWebHandoff(code).catch(() => setFailed(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  if (failed) return <div><p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white">Sign in with the account you already made. Your plan opens right after.</p><SignIn /></div>;
+  if (failed) return app ? <AllAccessSignIn app={app} /> : <div><p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white">Sign in with the account you already made. Your plan opens right after.</p><SignIn /></div>;
   return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+}
+
+/** Signed out on the All Access page: the sign-in of the app they came from (Cooked's, Notes', Podster's),
+ *  in its colors, never the To Duo homepage. Signed in, the page shows the plan right here. */
+function AllAccessSignIn({ app }: { app: AllAccessApp }) {
+  const brand = ALL_ACCESS_APPS[app];
+  const banner = <p className="px-4 py-3 text-center text-sm font-bold text-white" style={{ background: brand.from }} data-testid="all-access-signin-first">{app === "podster" ? "Sign in with the same email as your Podster account. Arise All Access ($10 a month) opens right here." : `Sign in with your ${brand.name} account. Arise All Access ($10 a month) opens right here.`}</p>;
+  return app === "fit" || app === "notes"
+    ? <div className="relative"><div className="fixed inset-x-0 top-0 z-[60]">{banner}</div><NativeSignIn flavor={app} /></div>
+    : <div>{banner}<SignIn /></div>;
 }
 
 /** The parent and teacher Reader (/reader) sits outside ProtectedRoute, so it checks the Reader plan
@@ -634,10 +646,8 @@ function AppRoutes() {
       <Route path="/all-access">
         {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
             then this same page shows the plan. Never the homepage. */}
-        {user ? <AllAccess /> : readHandoffCode() ? <WebHandoff /> : <div>
-          <p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white" data-testid="all-access-signin-first">Arise All Access is $10 a month. Sign in, or create a free account, and it opens right here.</p>
-          <SignIn />
-        </div>}
+        {/* A sign-in link from an app wins over whoever was signed in on this browser before. */}
+        {readHandoffCode() ? <WebHandoff app={allAccessFor()} /> : user ? <AllAccess /> : <AllAccessSignIn app={allAccessFor()} />}
       </Route>
       {/* Arise Coaching: the public trainer directory, and Cooked PT for coaches. */}
       <Route path="/trainers"><TrainersPage /></Route>
@@ -807,7 +817,7 @@ function AppRoutes() {
       <Route path="/subscribe">
         {/* Signed out (a parent who tapped a plan in the app lands here in Safari): sign in first, then the
             same page opens to pay. Never a new account. */}
-        {user ? <ReaderSubscribe /> : readHandoffCode() ? <WebHandoff /> : <div>
+        {readHandoffCode() ? <WebHandoff /> : user ? <ReaderSubscribe /> : <div>
           <p className="bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white" data-testid="subscribe-signin-first">Sign in with the account you already made. Your plan opens right after.</p>
           {isNativeApp() ? <NativeSignIn /> : <SignIn />}
         </div>}

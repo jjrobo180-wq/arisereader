@@ -151,7 +151,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Minutes used"><div className={`h-full rounded-full ${u.warn === 100 ? "bg-[var(--an-coral)]" : u.warn === 80 ? "bg-[#f5a524]" : "bg-[var(--an-violet)]"}`} style={{ width: `${pct}%` }} /></div>
       <p className="mt-3 text-[13px] leading-relaxed text-[var(--an-muted)]">You're on <b>{ctx.me.planName}</b>{u.pooled ? " (your family's shared minutes)" : ""}. Every minute of audio counts, recorded or uploaded, rounded up per recording. One recording can be up to {u.maxSecs >= 7200 ? "2 hours" : `${Math.round(u.maxSecs / 60)} minutes`}.{u.warn ? " You'll get a heads-up at 80% and at 100%." : ""}</p>
     </Section>
-    {native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={authToken} onBought={() => void ctx.refreshMe()} /> : !bill ? <Spinner /> : <>
+    {native ? <AllAccessOffer app="notes" note={NATIVE_NO_PURCHASE} authToken={authToken} onBought={() => void ctx.refreshMe()} /> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
       {!bill.paidOnline && <AllAccessCard ctx={ctx} bill={bill} returnPath={returnPath} />}

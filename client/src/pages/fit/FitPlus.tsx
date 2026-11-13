@@ -109,7 +109,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
       <p className="mt-3 text-[12px]" style={{ color: C.dim }}>Workouts, programs, food, fasting, runs, recipes and your workout circle stay free.</p></Card>
 
     {!status.plus && (native
-      ? <AllAccessOffer className="mt-3" note={NATIVE_NO_PURCHASE} authToken={token} onBought={() => void reload()} />
+      ? <AllAccessOffer app="fit" className="mt-3" note={NATIVE_NO_PURCHASE} authToken={token} onBought={() => void reload()} />
       : status.payment
         ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get All Access · {status.price}</Btn>
         : <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Payments aren't switched on for this site yet.</p>)}

@@ -11,7 +11,8 @@ import { cleanFamily } from "../shared/familyHub";
 const TABLE = "arise_todo_workspaces";
 // Room for the Family Hub, including about a year of food and fitness logs.
 const MAX_BYTES = 5_000_000;
-const signupLimits = createAttemptLimiter({ max: 8, windowMs: 60 * 60_000 });
+// Per network: generous, since a whole office (App Review, a school) can share one address.
+const signupLimits = createAttemptLimiter({ max: 30, windowMs: 60 * 60_000 });
 
 function validDate(value: unknown): boolean {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -158,6 +159,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
       return res.status(400).json({ message: "Enter an email address we can send your code to." });
     }
     try {
+      // One email, one account: someone who has one is sent to sign in. A sign-up that was never confirmed
+      // with its code is replaced, and a deleted account's email is free at once (its row is gone).
+      const pattern = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const { data: same } = await getAdminSupabase().from("users").select("id, role, account_approved, is_admin").ilike("email", pattern).is("archived_at", null).limit(20);
+      const adults = (same || []).filter((u: any) => !u.is_admin && u.role !== "student");
+      if (adults.some((u: any) => u.account_approved !== false)) {
+        return res.status(409).json({ code: "EMAIL_HAS_ACCOUNT", message: "You already have an account with this email. Sign in with it, or use \"Forgot your password?\" to reset it." });
+      }
+      for (const u of adults) if (u.role === "todo" && u.account_approved === false) await getAdminSupabase().from("users").delete().eq("id", u.id).then(() => {}, () => {});
       if (await storage.getUserByUsername(username)) return res.status(409).json({ message: "Username already taken." });
       const created: any = await storage.createUser({
         username, password: await bcrypt.hash(password, 10), displayName, email,

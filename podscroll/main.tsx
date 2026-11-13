@@ -5,6 +5,8 @@
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
 import AllAccessPopup from "@/components/AllAccessPopup";
+import AllAccessOffer from "@/components/AllAccessOffer";
+import { NATIVE_NO_PURCHASE } from "@/lib/nativeApp";
 import "./accountBoot";
 import { setAccount } from "../client/src/lib/accountStorage";
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -247,7 +249,7 @@ function App() {
       }} />
     </div>
     : <>
-      <div style={{ display: mode === "home" ? "contents" : "none" }}>{<Home visible={mode === "home"} nowPod={nowPod} onPodToggle={() => podCtl.current?.toggle()} onPodOpen={backToFeed} es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setAuthMode("signup")} onSignIn={() => setAuthMode("signin")} email={email} onSignOut={signOut} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />}</div>
+      <div style={{ display: mode === "home" ? "contents" : "none" }}>{<Home visible={mode === "home"} nowPod={nowPod} onPodToggle={() => podCtl.current?.toggle()} onPodOpen={backToFeed} es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} paid={paid} allAccess={allAccessOffer} onJoin={() => setAuthMode("signup")} onSignIn={() => setAuthMode("signin")} email={email} onSignOut={signOut} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />}</div>
       {feedSeen && <div style={{ display: mode === "feed" ? "contents" : "none" }}>{<Player visible={mode === "feed"} onNowPlaying={setNowPod} control={podCtl} tabNonce={tabNonce} key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
         liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} onHome={goHome} initialTab={feedTab} playMode={feedMode} />}</div>}
@@ -255,12 +257,17 @@ function App() {
 
   useEffect(() => { if (editing || (mode === "feed" && !es.setupDone)) document.documentElement.style.background = day ? "#ffffff" : "#120e14"; }, [day, es.setupDone, editing, mode]);
 
+  // Arise All Access (ad-free): Podster's own accounts hand Safari a one-use code for the Arise account with
+  // the same email, so its page opens signed in (server/podcastAccounts.ts web-handoff).
+  const podsterHandoff = useCallback(async () => { try { const b = await api("/api/earshot/account/web-handoff", { method: "POST" }); return typeof b?.code === "string" ? b.code : null; } catch { return null; } }, [api]);
+  const podsterMember = useCallback(async () => { try { return !!(await api("/api/earshot/ad-free"))?.adFree; } catch { return true; } }, [api]);
+  const allAccessOffer = pro && !paid ? <AllAccessOffer dark={false} app="podster" handoff={podsterHandoff} note={NATIVE_NO_PURCHASE} /> : null;
   return <>
     {body}
     {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
       onEmail={() => setAuthMode("signin")} onPush={() => startPodPush(api, followIds, true)} onDone={finishWelcome} />}
     {/* Signed in and past the welcome: the All Access pop-up, once (ad-free listening and the rest). */}
-    <AllAccessPopup userId={email || null} token={session || null} ready={pro && !welcome && !authMode} dark={!day} apiBase={API} intro="Podster is free to listen, with ads. Arise All Access skips the ads for you, lets you earn from your show, and adds the extras in To Duo, Notes and Fit." />
+    <AllAccessPopup userId={email || null} token={session || null} ready={pro && !welcome && !authMode} dark={!day} apiBase={API} app="podster" handoff={podsterHandoff} isMember={podsterMember} intro="Podster is free to listen, with ads. Arise All Access skips the ads for you, lets you earn from your show, and adds the extras in To Duo, Notes and Fit." />
     {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in."); setAccount(mail); }} />}
     {/* Messages: a small card that sits above the tab bar (it used to be a big white oval on top of it).
         The first sentence is the headline, anything after it a quieter second line. */}
