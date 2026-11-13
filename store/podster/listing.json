@@ -12,7 +12,7 @@
   "copyright": "2026 Arise",
   "keywords": "podcast,podcasts,podcast player,audiobooks,radio,listen,episodes,shows,news,stories,offline",
   "promo": "Find your next favorite show. Swipe through podcast episodes, follow shows, and listen to free audiobooks and live radio. No account needed to listen.",
-  "description": "Podster makes finding a great podcast as easy as scrolling. Swipe through episodes, follow the shows you love, and keep listening with audiobooks and live radio.\n\nDISCOVER\n- Swipe through episodes picked for what you like\n- Browse by topic: news, comedy, true crime, business, sports and more\n- Search every show in the podcast directory\n\nLISTEN\n- Follow shows and get an alert when a new episode is out\n- Listen later list, history and likes\n- Free public-domain audiobooks\n- Live radio and news stations\n- Sleep timer and speed control\n\nFOR CREATORS\n- Make an account to post clips and record in the studio\n\nListening is free and never needs an account. Explicit shows are hidden unless you turn them on.\n\nPodster plays podcasts from their creators' public feeds. Shows and episodes belong to their creators.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/podster/privacy/",
+  "description": "Podster makes finding a great podcast as easy as scrolling. Swipe through episodes, follow the shows you love, and keep listening with audiobooks and live radio.\n\nDISCOVER\n- Swipe through episodes picked for what you like\n- Browse by topic: news, comedy, true crime, business, sports and more\n- Search every show in the podcast directory\n\nLISTEN\n- Follow shows and get an alert when a new episode is out\n- Listen later list, history and likes\n- Free public-domain audiobooks\n- Live radio and news stations\n- Smart ad skip: jump past ads and long intros\n- Sleep timer and speed control\n\nSTUDY AND SOCIAL\n- Study Podster: paste your class notes and AI makes a short episode with key points and a quiz\n- Podster Social: post, share clips, follow creators and message people\n\nFOR CREATORS\n- Podster Membership: get paid for your own show\n- Record in the studio and go live\n\nListening is free and never needs an account. Explicit shows are hidden unless you turn them on.\n\nPodster plays podcasts from their creators' public feeds. Shows and episodes belong to their creators.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/podster/privacy/",
   "age": {
     "yes": [
       "userGeneratedContent",
@@ -29,19 +29,29 @@
   "reviewNotes": "Listening needs no account: open the app and pick an episode. Explicit podcasts are hidden by default and can be turned on in settings, which is why the age rating reflects mature content. An account is only needed for creator features (clips, studio); to see them, sign in with the email and password above. Podcasts come from the public podcast directory and their creators' own feeds; audiobooks are public-domain recordings from LibriVox.",
   "demoUser": "appreview@arisetodo.com",
   "shots": [
-    "Home",
     "Feed",
+    "Study",
+    "Social",
+    "Membership",
     "Audiobooks",
     "Radio"
   ],
   "headlines": [
     [
-      "Find your next<br>favorite show",
-      "Every podcast, by what you like"
+      "Swipe to<br>your next listen",
+      "Episodes picked for you, ads skipped"
     ],
     [
-      "Swipe to<br>your next listen",
-      "Episodes picked for you"
+      "Study notes,<br>now a podcast",
+      "AI turns your notes into an episode and quiz"
+    ],
+    [
+      "Your podcast<br>social",
+      "Post, share clips and message"
+    ],
+    [
+      "Make your<br>show pay",
+      "Get paid for your own podcast"
     ],
     [
       "Free<br>audiobooks",

@@ -12,7 +12,7 @@
   "copyright": "2026 Arise",
   "keywords": "note taker,transcribe,transcription,meeting notes,lecture,recorder,voice memo,summary,dictation",
   "promo": "Record a meeting, class or appointment and get a clean transcript, a summary and the action items, ready to share.",
-  "description": "Arise Notes listens so you don't have to scribble. Record a meeting, a class, a doctor's visit or a quick idea, and get back a transcript, a summary and what to do next.\n\nRECORD OR UPLOAD\n- Record right in the app, or upload audio you already have\n- Quick voice memos for ideas on the go\n- Mark important moments while you record\n\nWHAT YOU GET\n- A full transcript, with who said what\n- A summary with key points, decisions and questions\n- Action items with who and when\n- Dates and meetings to add to your calendar\n\nMADE FOR YOUR KIND OF NOTE\n- Templates for meetings, lectures, doctor visits, interviews, parent-teacher meetings and IEP meetings\n- Flashcards and quizzes from a lecture\n- Translations and parent-friendly versions\n\nFIND AND SHARE\n- Ask your notes a question and get an answer from what was said\n- Folders and tags\n- Share a note with a link, or export it\n\nRecordings are used only to make your note. You choose whether to keep the audio after it's transcribed.\n\nThe free plan includes 60 minutes of AI notes a month. Notes Plus is part of Arise All Access, a monthly subscription you can buy in the app. Payment is charged to your Apple ID. The subscription renews each month unless you cancel at least 24 hours before the end of the period, in Settings > Apple ID > Subscriptions.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
+  "description": "Arise Notes listens so you don't have to scribble. Record a meeting, a class, a doctor's visit or a quick idea, and get back a transcript, a summary and what to do next.\n\nRECORD OR UPLOAD\n- Record right in the app, or upload audio you already have\n- Quick voice memos for ideas on the go\n- Mark important moments while you record\n\nWHAT YOU GET\n- A full transcript, with who said what\n- A summary with key points, decisions and questions\n- Action items with who and when\n- Dates and meetings to add to your calendar\n\nMADE FOR YOUR KIND OF NOTE\n- Templates for meetings, lectures, doctor visits, interviews, parent-teacher meetings and IEP meetings\n- Flashcards and quizzes from a lecture\n- Translations and parent-friendly versions\n\nUNDERCOVER AI\n- Ask AI anything in a screen that looks like a text thread or a document, so it fits in during a meeting or class\n- Ask your notes a question and get an answer from what was said\n\nADD-ONS\n- Docs, Sheets with real formulas, Slides and Design for posters, posts and invitations\n- Whiteboard, sticky notes, checklists, flashcards and a focus timer\n- Add only the ones you want\n\nFIND AND SHARE\n- Folders and tags\n- Share a note with a link, or export it\n\nRecordings are used only to make your note. You choose whether to keep the audio after it's transcribed.\n\nThe free plan includes 60 minutes of AI notes a month. Notes Plus is part of Arise All Access, a monthly subscription you can buy in the app. Payment is charged to your Apple ID. The subscription renews each month unless you cancel at least 24 hours before the end of the period, in Settings > Apple ID > Subscriptions.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
   "age": {
     "yes": [
       "userGeneratedContent"
@@ -24,7 +24,12 @@
     "Recordings",
     "Summary",
     "Transcript",
-    "Record"
+    "Record",
+    "Undercover",
+    "Add-ons",
+    "Design",
+    "Sheets",
+    "Docs"
   ],
   "headlines": [
     [
@@ -42,6 +47,26 @@
     [
       "Tap record.<br>That's it.",
       "Meetings, classes and voice memos"
+    ],
+    [
+      "AI that looks<br>like a text",
+      "Undercover: ask anything, quietly"
+    ],
+    [
+      "Add-ons for<br>everything",
+      "Docs, Sheets, Slides, Design and more"
+    ],
+    [
+      "Design in<br>minutes",
+      "Posters, posts and invites from templates"
+    ],
+    [
+      "Sheets with<br>real formulas",
+      "Budgets, trackers and charts"
+    ],
+    [
+      "Docs that<br>look sharp",
+      "Reports and letters, to Word or PDF"
     ]
   ]
 }

@@ -12,7 +12,7 @@
   "copyright": "2026 Arise",
   "keywords": "workout,gym,fitness,calorie counter,macros,meal tracker,lifting,strength,running,fasting,sleep,habit",
   "promo": "Train, eat and recover in one app. Follow a program, log every set, track food and macros, and see your progress add up.",
-  "description": "Cooked puts your training, food and recovery in one place, so you stop juggling five apps.\n\nTRAIN\n- Follow a ready-made program like Push Pull Legs, 5x5 Strength or Upper / Lower, or build your own\n- Log every set and rep as you lift, with rest timers and your last numbers right there\n- An exercise library with clear form cues for every move\n- Interval timers, yoga, mobility and breathing sessions\n\nEAT\n- Count calories and macros, or follow a diet plan\n- Save meals you eat often and add them again in one tap\n- Plan the week ahead with meal prep and a grocery list\n- Track water and intermittent fasts\n\nMOVE AND RECOVER\n- Track runs, walks and hikes with GPS\n- Steps from Apple Health\n- Sleep tracking, sleep sounds and a recovery check before you train\n\nSTAY ON TRACK\n- Weigh-ins, records and progress over time\n- Train with friends and share progress if you choose\n- Connect with a personal trainer who uses Cooked PT, and share only what you allow\n\nAdd only the tools you want: medicine and period trackers, gyms near you, travel mode and more live in Apps, so your home screen stays simple.\n\nCooked+ adds the extra features and is part of Arise All Access, a monthly subscription you can buy in the app. Payment is charged to your Apple ID. The subscription renews each month unless you cancel at least 24 hours before the end of the period, in Settings > Apple ID > Subscriptions.\n\nCooked is not a medical device and doesn't give medical advice. Talk to a doctor before starting a new exercise or eating plan.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
+  "description": "Cooked puts your training, food and recovery in one place, so you stop juggling five apps.\n\nTRAIN\n- Follow a ready-made program like Push Pull Legs, 5x5 Strength or Upper / Lower, or build your own\n- Log every set and rep as you lift, with rest timers and your last numbers right there\n- An exercise library with clear form cues for every move\n- AI form check: your camera watches your squat, push-up or lunge and coaches each rep\n- Interval timers, yoga, mobility and breathing sessions\n\nEAT\n- Count calories and macros, or follow a diet plan\n- Save meals you eat often and add them again in one tap\n- Plan the week ahead with meal prep and a grocery list\n- Eating out: restaurant picks near you that fit what's left of your day\n- Track water and intermittent fasts\n\nMOVE AND RECOVER\n- Track runs, walks and hikes with GPS\n- Steps from Apple Health\n- Sleep tracking, sleep sounds and a recovery check before you train\n\nSTAY ON TRACK\n- Weigh-ins, records and progress over time\n- Train with friends and share progress if you choose\n- Find a real personal trainer, in person or online, and share only what you allow\n\nADD-ONS AND THEMES\n- 27 add-ons to pick from: sleep, fasting, medicine and period trackers, gyms near you, travel mode and more, so your home screen stays simple\n- Light, dark and color themes\n\nCooked+ adds the extra features and is part of Arise All Access, a monthly subscription you can buy in the app. Payment is charged to your Apple ID. The subscription renews each month unless you cancel at least 24 hours before the end of the period, in Settings > Apple ID > Subscriptions.\n\nCooked is not a medical device and doesn't give medical advice. Talk to a doctor before starting a new exercise or eating plan.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
   "age": {
     "yes": [
       "healthOrWellnessTopics",
@@ -25,8 +25,12 @@
   "shots": [
     "Today",
     "Train",
+    "Form check",
     "Food",
-    "Plugins"
+    "Eat out",
+    "Find a trainer",
+    "Add-ons",
+    "Themes"
   ],
   "headlines": [
     [
@@ -38,12 +42,28 @@
       "Programs, timers and form cues"
     ],
     [
+      "AI checks<br>your form",
+      "Your camera coaches every rep"
+    ],
+    [
       "Eat to<br>your goal",
       "Calories, macros and meal prep"
     ],
     [
-      "Add only<br>what you need",
-      "Sleep, fasting, runs and 20+ more"
+      "Eating out?<br>Order smart",
+      "Restaurant picks that fit your day"
+    ],
+    [
+      "Find a<br>real trainer",
+      "Personal trainers, in person or online"
+    ],
+    [
+      "Pick your<br>add-ons",
+      "27 add-ons: sleep, fasting, runs and more"
+    ],
+    [
+      "Make it<br>yours",
+      "Light, dark and color themes"
     ]
   ]
 }

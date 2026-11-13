@@ -31,7 +31,7 @@ if (APP !== "podster") {
 }
 
 for (const [kind, opts] of Object.entries(devices)) {
-  const ctx = await browser.newContext({ ...opts, permissions: ["microphone"], colorScheme: "light", timezoneId: "America/Denver", locale: "en-US" });
+  const ctx = await browser.newContext({ ...opts, permissions: ["microphone", "camera", "geolocation"], geolocation: { latitude: 39.7392, longitude: -104.9903 }, colorScheme: "light", timezoneId: "America/Denver", locale: "en-US" });
   if (cookie) await ctx.addCookies([{ name: "arise_session", value: cookie, domain: ".arisetodo.com", path: "/", sameSite: "Lax", expires: Math.floor(Date.now() / 1000) + 86400 }]);
   const page = await ctx.newPage();
   page.setDefaultTimeout(20000);
@@ -76,8 +76,14 @@ for (const [kind, opts] of Object.entries(devices)) {
     cooked: [
       ["Today", async () => {}],
       ["Train", () => tap(/^Train$/i, { within: "nav" })],
-      ["Food", () => tap(/^Food$/i, { within: "nav" })],
-      ["Plugins", () => tap(/^Plugins$/i, { within: "nav" })],
+      ["Form check", async () => { await tap(/AI form check/i, { after: 6000 }); }],
+      ["Food", async () => { await goto(""); await tap(/^Food$/i, { within: "nav" }); }],
+      ["Eat out", async () => { await tap(/^Eat out$/i, { after: 8000 }); }],
+      ["Find a trainer", async () => { await goto(""); await tap(/Find a trainer/i, { after: 5000 }); }],
+      ["Add-ons", async () => { await goto(""); await tap(/^Plugins$/i, { within: "nav" }); }],
+      ["Themes", async () => { await goto(""); await tap(/^Settings$/i, { after: 2500 });
+        const a = page.getByRole("radiogroup", { name: "Appearance" }).first(); await reach(a);
+        await page.evaluate(() => { const g = document.querySelector('[data-testid="fit-theme"]'); g?.scrollIntoView({ block: "start" }); g?.closest("[class*=overflow-y]")?.scrollBy(0, -90); }); await wait(1200); }],
     ],
     cookedpt: [
       ["Clients", () => tap(/^Clients/i, { within: "nav" })],
@@ -93,10 +99,23 @@ for (const [kind, opts] of Object.entries(devices)) {
         if (await visible(w)) { await w.click(); await page.waitForSelector('[data-testid="notes-summarize"]', { state: "detached", timeout: 90000 }).catch(() => {}); await wait(2500); } }],
       ["Transcript", () => tap(/^Transcript$/i, { after: 2500 })],
       ["Record", () => goto("#/record", 5000)],
+      ["Undercover", async () => { await goto("#/undercover", 5000);
+        const box = page.getByPlaceholder(/^(Text message|Message)$/).first();
+        if (await visible(box)) { await box.fill("What did we decide in today's team check-in?"); await box.press("Enter"); await wait(20000); } }],
+      ["Add-ons", () => goto("#/apps", 5000)],
+      ["Design", () => goto("#/app/design", 7000)],
+      ["Sheets", () => goto("#/app/sheets", 7000)],
+      ["Docs", () => goto("#/app/docs", 7000)],
     ],
     podster: [
-      ["Home", async () => {}],
       ["Feed", async () => { const ep = page.locator("main button, main a").filter({ has: page.locator("img") }).nth(2); if (await visible(ep)) { await ep.click(); await wait(4000); } }],
+      ["Study", async () => { await goto("#/study", 5000);
+        const box = page.locator("textarea").first();
+        if (await visible(box)) { await box.fill("Photosynthesis happens in the chloroplasts of plant cells. Light reactions in the thylakoids use sunlight to split water, release oxygen, and make ATP and NADPH. The Calvin cycle in the stroma uses that ATP and NADPH to turn carbon dioxide into glucose. Chlorophyll absorbs mostly red and blue light and reflects green, which is why leaves look green.");
+          const go = page.getByRole("button", { name: /Make my Study Pod/i }).first();
+          if (await visible(go)) { await go.click(); await page.getByText(/Key points/i).first().waitFor({ timeout: 90000 }).catch(() => {}); await wait(2000); } } }],
+      ["Social", async () => { await goto("", 5000); if (kind === "iphone") await tap(/^Menu$/, { after: 1200 }); await tap(/^Social$/, { after: 5000 }); }],
+      ["Membership", async () => { await goto("", 6000); }],
       ["Audiobooks", () => goto("#/books", 6000)],
       ["Radio", () => goto("#/radio", 6000)],
     ],
