@@ -22,6 +22,7 @@ import type { Express } from "express";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createAttemptLimiter, clientAddress, waitWords } from "./attemptLimiter";
 import { createMemoryKv, type FitKv } from "./fitKv";
+import { fitVisionTargets } from "./fit";
 import {
   LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, alignWords, classCode, cleanName, cleanWorksheet, estimateTimes,
   normClass, normPair, pairCode, questionCount, shownFor, spokenFor, tokens, type Laptop, type Timed, type Worksheet,
@@ -322,10 +323,12 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
 // to Groq's text-only model, which can't see photos). So the worksheet photos go straight to Groq's vision model,
 // one page per request (Groq takes up to about 4 MB per request), and OpenAI is used only when the site turns it on.
 const openAiOn = () => !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "routed-to-grok" && process.env.USE_OPENAI === "1";
-export const buddyAiReady = () => !!process.env.GROQ_API_KEY || openAiOn();
+/** The same vision services, keys and models Arise Fit's photo scans use (server/fit.ts fitVisionTargets): xAI's
+ *  Grok, then Groq, then OpenAI only when it's turned on. Keys are found under whatever name the site keeps them. */
+export const buddyAiReady = () => fitVisionTargets().length > 0;
 const GROQ = "https://api.groq.com/openai/v1";
-const VISION_MODELS = () => Array.from(new Set([process.env.GROQ_VISION_MODEL, "meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"].filter(Boolean) as string[]));
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const groqKey = () => { const t = fitVisionTargets().find((x) => x.provider === "groq"); return t?.key || process.env.GROQ_API_KEY || ""; };
 
 /** The JSON in a model's reply, even when it wrapped it in a code fence or a sentence. */
 export function looseJson(text: string): any {
@@ -336,42 +339,47 @@ export function looseJson(text: string): any {
   return null;
 }
 
-type Chat = (url: string, key: string, body: any) => Promise<Response>;
-const post: Chat = (url, key, body) => fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(90_000) });
+type Target = { provider: string; url: string; model: string; key: string; api: "responses" | "chat" };
+type Send = (url: string, key: string, body: any) => Promise<Response>;
+const post: Send = (url, key, body) => fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(90_000) });
+const replyText = (body: any, api: Target["api"]) => api === "chat" ? String(body?.choices?.[0]?.message?.content || "")
+  : typeof body?.output_text === "string" ? body.output_text
+  : (Array.isArray(body?.output) ? body.output.flatMap((i: any) => i.content || []).filter((p: any) => p.type === "output_text").map((p: any) => String(p.text || "")).join("\n") : "");
 
-/** One page → {title, items}. Retries when busy, tries the next vision model if one is retired, and drops JSON mode
- *  if a model refuses it. */
-export async function readPage(image: string, page: number, pages: number, chat: Chat = post): Promise<{ title: string; items: any[] }> {
-  const text = `${READ_PROMPT}\n\n${pages > 1 ? `This is page ${page} of ${pages}.` : "Here is the worksheet."} Reply with the JSON only.`;
-  const messages = [{ role: "user", content: [{ type: "text", text }, { type: "image_url", image_url: { url: image } }] }];
+/** One page → {title, items}. Tries each vision service in turn; retries when busy, and drops JSON mode if a model
+ *  refuses it. */
+export async function readPage(image: string, page: number, pages: number, send: Send = post, targets: Target[] = fitVisionTargets()): Promise<{ title: string; items: any[] }> {
+  const ask = `${pages > 1 ? `This is page ${page} of ${pages}.` : "Here is the worksheet."} Reply with the JSON only.`;
   let lastStatus = 0;
   const why: string[] = [];
-  const tries: [string, string, string][] = [];
-  if (process.env.GROQ_API_KEY) for (const m of VISION_MODELS()) tries.push([`${GROQ}/chat/completions`, process.env.GROQ_API_KEY, m]);
-  if (openAiOn()) tries.push(["https://api.openai.com/v1/chat/completions", process.env.OPENAI_API_KEY!, "gpt-4.1"]);
-  for (const [url, key, model] of tries) {
+  for (const t of targets) {
     let json = true;
     for (let attempt = 0; attempt < 4; attempt++) {
+      const body = t.api === "chat"
+        ? { model: t.model, temperature: 0, max_completion_tokens: 6000, ...(json ? { response_format: { type: "json_object" } } : {}),
+            messages: [{ role: "system", content: READ_PROMPT }, { role: "user", content: [{ type: "text", text: ask }, { type: "image_url", image_url: { url: image, detail: "high" } }] }] }
+        : { model: t.model, max_output_tokens: 6000, store: false, instructions: READ_PROMPT, ...(json ? { text: { format: { type: "json_object" } } } : {}),
+            input: [{ role: "user", content: [{ type: "input_text", text: ask }, { type: "input_image", image_url: image, detail: "high" }] }] };
       let r: Response;
-      try { r = await chat(url, key, { model, temperature: 0, max_tokens: 6000, ...(json ? { response_format: { type: "json_object" } } : {}), messages }); }
-      catch (e: any) { why.push(`${model}: ${e?.name || "network"}`); if (attempt < 2) { await wait(1500); continue; } lastStatus = -1; break; }
+      try { r = await send(t.url, t.key, body); }
+      catch (e: any) { why.push(`${t.provider}: ${e?.name || "network"}`); if (attempt < 1) { await wait(1500); continue; } lastStatus = -1; break; }
       if (r.ok) {
-        const body: any = await r.json().catch(() => null);
-        const parsed = looseJson(body?.choices?.[0]?.message?.content || "");
+        const parsed = looseJson(replyText(await r.json().catch(() => null), t.api));
         if (parsed && Array.isArray(parsed.items)) return { title: String(parsed.title || ""), items: parsed.items };
+        why.push(`${t.provider}: no JSON`);
         if (attempt < 1) continue; // asked again once: models sometimes trip on long JSON
         lastStatus = 422; break;
       }
       lastStatus = r.status;
       const reason = await r.text().catch(() => "");
-      console.error(`[tts-buddy] ${model} page ${page}: ${r.status} ${reason.slice(0, 300)}`);
-      why.push(`${model.split("/").pop()}: ${r.status} ${(looseJson(reason)?.error?.message || reason).toString().replace(/gsk_\w+|sk-\w+/g, "[key]").slice(0, 160)}`);
-      if (r.status === 400 && json && /response_format|json/i.test(reason)) { json = false; continue; }
+      console.error(`[tts-buddy] ${t.provider} ${t.model} page ${page}: ${r.status} ${reason.slice(0, 300)}`);
+      why.push(`${t.provider} ${t.model}: ${r.status} ${String(looseJson(reason)?.error?.message || looseJson(reason)?.error || reason).replace(/(gsk|sk|xai)-?_?\w{8,}/g, "[key]").slice(0, 160)}`);
+      if (r.status === 400 && json && /response_format|json|format/i.test(reason)) { json = false; continue; }
       if (r.status === 429 || r.status >= 500) { await wait(Math.min(12, Number(r.headers.get("retry-after")) || 2 * 2 ** attempt) * 1000); continue; }
-      break; // this model can't take it (retired, too big): the next one
+      break; // this one can't take it (bad key, retired model, too big): the next service
     }
   }
-  if (!tries.length) why.push("no vision key");
+  if (!targets.length) why.push("no vision key");
   const fail = (m: string) => Object.assign(new Error(m), { detail: why.join(" | ") });
   if (lastStatus === 429) throw fail("The reader is busy right now. Try again in a minute.");
   if (lastStatus === 413) throw fail("That photo is too big. Try again, a little farther back.");
@@ -408,7 +416,7 @@ export function createBuddyVoice(opts: { storage?: () => any } = {}) {
       return { duration: Number(j.duration) || 0, words: (j.words || []).map((w: any) => ({ word: String(w.word), start: Number(w.start) || 0, end: Number(w.end) || 0 })) };
     };
     try {
-      if (process.env.GROQ_API_KEY) return await ask(`${GROQ}/audio/transcriptions`, process.env.GROQ_API_KEY, "whisper-large-v3-turbo");
+      if (groqKey()) return await ask(`${GROQ}/audio/transcriptions`, groqKey(), "whisper-large-v3-turbo");
       if (openAiOn()) return await ask("https://api.openai.com/v1/audio/transcriptions", process.env.OPENAI_API_KEY!, "whisper-1");
     } catch (e: any) { console.warn("[tts-buddy] word timings:", e?.message); }
     return { words: [], duration: 0 };

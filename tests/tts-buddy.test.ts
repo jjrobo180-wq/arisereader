@@ -172,38 +172,46 @@ test("the site: arisetodo.com/buddy opens it, the routes and server are wired, n
 // The bug this caught (Nov 12): photos were sent to OpenAI's chat, which this site quietly forwards to Groq's
 // text-only model (server/aiProvider.ts), so every worksheet failed. Photos must go to Groq's vision model.
 import { looseJson, readPage, readWorksheet, buddyAiReady } from "../server/ttsBuddy";
+import { fitVisionTargets } from "../server/fit";
 const reply = (status: number, body: any, headers: Record<string, string> = {}) => new Response(typeof body === "string" ? body : JSON.stringify(body), { status, headers });
-const ok = (content: string) => reply(200, { choices: [{ message: { content } }] });
 
-test("worksheet photos go to Groq's vision model, never OpenAI's redirected chat", async () => {
+test("worksheet photos go to the same vision services as Arise Fit's photo scans (Grok, then Groq), never OpenAI's redirected chat", async () => {
   const env = { ...process.env };
-  process.env.GROQ_API_KEY = "gsk_test"; delete process.env.USE_OPENAI; process.env.OPENAI_API_KEY = "sk-old";
   try {
+    for (const k of Object.keys(process.env)) if (/grok|xai|groq|openai/i.test(k)) delete process.env[k];
+    process.env.OPENAI_API_KEY = "routed-to-grok";
+    assert.equal(buddyAiReady(), false, "OpenAI's placeholder key can't see photos");
+    process.env.GROQ_KEY = "gsk_test123456789"; process.env.XAI_API_KEY = "xai-test123456789";
     assert.equal(buddyAiReady(), true);
+    const targets = fitVisionTargets();
+    assert.deepEqual(targets.map((t) => t.provider), ["xai", "groq"]);
+    assert.ok(!targets.some((t) => t.url.includes("api.openai.com")));
+
     const calls: any[] = [];
-    const page = await readPage(PHOTO, 1, 1, async (url, key, body) => { calls.push({ url, key, body }); return ok('{"title":"Spelling","items":[{"kind":"short","text":"Spell cat."}]}'); });
+    const page = await readPage(PHOTO, 1, 1, async (url, key, body) => { calls.push({ url, key, body }); return reply(200, { output_text: '{"title":"Spelling","items":[{"kind":"short","text":"Spell cat."}]}' }); }, targets);
     assert.equal(page.title, "Spelling"); assert.equal(page.items.length, 1);
     assert.equal(calls.length, 1);
-    assert.match(calls[0].url, /^https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions$/);
-    assert.equal(calls[0].key, "gsk_test");
-    assert.match(calls[0].body.model, /llama-4-scout/);
-    const parts = calls[0].body.messages[0].content;
-    assert.equal(parts[1].type, "image_url"); assert.equal(parts[1].image_url.url, PHOTO, "the photo itself is sent");
-    assert.match(parts[0].text, /classroom worksheet/);
+    assert.equal(calls[0].url, "https://api.x.ai/v1/responses"); assert.equal(calls[0].key, "xai-test123456789");
+    const part = calls[0].body.input[0].content[1];
+    assert.equal(part.type, "input_image"); assert.equal(part.image_url, PHOTO, "the photo itself is sent");
+    assert.match(calls[0].body.instructions, /classroom worksheet/);
 
-    // A retired model → the next vision model; JSON mode refused → asked again without it; fenced JSON still read.
+    // Grok refuses → Groq (chat format, the photo as image_url); JSON mode refused → asked again without it.
     const seen: string[] = [];
-    const p2 = await readPage(PHOTO, 2, 3, async (_u, _k, body) => {
-      seen.push(`${body.model}|${body.response_format ? "json" : "plain"}`);
-      if (/scout/.test(body.model)) return reply(404, { error: { message: "model_not_found" } });
+    const p2 = await readPage(PHOTO, 2, 3, async (url, _k, body) => {
+      seen.push(`${url.includes("x.ai") ? "xai" : "groq"}|${body.response_format || body.text ? "json" : "plain"}`);
+      if (url.includes("x.ai")) return reply(404, { error: { message: "model not found" } });
+      assert.equal(body.messages[1].content[1].image_url.url, PHOTO);
       if (body.response_format) return reply(400, { error: { message: "response_format json_object not supported" } });
-      return ok('Here you go:\n```json\n{"title":"","items":[{"kind":"read","text":"Page two."}]}\n```');
-    });
-    assert.deepEqual(seen, ["meta-llama/llama-4-scout-17b-16e-instruct|json", "meta-llama/llama-4-maverick-17b-128e-instruct|json", "meta-llama/llama-4-maverick-17b-128e-instruct|plain"]);
+      return reply(200, { choices: [{ message: { content: 'Here you go:\n```json\n{"title":"","items":[{"kind":"read","text":"Page two."}]}\n```' } }] });
+    }, targets);
+    assert.deepEqual(seen, ["xai|json", "groq|json", "groq|plain"]);
     assert.equal(p2.items[0].text, "Page two.");
 
-    // Nothing works → a plain message, not a crash.
-    await assert.rejects(readPage(PHOTO, 1, 1, async () => reply(401, "bad key")), /Couldn't reach the worksheet reader/);
+    // Nothing works → a plain message plus the reason, never a key.
+    const err: any = await readPage(PHOTO, 1, 1, async () => reply(401, { error: { message: "Incorrect API key gsk_abcdefghijklmnop" } }), targets).catch((e) => e);
+    assert.match(err.message, /Couldn't reach the worksheet reader/);
+    assert.match(err.detail, /xai .*401/); assert.doesNotMatch(err.detail, /gsk_abcdef/);
   } finally { process.env = env; }
 });
 
@@ -217,7 +225,7 @@ test("several pages are read separately (each fits Groq's size limit) and come b
 test("the voice is the site's working voice (Groq/Deepgram), with Groq's Whisper for word times", () => {
   const src = read("server/ttsBuddy.ts");
   assert.match(src, /aiSpeech\(text, "autumn"\)/);
-  assert.match(src, /audio\/transcriptions`, process\.env\.GROQ_API_KEY, "whisper-large-v3-turbo"/);
+  assert.match(src, /audio\/transcriptions`, groqKey\(\), "whisper-large-v3-turbo"/);
   assert.doesNotMatch(src, /gpt-4o-mini-tts/, "OpenAI's voice is off on this site");
   assert.match(src, /data:\$\{spoken\.type \|\| "audio\/mpeg"\}/, "WAV from Groq plays as WAV");
   assert.match(read("client/src/pages/buddy/buddyApi.ts"), /url\.length <= 3_500_000/);
