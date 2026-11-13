@@ -65,8 +65,8 @@ for (const [kind, opts] of Object.entries(devices)) {
   }
   // A full load each time: changing only the #part keeps whatever was open (the player, a sheet).
   const goto = async (hash, ms = 5000) => { await page.goto("about:blank"); await page.goto(`${SITE}${START}${hash}`, { waitUntil: "domcontentloaded" }); await wait(ms); await clear(); };
+  // No clearing here: it would close a sheet the step just opened (a client's details).
   async function shot(n, label) {
-    await clear();
     await page.evaluate(() => { window.scrollTo(0, 0); for (const el of document.querySelectorAll("main, [data-scroll], .overflow-y-auto")) el.scrollTop = 0; }).catch(() => {});
     await wait(400);
     await page.screenshot({ path: `store-shots/raw/${kind}-${n}.png` });
