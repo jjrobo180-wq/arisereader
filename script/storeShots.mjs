@@ -81,8 +81,9 @@ for (const [kind, opts] of Object.entries(devices)) {
     ],
     cookedpt: [
       ["Clients", () => tap(/^Clients/i, { within: "nav" })],
-      ["Client", async () => { await tap(/^Maya/i, { within: "main", after: 3500 }) || await tap(/Maya/i, { after: 3500 }); }],
-      ["Inbox", async () => { await goto(""); await tap(/^Inbox/i, { within: "nav" }); await tap("Maya Brooks", { after: 3000 }); }],
+      // The client opened from the inbox, where the sample client is always at the top.
+      ["Client", async () => { await tap(/^Inbox/i, { within: "nav", after: 2500 }); await tap(/Logged lunch/i, { after: 4000 }); }],
+      ["Inbox", async () => { await goto(""); await tap(/^Inbox/i, { within: "nav" }); }],
       ["Library", async () => { await goto(""); await tap(/^Library/i, { within: "nav" }); }],
     ],
     notes: [
