@@ -235,6 +235,32 @@ function boxedPicture(items: Item[], index: number): string {
   for (let i = index; i >= 0; i--) { const it = items[i]; if (it.figure) return it.figure.alt; if (it.kind === "read" && i !== index) return ""; }
   return "";
 }
+/** Words a struggling reader usually needs explained when they appear. */
+export const KEY_TERMS = ["percent", "percentage", "ratio", "rate", "fraction", "decimal", "double number line", "number line", "correspond", "equivalent", "proportion", "estimate", "explain", "predict", "notice", "wonder", "compare", "diagram", "recipe", "product", "quotient", "sum", "difference"];
+/** Items whose drafted supports missed something worth asking again for: no easier wording, or a key word unexplained. */
+export function weakSupports(it: Item): string[] {
+  const why: string[] = [];
+  const words = it.text.split(/\s+/).length;
+  if (words >= 4 && !it.supports?.simple) why.push("simple was missing or repeated the original words — rewrite it in different, easier words");
+  const lower = it.text.toLowerCase(); const have = new Set((it.supports?.vocab || []).map((v) => v.w.toLowerCase()));
+  const missing = KEY_TERMS.filter((t) => new RegExp(`\\b${t}`).test(lower) && ![...have].some((h) => h.includes(t) || t.includes(h)));
+  if (missing.length && (it.supports?.vocab.length || 0) < 3) why.push(`vocab must explain: ${missing.slice(0, 3).join(", ")}`);
+  return why;
+}
+/** A reading step that's only a picture's labels (numbers, percents, a caption) belongs with the step above it. */
+export function foldLabelSteps(items: Item[]): Item[] {
+  const out: Item[] = [];
+  for (const it of items) {
+    const tokens = it.text.split(/\s+/).filter(Boolean);
+    const numeric = tokens.filter((t) => /^[\d.,%$/:-]+$/.test(t)).length;
+    const prev = out[out.length - 1];
+    if (it.kind === "read" && it.figure && prev && !prev.figure && tokens.length && numeric / tokens.length >= 0.5) {
+      prev.figure = it.figure; continue;
+    }
+    out.push(it);
+  }
+  return out;
+}
 /** An "easier words" version that's really the same words isn't easier: drop it so the button never does nothing. */
 export function sameWords(a: string, b: string): boolean {
   const w = (s: string) => s.toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim().split(" ").filter(Boolean);

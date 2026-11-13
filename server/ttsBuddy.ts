@@ -25,7 +25,7 @@ import { createMemoryKv, type FitKv } from "./fitKv";
 import { fitVisionTargets } from "./fit";
 import {
   LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, SUPPORTS_PROMPT, alignWords, classCode, cleanAcc, cleanFigure, cleanName, cleanSupports,
-  PICTURE_TEXT, sameWords, cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
+  PICTURE_TEXT, foldLabelSteps, sameWords, weakSupports, cleanWorksheet, estimateTimes, isAnswered, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
   type Acc, type Laptop, type Timed, type Worksheet,
 } from "../shared/ttsBuddy";
 
@@ -177,6 +177,23 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
         if (typeof raw.simple === "string" && sameWords(raw.simple, it.text)) raw.simple = "";
         const sp = cleanSupports(raw, it.choices.length); if (sp) { it.supports = sp; made++; }
       }
+      // One more try for the ones that came back weak (the same words as the question, a key math word unexplained).
+      const weak = latest.ws.items.map((it) => ({ it, why: weakSupports(it) })).filter((x) => x.why.length).slice(0, 12);
+      if (weak.length) {
+        try {
+          const note = `\n\nThis is a second try for these items. Fix exactly this:\n${weak.map((x) => `- item ${x.it.id}: ${x.why.join("; ")}`).join("\n")}`;
+          const again = looseJson(await askText(SUPPORTS_PROMPT + note, supportsInput(latest.ws, weak.map((x) => x.it.id))));
+          for (const raw of Array.isArray(again?.items) ? again.items : []) {
+            const it = latest.ws.items.find((i) => i.id === raw?.id); if (!it) continue;
+            if (typeof raw.simple === "string" && sameWords(raw.simple, it.text)) raw.simple = "";
+            const sp = cleanSupports(raw, it.choices.length); if (!sp) continue;
+            const cur = it.supports;
+            it.supports = cur ? { ...cur, simple: cur.simple || sp.simple, vocab: [...cur.vocab, ...sp.vocab.filter((v) => !cur.vocab.some((c) => c.w.toLowerCase() === v.w.toLowerCase()))].slice(0, 4), steps: cur.steps.length ? cur.steps : sp.steps, bank: cur.bank.length ? cur.bank : sp.bank, starter: cur.starter || sp.starter, keep: cur.keep.length ? cur.keep : sp.keep } : sp;
+            if (!cur) made++;
+          }
+        } catch (e: any) { errors.push(String(e?.message || e).slice(0, 200)); }
+      }
+      if (made) await kv.set(K.w(wid), latest);
       lastDraft.set(wid, { by: lastTextAi.by, at: Date.now(), errors });
       if (made) await kv.set(K.w(wid), latest);
       return { made, errors };
@@ -218,6 +235,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     let raw: any;
     try { raw = looseJson(await readPhotos(images)); } catch (e: any) { console.error("[tts-buddy] read failed:", e?.message); return res.status(502).json({ message: e?.message || "Couldn't read that worksheet. Try again.", detail: String(e?.detail || "").slice(0, 600) }); }
     const ws = cleanWorksheet({ ...raw, pages: images.length }, randomUUID(), iso());
+    ws.items = foldLabelSteps(ws.items);
     if (!ws.items.length) return bad(res, 422, "That doesn't look like a worksheet I can read. Try a clearer photo, straight on, with the whole page in view.");
     // The page photos are kept, so pictures can be cut out of them (now on the phone, or fixed later on any device).
     await Promise.all(images.map((img, i) => { const f = dataUrl(img); return f ? files.put(`page/${ws.id}/${i + 1}`, f.data, f.type).catch((e) => console.error("[tts-buddy] page save:", e?.message)) : null; }));

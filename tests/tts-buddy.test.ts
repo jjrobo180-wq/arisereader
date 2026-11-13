@@ -440,3 +440,25 @@ test("supports quality guards: 'easier' copies are dropped, each step only hears
   assert.ok(got.items.every((i: any) => !i.supports || i.supports.simple === ""), "no copy kept as 'easier'");
   assert.ok(got.items.some((i: any) => i.supports?.steps.length), "the rest of the supports are kept");
 });
+
+test("weak supports get a second try; picture-label steps fold into the step above", async () => {
+  const { weakSupports, foldLabelSteps } = await import("../shared/ttsBuddy");
+  const it: any = { text: "20 cups is what percent of 5 cups?", supports: { simple: "", steps: ["x"], starter: "", bank: [], vocab: [], keep: [0, 2] } };
+  assert.deepEqual(weakSupports(it).length, 2);
+  assert.deepEqual(weakSupports({ ...it, supports: { ...it.supports, simple: "Find 20 cups on top.", vocab: [{ w: "percent", m: "part of 100" }] } }), []);
+  const mk = (id: string, kind: any, text: string, fig = false): any => ({ id, kind, number: "", text, say: "", choices: [], supports: null, figure: fig ? { page: 1, box: [0, 0, 900, 300], alt: "number line", img: "" } : null });
+  const folded = foldLabelSteps([mk("a", "read", "Do Now: What do you notice?"), mk("b", "read", "cups of milk 0 5 10 15 20 0% 50% 100% 150% 200%", true), mk("c", "short", "1. What is 50%?")]);
+  assert.deepEqual(folded.map((i: any) => i.id), ["a", "c"]); assert.equal(folded[0].figure.alt, "number line");
+  // The second try fills in only what was missing.
+  const { app, call } = fakeApp(); let n = 0;
+  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), readPhotos: async () => AI_REPLY, aiConfigured: () => true, askText: async (sys, u) => {
+    n++; const items = JSON.parse(u).items;
+    return JSON.stringify({ items: items.map((i: any) => (n === 1 ? { id: i.id, simple: i.text, steps: ["Look."] } : { id: i.id, simple: `Do this: ${i.id} in short words`, vocab: /fraction/i.test(i.text) ? [{ w: "fraction", m: "a part of a whole" }] : [] })) });
+  } });
+  const w = (await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] })).body.worksheet;
+  await new Promise((x) => setTimeout(x, 30));
+  const got = (await call("GET", `/api/buddy/teacher/worksheets/${w.id}`, T)).body.worksheet;
+  const q = got.items.find((i: any) => /fraction/.test(i.text));
+  assert.match(q.supports.simple, /^Do this:/); assert.deepEqual(q.supports.steps, ["Look."], "kept from the first try");
+  assert.equal(q.supports.vocab[0].w, "fraction"); assert.ok(n >= 2);
+});
