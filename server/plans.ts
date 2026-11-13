@@ -484,7 +484,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const entitlement = async (user: AnyUser | null | undefined): Promise<Entitlement> => {
     if (!user || !posInt(user.id)) return { premium: false, via: null, seats: null, endsAt: null };
-    // A.R.I.S.E. Eye Gazer is 100% free: an Eye Gazer has every extra.
+    // Arise AAC is 100% free: an Arise AAC has every extra.
     if (isEyeGazer(user)) return { premium: true, via: "demo", seats: null, endsAt: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = cache.get(key);
@@ -510,7 +510,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return value;
   };
 
-  /** Can this person use A.R.I.S.E. Reader (paid since November 9, 2026), and why? */
+  /** Can this person use Arise Reader (paid since November 9, 2026), and why? */
   const readerAccess = async (user: AnyUser | null | undefined): Promise<ReaderAccess> => {
     if (!user || !posInt(user.id)) return { access: false, via: null };
     const key = `${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
@@ -522,7 +522,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       // Most people are existing accounts: no plan lookups for them.
       const quick = isEyeGazer(user) ? { access: true, via: "sample" as const } : readerAccessFor(p, facts);
       let value = quick;
-      // A parent of an Eye Gazer child: Eye Gazer is free, so its parent tools are too.
+      // A parent of an Arise AAC child: Arise AAC is free, so its parent tools are too.
       if (!quick.access && user.role === "parent") {
         for (const id of await linkedChildren(user)) { if (isEyeGazer(await deps.getUser(id))) { value = { access: true, via: "sample" }; break; } }
       }
@@ -535,6 +535,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         } else {
           const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
           facts.familyGrants = await Promise.all(parents.map((id) => current("bundle_family", id)));
+          // The student's school: a school plan, or an always-free school, covers its students.
+          facts.schoolGrant = await current("school", schoolOf(user));
           if (posInt(user.teacherId)) {
             const teacher = await deps.getUser(Number(user.teacherId));
             if (teacher?.role === "teacher" && teacher.accountApproved !== false && teacher.id !== user.id) facts.classTeacherAccess = (await readerAccess(teacher)).access;
@@ -577,9 +579,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.use("/api", teacherGate);
 
   /**
-   * A.R.I.S.E. Reader is paid for accounts made from November 9, 2026. A new student, parent or
+   * Arise Reader is paid for accounts made from November 9, 2026. A new student, parent or
    * teacher without a plan is refused the Reader's own data (books, quizzes, points, dashboards);
-   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Eye Gazer) stays
+   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Arise AAC) stays
    * open. If the check itself fails the request goes through, so a hiccup never locks out a payer.
    */
   const readerGate: RequestHandler = async (req: any, res: any, next: any) => {
@@ -591,7 +593,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const user: any = await deps.userForToken(token);
       if (!user || user.isAdmin || user.is_eye_gaze_user || user.isEyeGazeUser) return next();
       if ((await readerAccess(user)).access) return next();
-      return res.status(402).json({ message: "This account needs an A.R.I.S.E. Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
+      return res.status(402).json({ message: "This account needs an Arise Reader plan. A family plan is $7 a month at arisereader.com.", code: READER_PLAN_REQUIRED });
     } catch (e: any) {
       console.error("[plans] Reader check failed:", e?.message);
       return next();
@@ -779,8 +781,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const mine = (await readGrant("teacher", teacher.id)) ?? (await readGrant("hub_teacher", teacher.id));
       const customer = mine?.buyerId === teacher.id ? mine.stripeCustomerId : undefined;
       const price = priceOf(kind);
-      const productName = kind === "school" ? `A.R.I.S.E. Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
-        : kind === "teacher" ? `A.R.I.S.E. Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
+      const productName = kind === "school" ? `Arise Reader for a whole school (up to ${PLANS.school.studentCap.toLocaleString("en-US")} students)`
+        : kind === "teacher" ? `Arise Reader for a teacher (per ${PLANS.teacher.studentsPerBlock} students)`
         : kind === "hub_school" ? `Arise WorkHub for a school (up to ${PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)`
         : `Arise WorkHub for a teacher (per ${PLANS.hub.studentsPerBlock} students)`;
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1051,7 +1053,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
 
   // ─── Arise All Access: $10 a month, one person, every app's paid tier ──────────────────────────
-  // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Pod+ in one plan. It is now
+  // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Podster in one plan. It is now
   // the only thing those apps sell; anyone already paying for one of the older plans keeps it.
   /** This account's All Access (paid, or given by the admin). The admin always has it. */
   const allAccessOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
@@ -1060,7 +1062,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { live: grantLive(grant, now()), admin: false, grant };
   };
   const ALL_ACCESS_NAME = "Arise All Access";
-  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Arise Fit+ with a guest pass, and ad-free Pod+.";
+  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass, and ad-free Podster.";
   /** Opens Stripe's payment page for All Access. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;
@@ -1331,7 +1333,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "todo_unlimited" ? UNLIMITED_NAME
         : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
-        : kind === "bundle_family" ? "A.R.I.S.E. Reader for a family (Reader, Math, History and Connect, up to 3 children)"
+        : kind === "bundle_family" ? "Arise Reader for a family (up to 3 children)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
       const session = await stripe("POST", "/checkout/sessions", {
@@ -1496,7 +1498,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "notes portal"); }
   });
 
-  // ─── Arise Fit+ (shared/fitPlus.ts): $10 a month, one per account ────────────────────────────
+  // ─── Cooked+ (shared/fitPlus.ts): $10 a month, one per account ────────────────────────────
   // Sold on the website only (never inside the iPhone app). Sharing it with one guest is
   // server/fitPass.ts's job; this part is the paid plan itself.
   /** This account's own Fit+ (paid for, or given by the admin). The admin always has it. */
@@ -1512,10 +1514,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
-      if (buyer.isAdmin) throw new Refused("The admin account already has Arise Fit+.", 409);
+      if (buyer.isAdmin) throw new Refused("The admin account already has Cooked Fitness by Arise Premium.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind: PlanKind = "fit_plus";
-      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Arise Fit+. Use Manage billing to change it.", 409, "has_plan");
+      if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Cooked Fitness by Arise Premium. Use Manage billing to change it.", 409, "has_plan");
       // Fit+ is sold as All Access now (Fit+ and its guest pass are part of it).
       req.body = { ...(req.body || {}), returnPath: "/fit" };
       return void res.json({ url: await allAccessCheckout(req) });
@@ -1525,7 +1527,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const user: AnyUser = req.user;
       const grant = await current("fit_plus", user.id);
-      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Arise Fit+.", 409);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for Cooked Fitness by Arise Premium.", 409);
       if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: (req.body = { ...(req.body || {}), returnPath: "/fit" }, addonReturn(req)).back });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
@@ -1614,7 +1616,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         entitlement(user), hubAccess(user), todoStatus(user), ...APP_IDS.map((app) => appStatus(user, app)),
       ]);
       res.json({ programs: [
-        { id: "reader", name: "A.R.I.S.E. Reader and Class tools", access: reader.premium },
+        { id: "reader", name: "Arise Reader and Class tools", access: reader.premium },
         { id: "hub", name: "Arise WorkHub", access: hub.access },
         { id: "todo", name: "Arise LifeHub", access: todo.access },
         ...APP_IDS.map((app, i) => ({ id: app, name: APP_NAMES[app], access: apps[i].access })),
@@ -1942,6 +1944,38 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
     });
   };
+  /** Every plan record of these kinds, by person (the admin's program tabs). */
+  const programInfos = async (kinds: readonly PlanKind[]): Promise<Map<number, PlanInfo[]>> => {
+    const index = await readIndex();
+    const out = new Map<number, PlanInfo[]>();
+    for (const kind of kinds) for (const id of index[kind] || []) {
+      const g = await readGrant(kind, id);
+      if (g) out.set(id, [...(out.get(id) || []), infoFromGrant(g, now())]);
+    }
+    return out;
+  };
+  /** A free membership in one program: for some days, or with no end (days = 0). Not while they are paying for it. */
+  const giveProgram = async (userId: number, kinds: readonly PlanKind[], give: PlanKind, days: number, note: string) => {
+    await serial(async () => {
+      for (const kind of kinds) {
+        const held = await readGrant(kind, userId, true);
+        if (held && held.source !== "admin" && grantLive(held, now())) throw new Refused("They are paying for this already. Cancel their plan first if you want to replace it.", 409);
+      }
+      await saveGrant({
+        kind: give, ownerId: userId, source: "admin", status: "active", seats: 1, trial: true,
+        endsAt: days > 0 ? iso(now() + days * DAY) : null, updatedAt: iso(now()),
+        note: note.replace(/\s+/g, " ").trim().slice(0, 120) || undefined,
+      });
+    });
+  };
+  /** Ends a free membership the admin gave in one program. */
+  const endProgram = async (userId: number, give: PlanKind) => {
+    await serial(async () => {
+      const held = await readGrant(give, userId, true);
+      if (!held || held.source !== "admin" || held.status === "canceled") throw new Refused("They have no free membership here to end.", 404);
+      await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
+    });
+  };
   /** Cancels a paid plan: at the end of the period they paid for, or right now. */
   const cancelPaid = async (userId: number, when: "period_end" | "now") => {
     let sub = "";
@@ -1988,7 +2022,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     return { cents: charge.cents - charge.refundedCents, at: charge.at };
   };
 
-  return { notesPlan: notesPlanOf, fitPlusOwn, allAccess: allAccessOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { { const g = await readGrant("all_access", userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return "all_access" as const; } for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  return { notesPlan: notesPlanOf, fitPlusOwn, allAccess: allAccessOwn, entitlement, hubAccess, readerAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, programInfos, giveProgram, endProgram, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { { const g = await readGrant("all_access", userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return "all_access" as const; } for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

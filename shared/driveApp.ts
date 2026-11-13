@@ -1,8 +1,11 @@
+
+/** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
+const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 // The "Drive" app: upload photos from a camera roll or device to cloud storage, offered as its
 // own Arise App Store install. Only the metadata below lives on the hub's own record (the same
 // loose, bolted-on way Notes-app installs do, see shared/notesApp.ts); the actual image bytes
 // live in Supabase Storage (bucket "life-drive-photos"), signed URLs only, same pattern as
-// Eye Gazer's My World photos and Teacher Scenes (see server/routes.ts).
+// Arise AAC's My World photos and Teacher Scenes (see server/routes.ts).
 
 export type DriveFile = {
   id: string;
@@ -31,7 +34,7 @@ export function cleanDriveFiles(raw: unknown): DriveFile[] {
     if (!id || !path) continue;
     // Drive holds documents as well as pictures, so a file with no recorded type is "some file",
     // not a JPEG — guessing image/jpeg made the screen try to draw a PDF as a photo.
-    const folder = str((r as any).folder, 60).trim();
+    const folder = typedEnd(str((r as any).folder, 60));
     out.push({ id, path, name: str((r as any).name, 160) || "File", size: numPositive((r as any).size), contentType: str((r as any).contentType, 100) || "application/octet-stream", uploadedAt: str((r as any).uploadedAt, 40),
       ...(folder ? { folder } : {}), ...((r as any).starred === true ? { starred: true } : {}) });
     if (out.length >= LIMIT) break;

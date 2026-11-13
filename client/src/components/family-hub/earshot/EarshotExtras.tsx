@@ -106,7 +106,7 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
     onClick={() => { if (dl?.status === "saved" || dl?.status === "saving") void offline.remove(episodeKey(ep.id)).then(() => say(dl.status === "saved" ? "Download removed." : "Download stopped.")); else void offline.saveEpisode(toSaved(ep)); }}
     icon={dl?.status === "saving" ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} strokeWidth={1.8} />}
     title={dl?.status === "saved" ? "Downloaded" : dl?.status === "saving" ? `Downloading… ${Math.round(dl.pct * 100)}%` : "Download"}
-    sub={dl?.status === "saved" ? "Plays without a connection · tap to remove" : dl?.status === "saving" ? "Tap to stop" : dl?.status === "error" ? dl.error || "Try again" : "Pod+ Membership · listen offline"} /> : null;
+    sub={dl?.status === "saved" ? "Plays without a connection · tap to remove" : dl?.status === "saving" ? "Tap to stop" : dl?.status === "error" ? dl.error || "Try again" : "Podster Membership · listen offline"} /> : null;
   const inMode = (m: PodMode) => m.episodes.some((x) => x.id === ep.id);
   const toggle = (id: string) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id !== id ? m : inMode(m) ? { ...m, episodes: m.episodes.filter((x) => x.id !== ep.id) } : { ...m, episodes: [toSaved(ep), ...m.episodes].slice(0, 150) })) }));
   const allIn = es.modes.every(inMode);

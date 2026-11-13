@@ -29,7 +29,8 @@ import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
-import DuoSetup, { duoSetupDone } from "@/components/DuoSetup";
+import DuoSetup, { duoSetupDone, rememberDuoSetupDone } from "@/components/DuoSetup";
+import { fetchSeen } from "@/lib/seenOnce";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
@@ -125,10 +126,9 @@ import { collapseGroups, groupLabel, groupMembers, groupOf, leadOf } from "@shar
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
-import AppWalkthrough from "@/components/AppWalkthrough";
+import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
 import HubCoach from "@/components/HubCoach";
 import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
-import GettingStarted from "@/components/GettingStarted";
 import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { appLocked } from "@shared/privacyLock";
@@ -159,7 +159,7 @@ import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
 import { useLifeHubTrial } from "@/components/TodoGate";
 
-// The parents' A.R.I.S.E. Reader tab, built from LifeHub parts (loaded when opened).
+// The parents' Arise Reader tab, built from LifeHub parts (loaded when opened).
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 const LifeTasksScreen = lazy(() => import("@/components/family-hub/LifeTasksScreen"));
 import "./todoNight.css";
@@ -734,7 +734,7 @@ export default function AriseTodo() {
   const family = data.family;
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
-  // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
+  // The Arise Reader tab is the parent portal, so only parents have it.
   // Getting started was replaced by the first-run walkthrough (components/AppWalkthrough.tsx).
   const sections = sectionOrderFor(family).filter(id => id !== "start" && !parentOf(id) && isOn(id, family) && (id !== "reader" || user?.role === "parent"));
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
@@ -790,7 +790,20 @@ export default function AriseTodo() {
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)), "life");
-  const [setupOpen, setSetupOpen] = useState(() => !!user && !isSampleMode() && !duoSetupDone(user.id));
+  // Setup shows once per account (lib/seenOnce.ts): on a device that hasn't seen it, ask the account
+  // first; the walkthrough waits until that's known so it never jumps ahead of setup.
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(() => !user || isSampleMode() || duoSetupDone(user.id));
+  useEffect(() => {
+    if (!user || setupChecked) return;
+    let gone = false;
+    void fetchSeen().then((seen) => {
+      if (gone) return;
+      if (seen?.setup) rememberDuoSetupDone(user.id); else setSetupOpen(true);
+      setSetupChecked(true);
+    });
+    return () => { gone = true; };
+  }, [user?.id, setupChecked]);
   const setLayout = (next: LifeLayout) => { const stamped = stampLook(layout, next); setFamily((f) => ({ ...f, layout: stamped })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   // The current theme's structural feel, reused for the task list's row style below (see
   // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
@@ -831,7 +844,7 @@ export default function AriseTodo() {
   const [customizeTab, setCustomizeTab] = useState<string | undefined>(undefined);
   const [lockSettings, setLockSettings] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff);
+  const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff && !setupOpen && walkthroughDone(user.id));
   /** Opening a menu section. Reading is a page of its own now (/reader), so that one leaves
    *  LifeHub rather than switching section; everything else behaves as it always did. */
   const goSection = (id: string) => {
@@ -889,7 +902,7 @@ export default function AriseTodo() {
   }, [user, sync.loaded, sync.recovery]); // eslint-disable-line react-hooks/exhaustive-deps
   // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
   const buildSearchEntries = (): HubSearchEntry[] => {
-    if (!searching) return [];
+    if (!searching || !user) return [];
     const out: HubSearchEntry[] = [], f = family;
     const dw = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
     // Apps: everything in the menu (sections and installed apps), with their icons, like a phone's search.
@@ -999,13 +1012,13 @@ export default function AriseTodo() {
   } : undefined;
   /** Arise Learning (Reader, Math, History, Connect) sits in LifeHub for parents. Teachers and admins have it in WorkHub. */
   const learningHere = user?.role === "parent" && !user?.isAdmin;
-  /** A.R.I.S.E. Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
+  /** Arise Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
   const readerHere = sections.includes("reader");
-  // A.R.I.S.E. Reader is its own page now (/reader), the same one for a parent and a teacher, so
+  // Arise Reader is its own page now (/reader), the same one for a parent and a teacher, so
   // this no longer forks between a section here and a tab over in WorkHub.
   const openReader = () => { closeApps(); goToReader(); };
   const phoneItems: PhoneMenuItem[] = [
-    // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
+    // Right below Home: Arise Reader, then Arise Learning (Math, History, Connect), for everyone.
     ...collapseGroups([...builtInSections, ...installedSections], sections).filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: groupLabel(id, sections, SECTION_INFO[id].label), icon: <Icon />, active: !notesAppOpen && leadOf(shown, sections) === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
       return id !== "home" || !learningHere ? [item] : [item,
         { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
@@ -1084,8 +1097,6 @@ export default function AriseTodo() {
         className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition ${id === shown ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{SECTION_INFO[id].label}{badge(id) > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{badge(id)}</span>}</button>)}
     </div>) : null;
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
-    : false && shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
-        onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the Plugin Gallery."); }} />
     : shown === "calendar" ? <FamilyCalendar {...appProps} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
@@ -1102,17 +1113,17 @@ export default function AriseTodo() {
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
-  /** Arise Learning, right below Home: A.R.I.S.E. Reader, then Math, History and Connect, each in its own color. */
+  /** Arise Learning, right below Home: Arise Reader, then Math, History and Connect, each in its own color. */
   const lifeLearning = <div className={dsk === "top" ? "flex shrink-0 items-center gap-1" : "pb-1 pt-2"} data-testid="life-learning">
     {dsk !== "top" && dsk !== "compact" && <div className="flex items-center gap-2 px-1 pb-1.5 pt-1">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arise Learning</span>
       <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
     </div>}
     <div className={dsk === "top" ? "flex items-center gap-1" : "space-y-0.5"}>
-      <button type="button" onClick={openReader} aria-current={shown === "reader" ? "page" : undefined} data-testid="life-section-reader" title="A.R.I.S.E. Reader"
+      <button type="button" onClick={openReader} aria-current={shown === "reader" ? "page" : undefined} data-testid="life-section-reader" title="Arise Reader"
         className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold transition ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""} ${shown === "reader" ? "bg-violet-50 text-violet-900" : "text-slate-700 hover:bg-slate-50 hover:text-slate-950"}`}>
         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}><BookOpen className="h-4 w-4" /></span>
-        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Arise Reader</span>
       </button>
       {LEARNING_APPS.map((a) => {
         const has = learningAccess[a.id];
@@ -1192,7 +1203,7 @@ export default function AriseTodo() {
                 )}
               </div>
             );
-            // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
+            // Right below Home: Arise Reader and the Arise Learning programs.
             // Parents get Arise Learning here; teachers and admins have it in WorkHub instead.
             return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
           })}
@@ -1232,11 +1243,11 @@ export default function AriseTodo() {
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the Plugin Gallery). */}
     <HubCoach userId={user.id} hub="life" />
     {setupOpen && <DuoSetup userId={user.id} layout={layout} setLayout={setLayout} plugins={pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin, arise: user.role === "teacher" || user.role === "parent" || !!user.isAdmin })} setFamily={setFamily as any} unlimited={!!todoPlan?.unlimited} room={Math.max(0, (todoPlan?.apps.limit ?? FREE_APPS) - appsIn("life", data) - (todoPlan?.apps.work ?? 0))} lifeplanOn={isOn("lifeplan", family)} onClose={() => setSetupOpen(false)} />}
-    {!setupOpen && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
+    {!setupOpen && setupChecked && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
     {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). */}
-    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Fit and Pod+." />
+    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}
@@ -1486,7 +1497,7 @@ export default function AriseTodo() {
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
-          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Duo" : "Back to A.R.I.S.E. Reader"}</button>
+          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Duo" : "Back to Arise Reader"}</button>
         </div>
       </aside>
 

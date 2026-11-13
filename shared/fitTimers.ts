@@ -1,6 +1,6 @@
-// Arise Fit interval timers: work, rest and rounds that turn into a guided session (shared/fitSessions.ts),
+// Cooked interval timers: work, rest and rounds that turn into a guided session (shared/fitSessions.ts),
 // for any workout (HIIT, boxing, jump rope, circuits, EMOM). Presets are built in; your own are saved
-// with your Arise Fit data.
+// with your Cooked data.
 import type { Phase, Session } from "./fitSessions";
 
 export type IntervalTimer = { id: string; name: string; warm: number; work: number; rest: number; rounds: number; sets: number; setRest: number; cool: number };

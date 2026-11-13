@@ -1,4 +1,4 @@
-// Arise Fit's muscle recovery and smart workouts (the way Fitbod works): every hard set you log tires
+// Cooked's muscle recovery and smart workouts (the way Fitbod works): every hard set you log tires
 // the muscles it works; each muscle recovers over the next few days (big muscles slower than small
 // ones). Today's workout trains the freshest group (push, pull or legs), with the equipment and the
 // time you have, picks exercises you know when it can, and sets sets, reps and rest for your goal.

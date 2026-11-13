@@ -1,4 +1,4 @@
-// Arise Fit icons: one consistent set of line icons in place of emoji.
+// Cooked icons: one consistent set of line icons in place of emoji.
 import {
   Dumbbell, Armchair, Cable, Activity, Bike, Footprints, Waves, Zap, Timer, Target, Layers, Box, Circle, ArrowUpFromLine,
   Building2, Home, Hotel, PersonStanding, Camera, Video, ClipboardList, MapPin, Salad, ChefHat, Ticket, FlaskConical,

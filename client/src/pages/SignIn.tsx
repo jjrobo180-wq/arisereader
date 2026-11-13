@@ -1,7 +1,7 @@
 // The one sign-in screen for A.R.I.S.E., on arisereader.com and arisetodo.com alike.
 // "Teacher or parent" is the default tab: after signing in, adults always land in their hub on
 // arisetodo.com (WorkHub for teachers, LifeHub for parents). The "Student" tab is the same form
-// with student wording; students go to their A.R.I.S.E. Reader library. (AppRoutes and
+// with student wording; students go to their Arise Reader library. (AppRoutes and
 // AfterSignIn do the sending; this page only signs in.)
 import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { LEGAL } from "@/lib/nativeApp";
@@ -54,7 +54,7 @@ export default function SignIn() {
   }, []);
 
   const pick = (next: Who) => { setWho(next); setError(""); setShowAccounts(false); setShowSamples(false); };
-  const goHome = () => { if (onTodo) window.location.assign("/"); else navigate("/"); };
+  const goHome = () => { if (onTodo) window.location.assign("/?home"); else navigate("/"); };
   const showHubMenuOnLogin = () => {
     if (!onTodo) return; // Reader-domain sign-in uses the secure To-Do handoff.
     try {
@@ -225,7 +225,7 @@ export default function SignIn() {
           </h1>
           <p className="mt-6 max-w-md text-base font-medium leading-8 text-[#68728b] sm:text-lg">
             {onTodo
-              ? "Your Work and Life hubs, for anyone: home, family, work, school and everything in between. Already use A.R.I.S.E. Reader? Same username and password."
+              ? "Your Work and Life hubs, for anyone: home, family, work, school and everything in between. Already use Arise Reader? Same username and password."
               : adult
               ? "Teachers open Arise WorkHub. Parents open Arise LifeHub. Same username and password on arisereader.com and arisetodo.com."
               : "Your books, quizzes, rewards, and favorite learning spaces are all right where you left them."}
@@ -234,7 +234,7 @@ export default function SignIn() {
             <div className="rounded-[22px] border border-[#deddf8] bg-white p-5 shadow-[0_12px_40px_rgba(68,56,122,.05)]">
               <span className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-[#e9f9ee] text-[#2f9967]">{adult ? <Briefcase size={21}/> : <BookOpen size={21}/>}</span>
               <div className="mt-3 font-black">{onTodo ? "Work" : adult ? "Teachers" : "Read and discover"}</div>
-              <p className="mt-1 text-xs leading-5 text-[#707992]">{onTodo ? "Projects, meetings, to-dos and your workday in WorkHub." : adult ? "Your class, caseload, plans and A.R.I.S.E. Reader tools in WorkHub." : "Find another great story."}</p>
+              <p className="mt-1 text-xs leading-5 text-[#707992]">{onTodo ? "Projects, meetings, to-dos and your workday in WorkHub." : adult ? "Your class, caseload, plans and Arise Reader tools in WorkHub." : "Find another great story."}</p>
             </div>
             <div className="rounded-[22px] border border-[#deddf8] bg-white p-5 shadow-[0_12px_40px_rgba(68,56,122,.05)]">
               <span className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-[#f4eaff] text-[#795ed6]">{adult ? <Heart size={21}/> : <Sparkles size={21}/>}</span>
@@ -335,7 +335,7 @@ export default function SignIn() {
               </div>
               {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
               <button type="submit" disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5b53df] px-5 text-sm font-black text-white shadow-md shadow-violet-200 transition hover:bg-[#4941cb] disabled:cursor-wait disabled:opacity-60">
-                {submitting ? "Signing you in…" : onTodo ? "Sign in and open my hubs" : adult ? "Sign in and open my hub" : "Sign in to A.R.I.S.E. Reader"} <ArrowRight size={18}/>
+                {submitting ? "Signing you in…" : onTodo ? "Sign in and open my hubs" : adult ? "Sign in and open my hub" : "Sign in to Arise Reader"} <ArrowRight size={18}/>
               </button>
             </form>
             {(adult || onTodo) && appleSignInAvailable() && <>
@@ -356,7 +356,7 @@ export default function SignIn() {
                 Create a free account <ArrowRight size={18}/>
               </button>
               <p className="mt-3 text-center text-xs leading-5 text-[#7d839d]">
-                Using A.R.I.S.E. Reader? <button type="button" onClick={() => navigate("/teacher-signup")} className="font-bold text-[#5b53df] hover:underline">Teacher with a class</button>
+                Using Arise Reader? <button type="button" onClick={() => navigate("/teacher-signup")} className="font-bold text-[#5b53df] hover:underline">Teacher with a class</button>
                 {" · "}<button type="button" onClick={() => navigate("/parent-signup")} className="font-bold text-[#5b53df] hover:underline">Parent of a reader</button>
                 {" · "}<a href="https://www.arisereader.com/#/signin?as=student" className="font-bold text-[#5b53df] hover:underline">Student sign in</a>
               </p>
@@ -366,7 +366,7 @@ export default function SignIn() {
             </button>
             {showAccounts && <div className="mt-3 grid grid-cols-1 gap-2">
               {adult ? <>
-                {accountButton("Teacher", "Your class, WorkHub and A.R.I.S.E. Reader tools", GraduationCap, () => navigate("/teacher-signup"))}
+                {accountButton("Teacher", "Your class, WorkHub and Arise Reader tools", GraduationCap, () => navigate("/teacher-signup"))}
                 {accountButton("Parent or guardian", "LifeHub for your family and your reader", Heart, () => navigate("/parent-signup"))}
                 {accountButton("Just me", "A personal LifeHub, no school needed", UserRound, lifeHubSignup)}
               </> : studentAccounts.map(({ label, description, path, icon }) => accountButton(label, description, icon, () => navigate(path)))}
@@ -381,7 +381,7 @@ export default function SignIn() {
                 </div>
               : <div className="mt-2 grid grid-cols-2 gap-2">
                   <button disabled={submitting} onClick={() => void trySample("student")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Student</button>
-                  <button disabled={submitting} onClick={() => void trySample("eye-gaze")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Eye Gazer</button>
+                  <button disabled={submitting} onClick={() => void trySample("eye-gaze")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Arise AAC</button>
                 </div>)}
               </>
             )}

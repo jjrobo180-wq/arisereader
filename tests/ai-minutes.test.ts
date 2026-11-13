@@ -1,5 +1,5 @@
-// One monthly pool of AI minutes per account, shared by Arise Notes and Pod+'s AI (server/aiMinutes.ts):
-// Free has every Notes tool and 60 minutes; Pod+'s audiobook, podcast-maker and wiki AI spend the same minutes.
+// One monthly pool of AI minutes per account, shared by Arise Notes and Podster's AI (server/aiMinutes.ts):
+// Free has every Notes tool and 60 minutes; Podster's audiobook, podcast-maker and wiki AI spend the same minutes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -31,7 +31,7 @@ test("free Notes has every tool and 60 minutes; only rollover is extra", () => {
   assert.equal(NOTES_PLANS.free.maxSecs, 2 * 3600);
 });
 
-test("Pod+ AI spends the same 60 minutes as Notes, then stops with an All Access message", async () => {
+test("Podster AI spends the same 60 minutes as Notes, then stops with an All Access message", async () => {
   const { minutes } = notes("free");
   assert.equal(await minutes.left(7), 60);
   await minutes.spend(7, 10, "pod-audiobook-transcript");
@@ -52,7 +52,7 @@ test("Pod+ AI spends the same 60 minutes as Notes, then stops with an All Access
     const r2 = reply();
     assert.equal(await haveAiMinutes({ acct: 7 }, r2), false);
     assert.equal(r2.code, 402);
-    assert.match(r2.body.message, /shared by Arise Notes and Pod\+.*All Access gives you 1,500/);
+    assert.match(r2.body.message, /shared by Arise Notes and Podster.*All Access gives you 1,500/);
   } finally { configureAiMinutes(null); }
 });
 
@@ -68,7 +68,7 @@ test("not set up (tests, a local server): nothing is counted or blocked", async 
   assert.equal(await haveAiMinutes({}, reply()), true);
 });
 
-test("each Pod+ AI tool checks and spends the shared minutes", () => {
+test("each Podster AI tool checks and spends the shared minutes", () => {
   const books = readFileSync("server/audiobooks.ts", "utf8");
   assert.match(books, /pod-audiobook-transcript/);
   assert.match(books, /pod-book-\$\{kind\}/, "catch me up and ask the book");

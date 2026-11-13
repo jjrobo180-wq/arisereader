@@ -1,5 +1,5 @@
-// Arise Trainer's ready-made templates (November 2026): workouts and multi-week programs a trainer can add to their
-// library in one tap and then change however they like. Built only from Arise Fit's exercise catalog (shared/fit
+// Cooked PT's ready-made templates (November 2026): workouts and multi-week programs a trainer can add to their
+// library in one tap and then change however they like. Built only from Cooked's exercise catalog (shared/fit
 // CATALOG), so every move has its name, muscle and demo video in the client's app.
 import { CATALOG } from "./fit";
 import type { CoachProgram, PlanItem, PlanWorkout } from "./coach";

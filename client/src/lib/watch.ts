@@ -1,4 +1,4 @@
-// Apple Watch apps for Arise Duo, Arise Fit and Arise Notes. The iPhone app hands its watch app one small
+// Apple Watch apps for Arise Duo, Cooked and Arise Notes. The iPhone app hands its watch app one small
 // JSON object with what to show (native/arise-watch sends it on); what's done on the watch comes back as
 // actions for the app to apply like any other change. Outside an iPhone app with the plugin, nothing.
 //

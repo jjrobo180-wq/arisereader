@@ -1,7 +1,7 @@
 /**
  * Single-use, short-lived sign-in bridge from arisereader.com to arisetodo.com
  * (two independent cookie origins). Teachers, parents, LifeHub-only accounts and
- * administrators who sign in on A.R.I.S.E. Reader are carried into their hub on
+ * administrators who sign in on Arise Reader are carried into their hub on
  * arisetodo.com without typing their password again. Students never use it.
  * Never place the actual bearer token or password in the redirect URL.
  *
@@ -16,6 +16,22 @@ import type { Express, Request, Response, NextFunction } from "express";
 type Authentication = (req: any, res: Response, next: NextFunction) => unknown;
 type SessionLookup = (token: string) => Promise<{ user?: any } | null | undefined>;
 type Ticket = { sessionToken: string; userId: number; expiresAt: number };
+/** A plan-page ticket: an Arise session, or (from Podster, whose accounts are separate) a verified email. */
+type PayTicket = { sessionToken: string; userId: number; expiresAt: number; email?: string; usedAt?: number; uses?: number; signedIn?: { user: any; token: string } };
+/** Signs in the Arise account for a verified email, making one if there isn't one (Podster's All Access). */
+export type EmailAccount = (email: string) => Promise<{ user: any; token: string } | null>;
+
+// The plan-page codes live here so Podster's account routes can issue one for a verified email.
+const payTickets = new Map<string, PayTicket>();
+const PAY_TTL_MS = 2 * 60_000;
+/** A code that opens arisetodo.com signed in to the Arise account for this email (Podster → All Access). */
+export function issueEmailHandoff(email: string, at = Date.now()): string | null {
+  for (const [c, k] of payTickets) if (k.expiresAt <= at) payTickets.delete(c);
+  if (payTickets.size >= MAX_TICKETS) return null;
+  const code = randomBytes(32).toString("hex");
+  payTickets.set(code, { sessionToken: "", userId: 0, email: email.trim().toLowerCase(), expiresAt: at + PAY_TTL_MS });
+  return code;
+}
 const TTL_MS = 60_000;
 const MAX_TICKETS = 500;
 const readerHosts = new Set(["arisereader.com", "www.arisereader.com"]);
@@ -39,7 +55,7 @@ function noCache(res: Response): void {
 export function registerAdminHandoffRoutes(
   app: Express,
   requireAuth: Authentication,
-  opts: { getSession?: SessionLookup; now?: () => number } = {},
+  opts: { getSession?: SessionLookup; now?: () => number; emailAccount?: EmailAccount } = {},
 ): void {
   const now = opts.now ?? Date.now;
   const getSession: SessionLookup = opts.getSession ?? (async (token) => (await import("./storage")).storage.getSession(token));
@@ -52,7 +68,7 @@ export function registerAdminHandoffRoutes(
   // A signed-in Reader account with a hub requests a random one-use code using their existing bearer token.
   app.post("/api/auth/admin-handoff/start", requireAuth, (req: any, res: Response) => {
     noCache(res);
-    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open A.R.I.S.E. Reader to continue." });
+    if (!readerHosts.has(host(req))) return res.status(403).json({ message: "Open Arise Reader to continue." });
     if (!isHubAccount(req.realUser) || !req.sessionToken) {
       return res.status(403).json({ message: "Only teacher, parent and LifeHub accounts open a hub." });
     }
@@ -64,10 +80,9 @@ export function registerAdminHandoffRoutes(
     res.json({ code, expiresInSeconds: TTL_MS / 1000 });
   });
 
-  // From the A.R.I.S.E. Reader iPhone app to its plan page in Safari: a one-use code so the person lands
+  // From the Arise Reader iPhone app to its plan page in Safari: a one-use code so the person lands
   // signed in (no typing their password again). Any account can ask for one for itself; it's redeemed on
   // arisereader.com only, once, within two minutes. The code is never the session token.
-  const payTickets = new Map<string, Ticket>();
   app.post("/api/auth/web-handoff/start", requireAuth, (req: any, res: Response) => {
     noCache(res);
     if (!req.realUser || !req.sessionToken || req.realUser.isAdmin) return res.status(403).json({ message: "Sign in again to continue." });
@@ -75,7 +90,7 @@ export function registerAdminHandoffRoutes(
     for (const [c, k] of payTickets) if (k.expiresAt <= t) payTickets.delete(c);
     if (payTickets.size >= MAX_TICKETS) return res.status(429).json({ message: "Please retry in a moment." });
     const code = randomBytes(32).toString("hex");
-    payTickets.set(code, { sessionToken: String(req.sessionToken), userId: Number(req.realUser.id), expiresAt: t + 2 * TTL_MS });
+    payTickets.set(code, { sessionToken: String(req.sessionToken), userId: Number(req.realUser.id), expiresAt: t + PAY_TTL_MS });
     res.json({ code });
   });
   app.post("/api/auth/web-handoff/consume", async (req: Request, res: Response) => {
@@ -85,9 +100,23 @@ export function registerAdminHandoffRoutes(
     const code: unknown = req.body?.code;
     if (typeof code !== "string" || !/^[a-f0-9]{64}$/.test(code)) return res.status(400).json({ message: "Invalid sign-in link." });
     const ticket = payTickets.get(code);
-    payTickets.delete(code);
-    if (!ticket || ticket.expiresAt <= now()) return res.status(401).json({ message: "This sign-in link expired. Please sign in." });
+    const t = now();
+    // One person, one link: it can be opened again for a minute after its first use (the iPhone can hand
+    // the same link to Safari twice), at most three times, and never after it expires.
+    if (!ticket || ticket.expiresAt <= t || (ticket.usedAt && (t - ticket.usedAt > 60_000 || (ticket.uses ?? 0) >= 3))) {
+      payTickets.delete(code);
+      return res.status(401).json({ message: "This sign-in link expired. Please sign in." });
+    }
+    ticket.usedAt = ticket.usedAt ?? t; ticket.uses = (ticket.uses ?? 0) + 1;
     try {
+      if (ticket.email) {
+        // From Podster: the Arise account for that verified email (made now if there isn't one), once;
+        // opening the link again gives the same sign-in.
+        const got = ticket.signedIn ?? (opts.emailAccount ? await opts.emailAccount(ticket.email) : null);
+        if (!got) return res.status(401).json({ message: "Please sign in." });
+        ticket.signedIn = got; ticket.sessionToken = got.token; ticket.userId = Number(got.user.id);
+        return res.json({ user: got.user, token: got.token });
+      }
       const session = await getSession(ticket.sessionToken);
       if (!session?.user || Number(session.user.id) !== ticket.userId) return res.status(401).json({ message: "Please sign in." });
       return res.json({ user: session.user, token: ticket.sessionToken });

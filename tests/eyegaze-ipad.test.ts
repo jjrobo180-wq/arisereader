@@ -1,4 +1,4 @@
-// Eye Gazer on iPad (found by tests/ipad: the games in WebKit as an iPad, with finger taps).
+// Arise AAC on iPad (found by tests/ipad: the games in WebKit as an iPad, with finger taps).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -10,7 +10,7 @@ test("Sentence Train's picture board stays hidden behind the trip menu", () => {
   assert.match(src, /lineRef\.current\?\.hidePicture\(\); setView\("pick"\)/);
 });
 
-test("Eye Gazer home keeps its plan when the server sends none", () => {
+test("Arise AAC home keeps its plan when the server sends none", () => {
   assert.match(read("client/src/pages/EyeGazeHome.tsx"), /if \(active && result\?\.settings\) setControls\(result\.settings\);/);
 });
 

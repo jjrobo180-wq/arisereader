@@ -49,8 +49,21 @@ jobs:
               PODPLUS_IOS=1 npx vite build --config podscroll/vite.config.ts
               node podscroll/ios-app/prepare-web.mjs
               echo "OUT=podscroll/dist" >> "$GITHUB_ENV" ;;
+            notes)
+              VITE_NATIVE_APP=notes npx vite build
+              bash .github/scripts/prune_notes_bundle.sh dist/public
+              echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
             todo)
               npx vite build
+              bash .github/scripts/prune_todo_bundle.sh dist/public
+              echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
+            educator)
+              VITE_NATIVE_APP=educator npx vite build
+              bash .github/scripts/prune_educator_bundle.sh dist/public
+              echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
+            fit|trainer|talk)
+              VITE_NATIVE_APP=${{ matrix.app }} npx vite build
+              bash .github/scripts/prune_own_app_bundle.sh ${{ matrix.app }} dist/public
               echo "OUT=dist/public" >> "$GITHUB_ENV" ;;
             *)
               VITE_NATIVE_APP=${{ matrix.app }} npx vite build
@@ -68,6 +81,17 @@ jobs:
           TAG="ota-${{ matrix.app }}-$V"
           ZIP="$RUNNER_TEMP/$TAG.zip"
           (cd "$OUT" && zip -qr -X "$ZIP" .)
+          # Every phone downloads and unpacks this zip, so each app has a ceiling: fail if an update balloons
+          # again (each of these was 160 MB until the unused folders were taken out; the eye-gaze engine alone
+          # is 145 MB, and only Arise AAC and Arise Reader carry it).
+          case "${{ matrix.app }}" in
+            reader|eyegaze) LIMIT=200 ;;
+            todo|educator) LIMIT=100 ;;
+            *) LIMIT=30 ;;
+          esac
+          if [ "$(stat -c %s "$ZIP")" -gt $(( LIMIT * 1024 * 1024 )) ]; then
+            echo "::error::The ${{ matrix.app }} live update is $(du -h "$ZIP" | cut -f1), over its $LIMIT MB limit"; exit 1
+          fi
           echo "::notice title=${{ matrix.app }}::$TAG ($(du -h "$ZIP" | cut -f1))"
           # The tag goes on the built commit when GitHub allows it. Once master has moved on with a change to a
           # workflow file, GitHub refuses (403) to let this run's token put a tag on the older commit, so the

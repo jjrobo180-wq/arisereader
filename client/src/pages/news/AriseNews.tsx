@@ -112,7 +112,7 @@ export default function AriseNews() {
           ) : <p className="nw-empty">No articles in this topic yet.</p>}
         </section>
       </div>
-      <footer className="nw-foot"><div className="nw-wrap">A.R.I.S.E. Originals are written for readers on A.R.I.S.E. Reader. Every story includes source information.</div></footer>
+      <footer className="nw-foot"><div className="nw-wrap">A.R.I.S.E. Originals are written for readers on Arise Reader. Every story includes source information.</div></footer>
     </main>
   );
 }

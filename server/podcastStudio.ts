@@ -1,6 +1,6 @@
-// Pod+ Studio: two ways to turn a person's own writing into something to listen to.
+// Podster Studio: two ways to turn a person's own writing into something to listen to.
 //
-//   Study Pod+   study notes → a short podcast episode (two hosts talking it through, or one teacher),
+//   Study Podster   study notes → a short podcast episode (two hosts talking it through, or one teacher),
 //                with the key points and a few quiz questions to check yourself.
 //   Meeting Pod  meeting notes → a summary, the decisions, the action items (who and when) and the
 //                open questions, plus a one-minute spoken recap.
@@ -297,7 +297,7 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
       if (req.body?.progress === true) return res.json(status(key, job));
       await job.working?.catch(() => {});
       if (await haveWhole(key)) return res.json({ id: key });
-      return res.status(503).json({ message: "Update Pod+ to hear this one.", noVoice: true, busy: false });
+      return res.status(503).json({ message: "Update Podster to hear this one.", noVoice: true, busy: false });
     }
     if (await haveWhole(key)) return res.json({ id: key, whole: true, done: true, parts: 0, made: [], secs: [] });
     if (!o.speak) return res.status(503).json({ message: "Voices aren't set up on this site yet.", noVoice: true, busy: false });
@@ -316,7 +316,7 @@ export function registerStudioRoutes(app: Express, gate: RequestHandler, o: { as
     if (req.body?.progress !== true) {
       await working.catch(() => {});
       if (await haveWhole(key)) return res.json({ id: key });
-      return res.status(503).json({ message: "Update Pod+ to hear this one.", noVoice: true, busy: false });
+      return res.status(503).json({ message: "Update Podster to hear this one.", noVoice: true, busy: false });
     }
     return res.json(status(key, fresh));
   });

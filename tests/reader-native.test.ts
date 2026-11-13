@@ -1,4 +1,4 @@
-// The A.R.I.S.E. Reader iPhone app as an iPhone app: notifications from the server, quick actions on the
+// The Arise Reader iPhone app as an iPhone app: notifications from the server, quick actions on the
 // Home Screen icon, haptics, a slightly smaller layout. Run with: npx tsx --test tests/reader-native.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

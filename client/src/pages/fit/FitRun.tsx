@@ -1,4 +1,4 @@
-// Arise Fit outdoors: GPS run, walk and hike tracking on a live dark map, splits and pace, your route
+// Cooked outdoors: GPS run, walk and hike tracking on a live dark map, splits and pace, your route
 // history, and a trail finder covering every trail mapped in OpenStreetMap (all over the US), by your
 // location or any place you search. Maps: Leaflet with CARTO's dark tiles (© OpenStreetMap contributors).
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -88,7 +88,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
       setHere(ll); setAcc(Math.round(pos.coords.accuracy)); setErr("");
       if (stateRef.current !== "running") return;
       setPoints((ps) => { const last = ps[ps.length - 1]; return acceptFix(last?.ll, ll, pos.coords.accuracy, last ? (pos.timestamp - last.at) / 1000 : 0) ? [...ps, { at: pos.timestamp, ll }] : ps; });
-    }, (e) => setErr(e.code === 1 ? "Location is off for Arise Fit. Turn it on in Settings → Arise Fit → Location." : "Looking for GPS… step outside for a clear view of the sky."), { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+    }, (e) => setErr(e.code === 1 ? "Location is off for Cooked. Turn it on in Settings → Cooked → Location." : "Looking for GPS… step outside for a clear view of the sky."), { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
     let lock: any = null; (navigator as any).wakeLock?.request?.("screen").then((l: any) => { lock = l; }).catch(() => {});
     return () => { navigator.geolocation.clearWatch(id); try { lock?.release?.(); } catch { /* gone */ } };
   }, []);
@@ -131,7 +131,7 @@ export function RunTracker({ data, update, onClose, say, trail }: { data: FitDat
         {meters < 20 && <p className="text-center text-[13px]" style={{ color: C.dim }}>Too short to save.</p>}
         <Btn kind="soft" className="w-full" onClick={resume}>Keep going</Btn>
       </div>}
-      <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Keep Arise Fit open with the screen on while you track. Maps © OpenStreetMap contributors © CARTO.</p>
+      <p className="mt-6 text-center text-[11px] leading-relaxed" style={{ color: C.dim }}>Keep Cooked open with the screen on while you track. Maps © OpenStreetMap contributors © CARTO.</p>
     </div>
     {state !== "done" && <div className="flex shrink-0 items-center justify-center gap-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-2">
       {state === "ready" && <button type="button" onClick={start} disabled={!here} className="fit-pop grid h-24 w-24 place-items-center rounded-full text-[26px] shadow-[0_12px_36px_rgba(var(--fit-accent-rgb),.45)] active:scale-95 disabled:opacity-40" style={{ ...display, background: C.lime, color: "var(--fit-on-accent)" }} data-testid="fit-run-start">Go</button>}
@@ -160,7 +160,7 @@ export function locate(): Promise<LatLng> {
   return new Promise((ok, fail) => {
     if (!navigator.geolocation) return fail(new Error("This phone can't share its location. Search for a town or park instead."));
     const done = (p: GeolocationPosition) => ok([p.coords.latitude, p.coords.longitude]);
-    const why = (e: GeolocationPositionError) => new Error(e.code === 1 ? "Location is off for Arise Fit. Turn it on in Settings › Arise Fit › Location, or search for a town or park." : "Couldn't find your location. Search for a town or park instead.");
+    const why = (e: GeolocationPositionError) => new Error(e.code === 1 ? "Location is off for Cooked. Turn it on in Settings › Cooked › Location, or search for a town or park." : "Couldn't find your location. Search for a town or park instead.");
     navigator.geolocation.getCurrentPosition(done, (e) => {
       if (e.code === 1) return fail(why(e));
       // Timed out or no quick fix: one more try using GPS.

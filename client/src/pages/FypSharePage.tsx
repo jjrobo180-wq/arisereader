@@ -53,7 +53,7 @@ export default function FypSharePage({ token }: { token: string }) {
           <div style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "8px" }}>Book not found</div>
           <div style={{ opacity: 0.6, fontSize: "0.9rem" }}>This share link may have expired.</div>
           <a href="/" style={{ display: "inline-block", marginTop: "20px", padding: "10px 24px", background: "#f59e0b", borderRadius: "8px", color: "white", textDecoration: "none", fontWeight: 600 }}>
-            Go to A.R.I.S.E Reader
+            Go to Arise Reader
           </a>
         </div>
       </div>
@@ -116,7 +116,7 @@ export default function FypSharePage({ token }: { token: string }) {
             </a>
           )}
           <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "10px 24px", background: "rgba(255,255,255,0.1)", borderRadius: "8px", color: "white", textDecoration: "none", fontWeight: 600 }}>
-            Join A.R.I.S.E Reader
+            Join Arise Reader
           </a>
         </div>
 

@@ -9,7 +9,7 @@ import { cleanPages, pointsForBook } from "../shared/bookPoints";
 import { EYE_GAZE_LESSONS, lessonRows } from "../shared/eyegaze/lessons";
 import { lessonsToHide, planQuestions, rowDiffers } from "./eyeGazeLessonSync";
 
-/** Set by the routes: tells a reader's phone about a new message (A.R.I.S.E. Reader app notifications). */
+/** Set by the routes: tells a reader's phone about a new message (Arise Reader app notifications). */
 let onReaderMessage: ((userId: number, senderType: string, text: string) => void) | null = null;
 export function setReaderMessageListener(f: typeof onReaderMessage) { onReaderMessage = f; }
 
@@ -2262,7 +2262,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  /** A student's finished Eye Gazer lessons: quiz id → the scored (first) try. */
+  /** A student's finished Arise AAC lessons: quiz id → the scored (first) try. */
   async getEyeGazeCompletions(userId: number): Promise<Map<number, { score: number; total: number; completedAt: string | null }>> {
     const { data, error } = await supabase
       .from("eye_gaze_attempts")
@@ -2504,7 +2504,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
-   * Saves the built-in Eye Gazer lessons (shared/eyegaze/lessons.ts) into eye_gaze_quizzes and
+   * Saves the built-in Arise AAC lessons (shared/eyegaze/lessons.ts) into eye_gaze_quizzes and
    * eye_gaze_questions, matched by lesson_key, and hides every other built-in quiz (the old set).
    * Only rows that changed are written, so a normal restart costs a few reads. Nothing is ever
    * deleted except extra questions of a lesson that got shorter: finished quizzes and points stay.

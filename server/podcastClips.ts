@@ -1,5 +1,5 @@
-// Pod+ Clips: one shared list of TikTok videos and @people for the Clips page. Everyone can read it; only the
-// site owner (signed in to Pod+ with an owner email) can change it. Kept in podcast_cache.
+// Podster Clips: one shared list of TikTok videos and @people for the Clips page. Everyone can read it; only the
+// site owner (signed in to Podster with an owner email) can change it. Kept in podcast_cache.
 import type { Express, RequestHandler } from "express";
 import { memoryKV, type KV } from "./podcastDirectory";
 import { clipItems } from "../shared/podClips";

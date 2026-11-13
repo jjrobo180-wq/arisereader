@@ -1,8 +1,8 @@
-// Arise Fit: Sleep. Tracked five ways, so a night is never lost because you forgot to tap a button:
+// Cooked: Sleep. Tracked five ways, so a night is never lost because you forgot to tap a button:
 //   1. Apple Health: an Apple Watch, the iPhone's Sleep schedule or any sleep app that saves to Health.
 //      Nights come in by themselves, with deep, REM and core sleep when the watch measured them.
 //   2. Your bedtime schedule: each morning the app asks "Did you sleep 10:30 to 6:30?" One tap.
-//   3. Phone down: when you put the phone down at night and picked it up in the morning (Arise Fit only
+//   3. Phone down: when you put the phone down at night and picked it up in the morning (Cooked only
 //      sees when it went to the background and came back, on this phone).
 //   4. The "Going to sleep" / "I'm awake" button, or Siri ("Hey Siri, going to sleep").
 //   5. Typed in, for any night, and naps.
@@ -43,7 +43,7 @@ const readPhone = (): PhoneLog => { try { return JSON.parse(localStorage.getItem
 const writePhone = (p: PhoneLog) => { try { localStorage.setItem(PHONE, JSON.stringify(p)); } catch { /* not kept */ } };
 export const phoneGuessOn = () => { try { return localStorage.getItem(PHONE_ON) !== "0"; } catch { return true; } };
 const setPhoneGuessOn = (on: boolean) => { try { localStorage.setItem(PHONE_ON, on ? "1" : "0"); } catch { /* not kept */ } };
-/** Notes when Arise Fit goes to the background and comes back; a long overnight gap becomes a guess. */
+/** Notes when Cooked goes to the background and comes back; a long overnight gap becomes a guess. */
 function notePhone(state: "down" | "up") {
   const p = readPhone(), now = Date.now();
   if (state === "down") { writePhone({ ...p, down: now }); return; }
@@ -336,12 +336,12 @@ function Ways({ data, update, say, compact, onOpen, onSchedule }: { data: FitDat
     <div className="min-w-0 flex-1"><p className="text-[16px] font-semibold leading-tight">{title}</p><p className="mt-0.5 text-[13px] leading-snug" style={{ color: C.dim }}>{sub}</p></div>{right}</div></Card>;
   const toggle = (on: boolean, flip: () => void, label: string) => <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={flip} className="relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors" style={{ background: on ? C.lime : C.card2 }}><span className="absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-all" style={{ left: on ? 23 : 3 }} /></button>;
   return <div className="mt-1 space-y-2">
-    <p className="px-1 text-[14px]" style={{ color: C.steel }}>Arise Fit uses whichever of these it has, best first, so you never have to remember to tap.</p>
-    <Row icon={HeartPulse} title="1. Apple Health" testId="fit-sleep-way-health" sub={native ? (health ? "Connected. Nights from your Apple Watch, the iPhone's Sleep schedule or any sleep app come in by themselves, with deep and REM sleep." : "Wear an Apple Watch to bed or use the iPhone's Sleep schedule, and nights come in by themselves.") : "In the Arise Fit iPhone app."}
+    <p className="px-1 text-[14px]" style={{ color: C.steel }}>Cooked uses whichever of these it has, best first, so you never have to remember to tap.</p>
+    <Row icon={HeartPulse} title="1. Apple Health" testId="fit-sleep-way-health" sub={native ? (health ? "Connected. Nights from your Apple Watch, the iPhone's Sleep schedule or any sleep app come in by themselves, with deep and REM sleep." : "Wear an Apple Watch to bed or use the iPhone's Sleep schedule, and nights come in by themselves.") : "In the Cooked iPhone app."}
       right={native ? (health ? <Btn kind="soft" className="!min-h-9 !px-3 !text-[13px]" onClick={() => void syncNow()} disabled={busy}>{busy ? "…" : "Sync"}</Btn> : <Btn className="!min-h-9 !px-3 !text-[13px]" onClick={() => void connect()} disabled={busy}>Connect</Btn>) : undefined} />
-    <Row icon={Clock} title="2. Bedtime schedule" testId="fit-sleep-way-schedule" sub={sc ? `${clockOf(Number(sc.bed.slice(0, 2)) * 60 + Number(sc.bed.slice(3)))} to ${clockOf(Number(sc.wake.slice(0, 2)) * 60 + Number(sc.wake.slice(3)))}. Each morning Arise Fit asks if you slept to it: one tap to save.` : "Set your usual bedtime and wake time. Each morning, confirm last night in one tap."}
+    <Row icon={Clock} title="2. Bedtime schedule" testId="fit-sleep-way-schedule" sub={sc ? `${clockOf(Number(sc.bed.slice(0, 2)) * 60 + Number(sc.bed.slice(3)))} to ${clockOf(Number(sc.wake.slice(0, 2)) * 60 + Number(sc.wake.slice(3)))}. Each morning Cooked asks if you slept to it: one tap to save.` : "Set your usual bedtime and wake time. Each morning, confirm last night in one tap."}
       right={<Btn kind={sc ? "soft" : "primary"} className="!min-h-9 !px-3 !text-[13px]" onClick={onSchedule}>{sc ? "Edit" : "Set"}</Btn>} />
-    <Row icon={Smartphone} title="3. Phone down" testId="fit-sleep-way-phone" sub="A guess from when you last closed Arise Fit at night and opened it in the morning. Confirm it in the morning. Stays on this phone."
+    <Row icon={Smartphone} title="3. Phone down" testId="fit-sleep-way-phone" sub="A guess from when you last closed Cooked at night and opened it in the morning. Confirm it in the morning. Stays on this phone."
       right={toggle(phone, () => { setPhoneGuessOn(!phone); setPhone(!phone); }, "Phone down guess")} />
     <Row icon={Moon} title="4. Sleep button or Siri" sub={'Tap "Going to sleep" at night and "I\'m awake" in the morning, or say "Hey Siri, going to sleep" (Settings → Siri & Shortcuts).'} />
     <Row icon={Pencil} title="5. By hand" sub="Add or fix any night, and log naps." />
@@ -404,11 +404,12 @@ function ScheduleSheet({ data, update, say, onClose }: { data: FitData; update: 
   const sc = data.sleep?.schedule;
   const [bed, setBed] = useState(sc?.bed ?? "22:30"), [wake, setWake] = useState(sc?.wake ?? "06:30");
   const [windDown, setWind] = useState(data.sleep?.remind?.windDown ?? true), [morning, setMorning] = useState(data.sleep?.remind?.morning ?? true);
+  const [bedtime, setBedtime] = useState(data.sleep?.remind?.bedtime ?? false);
   const hours = useMemo(() => { const t = nightFrom(dayKey(), bed, wake); return (t.wake - t.bed) / 3_600_000; }, [bed, wake]);
   const goal = data.sleep?.goalH ?? 8;
   const save = async () => {
-    update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), schedule: { bed, wake }, remind: { windDown, morning } } }));
-    try { await applySleepReminders({ bed, wake }, { windDown, morning }); say("Schedule saved."); } catch (e: any) { say(e.message); }
+    update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), schedule: { bed, wake }, remind: { windDown, morning, bedtime } } }));
+    try { await applySleepReminders({ bed, wake }, { windDown, morning, bedtime }); say("Schedule saved."); } catch (e: any) { say(e.message); }
     onClose();
   };
   const clear = async () => { update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), schedule: undefined, remind: undefined } })); try { await applySleepReminders(undefined, { windDown: false, morning: false }); } catch { /* none */ } onClose(); };
@@ -423,9 +424,10 @@ function ScheduleSheet({ data, update, say, onClose }: { data: FitData; update: 
     <Title>Reminders</Title>
     <div className="space-y-2">
       {toggleRow("Wind down", "30 minutes before bedtime", windDown, () => setWind(!windDown))}
+      {toggleRow("Bedtime", "Right at bedtime, to start tracking tonight", bedtime, () => setBedtime(!bedtime))}
       {toggleRow("Morning check-in", "15 minutes after you wake, to save last night", morning, () => setMorning(!morning))}
     </div>
-    {!isNativeApp() && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Reminders come from the Arise Fit iPhone app.</p>}
+    {!isNativeApp() && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Reminders come from the Cooked iPhone app.</p>}
     <Btn className="mt-4 w-full" onClick={() => void save()} testId="fit-schedule-save"><Check className="h-5 w-5" />Save schedule</Btn>
     {sc && <button type="button" onClick={() => void clear()} className="mt-3 h-11 w-full text-[14px] font-semibold" style={{ color: C.red }}>Turn off the schedule</button>}
   </Sheet>;

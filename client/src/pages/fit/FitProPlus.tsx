@@ -1,4 +1,4 @@
-// The Pro+ layout (Fit+): every number Arise Fit knows, on Home, then a Deep analysis screen with the
+// The Pro+ layout (Fit+): every number Cooked knows, on Home, then a Deep analysis screen with the
 // charts, what the numbers mean (shared/fitInsights.ts findings) and where they're heading. The numbers
 // all come from shared/fitInsights.ts computeInsights, the same ones Ask Fit is given.
 import { useState, type ReactNode } from "react";

@@ -38,7 +38,7 @@ export function cleanDoc(raw: any): DocContent {
 // ─── Safe HTML ──────────────────────────────────────────────────────────────
 
 const ALLOWED: Record<string, string[]> = {
-  p: ["style"], h1: ["style"], h2: ["style"], h3: ["style"], h4: ["style"], blockquote: ["style"], pre: ["style"],
+  p: ["style"], h1: ["style"], h2: ["style"], h3: ["style"], h4: ["style"], blockquote: ["style", "data-arise"], pre: ["style"],
   ul: ["style", "data-check"], ol: ["style", "start", "type"], li: ["style", "data-checked"],
   b: [], strong: [], i: [], em: [], u: [], s: [], strike: [], sub: [], sup: [], code: [], mark: ["style"],
   span: ["style"], font: ["color", "face", "size"], a: ["href", "title"], br: [], hr: ["style"],

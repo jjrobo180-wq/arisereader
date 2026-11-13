@@ -1,0 +1,67 @@
+name: App Store listing (Cooked, Cooked PT, Arise Notes, Podster)
+# Takes the app's screenshots on the real site (signed in as the App Review account), frames them under the
+# headlines in store/<app>/listing.json, and fills the App Store listing from that file
+# (.github/scripts/store_listing_fill.py). Doesn't submit: app-store-submit.yml does. App privacy answers are
+# set on the App Store Connect website. "shots" only takes the screenshots, to look at first.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: cooked, cookedpt, notes or podster
+        required: true
+      demo_user:
+        description: App Review account (username; Podster takes the email)
+        required: false
+        default: appreview
+      demo_pass:
+        description: Its password (hidden in the log)
+        required: false
+        default: ""
+      mode:
+        description: shots (screenshots only) or fill (screenshots, then the listing)
+        required: true
+        default: shots
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: app-store
+    permissions:
+      contents: write
+    env:
+      APP: ${{ github.event.inputs.app }}
+      DEMO_USER: ${{ github.event.inputs.demo_user }}
+      DEMO_PASS: ${{ github.event.inputs.demo_pass }}
+    steps:
+      - name: Hide the password
+        run: echo "::add-mask::${{ github.event.inputs.demo_pass }}"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Screenshots on the real site
+        run: |
+          [[ -f "store/$APP/listing.json" ]] || { echo "::error::No store/$APP/listing.json"; exit 1; }
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          # Podster's screens need no sign-in (the account is only for the App Review notes).
+          if [[ "$APP" == "podster" ]]; then DEMO_USER= DEMO_PASS= node script/storeShots.mjs; else node script/storeShots.mjs; fi
+          node script/storeFrames.mjs
+          ls -la store-shots store-shots/raw
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "store-shots-${{ github.event.inputs.app }}", path: store-shots }
+      - name: Screenshots to the store-shots-<app> branch (to look at)
+        if: always()
+        working-directory: store-shots
+        run: |
+          git init -q -b "store-shots-$APP"
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "$APP App Store screenshots" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "store-shots-$APP"
+      - name: App Store Connect
+        if: github.event.inputs.mode == 'fill'
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: python3 .github/scripts/store_listing_fill.py

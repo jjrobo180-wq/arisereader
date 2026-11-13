@@ -1,6 +1,6 @@
-// Arise Fit apps: the parts of Arise Fit you choose, like the apps in Arise To Duo. Each person keeps a
+// Cooked apps: the parts of Cooked you choose, like the apps in Arise To Duo. Each person keeps a
 // list of the apps they've added (they show on the Apps tab) and up to three of them on the tab bar,
-// next to Today and Apps. Saved with the rest of their Arise Fit data (shared/fit.ts), so it's the
+// next to Today and Apps. Saved with the rest of their Cooked data (shared/fit.ts), so it's the
 // same on every device. The screens are in client/src/pages/fit/FitApps.tsx.
 
 export type FitAppId =
@@ -61,7 +61,7 @@ const IDS = new Set<string>(FIT_APPS.map((a) => a.id));
 
 export type FitApps = { added: FitAppId[]; tabs: FitAppId[] };
 export const TAB_MAX = 3;
-/** What a new person starts with: the main parts of Arise Fit, and Train, Food and Run on the tab bar. */
+/** What a new person starts with: the main parts of Cooked, and Train, Food and Run on the tab bar. */
 export const defaultApps = (): FitApps => ({ added: ["train", "food", "run", "fast", "sleep", "recovery", "yoga", "mind", "water", "progress", "recipes", "friends"], tabs: ["train", "food", "run"] });
 
 /** Known apps only, no repeats; tabs must be added and able to be tabs. */

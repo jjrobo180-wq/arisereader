@@ -1,5 +1,5 @@
-name: Arise Fit screens
-# Phone-size screenshots of every Arise Fit screen with a sample account (script/fitScreens.mjs), light
+name: Cooked screens
+# Phone-size screenshots of every Cooked screen with a sample account (script/fitScreens.mjs), light
 # and dark, to check layouts, colors and wording. The pictures go to the fit-screens branch and the
 # run's "fit-screens" artifact; results.txt lists any screen that failed or had page errors.
 on:
@@ -14,7 +14,7 @@ permissions:
   contents: write
 jobs:
   screens:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Type-check Arise Fit (its own files only; the rest of the site isn't checked here)
+      - name: Type-check Cooked (its own files only; the rest of the site isn't checked here)
         shell: bash
         run: |
           set +e
@@ -31,7 +31,7 @@ jobs:
           grep -E "^(client/src/pages/(fit|trainer)/|shared/fit|client/src/App\.tsx)" tsc.txt > fit-tsc.txt
           cat fit-tsc.txt
           mkdir -p fit-screens && cp fit-tsc.txt fit-screens/typecheck.txt
-          if [ -s fit-tsc.txt ]; then echo "::error title=Arise Fit type errors::$(wc -l < fit-tsc.txt) errors"; fi
+          if [ -s fit-tsc.txt ]; then echo "::error title=Cooked type errors::$(wc -l < fit-tsc.txt) errors"; fi
           exit 0
       - name: Build the site
         run: npx vite build
@@ -46,7 +46,7 @@ jobs:
         run: |
           git init -q -b fit-screens
           git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
-          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Arise Fit screens for ${GITHUB_SHA}"
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Cooked screens for ${GITHUB_SHA}"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" fit-screens
       - uses: actions/upload-artifact@v4
         with:

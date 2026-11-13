@@ -11,7 +11,8 @@ import { cleanFamily } from "../shared/familyHub";
 const TABLE = "arise_todo_workspaces";
 // Room for the Family Hub, including about a year of food and fitness logs.
 const MAX_BYTES = 5_000_000;
-const signupLimits = createAttemptLimiter({ max: 8, windowMs: 60 * 60_000 });
+// Per network: generous, since a whole office (App Review, a school) can share one address.
+const signupLimits = createAttemptLimiter({ max: 30, windowMs: 60 * 60_000 });
 
 function validDate(value: unknown): boolean {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -53,6 +54,15 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
     taskIds.add(row.id);
   }
   return true;
+}
+
+/** Only when the saved copy last changed. A few bytes, where reading the copy itself can be hundreds of
+ *  kilobytes: the "anything newer?" check every open phone makes, and every save, need nothing more. */
+export async function readUpdatedAt(userId: number): Promise<string | null> {
+  const { data, error } = await getAdminSupabase().from(TABLE).select("updated_at")
+    .eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data ? String(data.updated_at) : null;
 }
 
 export async function readWorkspace(userId: number) {
@@ -149,6 +159,15 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
       return res.status(400).json({ message: "Enter an email address we can send your code to." });
     }
     try {
+      // One email, one account: someone who has one is sent to sign in. A sign-up that was never confirmed
+      // with its code is replaced, and a deleted account's email is free at once (its row is gone).
+      const pattern = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const { data: same } = await getAdminSupabase().from("users").select("id, role, account_approved, is_admin").ilike("email", pattern).is("archived_at", null).limit(20);
+      const adults = (same || []).filter((u: any) => !u.is_admin && u.role !== "student");
+      if (adults.some((u: any) => u.account_approved !== false)) {
+        return res.status(409).json({ code: "EMAIL_HAS_ACCOUNT", message: "You already have an account with this email. Sign in with it, or use \"Forgot your password?\" to reset it." });
+      }
+      for (const u of adults) if (u.role === "todo" && u.account_approved === false) await getAdminSupabase().from("users").delete().eq("id", u.id).then(() => {}, () => {});
       if (await storage.getUserByUsername(username)) return res.status(409).json({ message: "Username already taken." });
       const created: any = await storage.createUser({
         username, password: await bcrypt.hash(password, 10), displayName, email,
@@ -228,15 +247,64 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
   app.get("/api/arise-todo/workspace", authMiddleware, async (req: any, res) => {
     if (rejectPreview(req, res)) return;
     try {
-      const row = await readWorkspace(Number(req.user.id));
+      const userId = Number(req.user.id);
       res.set("Cache-Control", "no-store");
-      if (row && typeof req.query?.since === "string" && row.updatedAt === req.query.since) {
-        return res.json({ unchanged: true, updatedAt: row.updatedAt });
+      // "Anything newer than the copy I have?" is answered from the date alone; the copy itself is
+      // read only when it really is newer.
+      if (typeof req.query?.since === "string" && req.query.since) {
+        const updatedAt = await readUpdatedAt(userId);
+        if (updatedAt && updatedAt === req.query.since) return res.json({ unchanged: true, updatedAt });
       }
+      const row = await readWorkspace(userId);
       return res.json(row || { workspace: null, updatedAt: null });
     } catch (error: any) {
       console.error("[arise-todo] read:", error?.message);
       return res.status(503).json({ message: "Your cloud tasks are temporarily unavailable. Nothing has been replaced." });
+    }
+  });
+
+  // Setup and the walkthrough show once per ACCOUNT, not once per device (signing in on a new phone,
+  // the Mac or after signing out used to show them again). Kept in the settings table, one row per
+  // account: "seen:<id>" = {"setup":true,"walkthrough":true}. Accounts from before this change that
+  // already have a saved workspace count as having seen both.
+  const SEEN_SINCE = Date.parse("2026-11-11T22:30:00Z");
+  const SEEN_WHAT = ["setup", "walkthrough"] as const;
+  const readSeen = async (userId: number): Promise<Record<string, boolean>> => {
+    try { const v = JSON.parse((await storage.getSetting(`seen:${userId}`)) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+  };
+  app.get("/api/arise-todo/seen", authMiddleware, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId)) return res.status(401).json({ message: "Sign in first." });
+    try {
+      let seen = await readSeen(userId);
+      if (!SEEN_WHAT.every((k) => seen[k])) {
+        const user: any = await storage.getUser(userId).catch(() => null);
+        const made = Date.parse(String(user?.createdAt || ""));
+        if (Number.isFinite(made) && made < SEEN_SINCE && (await readUpdatedAt(userId).catch(() => null))) {
+          seen = { ...seen, setup: true, walkthrough: true };
+          await storage.upsertSetting(`seen:${userId}`, JSON.stringify(seen)).catch(() => {});
+        }
+      }
+      return res.json({ setup: !!seen.setup, walkthrough: !!seen.walkthrough });
+    } catch (e: any) {
+      console.error("[arise-todo] seen read:", e?.message);
+      return res.status(503).json({ message: "Couldn't check right now." });
+    }
+  });
+  app.post("/api/arise-todo/seen", authMiddleware, async (req: any, res) => {
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId)) return res.status(401).json({ message: "Sign in first." });
+    const what = SEEN_WHAT.filter((k) => req.body?.[k] === true);
+    if (!what.length) return res.status(400).json({ message: "Nothing to save." });
+    try {
+      const seen = await readSeen(userId);
+      for (const k of what) seen[k] = true;
+      await storage.upsertSetting(`seen:${userId}`, JSON.stringify({ setup: !!seen.setup, walkthrough: !!seen.walkthrough }));
+      return res.json({ success: true });
+    } catch (e: any) {
+      console.error("[arise-todo] seen save:", e?.message);
+      return res.status(503).json({ message: "Couldn't save right now." });
     }
   });
 
@@ -255,7 +323,9 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     if (overwrite !== undefined && overwrite !== true && overwrite !== false) return res.status(400).json({ message: "Invalid overwrite option." });
     const userId = Number(req.user.id);
     try {
-      const previous = await readWorkspace(userId);
+      // Only the date of the saved copy is needed to check this save against it.
+      const previousAt = await readUpdatedAt(userId);
+      const previous = previousAt ? { updatedAt: previousAt } : null;
       const conflict = () => res.status(409).json({
         code: HUB_CONFLICT,
         message: "Your to-dos changed on another device. Choose which copy to keep.",

@@ -1,4 +1,4 @@
-// Arise Fit → Arise To Duo grocery list (November 2026). Run with: npx tsx --test tests/fit-to-duo-groceries.test.ts
+// Cooked → Arise To Duo grocery list (November 2026). Run with: npx tsx --test tests/fit-to-duo-groceries.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

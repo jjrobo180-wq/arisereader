@@ -21,6 +21,8 @@ export default defineConfig({
       input: {
         main: path.resolve(import.meta.dirname, "client", "index.html"),
         notes: path.resolve(import.meta.dirname, "client", "notes", "index.html"),
+        undercover: path.resolve(import.meta.dirname, "client", "undercover", "index.html"),
+        scholar: path.resolve(import.meta.dirname, "client", "scholar", "index.html"),
       },
     },
   },

@@ -3,7 +3,7 @@
 // accommodations, progress monitoring and minutes. Pick one student at the top to see just theirs.
 // The rules are in shared/hubIep.ts.
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, CalendarClock, Check, ChevronDown, ChevronLeft, Copy, ListChecks, NotebookPen, Timer, TrendingUp, UserRound, FileText, Paperclip, Plus, Printer, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertCircle, CalendarClock, Check, ClipboardCheck, ChevronDown, ChevronLeft, Copy, ListChecks, NotebookPen, Timer, TrendingUp, UserRound, FileText, Paperclip, Plus, Printer, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { CHECK_CHOICES, COMMON_ACCOMMODATIONS, accommodationList, accommodationText, checkEvery, cleanIepNotes, cleanPmFiles, iepComingUp, newIepNote, noteGroup, noteText, pmSheetHtml, pmStatus, type IepNote, type IepNoteKind, type NoteGroup, type PmFile, type PmState } from "@shared/hubIep";
 import { friendlyDate } from "@shared/hubDates";
 import { goalProgress, withPoint } from "@shared/hubProgress";
@@ -14,9 +14,10 @@ import { HubModal } from "./HubModal";
 import { GhostButton, PrimaryButton } from "./ui";
 import { MakeGoalQuiz, StudentQuizzes } from "./HubGoalQuiz";
 import { WorksheetMaker } from "./HubWorksheet";
+import { PrepChecklist, prepLeftToday } from "./HubIepPrep";
 
 type Setter = React.Dispatch<React.SetStateAction<Workspace>>;
-export type IepTab = "overview" | "meetings" | "notes" | "profile" | "accommodations" | "progress" | "minutes";
+export type IepTab = "overview" | "meetings" | "notes" | "profile" | "accommodations" | "progress" | "minutes" | "prep";
 /** The parts of an IEP, as a folder of small apps: the home page shows one tile for each, and inside any of them the others are one tap away. */
 const APPS: { key: Exclude<IepTab, "overview">; label: string; blurb: string; icon: ReactNode; tint: string }[] = [
   { key: "meetings", label: "Meetings", blurb: "Plan and run IEP meetings", icon: <CalendarClock className="h-5 w-5" />, tint: "bg-violet-50 text-violet-700" },
@@ -25,6 +26,7 @@ const APPS: { key: Exclude<IepTab, "overview">; label: string; blurb: string; ic
   { key: "accommodations", label: "Accommodations", blurb: "What each student gets", icon: <ListChecks className="h-5 w-5" />, tint: "bg-emerald-50 text-emerald-700" },
   { key: "progress", label: "Progress", blurb: "Goals, scores and checks", icon: <TrendingUp className="h-5 w-5" />, tint: "bg-rose-50 text-rose-700" },
   { key: "minutes", label: "Minutes", blurb: "Classes, minutes and notes", icon: <Timer className="h-5 w-5" />, tint: "bg-slate-100 text-slate-700" },
+  { key: "prep", label: "Prep", blurb: "Daily planning-period checklist", icon: <ClipboardCheck className="h-5 w-5" />, tint: "bg-indigo-50 text-indigo-700" },
 ];
 
 const panel = "rounded-3xl bg-white ring-1 ring-slate-200/70";
@@ -93,6 +95,7 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
       {tab === "progress" && <Progress workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} goals={mine(workspace.goals)} student={student} />}
       {tab === "progress" && goals}
       {tab === "minutes" && minutes}
+      {tab === "prep" && <PrepChecklist workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} />}
     </div>
   );
 }
@@ -118,6 +121,7 @@ function Overview({ workspace, today, studentName, onPick, go }: { workspace: Wo
     accommodations: { text: `${accCount} listed` },
     progress: late ? { text: `${late} check${late === 1 ? "" : "s"} late`, hot: true } : soon ? { text: `${soon} due soon`, hot: true } : { text: `${goalsHere.length} goal${goalsHere.length === 1 ? "" : "s"}` },
     minutes: { text: "This week" },
+    prep: (() => { const left = prepLeftToday(workspace, today); return left ? { text: `${left} left today`, hot: true } : { text: "All done today" }; })(),
   };
   return (
     <>

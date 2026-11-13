@@ -1,8 +1,8 @@
-// Pod+ downloads (Pod+ Membership): podcast episodes and whole audiobooks saved on this device, so
+// Podster downloads (Podster Membership): podcast episodes and whole audiobooks saved on this device, so
 // they play with no connection. Works the same on the website, the home-screen app and the iPhone
 // app (all keep the audio in IndexedDB; the iPhone app's storage isn't cleared by Safari's rules).
 //
-// Audio is fetched straight from its host when the host allows it, else through the Pod+ server
+// Audio is fetched straight from its host when the host allows it, else through the Podster server
 // (/api/podscroll/download for podcasts, /books/audio for LibriVox), both with a member's pass.
 // The player plays a saved copy instead of the stream (client/.../earshot/offlineAudio.ts).
 import { chapterKey, episodeKey, notifyOffline, setOfflineAudio, type DownloadState, type DownloadedEpisode, type OfflineAudio } from "../client/src/components/family-hub/earshot/offlineAudio";
@@ -108,7 +108,7 @@ export function installDownloads(opts: { api: Api; apiBase: string; isMember: ()
   };
   const member = (what: string) => {
     if (opts.isMember()) return true;
-    opts.say(`Downloading ${what} is part of Pod+ Membership.`);
+    opts.say(`Downloading ${what} is part of Podster Membership.`);
     opts.onJoin("downloads");
     return false;
   };
@@ -118,7 +118,7 @@ export function installDownloads(opts: { api: Api; apiBase: string; isMember: ()
   const dropFile = async (key: string) => { await tx(FILES, "readwrite", (s) => s.delete(key)).catch(() => {}); const u = urls.get(key); if (u) URL.revokeObjectURL(u); urls.delete(key); };
   const fail = (key: string, e: any) => {
     if (e?.name === "AbortError") { setState(key, null); return; }
-    const msg = e?.name === "QuotaExceededError" ? "This device is out of space for downloads." : e?.status === 402 || e?.status === 403 ? "Downloads are part of Pod+ Membership. Sign in again." : e?.message || "Couldn't download that. Try again.";
+    const msg = e?.name === "QuotaExceededError" ? "This device is out of space for downloads." : e?.status === 402 || e?.status === 403 ? "Downloads are part of Podster Membership. Sign in again." : e?.message || "Couldn't download that. Try again.";
     setState(key, { status: "error", pct: 0, error: msg });
     opts.say(msg);
   };
@@ -211,7 +211,7 @@ export function installDownloads(opts: { api: Api; apiBase: string; isMember: ()
 }
 
 export type Downloads = ReturnType<typeof installDownloads>;
-/** The Pod+ downloader once installed (main.tsx), for the audiobook pages. */
+/** The Podster downloader once installed (main.tsx), for the audiobook pages. */
 export let downloads: Downloads | null = null;
 export const bookDownloadId = (id: string) => `book:${id}`;
 export const sizeLabel = (bytes: number) => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1e6))} MB`;

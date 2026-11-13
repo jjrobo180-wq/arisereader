@@ -45,7 +45,7 @@ export function HubFamilyInvite({ which }: { which: Which }) {
     finally { setBusy(false); }
   };
   return <div className="space-y-3" data-testid="family-email-invite">
-    <p className={k.text}>For a child who has no account yet. The parent gets an email explaining A.R.I.S.E. Reader and how to sign up: first the child's student account, then their own parent account.</p>
+    <p className={k.text}>For a child who has no account yet. The parent gets an email explaining Arise Reader and how to sign up: first the child's student account, then their own parent account.</p>
     <form onSubmit={(e) => void send(email, child, e)} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
       <input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label="Parent or guardian email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className={k.input} data-testid="family-email-input" />
       <input type="text" autoComplete="off" placeholder="Child's name" aria-label="Child's name (optional)" value={child} onChange={(e) => setChild(e.target.value)} maxLength={60} className={k.input} data-testid="family-child-input" />
@@ -86,7 +86,7 @@ export function HubParentInvite({ which, studentId, studentName, startOpen = fal
     {invites.length > 0 && <span className={k.small}>Invited {invites.length === 1 ? invites[0].email : `${invites.length} people`}</span>}
   </div>;
   return <div className={`${k.soft} space-y-3`} data-testid="parent-email-invite">
-    <p className={k.text}>They don't need to be signed up. The email explains A.R.I.S.E. Reader, what a parent account does, and how to make theirs with {first}'s code.</p>
+    <p className={k.text}>They don't need to be signed up. The email explains Arise Reader, what a parent account does, and how to make theirs with {first}'s code.</p>
     <form onSubmit={(e) => void send(email, e)} className="flex flex-col gap-2 sm:flex-row">
       <input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label={`Parent or guardian email for ${studentName}`} value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className={k.input} data-testid="parent-email-input" />
       <button type="submit" disabled={busy || !email.trim()} className={k.primary} data-testid="parent-email-send">{busy ? "Sending…" : "Send invitation"}</button>

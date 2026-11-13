@@ -62,6 +62,8 @@ export type Kitchen = {
   /** The last day whose meals have been taken out of the inventory ("YYYY-MM-DD"). Days pass, food gets eaten:
    *  without this, what "Bought it all" put in the inventory would count as still at home forever. */
   usedThrough?: string;
+  /** What you said your own items cost (by name, lower case), for ones no store item matches. */
+  plainPrice?: Record<string, number>;
   /** The Monday the plan starts on (YYYY-MM-DD). Empty: the current week. */
   start: string;
   store: { id: string; name: string; zip: string } | null;
@@ -117,7 +119,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
   const amounts = (v: unknown) => Object.fromEntries(Object.entries(o(v)).filter(([g, x]) => GROUP_BY_ID.has(g) && typeof x === "number" && Number.isFinite(x) && x >= 0).slice(0, 400).map(([g, x]) => [g, Math.round(Math.min(100000, x as number) * 100) / 100])) as Record<string, number>;
   const stock = amounts(r.stock), keep = Object.fromEntries(Object.entries(amounts(r.keep)).filter(([, x]) => x > 0));
   const st = o(r.store);
-  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, ...(typeof r.usedThrough === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.usedThrough) ? { usedThrough: r.usedThrough } : {}), start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
+  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, ...(() => { const pp = Object.fromEntries(Object.entries(o(r.plainPrice)).slice(0, 200).map(([n, v]) => [String(n).toLowerCase().trim().slice(0, 80), Math.round(Math.min(10000, Math.max(0, Number(v) || 0)) * 100) / 100]).filter(([n, v]) => n && (v as number) > 0)); return Object.keys(pp).length ? { plainPrice: pp } : {}; })(), ...(typeof r.usedThrough === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.usedThrough) ? { usedThrough: r.usedThrough } : {}), start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
 }
 
 // ── Looking things up ──────────────────────────────────────────────────────────────────────────────────────────
@@ -144,6 +146,9 @@ export function groupForName(name: string): KGroup | undefined {
   heads ??= all.reduce((m, g) => m.set(headOf(g), (m.get(headOf(g)) ?? 0) + 1), new Map<string, number>());
   const exact = all.find((g) => wordsOf(g.name).join(" ") === d.join(" ") || wordsOf(g.id).join(" ") === d.join(" "));
   if (exact) return exact;
+  // Every word of a store item's name is in what you typed ("cream cheese topping" → Cream cheese): the longest wins.
+  const inside = all.filter((g) => { const gw = wordsOf(g.name); return gw.length >= 2 && gw.every((w) => d.includes(w)); }).sort((a, b) => wordsOf(b.name).length - wordsOf(a.name).length);
+  if (inside[0]) return inside[0];
   const head = d.at(-1)!;
   const sameHead = all.filter((g) => headOf(g) === head || wordsOf(g.id).at(-1) === head);
   const covered = sameHead.find((g) => d.every((w) => wordsOf(`${g.name} ${g.id}`).includes(w)));
@@ -252,7 +257,7 @@ export function takeoutLines(k: Kitchen): KTakeout[] {
 /** The week's total, and each person's share (an ingredient's cost split by how much of it each person eats). */
 export function totals(k: Kitchen) {
   const lines = shoppingLines(k), take = takeoutLines(k);
-  const groceries = r2(lines.reduce((a, l) => a + l.cost, 0)), takeout = r2(take.reduce((a, t) => a + t.cost, 0));
+  const groceries = r2(lines.reduce((a, l) => a + l.cost, 0) + plainLines(k).reduce((a, p) => a + p.price, 0)), takeout = r2(take.reduce((a, t) => a + t.cost, 0));
   const share: Record<string, number> = Object.fromEntries(k.people.map((p) => [p.id, 0]));
   for (const l of lines) { if (!l.need) continue; for (const u of l.uses) share[u.person.id] = (share[u.person.id] ?? 0) + (l.cost * u.amount) / l.need; }
   for (const key of activeKeys(k)) for (const m of k.week[key]) { const t = takeoutOf(k, m.dish); if (t) for (const p of peopleIn(k, m)) share[p.id] = (share[p.id] ?? 0) + t.perPerson; }
@@ -407,6 +412,22 @@ export function planDish(list: KMeal[], dish: string, people: readonly string[],
   for (const p of people.length ? all.filter((x) => people.includes(x)) : all) out = dropFrom(out, p, all, (m) => (dish === SKIP ? m.dish !== SKIP : m.dish === SKIP));
   return addDish(out, dish, people, all, id);
 }
+/** Copy one person's meals to another ("Vanessa's dinners → Jermaine"): on each meal picked, the other person now eats
+ *  just what the first one eats, sharing the same dish, and what they had there before is taken off. */
+export function copyMeals(week: Record<string, KMeal[]>, from: string, to: string, slots: readonly KSlot[], weeks: readonly number[], all: readonly string[], makeId: () => string): Record<string, KMeal[]> {
+  if (!from || !to || from === to) return week;
+  const next = { ...week };
+  for (const wk of weeks) for (const day of WEEK) for (const slot of slots) {
+    const key = cell(day, slot, wk);
+    const src = (week[key] ?? []).filter((m) => eats(m, from));
+    if (!src.length) continue; // nothing of theirs here: leave the other person's meal as it is
+    let list = dropPerson(week[key] ?? [], to, all);
+    for (const m of src) list = planDish(list, m.dish, [to], all, makeId());
+    next[key] = list;
+  }
+  return next;
+}
+
 /** Meals that are real food (skipped meals left out). */
 export const foodCount = (week: Record<string, KMeal[]>, weeks = MAX_WEEKS) => Object.entries(week).reduce((a, [key, ms]) => a + (parseCell(key).wk < weeks ? ms.filter((m) => m.dish !== SKIP).length : 0), 0);
 export type KProgress = { done: number; of: number; pct: number };
@@ -511,19 +532,37 @@ export function planToList<G extends { id: string; checked: boolean }>(groceries
 
 /** Your own dishes made by name only (Bagel, Coffee, Gold fish): no ingredients to add up, so the dish itself
  *  goes on the list, with how many servings the plan has of it. */
-export type KPlain = { dish: KDish; servings: number };
+export type KPlain = { dish: KDish; servings: number; key: string; price: number; ids: string[] };
+export const plainKey = (name: string) => name.toLowerCase().trim().replace(/\s+/g, " ");
 export function plainLines(k: Kitchen): KPlain[] {
   const by = new Map<string, KPlain>();
   for (const key of activeKeys(k)) for (const m of k.week[key] ?? []) {
     const dish = dishOf(k, m.dish); if (!dish || takeoutOf(k, dish.id) || partsOf(k, dish).length) continue;
-    const cur = by.get(dish.id) ?? { dish, servings: 0 }; cur.servings += peopleIn(k, m).length || 1; by.set(dish.id, cur);
+    const nk = plainKey(dish.name);
+    const cur = by.get(nk) ?? { dish, servings: 0, key: nk, price: k.plainPrice?.[nk] ?? 0, ids: [] };
+    cur.servings += peopleIn(k, m).length || 1; if (!cur.ids.includes(dish.id)) cur.ids.push(dish.id); by.set(nk, cur);
   }
   return [...by.values()].sort((a, b) => a.dish.name.localeCompare(b.dish.name));
 }
+/** Store items a name might mean, best first ("cream cheese topping" → Cream cheese), for "Is it …?". */
+export function groupGuesses(name: string, n = 4): KGroup[] {
+  const d = wordsOf(name); if (!d.length) return [];
+  const score = (g: KGroup) => { const gw = wordsOf(`${g.name} ${g.id}`); return d.filter((w) => gw.includes(w)).length * 10 + (gw.includes(d.at(-1)!) ? 5 : 0) - gw.length * 0.1; };
+  return [...GROUP_BY_ID.values()].map((g) => [g, score(g)] as const).filter(([, sc]) => sc >= 9).sort((a, b) => b[1] - a[1]).slice(0, n).map(([g]) => g);
+}
+/** Your own item becomes a store item: every dish of yours with that name now uses it, one serving each. */
+export function matchPlain(k: Kitchen, ids: string[], groupId: string): Kitchen {
+  const g = GROUP_BY_ID.get(groupId); if (!g) return k;
+  return { ...k, own: k.own.map((d) => (ids.includes(d.id) ? { ...d, parts: [{ group: g.id, per: typicalServing(g) }] } : d)) };
+}
+export const setPlainPrice = (k: Kitchen, key: string, price: number): Kitchen => {
+  const pp = { ...(k.plainPrice ?? {}) }; if (price > 0) pp[key] = Math.round(price * 100) / 100; else delete pp[key];
+  return { ...k, plainPrice: pp };
+};
 export function planToListAll<G extends { id: string; checked: boolean }>(groceries: G[], k: Kitchen, lines: KLine[], makeId: () => string) {
   const list = planToList(groceries, lines, makeId);
   const taken = new Set(list.map((g) => g.id));
-  const plain = plainLines(k).map((p, i) => { let id = `${PLAN_TAG}${makeId()}`; while (taken.has(id)) id = `${PLAN_TAG}${makeId()}${i}`; taken.add(id); return { id, name: p.dish.name.slice(0, 80), qty: `${p.servings}×`, aisle: guessAisle(p.dish.name), checked: false, price: 0 }; });
+  const plain = plainLines(k).map((p, i) => { let id = `${PLAN_TAG}${makeId()}`; while (taken.has(id)) id = `${PLAN_TAG}${makeId()}${i}`; taken.add(id); return { id, name: p.dish.name.slice(0, 80), qty: `${p.servings}×`, aisle: guessAisle(p.dish.name), checked: false, price: p.price }; });
   return [...list, ...plain];
 }
 

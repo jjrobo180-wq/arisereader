@@ -15,7 +15,7 @@ export type PlanInfo = {
   /** Can Premium be bought online right now? */
   payment: boolean;
   prices: { teacherMonthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number; familyMonthlyCents: number };
-  /** A.R.I.S.E. Reader (paid since November 9, 2026): may this person use it, and why. */
+  /** Arise Reader (paid since November 9, 2026): may this person use it, and why. */
   reader?: { access: boolean; via: string | null };
   /** Teachers only. */
   students?: number;
@@ -85,7 +85,7 @@ export function usePlan(token: string | null | undefined) {
   return { plan, loading, refresh };
 }
 
-/** Someone who needs a Reader plan before using A.R.I.S.E. Reader. Unknown (null) never locks. */
+/** Someone who needs a Reader plan before using Arise Reader. Unknown (null) never locks. */
 export const readerLocked = (plan: PlanInfo | null) => !!plan && !!plan.reader && plan.reader.access === false;
 
 /** A teacher who must get Premium before using their account. */

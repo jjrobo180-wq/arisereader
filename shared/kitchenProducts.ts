@@ -39,7 +39,7 @@ export const GROUPS: KGroup[] = [
   // Pantry
   G("spaghetti", "Spaghetti", "oz", "Pantry"), G("fettuccine", "Fettuccine", "oz", "Pantry"), G("rotini", "Rotini", "oz", "Pantry"), G("linguine", "Linguine", "oz", "Pantry"),
   G("lasagna-noodles", "Lasagna noodles", "oz", "Pantry"), G("egg-noodles", "Egg noodles", "oz", "Pantry"), G("mac-cheese", "Boxed mac & cheese", "ct", "Pantry", "", "box"), G("ramen", "Ramen noodles", "ct", "Pantry", "", "pack"),
-  G("coffee", "Ground coffee", "oz", "Pantry"),
+  G("coffee", "Ground coffee", "oz", "Pantry"), G("protein-shake", "Protein shakes", "ct", "Pantry", "", "shake"),
   G("dinner-rolls", "Dinner rolls", "ct", "Bread & bakery", "p", "roll"), G("teriyaki-sauce", "Teriyaki sauce", "floz", "Pantry"), G("hamburger-helper", "Hamburger Helper", "ct", "Pantry", "", "box"),
   G("beef-tips", "Beef tips", "oz", "Meat & seafood", "p"), G("spaghettios", "SpaghettiOs", "ct", "Pantry", "", "can"), G("goldfish", "Goldfish crackers", "oz", "Snacks"), G("cereal-bars", "Cereal bars", "ct", "Snacks", "", "bar"), G("coffee-pods", "Coffee pods", "ct", "Pantry", "", "pod"), G("coffee-creamer", "Coffee creamer", "floz", "Dairy & eggs", "p"),
   G("rice", "Long grain white rice", "oz", "Pantry"), G("oats", "Old fashioned oats", "oz", "Pantry"), G("cereal", "Cereal", "oz", "Pantry"), G("granola", "Granola", "oz", "Pantry"),
@@ -123,6 +123,7 @@ export const PRODUCTS: KProduct[] = [
   P("hamburger-helper", "hh-1", "Hamburger Helper", "Cheeseburger macaroni", 1, "1 box", 2.29), P("beef-tips", "beef-tips-16", "Kroger", "Beef sirloin tips", 16, "1 lb", 8.99),
   P("spaghettios", "spaghettios-1", "Campbell's", "SpaghettiOs original", 1, "15.8 oz can", 1.49), P("goldfish", "goldfish-6", "Pepperidge Farm", "Goldfish cheddar crackers", 6.6, "6.6 oz", 2.99), P("goldfish", "goldfish-30", "Pepperidge Farm", "Goldfish cheddar carton", 30, "30 oz", 10.99),
   P("cereal-bars", "nutrigrain-8", "Nutri-Grain", "Strawberry soft baked bars", 8, "8 ct", 3.99),
+  P("protein-shake", "premier-4", "Premier Protein", "Chocolate protein shake", 4, "4 ct", 7.99), P("protein-shake", "premier-12", "Premier Protein", "Chocolate protein shake", 12, "12 ct", 22.99),
   P("coffee", "folgers-30", "Folgers", "Classic Roast ground coffee", 30.5, "30.5 oz", 11.99), P("coffee", "coffee-kroger-12", "Kroger", "Medium roast ground coffee", 12, "12 oz", 5.49),
   P("coffee-pods", "pods-12", "Kroger", "Medium roast coffee pods", 12, "12 ct", 6.99), P("coffee-pods", "pods-24", "Folgers", "Classic Roast K-Cup pods", 24, "24 ct", 14.99),
   P("coffee-creamer", "creamer-32", "Coffee mate", "Original creamer", 32, "32 fl oz", 4.99), P("coffee-creamer", "creamer-16", "Kroger", "French vanilla creamer", 16, "16 fl oz", 2.79),

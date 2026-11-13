@@ -359,7 +359,7 @@ test("the Para App Store has the whole Arise App Store: LifeHub apps, every kit 
   const all = paraApps();
   const kinds = all.reduce<Record<string, number>>((m, a) => ({ ...m, [a.kind]: (m[a.kind] || 0) + 1 }), {});
   assert.ok(all.length > 450, `only ${all.length} apps`);
-  // 24 LifeHub apps since Earshot left Arise To Duo (it is Pod+ now).
+  // 24 LifeHub apps since Earshot left Arise To Duo (it is Podster now).
   assert.ok(kinds.section >= 24 && kinds.kit > 300 && kinds.office > 50, JSON.stringify(kinds));
   assert.equal(new Set(all.map((a) => a.key)).size, all.length, "each app once");
   assert.ok(paraApp("polls"), "Polls is there");

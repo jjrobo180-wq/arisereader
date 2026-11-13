@@ -1,4 +1,4 @@
-name: Pod+ signed iOS beta validation
+name: Podster signed iOS beta validation
 # Development beta validation only. Upload is a separate, explicitly approved release step.
 on:
   workflow_dispatch:
@@ -56,7 +56,7 @@ jobs:
               exit 1
             fi
           done
-      - name: Build bundled Pod+ app
+      - name: Build bundled Podster app
         env:
           PODPLUS_IOS: '1'
         run: |
@@ -156,13 +156,13 @@ jobs:
             echo "SIGN_ENTITLEMENTS=CODE_SIGN_ENTITLEMENTS=App/App.entitlements" >> "$GITHUB_ENV"
             echo "CarPlay: entitlement enabled"
           else
-            echo "::warning title=CarPlay::The provisioning profile has no CarPlay audio entitlement yet. Pod+ won't show in cars until Apple grants it (developer.apple.com/contact/carplay) and the profile is made again."
+            echo "::warning title=CarPlay::The provisioning profile has no CarPlay audio entitlement yet. Podster won't show in cars until Apple grants it (developer.apple.com/contact/carplay) and the profile is made again."
           fi
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
           PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
           if [[ "$PROFILE_APP_ID" != '6TYWWNKX6P.com.arisereader.podplus' ]]; then
-            echo "::error::Provisioning profile does not match Pod+ bundle ID"
+            echo "::error::Provisioning profile does not match Podster bundle ID"
             exit 1
           fi
           security create-keychain -p "" "$RUNNER_TEMP/podplus.keychain-db"
@@ -176,7 +176,7 @@ jobs:
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
-      - name: Profiles for Pod+ on Apple Watch and Apple TV
+      - name: Profiles for Podster on Apple Watch and Apple TV
         env:
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -210,7 +210,7 @@ jobs:
           ruby -rxcodeproj -e 'puts Xcodeproj::VERSION' || gem install xcodeproj --no-document --user-install
           export GEM_PATH="$(ruby -e 'puts Gem.user_dir'):$(ruby -e 'puts Gem.default_dir')"
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.podplus "$(cat widgets.json)" ff6a1f
-          # Pod+ for Apple Watch (inside the iPhone app) and Apple TV (archived on its own below).
+          # Podster for Apple Watch (inside the iPhone app) and Apple TV (archived on its own below).
           if [[ -n "${WATCH_PROFILE_NAME:-}${TV_PROFILE_NAME:-}" ]]; then
             WATCH_PROFILE="${WATCH_PROFILE_NAME:-}" TV_PROFILE="${TV_PROFILE_NAME:-}" ruby add_watch_tv.rb ios/App/App.xcodeproj ${WATCH_PROFILE_NAME:+--embed-watch}
             echo "WATCH_TV=1" >> "$GITHUB_ENV"

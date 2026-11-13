@@ -2,12 +2,13 @@
 // (including deleting everything), accessibility, and defaults.
 import { AppearanceSwitch } from "./pages/pagesUi";
 import { useEffect, useState } from "react";
-import { AudioLines, Blocks, Check, ChevronRight, Crown, Eye, LayoutGrid, LogOut, Mic, Palette, Shield, Sparkles, Trash2, Type, Upload, Users } from "lucide-react";
+import { Blocks, Check, ChevronRight, Crown, Eye, LayoutGrid, LogOut, Palette, Shield, Trash2, Type, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, type NotesProduct, type NotesSettings } from "@shared/ariseNotes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
+import { checkForUpdateNow } from "@/lib/nativeApp";
 import { api, notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
@@ -16,6 +17,7 @@ import { TabBar, TopBar, openSplit, type AppCtx } from "./NotesApp";
 import LookPicker from "@/components/looks/LookPicker";
 import { AppIcon, NOTES_APPS, useNotesApps } from "./notesAppsCatalog";
 import AllAccessOffer from "@/components/AllAccessOffer";
+import "./pages/pages-pro.css";
 
 type Tab = "plan" | "look" | "family" | "privacy" | "access";
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
@@ -43,11 +45,10 @@ export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab })
   </>;
 }
 
-function Row({ icon, label, detail, onClick, danger, testId }: { icon: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
-  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-[color-mix(in_srgb,var(--an-ink)_4%,transparent)]">
-    <span className="grid h-7 w-7 shrink-0 place-items-center [&>svg]:h-[18px] [&>svg]:w-[18px]" style={{ color: danger ? "var(--an-coral)" : "var(--an-muted)" }}>{icon}</span>
-    <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block truncate text-[12.5px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
-    <ChevronRight className="h-4 w-4 shrink-0 opacity-60" style={{ color: "var(--an-muted)" }} aria-hidden />
+function Row({ label, detail, onClick, danger, testId }: { icon?: ReactNode; label: string; detail?: string; onClick: () => void; danger?: boolean; testId?: string }) {
+  return <button type="button" onClick={onClick} data-testid={testId} className="flex min-h-[3.25rem] w-full items-center gap-3 px-4 py-2.5 text-left transition active:bg-[color-mix(in_srgb,var(--an-ink)_5%,transparent)]">
+    <span className="min-w-0 flex-1"><span className="block text-[16px] leading-tight" style={{ color: danger ? "var(--an-coral)" : "var(--an-ink)" }}>{label}</span>{detail && <span className="mt-0.5 block break-words text-[13px]" style={{ color: "var(--an-muted)" }}>{detail}</span>}</span>
+    <ChevronRight className="h-4 w-4 shrink-0 opacity-40" style={{ color: "var(--an-muted)" }} aria-hidden />
   </button>;
 }
 /** The App Gallery and the apps you've added (notesAppsCatalog.tsx). */
@@ -60,8 +61,8 @@ function AppsGroup({ ctx }: { ctx: AppCtx }) {
   </Group>;
 }
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <section>
-  <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[.16em]" style={{ color: "var(--an-muted)" }}>{title}</h2>
-  <div className="divide-y divide-[var(--an-line)] overflow-hidden border border-[var(--an-line)] bg-[var(--an-card)]" style={{ borderRadius: "min(var(--an-radius, 18px), 22px)" }}>{children}</div>
+  <h2 className="mb-1 px-4 text-[12px] font-medium" style={{ color: "var(--an-muted)" }}>{title}</h2>
+  <div className="divide-y divide-[var(--an-line)] overflow-hidden border-y border-[var(--an-line)] bg-[var(--an-card)]">{children}</div>
 </section>;
 
 function MenuHome({ ctx }: { ctx: AppCtx }) {
@@ -70,35 +71,17 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
   const name = ctx.me.user.name || "You";
   const pct = Math.min(100, u.pct);
   const look = NOTES_THEMES.find((t) => t.id === s.theme);
-  const quick: [string, ReactNode, () => void][] = [
-    ["Record", <Mic key="r" />, () => ctx.go({ name: "record" })], ["Upload", <Upload key="u" />, () => ctx.go({ name: "upload" })],
-    ["Memo", <AudioLines key="m" />, () => ctx.go({ name: "memo" })], ["Ask AI", <Sparkles key="a" />, () => ctx.go({ name: "ask" })],
-  ];
+  const [updateMsg, setUpdateMsg] = useState("");
   return <>
-    <TopBar ctx={ctx} title="You" />
-    <main className="mx-auto max-w-2xl space-y-7 px-4 pb-32 pt-5 sm:px-5" data-testid="notes-menu">
-      <section className="flex items-center gap-3.5">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-[18px] font-black" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)" }}>{name.trim().charAt(0).toUpperCase()}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-[19px] font-extrabold leading-tight tracking-tight" style={{ color: "var(--an-ink)" }}>{name}</p>
-          <p className="text-[13px]" style={{ color: "var(--an-muted)" }}>{ctx.me.planName}{u.pooled ? " · family minutes" : ""}</p></div>
-      </section>
-
-      <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} data-testid="notes-menu-minutes" className="block w-full border border-[var(--an-line)] bg-[var(--an-card)] p-4 text-left" style={{ borderRadius: "min(var(--an-radius, 16px), 18px)" }}>
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[.16em]" style={{ color: "var(--an-muted)" }}>Minutes this month</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: "var(--an-violet)" }}>Plan</p>
-        </div>
-        <p className="mt-1.5 text-[26px] font-extrabold leading-none tabular-nums tracking-tight" style={{ color: "var(--an-ink)" }}>{u.left.toLocaleString("en-US")}<span className="ml-1.5 text-[13px] font-semibold" style={{ color: "var(--an-muted)" }}>left</span></p>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-ink) 9%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1.5)}%`, background: "var(--an-violet)" }} /></div>
-        <p className="mt-2 text-[12px]" style={{ color: "var(--an-muted)" }}>{u.used.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} used · starts again {dayWords(u.resetOn)}</p>
+    <header className="an-noprint pt-[var(--sat,env(safe-area-inset-top,0px))]"><h1 className="mx-auto max-w-2xl px-4 pb-1 pt-5 text-[30px] font-bold tracking-tight sm:px-5" style={{ color: "var(--an-ink)" }}>Settings</h1></header>
+    <main className="mx-auto max-w-2xl space-y-6 pb-32 pt-3" data-testid="notes-menu">
+      <button type="button" onClick={() => ctx.go({ name: "settings", tab: "plan" })} data-testid="notes-menu-minutes" className="block w-full border-y border-[var(--an-line)] bg-[var(--an-card)] px-4 py-3.5 text-left">
+        <div className="flex items-center justify-between gap-3"><span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-semibold" style={{ background: "var(--an-violet)", color: "var(--an-on-accent)" }}>{name.trim().charAt(0).toUpperCase()}</span><span className="truncate text-[16px]" style={{ color: "var(--an-ink)" }}>{name}</span></span><p className="shrink-0 text-[13px]" style={{ color: "var(--an-muted)" }}>{ctx.me.planName}{u.pooled ? " · family" : ""}</p></div>
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--an-ink) 9%, transparent)" }}><div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1.5)}%`, background: "var(--an-ink)", opacity: .7 }} /></div>
+        <p className="mt-2 text-[13px]" style={{ color: "var(--an-muted)" }}>{u.left.toLocaleString("en-US")} of {u.allowance.toLocaleString("en-US")} minutes left · resets {dayWords(u.resetOn)}</p>
       </button>
 
-      <section aria-label="Quick actions" className="grid grid-cols-4 gap-2">
-        {quick.map(([label, icon, go]) => <button key={label} type="button" onClick={go} data-testid={`notes-menu-${label.toLowerCase().replace(/\s+/g, "-")}`} className="flex flex-col items-center gap-1.5 py-1 text-[12px] font-semibold transition active:scale-95" style={{ color: "var(--an-ink)" }}>
-          <span className="grid h-12 w-12 place-items-center rounded-full border border-[var(--an-line)] bg-[var(--an-card)] [&>svg]:h-5 [&>svg]:w-5" style={{ color: "var(--an-violet)" }}>{icon}</span>{label}</button>)}
-      </section>
-
-      <Group title="Make it yours">
+      <Group title="Preferences">
         <Row icon={<Palette />} label="Appearance" detail={s.contrast ? "High contrast is on" : `${look?.label ?? "Classic"} look`} onClick={() => ctx.go({ name: "settings", tab: "look" })} testId="notes-menu-look" />
         <Row icon={<Eye />} label="Accessibility" detail="Text size, simple text, read-aloud voice" onClick={() => ctx.go({ name: "settings", tab: "access" })} testId="notes-menu-access" />
       </Group>
@@ -110,6 +93,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
       </Group>
       <AppsGroup ctx={ctx} />
       <Group title="More">
+        <Row label="Check for updates" detail={updateMsg || "Get the newest version now"} onClick={() => { setUpdateMsg("Checking…"); void checkForUpdateNow().then(setUpdateMsg); }} testId="notes-check-update" />
         <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
         {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
       </Group>
@@ -167,7 +151,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--an-violet-soft)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Minutes used"><div className={`h-full rounded-full ${u.warn === 100 ? "bg-[var(--an-coral)]" : u.warn === 80 ? "bg-[#f5a524]" : "bg-[var(--an-violet)]"}`} style={{ width: `${pct}%` }} /></div>
       <p className="mt-3 text-[13px] leading-relaxed text-[var(--an-muted)]">You're on <b>{ctx.me.planName}</b>{u.pooled ? " (your family's shared minutes)" : ""}. Every minute of audio counts, recorded or uploaded, rounded up per recording. One recording can be up to {u.maxSecs >= 7200 ? "2 hours" : `${Math.round(u.maxSecs / 60)} minutes`}.{u.warn ? " You'll get a heads-up at 80% and at 100%." : ""}</p>
     </Section>
-    {native ? <AllAccessOffer note={NATIVE_NO_PURCHASE} authToken={authToken} onBought={() => void ctx.refreshMe()} /> : !bill ? <Spinner /> : <>
+    {native ? <AllAccessOffer app="notes" note={NATIVE_NO_PURCHASE} authToken={authToken} onBought={() => void ctx.refreshMe()} /> : !bill ? <Spinner /> : <>
       {bill.canBuy && !bill.payment && <Notice tone="warn">Paid plans aren't open on this site yet.</Notice>}
       {bill.given && <Notice>Your plan was set up for you{bill.endsAt ? ` until ${new Date(bill.endsAt).toLocaleDateString()}` : ""}.</Notice>}
       {!bill.paidOnline && <AllAccessCard ctx={ctx} bill={bill} returnPath={returnPath} />}
@@ -196,7 +180,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
 }
 
 // New Notes plans are sold as Arise All Access ($10 a month: Notes Plus, To Duo Unlimited, Fit+ and
-// ad-free Pod+). People already paying for a Notes plan keep theirs and change it above.
+// ad-free Podster). People already paying for a Notes plan keep theirs and change it above.
 type AllAccess = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean };
 function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; returnPath: string }) {
   const say = useToast();
@@ -209,11 +193,11 @@ function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; 
     catch (e: any) { say(e.message); setBusy(false); }
   };
   const price = money(all?.priceCents ?? 1000);
-  const perks = ["Arise Notes Plus: 1,500 minutes a month, every AI feature", "Arise To Duo Unlimited: every plugin and AI", "Arise Fit+, with a free guest pass for a friend", "Ad-free listening in Pod+"];
+  const perks: [string, string][] = [["Arise Notes", "Plus: 1,500 minutes a month, every AI feature"], ["Arise To Duo", "Unlimited: every plugin and AI"], ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, with a free guest pass for a friend"], ["Podster", "Ad-free listening"]];
   return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
     <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise All Access</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
     <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>
-    <ul className="mt-3 space-y-1.5">{perks.map((f) => <li key={f} className="flex gap-2 text-[14px]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--an-green)]" aria-hidden />{f}</li>)}</ul>
+    <ul className="mt-3 space-y-2.5">{perks.map(([app, detail]) => <li key={app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--an-green)]" aria-hidden /><span className="min-w-0"><span className="block text-[14px] font-semibold leading-snug">{app}</span><span className="block text-[12px] leading-snug opacity-65">{detail}</span></span></li>)}</ul>
     {all?.live
       ? (all.canManage ? <Btn kind="plain" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/portal")}>Manage billing, receipts or cancel</Btn>
         : <p className="mt-4 text-[13px] text-[var(--an-muted)]">{all.admin ? "The admin account always has All Access." : "All Access is on your account."}</p>)

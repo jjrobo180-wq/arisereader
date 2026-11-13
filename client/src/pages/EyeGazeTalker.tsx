@@ -684,7 +684,7 @@ export default function EyeGazeTalker() {
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
             <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-16 px-5 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
-            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid grid-cols-1 place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My Talker</h1></div></div>
+            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid grid-cols-1 place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">ARISE READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My Talker</h1></div></div>
             <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="My Talker">

@@ -7,7 +7,7 @@
 // (see hubAccessFor) — not a trial, just free. It is not part of the free year
 // or a free school.
 // The teacher Class plan (PLANS.teacher) is a single combined price: $20/month
-// per 99 students includes A.R.I.S.E. Reader, Math, History AND Connect — there
+// per 99 students includes Arise Reader, Math, History AND Connect — there
 // is no longer a separate per-app class add-on for teachers (classApps/
 // classAppCents is kept only for the parent family bundle's pricing and old
 // records; appAccessFor grants every app to a teacher with Premium).
@@ -21,7 +21,7 @@ import { productPrice, type NotesProduct } from "./ariseNotes";
 
 export const PLANS = {
   teacher: {
-    /** $20 a month covers one block of up to 99 students (A.R.I.S.E. Reader, Math, History and Connect). */
+    /** $20 a month covers one block of up to 99 students (Arise Reader, Math, History and Connect). */
     monthlyCents: 2000,
     studentsPerBlock: 99,
     /** The most blocks one teacher can buy online (5,000 students). */
@@ -51,7 +51,7 @@ export const PLANS = {
   /**
    * The Learning Bundle: Arise History, Arise Math and Arise Social together, for a family:
    * $7 a month covers the parent and every linked child (up to 3), and since November 2026 it is
-   * also the family's A.R.I.S.E. Reader plan (see readerAccessFor).
+   * also the family's Arise Reader plan (see readerAccessFor).
    * (teacherMonthlyCents is the old all-three class plan, kept so plans bought before
    * the apps were sold one by one keep working. It is no longer sold.)
    */
@@ -84,7 +84,7 @@ export const PLANS = {
     monthlyCents: 1000,
   },
   /**
-   * Arise Fit+ (shared/fitPlus.ts): the paid tier of Arise Fit, $10 a month per account. Each paying
+   * Cooked+ (shared/fitPlus.ts): the paid tier of Cooked, $10 a month per account. Each paying
    * account can share it free with one other account (the guest pass). Sold on the website only.
    */
   fitPlus: {
@@ -92,7 +92,7 @@ export const PLANS = {
   },
   /**
    * Arise All Access: one $10-a-month plan for one person that unlocks the paid tier of every app:
-   * Arise To Duo Unlimited, Arise Notes Plus, Arise Fit+ (with its guest pass) and ad-free Pod+.
+   * Arise To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free Podster.
    * It replaces selling those separately; people who already pay for one of them keep it.
    */
   allAccess: {
@@ -122,7 +122,7 @@ export const PLANS = {
   /** The end of the 2026-27 school year: midnight on July 1, 2027, Mountain time. */
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
   /**
-   * A.R.I.S.E. Reader stops being free for accounts made from this moment (7 PM on November 8, 2026,
+   * Arise Reader stops being free for accounts made from this moment (7 PM on November 8, 2026,
    * Mountain time: moved up from midnight so tonight's new accounts need a plan too). Every account
    * made before it keeps Reader free through the 2026-27 school year.
    */
@@ -381,7 +381,7 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
   return NONE;
 }
 
-// ─── A.R.I.S.E. Reader ─────────────────────────────────────────────────────────
+// ─── Arise Reader ─────────────────────────────────────────────────────────
 
 export type ReaderVia = "admin" | "sample" | "existing" | "teacher-plan" | "school-plan" | "class" | "family-plan" | "not-reader";
 export type ReaderAccess = { access: boolean; via: ReaderVia | null };
@@ -396,7 +396,7 @@ export function readerExistingAccount(createdAt: unknown, now = Date.now()): boo
 
 export type ReaderFacts = {
   now?: number;
-  /** A teacher's own plan, and their school's (a free school's plan counts). */
+  /** A teacher's own plan, and their school's (a free school's plan counts). The school's counts for its students too. */
   teacherGrant?: PlanGrant | null;
   schoolGrant?: PlanGrant | null;
   /** A parent's own family plan, or the family plans of a student's linked parents. */
@@ -406,7 +406,7 @@ export type ReaderFacts = {
 };
 
 /**
- * Can this person use A.R.I.S.E. Reader? From November 9, 2026 Reader is paid: $7 a month for a
+ * Can this person use Arise Reader? From November 9, 2026 Reader is paid: $7 a month for a
  * family (the parent and up to 3 linked children), $20 a month per 99 students for a teacher, or
  * $600 a school year for a whole school. Everyone who had an account before then keeps it free through the school year, and so do
  * the students of a teacher who has it. Unlike Premium this does not wait for plan rules to be on.
@@ -427,6 +427,9 @@ export function readerAccessFor(person: (PlanPerson & { username?: string | null
   }
   if ((facts.familyGrants || []).some((g) => grantLive(g, now))) return { access: true, via: "family-plan" };
   if (role === "student" && facts.classTeacherAccess && person.approvedByTeacher !== false) return { access: true, via: "class" };
+  // A student at a school with a school plan, or at an always-free school, reads free: most students
+  // join by advisory name, with no teacher account on file, so the class check alone left them locked.
+  if (role === "student" && grantLive(facts.schoolGrant, now) && person.approvedByTeacher !== false) return { access: true, via: "school-plan" };
   return { access: false, via: null };
 }
 

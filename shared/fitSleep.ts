@@ -1,4 +1,4 @@
-// Arise Fit: sleep. One record per night (the morning you woke up): when you went to bed and woke, how
+// Cooked: sleep. One record per night (the morning you woke up): when you went to bed and woke, how
 // it was tracked, the time spent in each sleep stage when Apple Health has it, and an optional 1-5
 // rating. Nights come from Apple Health (an Apple Watch, the iPhone's Sleep schedule or any sleep app
 // that writes to Health), from your bedtime schedule (confirmed in the morning), from a guess based on
@@ -16,8 +16,8 @@ export type Nap = { start: number; end: number };
 /** Usual bedtime and wake time ("22:30", "06:30"). */
 export type SleepSchedule = { bed: string; wake: string };
 export type Sleep = { goalH: number; nights: SleepNight[]; asleepAt?: number; naps?: Nap[]; schedule?: SleepSchedule;
-  /** Reminders: wind down before bed, and the morning check-in. */
-  remind?: { windDown: boolean; morning: boolean };
+  /** Reminders: wind down before bed, at bedtime, and the morning check-in. */
+  remind?: { windDown: boolean; morning: boolean; bedtime?: boolean };
   /** Nights the morning check-in was dismissed (date keys), so it doesn't ask again. */
   skipped?: string[] };
 
@@ -47,7 +47,7 @@ export function cleanSleep(raw: any): Sleep | undefined {
     .filter((x: Nap) => Number.isFinite(x.start) && Number.isFinite(x.end) && x.end - x.start >= 5 * 60_000 && x.end - x.start <= 4 * 3_600_000);
   if (naps.length) out.naps = naps;
   if (raw.schedule && hhmm(raw.schedule.bed) && hhmm(raw.schedule.wake)) out.schedule = { bed: hhmm(raw.schedule.bed), wake: hhmm(raw.schedule.wake) };
-  if (raw.remind && typeof raw.remind === "object") out.remind = { windDown: !!raw.remind.windDown, morning: !!raw.remind.morning };
+  if (raw.remind && typeof raw.remind === "object") out.remind = { windDown: !!raw.remind.windDown, morning: !!raw.remind.morning, ...(raw.remind.bedtime === true ? { bedtime: true } : {}) };
   const skipped = (Array.isArray(raw.skipped) ? raw.skipped : []).map(String).filter((k: string) => /^\d{4}-\d{2}-\d{2}$/.test(k)).slice(-14);
   if (skipped.length) out.skipped = skipped;
   if (!nights.length && !out.asleepAt && out.goalH === 8 && !naps.length && !out.schedule && !out.remind) return undefined;
@@ -77,9 +77,9 @@ export const addNap = (s: Sleep | undefined, start: number, end: number): Sleep 
 };
 
 /** The last `days` days (oldest first) with hours slept, or null for a night with no record. */
-export function lastDays(s: Sleep | undefined, days = 7): { date: string; h: number | null }[] {
+export function lastDays(s: Sleep | undefined, days = 7, now = new Date()): { date: string; h: number | null }[] {
   const by = new Map((s?.nights ?? []).map((n) => [n.date, nightHours(n)]));
-  const t = new Date(); t.setHours(12, 0, 0, 0);
+  const t = new Date(now); t.setHours(12, 0, 0, 0);
   const out: { date: string; h: number | null }[] = [];
   for (let i = days - 1; i >= 0; i--) { const d = new Date(t); d.setDate(t.getDate() - i); const k = dayKey(d); out.push({ date: k, h: by.get(k) ?? null }); }
   return out;
@@ -92,8 +92,8 @@ const spread = (xs: number[]) => { if (xs.length < 2) return 0; const m = xs.red
 /** A clock time from minutes after midnight ("10:42 PM"). */
 export const clockOf = (min: number) => { const m = ((Math.round(min) % 1440) + 1440) % 1440; const h = Math.floor(m / 60); return `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 
-export function sleepStats(s: Sleep | undefined, days = 7) {
-  const got = lastDays(s, days).filter((d) => d.h != null) as { date: string; h: number }[];
+export function sleepStats(s: Sleep | undefined, days = 7, now = new Date()) {
+  const got = lastDays(s, days, now).filter((d) => d.h != null) as { date: string; h: number }[];
   const goal = s?.goalH ?? 8;
   const avg = got.length ? got.reduce((a, d) => a + d.h, 0) / got.length : 0;
   const debt = got.reduce((a, d) => a + Math.max(0, goal - d.h), 0);

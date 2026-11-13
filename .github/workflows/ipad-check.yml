@@ -1,5 +1,5 @@
-name: Eye Gazer on iPad (WebKit, touch)
-# Plays each Eye Gazer game in Safari's engine as an iPad with finger taps (tests/ipad) and saves
+name: Arise AAC on iPad (WebKit, touch)
+# Plays each Arise AAC game in Safari's engine as an iPad with finger taps (tests/ipad) and saves
 # screenshots and errors to the ipad-shots branch.
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 jobs:
   ipad:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

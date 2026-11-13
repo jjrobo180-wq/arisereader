@@ -1,4 +1,4 @@
-// Arise Fit gets a Medicine tracker and a Period tracker plugin (November 2026).
+// Cooked gets a Medicine tracker and a Period tracker plugin (November 2026).
 // Run with: npx tsx --test tests/fit-trackers.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -69,7 +69,7 @@ test("period: an empty day is removed, and saved data is cleaned", () => {
   assert.equal(cleanCycle(undefined), undefined);
 });
 
-test("the screens are wired into Arise Fit", async () => {
+test("the screens are wired into Cooked", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const app = read("client/src/pages/fit/FitApp.tsx");
@@ -78,7 +78,7 @@ test("the screens are wired into Arise Fit", async () => {
   assert.match(read("client/src/pages/fit/FitApps.tsx"), /CalendarHeart, Pill,/);
 });
 
-test("Arise Fit and Arise Reader use their phone's own clock space; the apps iOS already insets are left alone", async () => {
+test("Cooked and Arise Reader use their phone's own clock space; the apps iOS already insets are left alone", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   const main = read("client/src/main.tsx");
@@ -97,7 +97,7 @@ test("Arise Fit and Arise Reader use their phone's own clock space; the apps iOS
   assert.equal(Math.round((deviceTopInset(402, 874)! / 0.9) * 10) / 10, 68.9);
 });
 
-test("Pod+ clears its phone's own clock space too", async () => {
+test("Podster clears its phone's own clock space too", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   assert.match(read("podscroll/main.tsx"), /classList\.add\("pod-native"\); applyDeviceTopInset\(\);/);

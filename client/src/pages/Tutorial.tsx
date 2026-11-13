@@ -53,7 +53,7 @@ const SAMPLE_LEADERBOARD = [
 ];
 
 const EASY_QUIZ = {
-  book: { id: 1, title: "A.R.I.S.E Reader Demo Quiz", author: "Fun Knowledge", pointsValue: 10, coverUrl: "" },
+  book: { id: 1, title: "Arise Reader Demo Quiz", author: "Fun Knowledge", pointsValue: 10, coverUrl: "" },
   questions: [
     {
       id: 1,
@@ -202,7 +202,7 @@ export default function Tutorial() {
             <div className="w-20 h-20 rounded-[1.5rem] arise-icon-tile flex items-center justify-center mx-auto mb-6">
               <GraduationCap className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Welcome to A.R.I.S.E Reader!</h1>
+            <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Welcome to Arise Reader!</h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
               Choose the tutorial that fits you. Explore each walkthrough with no login and nothing saved.
             </p>
@@ -273,7 +273,7 @@ export default function Tutorial() {
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Parent / Family</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Explore linked-child progress, certificates, messages, Eye Gazer family controls, My Talker personalization, My World, Life Skills, and more.
+                Explore linked-child progress, certificates, messages, Arise AAC family controls, My Talker personalization, My World, Life Skills, and more.
               </p>
               <div className="flex items-center gap-1 text-cyan-300 text-sm font-black">
                 <PlayCircle className="w-4 h-4" />
@@ -860,7 +860,7 @@ export default function Tutorial() {
                 onBack={() => setStep(7)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
-                  A.R.I.S.E Reader groups students by grade level so competition is fair. A kindergartener should never compete against a high schooler. Here's how it works:
+                  Arise Reader groups students by grade level so competition is fair. A kindergartener should never compete against a high schooler. Here's how it works:
                 </p>
                 <div className="space-y-3 mb-4">
                   <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
@@ -895,7 +895,7 @@ export default function Tutorial() {
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">You're Ready!</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  You've seen everything A.R.I.S.E Reader has to offer for students. When you're ready to start reading and earning points for real, create an account or log in.
+                  You've seen everything Arise Reader has to offer for students. When you're ready to start reading and earning points for real, create an account or log in.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button size="lg" onClick={() => navigate("/")} className="gap-2">
@@ -1288,7 +1288,7 @@ export default function Tutorial() {
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-black text-white mb-3 tracking-[-.035em]">Teacher / Admin Tutorial</h1>
                 <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                  This tutorial walks you through the admin dashboard: student management, quiz creation, messaging, notifications, and the full book library — everything you need to run A.R.I.S.E Reader.
+                  This tutorial walks you through the admin dashboard: student management, quiz creation, messaging, notifications, and the full book library — everything you need to run Arise Reader.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-8">
                   <div className="p-4 rounded-2xl arise-surface border border-white/10 text-left">
@@ -1549,7 +1549,7 @@ export default function Tutorial() {
                 onNext={() => setStep(7)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
-                  This is the complete library of every quiz available on A.R.I.S.E Reader. Students see this when they log in. Books are organized by point value — 10 (easy), 20 (medium), 30 (hard). Search by title or author. Each book shows its cover, author, and points.
+                  This is the complete library of every quiz available on Arise Reader. Students see this when they log in. Books are organized by point value — 10 (easy), 20 (medium), 30 (hard). Search by title or author. Each book shows its cover, author, and points.
                 </p>
                 <div className="rounded-xl bg-muted/20 border border-white/10 p-4 mb-4">
                   <div className="mb-3 relative">
@@ -1692,7 +1692,7 @@ export default function Tutorial() {
                 onBack={() => setStep(7)}
               >
                 <p className="text-sm text-muted-foreground mb-4">
-                  A.R.I.S.E Reader groups students by grade level so competition is fair and books are age-appropriate. Here's what teachers and admins need to know:
+                  Arise Reader groups students by grade level so competition is fair and books are age-appropriate. Here's what teachers and admins need to know:
                 </p>
                 <div className="space-y-3 mb-4">
                   <div className="p-3 rounded-lg bg-muted/20 border border-white/10">
@@ -1823,7 +1823,7 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
             <div className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl arise-icon-tile"><Eye className="h-5 w-5" /></div>
-            <h4 className="mt-2 font-bold text-white">Eye Gazer family tools</h4>
+            <h4 className="mt-2 font-bold text-white">Arise AAC family tools</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">Personalize My Talker, My World, Life Skills, videos, flash cards, and supported access settings for a linked learner.</p>
           </div>
         </div>

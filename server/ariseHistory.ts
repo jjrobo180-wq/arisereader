@@ -1,10 +1,10 @@
-// Arise History (/history/): K–12 history built like A.R.I.S.E. Reader. Students read a short true story
+// Arise History (/history/): K–12 history built like Arise Reader. Students read a short true story
 // (a History Read) and take a 5-question quiz on it; points go on a class leaderboard, with achievements,
 // certificates and the game room. Teachers see their class, assign reads or their own questions, send
 // certificates and run live review games; parents follow each linked child.
 //
 // Rules kept here, on the server (the same as Arise Math):
-// - Accounts are the regular A.R.I.S.E. Reader accounts. Students show as "First L." to classmates.
+// - Accounts are the regular Arise Reader accounts. Students show as "First L." to classmates.
 // - The answer key never reaches the page before a quiz is turned in. The server shuffles the choices,
 //   grades the whole quiz, and only then sends back what was right, so points can't be faked.
 // - Retakes only earn points for improving on the best score.

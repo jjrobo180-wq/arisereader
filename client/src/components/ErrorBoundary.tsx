@@ -10,9 +10,11 @@ interface State {
 /** Reads the role from the saved sign-in (no names), so a crash report says whose screen broke. */
 function savedRole(): string {
   try {
-    const raw = document.cookie.split(";").map(c => c.trim()).find(c => c.startsWith("arise_session="));
+    const cookie = document.cookie.split(";").map(c => c.trim()).find(c => c.startsWith("arise_session="));
+    // The iPhone apps keep the sign-in in storage, not in the cookie.
+    const raw = cookie ? cookie.slice("arise_session=".length) : (() => { try { return localStorage.getItem("arise_session_backup") || ""; } catch { return ""; } })();
     if (!raw) return "guest";
-    const bin = atob(raw.slice("arise_session=".length));
+    const bin = atob(raw);
     let data: any; try { data = JSON.parse(decodeURIComponent(escape(bin))); } catch { data = JSON.parse(bin); }
     return data?.user?.isAdmin ? "admin" : String(data?.user?.role || "student");
   } catch { return "unknown"; }

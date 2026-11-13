@@ -1,4 +1,4 @@
-// One shape for every Eye Gazer lesson the lesson player shows: the built-in lessons
+// One shape for every Arise AAC lesson the lesson player shows: the built-in lessons
 // (eye_gaze_quizzes / eye_gaze_questions, written in shared/eyegaze/lessons.ts) and the
 // quizzes teachers make (custom_eye_gaze_*). Pure functions, so the tests can check them.
 import type { ChoiceStyle, QuestionExtras, SavedLearnCard } from "@shared/eyegaze/lessonSteps";

@@ -1,4 +1,4 @@
-// A family, teacher or school asks for A.R.I.S.E. Reader free: a scholarship, or a grant or program
+// A family, teacher or school asks for Arise Reader free: a scholarship, or a grant or program
 // that covers them. Public; the admin reads the applications in Admin, under Plans and billing.
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -41,7 +41,7 @@ export default function ReaderScholarship() {
           ) : (
             <form onSubmit={send}>
               <p className="text-xs font-black uppercase tracking-widest text-violet-600">Scholarships &amp; grants</p>
-              <h1 className="mt-2 text-3xl font-black leading-tight">Apply for a free A.R.I.S.E. Reader account</h1>
+              <h1 className="mt-2 text-3xl font-black leading-tight">Apply for a free Arise Reader account</h1>
               <p className="mt-3 text-[15px] leading-7 text-slate-600">No child should miss out on reading because of money. Tell us a little about you. If a grant, Title I, a nonprofit or another program covers you, say which one.</p>
               <div className="mt-6 space-y-4">
                 <label className={label}>This is for

@@ -1,4 +1,4 @@
-// Arise Fit: what to expect after a workout. Which muscles will likely be sore and when, how much
+// Cooked: what to expect after a workout. Which muscles will likely be sore and when, how much
 // protein and carbs to eat and by when, how much to drink, and plain facts on creatine and pre-workout.
 // General guidance for healthy adults, not medical advice: the app says so where it shows this.
 import { CATALOG_BY_ID, type FitData, type Workout } from "./fit";

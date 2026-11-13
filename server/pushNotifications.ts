@@ -11,6 +11,7 @@ import { dueHubReminders, HUB_REMINDER_URL } from "../shared/hubReminders";
 import { normalizeWorkspace } from "../shared/teacherHub";
 import { dueTodoReminders, goUrl, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
 import { NEWS_TOPICS } from "../shared/todoNews";
+import { cleanFitPushPrefs, fitPushAllowed, fitPushKind } from "../shared/fitPush";
 import { fetchHeadlines } from "./todoNews";
 import { dueNudges } from "../shared/healthNudges";
 import { APNS_PREFIX, appleEndpoint, appleToken, appleTopic, cleanAppleToken, hasApplePush, isAppleDevice, loadAppleKey, sendApplePush } from "./applePush";
@@ -68,6 +69,12 @@ async function deliver(row: Row, message: PushMessage, keys: VapidKeys | null): 
 
 /** Sends a notification to every device a user turned notifications on for. */
 export async function notifyUser(userId: number, message: PushMessage, only?: PushApp, counts?: { apple: number }): Promise<number> {
+  // Cooked and Cooked PT alerts the person switched off in their Notifications screen are not sent.
+  if (fitPushKind(message as any)) {
+    const { data: pref } = await supabase.from("settings").select("value").eq("key", `fit_push_prefs_${userId}`).maybeSingle();
+    let prefs = null; try { prefs = pref?.value ? cleanFitPushPrefs(JSON.parse(pref.value)) : null; } catch { prefs = null; }
+    if (!fitPushAllowed(prefs, message as any)) return 0;
+  }
   const keys = await pushKeys();
   await appleKey();
   const { data } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).eq("user_id", userId);

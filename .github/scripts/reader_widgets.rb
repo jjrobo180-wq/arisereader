@@ -1,4 +1,4 @@
-# A.R.I.S.E. Reader iPhone app: adds the Home Screen widget extension (ios/App/ReaderWidgets, copied
+# Arise Reader iPhone app: adds the Home Screen widget extension (ios/App/ReaderWidgets, copied
 # there by reader_widgets.py) to the Xcode project, embeds it in the app, and gives each target its
 # own bundle ID, signing profile and entitlements (both share the keychain group the widget reads).
 #

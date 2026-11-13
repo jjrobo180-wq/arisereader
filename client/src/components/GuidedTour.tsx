@@ -12,7 +12,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="welcome"]',
-    title: "Welcome to A.R.I.S.E. Reader 2.0!",
+    title: "Welcome to Arise Reader 2.0!",
     desc: "This is your reading home. The original library is still here, but now reading also connects to live quiz games, rewards, avatars, pets, worlds, Club A.R.I.S.E., and more.",
     position: "bottom",
   },
@@ -54,8 +54,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     selector: '[data-tour="eye-gaze-section"]',
-    title: "Eye Gazer Learning",
-    desc: "A.R.I.S.E. also includes a dedicated Eye Gazer experience with visual quizzes, My Talker AAC, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, and family controls.",
+    title: "Arise AAC Learning",
+    desc: "A.R.I.S.E. also includes a dedicated Arise AAC experience with visual quizzes, My Talker AAC, games, Life Skills, My World, Shorts, Flash Cards, My Buddy, and family controls.",
     position: "bottom",
   },
   {

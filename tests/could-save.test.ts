@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
-test("Pod+ without Membership: ads sat through are counted as time it could have saved, and shown", () => {
+test("Podster without Membership: ads sat through are counted as time it could have saved, and shown", () => {
   const player = read("client/src/components/family-hub/earshot/EarshotPlayer.tsx");
   assert.match(player, /mode !== "auto" && delta > 0 && delta < 2[\s\S]{0,200}countCouldSave\(delta\)/);
   const extras = read("client/src/components/family-hub/earshot/listenExtras.ts");
@@ -12,7 +12,7 @@ test("Pod+ without Membership: ads sat through are counted as time it could have
   const card = read("client/src/components/family-hub/earshot/EarshotListen.tsx");
   assert.match(card, /of ads you could've skipped this week/);
   assert.match(card, /if \(notMember\) return <CouldSaveCard/);
-  // Pod+ skips ads for everyone now (no membership needed), so its Hours back card is always the
+  // Podster skips ads for everyone now (no membership needed), so its Hours back card is always the
   // member's one: never "what you could have saved".
   assert.match(read("podscroll/Home.tsx"), /<HoursBackCard light member onJoin=\{onJoin\}/);
 });

@@ -1,4 +1,4 @@
-// Pod+ creator sign-in: an email and a 6-digit code. Listening never needs it; publishing episodes,
+// Podster creator sign-in: an email and a 6-digit code. Listening never needs it; publishing episodes,
 // Studio and going live do. An account remembers the device id its profile was made on, so signing
 // in on another phone brings the same profile, posts and followers (server/earshot.ts swaps the
 // device for the account's on every request that carries the session).
@@ -6,6 +6,7 @@ import type { Express, RequestHandler } from "express";
 import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { AppleTokenError, PODPLUS_APP, appleRefreshToken, revokeAppleToken, verifyAppleToken } from "./appleSignIn";
+import { issueEmailHandoff } from "./adminHandoff";
 import { CODE_MINUTES, CODE_TRIES, CODE_WAIT_SECS, CODES_PER_DAY, cleanEmail } from "../shared/earshotCreators";
 
 export type Account = { id: number; email: string; device: string };
@@ -49,8 +50,8 @@ export function accountSessions(getDb: () => any) {
 }
 
 const codeEmail = (code: string) => `
-  <h1 style="margin:0 0 8px;font-size:22px">Your Pod+ sign-in code</h1>
-  <p style="margin:0 0 18px;color:#555">Type this code in Pod+ to sign in. It works for ${CODE_MINUTES} minutes.</p>
+  <h1 style="margin:0 0 8px;font-size:22px">Your Podster sign-in code</h1>
+  <p style="margin:0 0 18px;color:#555">Type this code in Podster to sign in. It works for ${CODE_MINUTES} minutes.</p>
   <p style="margin:0 0 18px;font-size:34px;font-weight:800;letter-spacing:8px">${code}</p>
   <p style="margin:0;color:#888;font-size:13px">If you didn't ask for this, you can ignore this email. Nobody can sign in without the code.</p>`;
 
@@ -91,7 +92,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
         tries: 0, sent_day: today, sent_today: sentToday + 1, sent_at: new Date().toISOString(),
       }, { onConflict: "email" });
       if (e2) throw e2;
-      const sent = await o.sendEmail(email, `${code} is your Pod+ code`, codeEmail(code));
+      const sent = await o.sendEmail(email, `${code} is your Podster code`, codeEmail(code));
       if (!sent.sent) {
         await db().from("podcast_account_codes").delete().eq("email", email);
         return res.status(503).json({ message: "We couldn't send the email just now. Try again in a few minutes." });
@@ -163,7 +164,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** Sign in with Apple (the Pod+ iPhone app). The identity token is checked against Apple's keys
+  /** Sign in with Apple (the Podster iPhone app). The identity token is checked against Apple's keys
    *  (server/appleSignIn.ts); the account is the one with that email (Apple's own or its private relay
    *  address), made now if it's new, keeping this phone's profile like an email-code sign-in does. */
   const apples = createAttemptLimiter({ max: 30, windowMs: 15 * 60_000 });
@@ -172,7 +173,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     try {
       const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [PODPLUS_APP]);
       const email = cleanEmail(claims.email);
-      if (!email) return res.status(400).json({ message: "Apple didn't share an email. In Settings → Apple ID → Sign in with Apple, remove Pod+ and try again." });
+      if (!email) return res.status(400).json({ message: "Apple didn't share an email. In Settings → Apple ID → Sign in with Apple, remove Podster and try again." });
       let { data: acct, error } = await db().from("podcast_accounts").select("id,email,device").eq("email", email).maybeSingle();
       if (error) throw error;
       if (!acct) {
@@ -194,7 +195,20 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** Delete my Pod+ account and everything made with it (App Store Guideline 5.1.1(v)). Works signed
+  /** "Get it on arisetodo.com": a one-use code that opens the All Access page in Safari signed in to the
+   *  Arise account for this verified email (made then if there isn't one). Never the session itself. */
+  const handoffs = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
+  app.post(`${P}/web-handoff`, gate, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const email = cleanEmail(req.creator?.email);
+    if (!email) return res.status(401).json({ message: "Sign in to Podster first." });
+    if (tooMany(handoffs, `h${req.creator.id}`, res)) return;
+    const code = issueEmailHandoff(email);
+    if (!code) return res.status(429).json({ message: "Please retry in a moment." });
+    res.json({ code });
+  });
+
+  /** Delete my Podster account and everything made with it (App Store Guideline 5.1.1(v)). Works signed
    *  in (the account, its profile and this phone's data) or not (this phone's listening data and
    *  profile). Asks for the word DELETE so it's never done by a stray tap. */
   const deletes = createAttemptLimiter({ max: 5, windowMs: 60 * 60_000 });
@@ -265,7 +279,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
   });
 }
 
-/** Everything Pod+ keeps about these people ("d<device>" voters): profile (its posts, comments and
+/** Everything Podster keeps about these people ("d<device>" voters): profile (its posts, comments and
  *  followers go with it), likes, follows, saves, votes, blocks, messages, stories, listens, ad votes,
  *  episode comments and uploaded files. A table that doesn't exist yet is skipped. */
 export async function deletePodData(db: any, voters: string[]): Promise<void> {
@@ -280,7 +294,7 @@ export async function deletePodData(db: any, voters: string[]): Promise<void> {
       ["podcast_stories", "voter"], ["podcast_dm_threads", "a"], ["podcast_dm_threads", "b"], ["podcast_listens", "voter"],
       ["podcast_ad_votes", "voter"], ["podcast_ad_skips", "voter"], ["podcast_comments", "voter"], ["podcast_posts", "voter"], ["podcast_profiles", "voter"],
     ] as const) await run(db.from(table).delete().eq(column, voter));
-    // Episode comments and likes on the Pod+ site are kept by device id.
+    // Episode comments and likes on the Podster site are kept by device id.
     for (const table of ["podscroll_comment_reports", "podscroll_comments", "podscroll_likes"]) await run(db.from(table).delete().eq("user_id", device));
     // Photos, videos, episodes and clips they uploaded.
     const folder = voter.replace(/[^A-Za-z0-9_-]/g, "");

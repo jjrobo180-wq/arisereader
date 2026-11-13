@@ -1,9 +1,11 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
+import { registerIepAiRoutes } from "./iepAi";
 import { dedupeBooks } from "./bookDedupe";
 import { PLANS, aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
+import { registerLessonShareRoutes } from "./lessonShare";
 import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
 import { nameKey, registerAccountMergeRoutes, supabaseMergeDb, type Candidate } from "./accountMerge";
 import { registerDropAppRoutes } from "./dropApp";
@@ -57,6 +59,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, createSupabaseWorkspaceStore, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseNotesRoutes, startNotesTicker } from "./ariseNotes";
+import { registerUndercoverRoutes } from "./undercover";
 import { configureAiMinutes } from "./aiMinutes";
 import { createSupabaseNotesStore } from "./ariseNotesStore";
 import { askSiteAi, createHearer, siteAiReady } from "./ariseNotesAi";
@@ -125,6 +128,7 @@ import { registerTtsBuddyRoutes } from "./ttsBuddy";
 import { createSupabaseKv } from "./fitKv";
 import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerClassBehaviorRoutes } from "./classBehavior";
+import { registerScholarRoutes } from "./scholar";
 import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAriseEnglishRoutes, type EnglishPerson } from "./ariseEnglish";
@@ -199,7 +203,7 @@ function quizPointsForScore(bookPoints: number, score: number, total: number): n
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const PROXY_URL = process.env.CUSTOM_CRED_API_RESEND_COM_URL || "";
 const PROXY_TOKEN = process.env.CUSTOM_CRED_API_RESEND_COM_TOKEN || "";
-const EMAIL_FROM = process.env.EMAIL_FROM || "A.R.I.S.E Reader <noreply@arisereader.com>";
+const EMAIL_FROM = process.env.EMAIL_FROM || "Arise Reader <noreply@arisereader.com>";
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "jjrobo180@gmail.com";
 const APP_URL = process.env.APP_URL || DEFAULT_SITE_URL;
 
@@ -937,7 +941,7 @@ async function sendEmail(to: string | string[], subject: string, html: string, o
   // A teacher's name can go in front of the site's own address, but mail can't truly come "from" their address: their email provider would mark it as fake.
   const fromAddress = /<([^>]+)>/.exec(EMAIL_FROM)?.[1] || EMAIL_FROM;
   const fromName = String(options.fromName || "").replace(/["<>@\r\n]/g, "").trim().slice(0, 60);
-  const from = fromName ? `"${fromName} via A.R.I.S.E. Reader" <${fromAddress}>` : EMAIL_FROM;
+  const from = fromName ? `"${fromName} via Arise Reader" <${fromAddress}>` : EMAIL_FROM;
   const body = JSON.stringify({ from, to: recipients, subject, html: emailDocument(subject, html, APP_URL), ...(options.replyTo ? { reply_to: options.replyTo } : {}) });
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -1002,12 +1006,12 @@ function parentApprovedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">Your Parent Account is Approved!</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your parent account on A.R.I.S.E Reader has been approved. You can now log in and view your student's progress, print certificates, and message their teacher.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your parent account on Arise Reader has been approved. You can now log in and view your student's progress, print certificates, and message their teacher.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
@@ -1022,12 +1026,12 @@ function teacherApprovedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">Your Teacher Account is Approved!</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your teacher account on A.R.I.S.E Reader has been approved. You can now log in and start managing your students.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Your teacher account on Arise Reader has been approved. You can now log in and start managing your students.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
@@ -1042,7 +1046,7 @@ function teacherSignupNotifyEmail(displayName: string, username: string, email: 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">New Teacher Signup</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">A new teacher has requested an account:</p>
@@ -1060,12 +1064,12 @@ function teacherCreatedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">Your Teacher Account is Ready</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${displayName},</p>
-      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">An administrator has created a teacher account for you on A.R.I.S.E Reader. Your account is approved and ready to use.</p>
+      <p style="color: #ccc; font-size: 16px; line-height: 1.6;">An administrator has created a teacher account for you on Arise Reader. Your account is approved and ready to use.</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="color: #999; margin: 0 0 5px 0; font-size: 14px;">Your username:</p>
         <p style="color: #FF5900; font-size: 18px; margin: 0; font-weight: bold;">${username}</p>
@@ -1081,7 +1085,7 @@ function clubSignupNotifyAdminEmail(studentName: string, grade: string, parentNa
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #FF5900; font-size: 22px;">New Reading Club Sign-Up</h2>
@@ -1104,7 +1108,7 @@ function clubApprovedEmail(studentName: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #4ade80; font-size: 22px;">You're Approved for Reading Club!</h2>
@@ -1117,7 +1121,7 @@ function clubApprovedEmail(studentName: string): string {
         <p style="color: #ccc; font-size: 15px; margin: 4px 0;">🏆 Earn 100 points each week</p>
         <p style="color: #ccc; font-size: 15px; margin: 4px 0;">📖 Bring a book or find one in the library</p>
       </div>
-      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to A.R.I.S.E Reader</a>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to Arise Reader</a>
     </div>
   `;
 }
@@ -1126,14 +1130,14 @@ function clubDeniedEmail(studentName: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+        <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
         <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
       </div>
       <h2 style="color: #f87171; font-size: 22px;">Reading Club Sign-Up Update</h2>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Hi ${studentName},</p>
       <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Thank you for your interest in the A.R.I.S.E Reading Club. Unfortunately, your sign-up could not be approved at this time. Please contact your teacher or school administrator for more information.</p>
       <p style="color: #999; font-size: 14px; margin-top: 20px;">You can always try signing up again in the future.</p>
-      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to A.R.I.S.E Reader</a>
+      <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 10px 0;">Go to Arise Reader</a>
     </div>
   `;
 }
@@ -1177,6 +1181,14 @@ const presence = createPresenceTracker({
 // Wrong passwords and proctor codes: after this many misses, wait before trying again.
 const loginFailsByName = createAttemptLimiter({ max: 10, windowMs: 15 * 60_000 });
 const loginFailsByAddress = createAttemptLimiter({ max: 100, windowMs: 15 * 60_000 });
+/** After a teacher or admin sets a new password, the student can sign in with it straight away:
+ *  wrong guesses before the reset no longer hold them at "Too many wrong passwords" for 15 minutes. */
+async function unlockSignIn(userId: number) {
+  try {
+    const u = await storage.getUser(userId);
+    if (u?.username) loginFailsByName.reset(String(u.username).trim().toLowerCase());
+  } catch {}
+}
 const proctorFails = createAttemptLimiter({ max: 8, windowMs: 15 * 60_000 });
 // Parent invitations a student has sent today (each send is counted with .fail()).
 const parentInviteSends = createAttemptLimiter({ max: PARENT_INVITES_PER_DAY, windowMs: 24 * 60 * 60_000 });
@@ -1289,7 +1301,7 @@ export async function registerRoutes(
   /** Fire and forget: an alert never slows down or breaks the request that caused it. */
   const alertAdmin = (event: Parameters<typeof adminAlerts.notify>[0], alert: Alert) => { void adminAlerts.notify(event, alert); };
   const personName = (user: any) => String(user?.displayName || user?.display_name || user?.username || "Someone");
-  // Pod+ and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
+  // Podster and Earshot Social reports (server/socialModeration.ts) reach the admin at once, so
   // reported posts, people and messages are looked at within 24 hours (App Review Guideline 1.2).
   onSocialReport((r) => alertAdmin("problem_report", {
     title: `${r.app}: a ${r.what} was reported`,
@@ -1333,7 +1345,7 @@ export async function registerRoutes(
       const pct = quiz.total > 0 ? Math.round((quiz.score / quiz.total) * 100) : 0;
       const points = Math.round(Number(quiz.points || 0) * 10) / 10;
       await adminAlerts.notify(event, {
-        title: `${event === "eye_gaze_quiz_completed" ? "Eye Gazer quiz" : "Quiz taken"}: ${name} scored ${quiz.score}/${quiz.total} on “${quiz.title}”`,
+        title: `${event === "eye_gaze_quiz_completed" ? "Arise AAC quiz" : "Quiz taken"}: ${name} scored ${quiz.score}/${quiz.total} on “${quiz.title}”`,
         summary: [quiz.passed ? `Passed · ${points} point${points === 1 ? "" : "s"}` : "Not passed", quiz.proctor, facts.teacher && `Teacher: ${facts.teacher}`].filter(Boolean).join(" · "),
         lines: [
           ["Student", `${name} (@${user?.username || "?"})`],
@@ -1373,7 +1385,7 @@ export async function registerRoutes(
   });
   const sendTeacherCode = async (account: TeacherAccount, code: string): Promise<boolean> => {
     if (!account.email) return false;
-    const result = await sendEmail(account.email, `${code} is your A.R.I.S.E Reader code`, teacherEmailCodeEmail(account.displayName || account.username, code));
+    const result = await sendEmail(account.email, `${code} is your Arise Reader code`, teacherEmailCodeEmail(account.displayName || account.username, code));
     if (!result.sent) console.error("[teacher-signup] could not email a code:", result.error);
     return result.sent;
   };
@@ -1385,7 +1397,7 @@ export async function registerRoutes(
     // The admin no longer approves these teachers, so they are told about each one instead.
     joined: async (account) => {
       const name = account.displayName || account.username;
-      if (account.email) sendEmail(account.email, "Your A.R.I.S.E Reader teacher account is ready", teacherWelcomeEmail(name, account.username, APP_URL)).catch(() => {});
+      if (account.email) sendEmail(account.email, "Your Arise Reader teacher account is ready", teacherWelcomeEmail(name, account.username, APP_URL)).catch(() => {});
       let school = "";
       try {
         const teacher = await storage.getUser(account.id);
@@ -1516,9 +1528,28 @@ export async function registerRoutes(
       path === "/api/arise-todo/resend-code" ||
       path === "/api/arise-todo/apple-health/sync"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
-    "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
+    "todo_required", "Arise LifeHub needs Arise All Access.",
   ));
-  registerAdminHandoffRoutes(app, authMiddleware);
+  registerAdminHandoffRoutes(app, authMiddleware, {
+    // Podster's accounts are its own; All Access lives on the Arise account with the same (verified)
+    // email. Its "Get it on arisetodo.com" opens that account signed in, made now if there isn't one.
+    emailAccount: async (email) => {
+      if (!looksLikeEmail(email)) return null;
+      const pattern = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const { data } = await getAdminSupabase().from("users").select("id, role, is_admin, created_at").ilike("email", pattern).is("archived_at", null).order("created_at", { ascending: false }).limit(20);
+      const adults = (data || []).filter((u: any) => !u.is_admin && u.role !== "student");
+      let user: any = null;
+      for (const u of adults) { const g = await plans.allAccess(Number(u.id), { id: Number(u.id) } as any).catch(() => null); if (g?.live) { user = await storage.getUser(Number(u.id)); break; } }
+      if (!user && adults[0]) user = await storage.getUser(Number(adults[0].id));
+      if (!user) {
+        const username = await appleUsername(email, false, async (n) => !!(await storage.getUserByUsername(n)));
+        user = await storage.createUser({ username, password: await bcrypt.hash(randomBytes(24).toString("base64url"), 10), displayName: email.split("@")[0].slice(0, 40) || "Podster listener", email, role: "todo", approvedByTeacher: true, accountApproved: true });
+      }
+      if (!user || user.archivedAt) return null;
+      const session = await storage.createSession(Number(user.id));
+      return { token: session.token, user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: false, role: user.role, approvedByTeacher: true, accountApproved: true, email: user.email, schoolId: user.school_id ?? null, totalPoints: user.totalPoints || 0 } };
+    },
+  });
   // Apple TV sign-in with a code, and the TV's summary of the family hub (server/tvLink.ts).
   const tvId = () => `tv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   registerTvLinkRoutes(app, authMiddleware, {
@@ -1610,7 +1641,7 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Pod+).
+        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Podster).
         priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
@@ -1643,7 +1674,7 @@ export async function registerRoutes(
   registerKrogerRoutes(app, authMiddleware);
   registerFitRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
-    // Arise Fit+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
+    // Cooked+: the account's own plan (server/plans.ts); guest passes are worked out in server/fitPass.ts.
     ownPlus: async (id) => plans.fitPlusOwn(id, (await storage.getUser(id).catch(() => null)) as any),
     payment: () => plans.stripeReady(),
     addToDuoGroceries: (userId, items) => updateTodoWorkspace(userId, (ws) => {
@@ -1653,7 +1684,7 @@ export async function registerRoutes(
       return { workspace: { ...ws, family: { ...family, groceries: r.list } }, result: { added: r.added, updated: r.updated } };
     }),
   });
-  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Arise Trainer app.
+  // Arise Coaching (server/coach.ts): the trainer directory, client–trainer connections and the Cooked PT app.
   registerCoachRoutes(app, authMiddleware, {
     nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "").trim().split(/\s+/)[0] || ""; },
     stripeKey: () => plans.adminTodo.stripeKey(),
@@ -1695,6 +1726,8 @@ export async function registerRoutes(
   };
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
+  // Arise Undercover (server/undercover.ts): an AI chat that looks like texting or a document, at /undercover/.
+  registerUndercoverRoutes(app, authMiddleware);
   // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
   // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
   const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
@@ -1739,8 +1772,8 @@ export async function registerRoutes(
   // On by EARSHOT_PRECHECK=1, and by itself once the AI is on a paid plan (EARSHOT_PRECHECK=0 keeps it off).
   if (process.env.EARSHOT_PRECHECK !== "0") startPodcastPrechecks({ kv: supabaseKV(getAdminSupabase), player: podcastPlayer, dir: podcasts, enabled: () => process.env.EARSHOT_PRECHECK === "1" || podcasts.paid(),
     topShows: async () => { const lists = await Promise.all(PODCAST_GENRES.slice(0, 12).map((g) => podcasts.loadGenreShows(g.id).catch(() => []))); const out: string[] = []; for (let i = 0; i < 4; i++) for (const l of lists) if (l[i]) out.push(l[i].id); return out; } });
-  // Pod+'s AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
-  // the signed-in Arise user, or (in the Pod+ app) the Arise account with the Pod+ sign-in's email.
+  // Podster's AI tools spend the same monthly AI minutes as Arise Notes (server/aiMinutes.ts). The account is
+  // the signed-in Arise user, or (in the Podster app) the Arise account with the Podster sign-in's email.
   configureAiMinutes({
     accountOf: async (req: any) => {
       const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
@@ -1754,8 +1787,8 @@ export async function registerRoutes(
     left: (id) => notesMinutes.left(id),
     spend: (id, m, kind) => notesMinutes.spend(id, m, kind),
   });
-  // Ad-free Pod+ is part of Arise All Access. In To Duo the listener is the Arise account; in the Pod+
-  // app it's the Arise account with the same email as the person's Pod+ sign-in.
+  // Ad-free Podster is part of Arise All Access. In To Duo the listener is the Arise account; in the Podster
+  // app it's the Arise account with the same email as the person's Podster sign-in.
   const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
   const allAccessListener = async (req: any): Promise<boolean> => {
     const email = typeof req.creator?.email === "string" ? req.creator.email.trim().toLowerCase() : "";
@@ -1777,7 +1810,7 @@ export async function registerRoutes(
   };
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener });
-  // Contact us (server/supportContact.ts): Arise To Duo's and Pod+'s Support pages and apps.
+  // Contact us (server/supportContact.ts): Arise To Duo's and Podster's Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {
       const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -1814,8 +1847,16 @@ export async function registerRoutes(
   setInterval(runBookDedupe, 6 * 60 * 60 * 1000).unref?.();
   // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
   registerGoalQuizRoutes(app, authMiddleware);
+  registerIepAiRoutes(app, authMiddleware);
   // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
   registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
+  // The no-login lesson plan link a teacher gives their school.
+  registerLessonShareRoutes(app, authMiddleware, {
+    getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v),
+    workHub: (id) => savedHub("work", id),
+    nameOf: async (id) => { const u: any = await storage.getUser(id).catch(() => null); return String(u?.displayName || u?.display_name || u?.username || "Teacher"); },
+    fileUrl: async (path, name) => { const { data } = await getAdminSupabase().storage.from("life-drive-photos").createSignedUrl(path, 3600); void name; return data?.signedUrl ?? null; },
+  });
   registerDriveAppRoutes(app, authMiddleware, raw, {
     getAdminSupabase,
     storageLimitFor: async (userId) => {
@@ -1895,10 +1936,10 @@ export async function registerRoutes(
   });
   registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
-  // A.R.I.S.E. Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
+  // Arise Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
   // notification on their iPhone. Its link opens the inbox (Library.tsx reads ?inbox=1).
   setReaderMessageListener((userId, senderType, text) => {
-    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "A.R.I.S.E. Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
+    void notifyUser(userId, { title: senderType === "teacher" ? "A message from your teacher" : "Arise Reader", body: text.replace(/\s+/g, " ").slice(0, 170), url: "/#/library?inbox=1", tag: "reader-message" }).catch(() => {});
   });
   setNudgeSource(async (userId) => {
     const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
@@ -2201,6 +2242,33 @@ export async function registerRoutes(
       notify: (id, message) => notifyUser(id, message),
     },
   });
+  // AriseScholar (arisereader.com/scholar/): teachers tap to give academic points, students race on a school board. See server/scholar.ts.
+  const scholarRoster = new Map<number, { at: number; rows: Promise<Array<{ id: number; name: string; group: string }>> }>();
+  registerScholarRoutes(app, authMiddleware, {
+    viewer: async (id) => {
+      const u: any = await storage.getUser(id);
+      if (!u) return null;
+      const s = toSocialUser(u);
+      return s ? { id: s.id, role: s.role, displayName: s.displayName, schoolId: s.schoolId ?? (u.schoolId ? Number(u.schoolId) : null) } : null;
+    },
+    schoolStudents: (schoolId) => {
+      const hit = scholarRoster.get(schoolId);
+      if (hit && Date.now() - hit.at < 60_000) return hit.rows;
+      const rows = (async () => {
+        const users = await pagedRows((a, b) => supabase.from("users").select("id, display_name, username, role, is_admin").eq("school_id", schoolId).is("archived_at", null).order("id", { ascending: true }).range(a, b));
+        const picks = await pagedRows((a, b) => supabase.from("student_class_teachers").select("student_id, advisory_teacher_name").eq("school_id", schoolId).eq("school_year", schoolYearOf(new Date())).order("student_id", { ascending: true }).range(a, b));
+        const group = new Map(picks.map((r) => [Number(r.student_id), String(r.advisory_teacher_name || "").trim()]));
+        return users.filter((r) => !r.is_admin && (r.role || "student") === "student" && !isSampleAccount(r))
+          .map((r) => ({ id: Number(r.id), name: String(r.display_name || r.username || "Student"), group: group.get(Number(r.id)) || "" }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      })();
+      rows.catch(() => scholarRoster.delete(schoolId));
+      scholarRoster.set(schoolId, { at: Date.now(), rows });
+      return rows;
+    },
+    schoolName: async (schoolId) => String((await classTeacherStore.getSchool(schoolId))?.name || ""),
+    anySchool: async () => { const all = await classTeacherStore.allSchools(); return all.find((s: any) => advisoriesForSchool(s.name).length)?.id ?? all[0]?.id ?? null; },
+  });
   // Class Goal Board (WorkHub app, #/class-goal): a class goal, its points and the reward. See server/classGoals.ts.
   registerClassGoalRoutes(app, authMiddleware, {
     // Read straight from the database (storage.getSetting is cached and turns an error into "", which would then be saved over the real copy).
@@ -2271,7 +2339,7 @@ export async function registerRoutes(
   const isStaffViewer = (req: any) => !req.adminPreview && !isDemoStudent(req.user) && (req.user?.isAdmin === true || req.user?.role === "teacher");
   /** Quiz questions without the answer key, for anyone taking the quiz. */
   const withoutAnswers = (questions: any[] | undefined) => (questions || []).map(({ correct_answer: _answer, ...rest }: any) => rest);
-  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key.
+  /** Checks one answer of an Arise AAC or custom quiz, so the quiz can cheer right away without sending the answer key.
    *  Once an answer is kept, the built-in lessons also say which one was right, so the lesson can show it.
    *  A negative attempt id is a try that is never saved: a preview, or practice of a quiz the student already finished. */
   const checkOneAnswer = async (
@@ -2343,6 +2411,22 @@ export async function registerRoutes(
     const names: Record<string, string> = { independent: "Independent", instructional: "Instructional", needs_support: "Needs support", frustration: "Too hard for now" };
     const label = names[String(level || "")] || "";
     return [label, grade ? `Grade ${grade} level` : ""].filter(Boolean).join(" · ");
+  };
+
+  /** The account a parent code opens. Codes are printed on handouts, so one made for an account that
+   *  was later merged into another (a roster account and the one the student made themselves) follows
+   *  the merge to the account that stayed, instead of linking the parent to an archived account. */
+  const studentForParentCode = async (studentId: number): Promise<number> => {
+    let id = Number(studentId);
+    for (let hop = 0; hop < 5; hop++) {
+      const u: any = await storage.getUser(id);
+      if (u && !u.archivedAt) return id;
+      const { data } = await getAdminSupabase().from("account_merges").select("keep_id")
+        .eq("dup_id", id).order("at", { ascending: false }).limit(1).maybeSingle();
+      if (!data?.keep_id) return id;
+      id = Number(data.keep_id);
+    }
+    return id;
   };
 
   const getOrCreateParentInvite = async (studentId: number) => {
@@ -2479,7 +2563,7 @@ export async function registerRoutes(
   });
   // Seed data on startup
   await seedData();
-  // The built-in Eye Gazer lessons live in shared/eyegaze/lessons.ts; save any changes to them (in the background).
+  // The built-in Arise AAC lessons live in shared/eyegaze/lessons.ts; save any changes to them (in the background).
   void storage.syncEyeGazeLessons()
     .then((r) => { if (r.added || r.changed || r.retired) console.log(`[eye-gaze-lessons] saved: ${r.added} added, ${r.changed} changed, ${r.retired} old quizzes hidden`); })
     .catch((e: any) => console.error("[eye-gaze-lessons] could not save the lessons:", e?.message));
@@ -2712,7 +2796,7 @@ export async function registerRoutes(
             ["Grade", gradeLevel || facts.grade],
             ["School", schoolText],
             ["Teacher", teacherText],
-            ["Account", isEyeGazeUser ? "Eye Gazer" : "Reader"],
+            ["Account", isEyeGazeUser ? "Arise AAC" : "Reader"],
           ],
           note: unlistedSchoolName || (unlistedTeacherName && !requestedDirectory) ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
           ref: `u${user.id}`,
@@ -3011,8 +3095,8 @@ export async function registerRoutes(
           .select("student_id").eq("code", normalizedCode).maybeSingle();
         if (error) return res.status(503).json({ message: "Parent codes are unavailable right now." });
         if (!invite) return res.status(400).json({ message: "That parent code was not found. Check it or leave it blank and connect your child later." });
-        student = await storage.getUser(invite.student_id);
-        if (!student || student.role !== "student") {
+        student = await storage.getUser(await studentForParentCode(invite.student_id));
+        if (!student || student.role !== "student" || student.archivedAt) {
           return res.status(400).json({ message: "That parent code was not found. Check it or connect your child later." });
         }
       }
@@ -3051,7 +3135,7 @@ export async function registerRoutes(
         success: true,
         username: user.username,
         linked: !!student,
-        message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from A.R.I.S.E. Reader.",
+        message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from Arise Reader.",
       });
     } catch (err: any) {
       console.error("[parent-signup] failed:", err?.message);
@@ -5048,6 +5132,10 @@ export async function registerRoutes(
       if (r === "admin") throw new Error("Admin accounts can't be switched off.");
     },
     confirm: (userId) => storage.approveTeacherAccount(userId),
+    deleteAccount: async (userId) => {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Deleting accounts is not set up on this server.");
+      return deleteUserAccount(userId);
+    },
   });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
@@ -5155,12 +5243,13 @@ export async function registerRoutes(
 
   app.post("/api/admin/students/:id/reset-password", authMiddleware, adminMiddleware, async (req, res) => {
     const userId = parseInt(req.params.id);
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 4) {
+    const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword.trim() : "";
+    if (newPassword.length < 4) {
       return res.status(400).json({ message: "Password must be at least 4 characters" });
     }
     const hashed = bcrypt.hashSync(newPassword, 10);
     await storage.resetPassword(userId, hashed);
+    await unlockSignIn(userId);
     res.json({ message: "Password reset successfully" });
   });
 
@@ -7654,6 +7743,9 @@ export async function registerRoutes(
       const { blockedBy } = await deleteUserAccount(userId);
       if (blockedBy) {
         await archiveProfile(userId, true, userId).catch(() => "missing");
+        // The email and username are free at once, so the same email can make a new account right away.
+        await getAdminSupabase().from("users").update({ email: null, username: `deleted-${userId}-${Date.now().toString(36)}`, student_number: null }).eq("id", userId).then(() => {}, () => {});
+        clearCache("allUsers");
         alertAdmin("problem_report", { title: "Finish deleting an account", summary: `${who} deleted their account; ${blockedBy.replace(/_/g, " ")} still points at it.`, lines: [["User id", userId], ["Blocked by", blockedBy]], note: "The account is archived (signed out and hidden). Remove the rows in that table, then delete the user under Admin > Users.", ref: `u${userId}` });
         return res.json({ ok: true, pending: true, message: "Your account is closed and signed out. The last of its data is removed within 7 days." });
       }
@@ -8325,7 +8417,7 @@ export async function registerRoutes(
 
   // ─── EYE GAZE TESTING ────────────────────────────────────────────────
 
-  // Legacy Eye Gazer proctor endpoint is intentionally disabled.
+  // Legacy Arise AAC proctor endpoint is intentionally disabled.
   // All quizzes now use /api/verify-proctor so parent linkage and audit identity are enforced.
   app.post("/api/eye-gaze/verify-proctor", authMiddleware, async (_req, res) => {
     res.status(410).json({ message: "Use the current A.R.I.S.E. proctor verification screen." });
@@ -8462,7 +8554,7 @@ export async function registerRoutes(
       void (async () => {
         const { data: quiz } = await supabase.from("eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
         await alertQuizTaken("eye_gaze_quiz_completed", req.user, {
-          title: quiz?.title || "an Eye Gazer quiz",
+          title: quiz?.title || "an Arise AAC quiz",
           score: Number(result.score || 0),
           total: Number(result.total || 0),
           passed: !!result.passed,
@@ -8572,7 +8664,7 @@ export async function registerRoutes(
   app.get('/api/eye-gaze/my-world/grownup-challenge', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Eye Gazer account.' });
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Arise AAC account.' });
       const a = 2 + Math.floor(Math.random() * 8);
       const b = 2 + Math.floor(Math.random() * 8);
       const challengeId = randomBytes(18).toString('hex');
@@ -8587,7 +8679,7 @@ export async function registerRoutes(
   app.post('/api/eye-gaze/my-world/grownup-challenge', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Eye Gazer account.' });
+      if (!child || req.user.role !== 'student') return res.status(403).json({ message: 'Open this from the child Arise AAC account.' });
       const challengeId = String(req.body?.challengeId || '');
       const challenge = myWorldChallenges.get(challengeId);
       myWorldChallenges.delete(challengeId);
@@ -8684,7 +8776,7 @@ export async function registerRoutes(
   app.get('/api/eye-gaze/my-world', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const { data, error } = await getAdminSupabase().from('eye_gaze_my_world')
         .select('setup_complete,worlds,progress').eq('student_id', child.id).maybeSingle();
       if (error) throw error;
@@ -8707,7 +8799,7 @@ export async function registerRoutes(
   app.post('/api/eye-gaze/my-world/ai-tag', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'An Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'An Arise AAC account is required.' });
       if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to use AI tagging.' });
 
       const backgroundPath = String(req.body?.backgroundPath || '');
@@ -8823,7 +8915,7 @@ Important:
   app.post('/api/eye-gaze/my-world/config', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit My World.' });
       const worlds = normalizeMyWorlds(req.body?.worlds, child.id);
       const setupComplete = !!req.body?.setupComplete && worlds.some((world: any) => world.items.length > 0);
@@ -8849,7 +8941,7 @@ Important:
   }), async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to add family media.' });
 
       const contentType = String(req.headers['content-type'] || '').split(';')[0].toLowerCase();
@@ -8900,7 +8992,7 @@ Important:
   app.post('/api/eye-gaze/my-world/practice', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const word = String(req.body?.word || '').trim().slice(0, 40);
       const outcome = String(req.body?.outcome || '');
       if (!word || !['correct', 'retry', 'explored'].includes(outcome)) return res.status(400).json({ message: 'Choose a My World learning result.' });
@@ -9049,7 +9141,7 @@ Important:
   app.get('/api/eye-gaze/family-settings', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
@@ -9065,7 +9157,7 @@ Important:
   app.post('/api/eye-gaze/family-settings', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to change child profile controls.' });
       const settings = normalizeEyeGazeFamilySettings(req.body);
       await storage.upsertSetting(`eye_gaze_family_settings_${child.id}`, JSON.stringify(settings));
@@ -9098,7 +9190,7 @@ Important:
   app.get('/api/eye-gaze/flashcards', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const raw = await storage.getSetting('eye_gaze_flashcards_' + child.id);
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
@@ -9113,7 +9205,7 @@ Important:
   app.post('/api/eye-gaze/flashcards', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const state = normalizeEyeGazeFlashcards(req.body);
       await storage.upsertSetting('eye_gaze_flashcards_' + child.id, JSON.stringify(state));
       res.set('Cache-Control', 'no-store');
@@ -9152,7 +9244,7 @@ Important:
   app.get('/api/eye-gaze/potty', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const raw = await storage.getSetting('eye_gaze_potty_' + child.id);
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
@@ -9168,7 +9260,7 @@ Important:
   app.post('/api/eye-gaze/potty', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const state = normalizePottyState(req.body);
       await storage.upsertSetting('eye_gaze_potty_' + child.id, JSON.stringify(state));
       res.set('Cache-Control', 'no-store');
@@ -9235,7 +9327,7 @@ Important:
     const settled = await Promise.allSettled(TRUSTED_YOUTUBE_RSS_CHANNELS.map(async channel => {
       const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`, {
         signal: AbortSignal.timeout(6000),
-        headers: { 'User-Agent': 'A.R.I.S.E Reader/1.0' },
+        headers: { 'User-Agent': 'Arise Reader/1.0' },
       });
       if (!response.ok) return [];
       const xml = await response.text();
@@ -9303,7 +9395,7 @@ Important:
   app.get('/api/eye-gaze/youtube-shorts', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
 
       const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
       let parsed: any = null;
@@ -9438,7 +9530,7 @@ Important:
   app.get('/api/eye-gaze/game-usage', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const day = new Date().toISOString().slice(0, 10);
       const raw = await storage.getSetting(`eye_gaze_game_usage_${child.id}_${day}`);
       const seconds = Math.max(0, Number(raw || 0) || 0);
@@ -9470,7 +9562,7 @@ Important:
   app.get('/api/eye-gaze/tv-usage', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const day = new Date().toISOString().slice(0, 10);
       const raw = await storage.getSetting(`eye_gaze_tv_usage_${child.id}_${day}`);
       const seconds = Math.max(0, Number(raw || 0) || 0);
@@ -9535,14 +9627,14 @@ Important:
     }
   });
 
-  // ---- Wren, the AI-voice talker inside Eye Gazer: saved to the child's Eye Gazer profile ----
+  // ---- Wren, the AI-voice talker inside Arise AAC: saved to the child's Arise AAC profile ----
   const WREN_DOC_NAME = /^[A-Za-z0-9_-]{1,64}$/;
   const WREN_DOC_MAX = 260_000;
   const WREN_DOC_LIMIT = 600;
   app.get('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const name = String(req.params.name || '');
       if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
       const { data, error } = await getAdminSupabase().from('eye_gaze_wren_docs')
@@ -9557,7 +9649,7 @@ Important:
   app.put('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const name = String(req.params.name || '');
       const body = req.body?.data;
       if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
@@ -9581,7 +9673,7 @@ Important:
   app.delete('/api/eye-gaze/wren/:name', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const name = String(req.params.name || '');
       if (!WREN_DOC_NAME.test(name)) return res.status(400).json({ message: 'Unknown Wren document.' });
       const { error } = await getAdminSupabase().from('eye_gaze_wren_docs').delete().eq('student_id', child.id).eq('name', name);
@@ -9596,7 +9688,7 @@ Important:
   app.get('/api/eye-gaze/talker-state', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const { data, error } = await getAdminSupabase().from('eye_gaze_talker_state')
         .select('config,progress').eq('student_id', child.id).maybeSingle();
       if (error) throw error;
@@ -9611,7 +9703,7 @@ Important:
   app.post('/api/eye-gaze/talker-state/config', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       if (!validTalkerGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to edit Talker words.' });
       const submitted = req.body || {};
       const { data: existingTalker } = await getAdminSupabase().from('eye_gaze_talker_state')
@@ -9700,7 +9792,7 @@ Important:
   app.post('/api/eye-gaze/talker-state/practice', authMiddleware, async (req: any, res) => {
     try {
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Eye Gazer account is required.' });
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
       const word = String(req.body?.word || '').trim().slice(0, 40);
       const outcome = String(req.body?.outcome || '');
       if (!word || !/^[^\x00-\x1F<>]{1,40}$/.test(word) || !['known', 'learning', 'practiced', 'correct', 'retry'].includes(outcome)) {
@@ -9885,7 +9977,7 @@ Important:
   });
 
   // Any spoken line in the apps (Daily brief, games, stories, poems, the Bookstore, the Sleep app,
-  // Pod+): a real AI voice, made once and kept (voice-cache). Signed in or not (the Pod+ app and the
+  // Podster): a real AI voice, made once and kept (voice-cache). Signed in or not (the Podster app and the
   // public pages have no Arise sign-in), so it is limited by address and by length instead.
   const sayVoices = new Set(["hannah", "autumn", "diana", "austin", "daniel", "troy", "calm"]);
   const sayLimit = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
@@ -9932,7 +10024,7 @@ Important:
   // The recording is forwarded to the transcription service and is never persisted here.
   app.post("/api/eye-gaze/listen", authMiddleware, raw({ type: ["audio/webm", "audio/ogg", "audio/mp4"], limit: "2mb" }), async (req: any, res) => {
     res.setHeader("Cache-Control", "no-store");
-    if (!req.user?.is_eye_gaze_user) return res.status(403).json({ message: "Eye Gazer account required." });
+    if (!req.user?.is_eye_gaze_user) return res.status(403).json({ message: "Arise AAC account required." });
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(503).json({ message: "Listening is unavailable right now." });
     const mime = String(req.headers["content-type"] || "").split(";")[0].toLowerCase();
@@ -11622,7 +11714,7 @@ Important:
       const safe = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       const result = await sendEmail(
         email,
-        `${req.user.displayName || "Your student"} invited you to A.R.I.S.E. Reader`,
+        `${req.user.displayName || "Your student"} invited you to Arise Reader`,
         parentInviteEmail(safe(String(req.user.displayName || "your student")), safe(signupUrl), safe(String(invite.formattedCode))),
       );
       if (!result.sent) return res.status(503).json({ message: result.error || "Could not send the email right now." });
@@ -11661,13 +11753,14 @@ Important:
       const { data: invite, error } = await getAdminSupabase().from('parent_invite_codes').select('student_id').eq('code', code).maybeSingle();
       if (error) return res.status(503).json({ message: 'Parent codes are unavailable.' });
       if (!invite) return res.status(400).json({ message: 'That parent code was not found.' });
+      const childId = await studentForParentCode(Number(invite.student_id));
       const links = await readParentStudentLinks();
       const ids = normalizeLinkedIds(links[String(req.user.id)]);
-      if (!ids.includes(Number(invite.student_id))) {
+      if (!ids.includes(childId)) {
         // One parent profile follows up to PLANS.parentMaxChildren (three) children.
-        const room = await plans.parentLinkAllowed(ids, Number(invite.student_id));
+        const room = await plans.parentLinkAllowed(ids, childId);
         if (!room.ok) return res.status(409).json({ message: room.message });
-        ids.push(Number(invite.student_id));
+        ids.push(childId);
       }
       links[String(req.user.id)] = ids;
       await storage.upsertSetting('parent_student_links', JSON.stringify(links));
@@ -11951,12 +12044,13 @@ Important:
     try {
       const studentId = parseInt(req.params.id);
       if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
-      const { newPassword } = req.body;
-      if (!newPassword || newPassword.length < 4) {
+      const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword.trim() : "";
+      if (newPassword.length < 4) {
         return res.status(400).json({ message: "Password must be at least 4 characters" });
       }
       const hashed = bcrypt.hashSync(newPassword, 10);
       await storage.resetPassword(studentId, hashed);
+      await unlockSignIn(studentId);
       res.json({ success: true, message: "Password reset successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -12180,7 +12274,9 @@ Important:
       // eye-gaze and custom quizzes, plus manual awards). The account row alone has no quiz count.
       const stats = new Map<number, any>();
       try { for (const row of await storage.getLeaderboard()) stats.set(Number(row.id), row); } catch {}
-      res.json(students.map((s: any) => {
+      res.json(students.map((full: any) => {
+        // The stored password never leaves the server.
+        const { password: _password, ...s } = full;
         const row = stats.get(Number(s.id));
         return row ? { ...s, totalPoints: row.totalPoints, quizzesTaken: row.quizzesTaken, quizzesPassed: row.quizzesPassed, quizzesMastered: row.quizzesPassed } : s;
       }));
@@ -12195,7 +12291,7 @@ Important:
       const students = teacherId
         ? await storage.getPendingStudents(teacherId)
         : await storage.getAllUsers().then((all: any[]) => all.filter(u => !u.approvedByTeacher));
-      res.json(students);
+      res.json(students.map(({ password: _password, ...s }: any) => s));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -12409,6 +12505,7 @@ Important:
       const tempPassword = 'arise' + Math.random().toString(36).slice(2, 8);
       const hashedPassword = bcrypt.hashSync(tempPassword, 10);
       await storage.resetPassword(studentId, hashedPassword);
+      await unlockSignIn(studentId);
       res.json({ success: true, tempPassword });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -12589,7 +12686,7 @@ Important:
           try {
             sendEmail(
               teacher.email,
-              "Your A.R.I.S.E Reader teacher account is approved!",
+              "Your Arise Reader teacher account is approved!",
               teacherApprovedEmail(teacher.display_name || teacher.username, teacher.username)
             ).catch(() => {});
           } catch {}
@@ -12677,7 +12774,7 @@ Important:
         if (hasEmail) {
           sendEmail(
             parent.email,
-            "Your A.R.I.S.E Reader parent account is approved!",
+            "Your Arise Reader parent account is approved!",
             parentApprovedEmail(parent.display_name || parent.username, parent.username)
           ).catch(() => {});
         }
@@ -12836,7 +12933,7 @@ Important:
       }
       const student = await storage.getUser(studentId);
       if (!student || student.role !== "student" || student.is_eye_gaze_user) {
-        return res.status(400).json({ message: "Use Eye Gazer family controls for this student." });
+        return res.status(400).json({ message: "Use Arise AAC family controls for this student." });
       }
       const locked = !!req.body?.locked;
       const rawLimit = req.body?.dailyGameLimit;
@@ -13006,13 +13103,13 @@ Important:
           if (status === 'confirmed') {
             sendEmail(
               emailAddr,
-              "You're approved for Reading Club - A.R.I.S.E Reader",
+              "You're approved for Reading Club - Arise Reader",
               clubApprovedEmail(studentName)
             ).catch(() => {});
           } else {
             sendEmail(
               emailAddr,
-              "Reading Club sign-up update - A.R.I.S.E Reader",
+              "Reading Club sign-up update - Arise Reader",
               clubDeniedEmail(studentName)
             ).catch(() => {});
           }
@@ -13062,7 +13159,7 @@ Important:
         if (user.email) {
           sendEmail(
             user.email,
-            "Your A.R.I.S.E Reader teacher account is ready",
+            "Your Arise Reader teacher account is ready",
             teacherCreatedEmail(displayName, user.username)
           ).catch(() => {});
         }
@@ -13182,13 +13279,26 @@ Important:
         } catch {}
       }
 
-      const { error } = await adminDb.from("users").delete().eq("id", userId);
+      // The database refuses while any other table still points at the person. Each time it names the one in
+      // the way: clear what points at them there (or, where that is not allowed, let go of them), then try again.
+      let error: any = null;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        ({ error } = await adminDb.from("users").delete().eq("id", userId));
+        if (!error) break;
+        const m = /foreign key constraint "([^"]+)" on table "([^"]+)"/i.exec(error.message || "");
+        if (!m) break;
+        const [, constraint, table] = m;
+        const column = constraint.startsWith(`${table}_`) && constraint.endsWith("_fkey") ? constraint.slice(table.length + 1, -5) : "";
+        if (!column) { console.error("[admin-delete] Blocked by", table, constraint); return { blockedBy: table }; }
+        const gone = await adminDb.from(table).delete().eq(column, userId);
+        if (gone.error) {
+          const kept = await adminDb.from(table).update({ [column]: null }).eq(column, userId);
+          if (kept.error) { console.error("[admin-delete] Could not clear", table, column, gone.error.message, kept.error.message); return { blockedBy: table }; }
+        }
+      }
       if (error) {
         const blocked = /foreign key constraint .*on table "([^"]+)"/i.exec(error.message || "");
-        if (blocked) {
-          console.error("[admin-delete] Blocked by", blocked[1]);
-          return { blockedBy: blocked[1] };
-        }
+        if (blocked) { console.error("[admin-delete] Blocked by", blocked[1]); return { blockedBy: blocked[1] }; }
         throw new Error(error.message);
       }
 
@@ -13218,6 +13328,63 @@ Important:
       console.error("[admin-delete] Failed:", error?.message);
       res.status(500).json({ message: error?.message || "Failed to delete user." });
     }
+  });
+
+  // Admin: delete many accounts at once, by kind (students, Arise AAC users, teachers, parents, Arise To Duo and
+  // Podster accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
+  // first gets the exact count, then must send "DELETE <count>" back; it runs in the background, one account
+  // at a time through deleteUserAccount (everything that belongs to each goes too), and can be watched.
+  const BULK_KINDS = ["student", "eyegazer", "teacher", "parent", "todo"] as const;
+  type BulkKind = (typeof BULK_KINDS)[number];
+  const kindOf = (u: any): BulkKind | null => u.is_eye_gaze_user ? "eyegazer" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : u.role === "student" || !u.role ? "student" : u.role === "todo" ? "todo" : null;
+  const bulkTargets = async (kinds: BulkKind[], me: number) => {
+    const out: { id: number; name: string; kind: BulkKind }[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await getAdminSupabase().from("users").select("id, username, display_name, role, is_admin, is_eye_gaze_user").order("id").range(from, from + 999);
+      if (error) throw error;
+      for (const u of data || []) {
+        const k = kindOf(u);
+        if (!k || !kinds.includes(k) || u.is_admin || Number(u.id) === me || /^sample/i.test(String(u.username || ""))) continue;
+        out.push({ id: Number(u.id), name: String(u.display_name || u.username || u.id), kind: k });
+      }
+      if (!data || data.length < 1000) break;
+    }
+    return out;
+  };
+  const bulkKinds = (raw: unknown): BulkKind[] => (Array.isArray(raw) ? raw : []).filter((k): k is BulkKind => (BULK_KINDS as readonly string[]).includes(String(k)));
+  let bulkJob: { by: number; total: number; done: number; deleted: number; blocked: string[]; failed: string[]; running: boolean; startedAt: string } | null = null;
+  app.post("/api/admin/accounts/bulk-preview", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const kinds = bulkKinds(req.body?.kinds);
+      const list = kinds.length ? await bulkTargets(kinds, req.user.id) : [];
+      const byKind = Object.fromEntries(BULK_KINDS.map((k) => [k, list.filter((x) => x.kind === k).length]));
+      res.json({ count: list.length, byKind, sample: list.slice(0, 8).map((x) => x.name) });
+    } catch (e: any) { res.status(500).json({ message: e?.message || "Couldn't count the accounts." }); }
+  });
+  app.post("/api/admin/accounts/bulk-delete", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Admin deletion is not configured on the server." });
+      if (bulkJob?.running) return res.status(409).json({ message: "A delete is already running." });
+      const kinds = bulkKinds(req.body?.kinds);
+      const list = kinds.length ? await bulkTargets(kinds, req.user.id) : [];
+      if (!list.length) return res.status(400).json({ message: "No accounts match." });
+      if (String(req.body?.confirm || "").trim() !== `DELETE ${list.length}`) return res.status(400).json({ message: `Type DELETE ${list.length} to confirm. The number changed, so check it again.` });
+      const job = bulkJob = { by: req.user.id, total: list.length, done: 0, deleted: 0, blocked: [] as string[], failed: [] as string[], running: true, startedAt: new Date().toISOString() };
+      console.warn(`[admin-bulk-delete] admin ${req.user.id} deleting ${list.length} accounts: ${kinds.join(", ")}`);
+      res.json({ started: true, total: list.length });
+      void (async () => {
+        for (const u of list) {
+          try { const { blockedBy } = await deleteUserAccount(u.id); if (blockedBy) job.blocked.push(u.name); else job.deleted++; }
+          catch (e: any) { job.failed.push(u.name); console.error("[admin-bulk-delete]", u.id, e?.message); }
+          job.done++;
+        }
+        job.running = false;
+        console.warn(`[admin-bulk-delete] finished: ${job.deleted} deleted, ${job.blocked.length} blocked, ${job.failed.length} failed`);
+      })();
+    } catch (e: any) { res.status(500).json({ message: e?.message || "Couldn't start the delete." }); }
+  });
+  app.get("/api/admin/accounts/bulk-delete", authMiddleware, adminMiddleware, (_req: any, res) => {
+    res.json(bulkJob ? { ...bulkJob, blocked: bulkJob.blocked.slice(0, 50), failed: bulkJob.failed.slice(0, 50) } : { running: false, total: 0, done: 0 });
   });
 
   // Admin: archive a profile (signed out and hidden from lists, rosters and
@@ -13694,7 +13861,7 @@ Important:
       void (async () => {
         const { data: quiz } = await supabase.from("custom_eye_gaze_quizzes").select("title").eq("id", Number(result.quiz_id)).maybeSingle();
         await alertQuizTaken("eye_gaze_quiz_completed", req.user, {
-          title: quiz?.title || "a custom Eye Gazer quiz",
+          title: quiz?.title || "a custom Arise AAC quiz",
           score: Number(result.score || 0),
           total: Number(result.total || 0),
           passed: !!result.passed,
@@ -14115,11 +14282,11 @@ Important:
           try {
             sendEmail(
               teacher.email,
-              `Book Request from ${studentName} - A.R.I.S.E Reader`,
+              `Book Request from ${studentName} - Arise Reader`,
               `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
                 <div style="text-align: center; margin-bottom: 30px;">
-                  <h1 style="color: #FF5900; font-size: 28px; margin: 0;">A.R.I.S.E Reader</h1>
+                  <h1 style="color: #FF5900; font-size: 28px; margin: 0;">Arise Reader</h1>
                   <p style="color: #999; margin: 5px 0 0 0;">Read a book. Take a quiz. Earn points.</p>
                 </div>
                 <h2 style="color: #FF5900; font-size: 22px;">Book Request from Your Student</h2>
@@ -14130,8 +14297,8 @@ Important:
                   <p style="color: #999; margin: 0; font-size: 14px;">by ${bookAuthor}</p>
                 </div>
                 <p style="color: #ccc; font-size: 16px; line-height: 1.6;">Please help ${studentName} find this book so they can continue their reading journey!</p>
-                <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 20px 0;">Go to A.R.I.S.E Reader</a>
-                <p style="color: #666; font-size: 14px; margin-top: 30px;">This is an automated message from A.R.I.S.E Reader.</p>
+                <a href="${APP_URL}" style="display: inline-block; background: #FF5900; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; margin: 20px 0;">Go to Arise Reader</a>
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">This is an automated message from Arise Reader.</p>
               </div>
               `
             ).catch(() => {});

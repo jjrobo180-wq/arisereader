@@ -93,7 +93,7 @@ export default function EyeGazeHome() {
       <section className="flex items-center gap-4 rounded-[1.75rem] border border-[#e5e8f4] bg-white p-5 shadow-xl shadow-violet-100/60 sm:p-6">
         <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-4xl sm:h-20 sm:w-20 sm:text-5xl" aria-hidden>😊</div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-[.22em] text-violet-700">Eye Gazer</p>
+          <p className="text-xs font-black uppercase tracking-[.22em] text-violet-700">Arise AAC</p>
           <h1 className="mt-1 text-[26px] font-black leading-tight tracking-tight text-[#191b35] sm:text-4xl">{greeting()}, <span className="text-violet-700">{firstName}!</span></h1>
           <p className="mt-1 text-[17px] font-medium text-slate-600 sm:text-xl">What do you want to do?</p>
           {controls.enabled && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">👨‍👩‍👧 A grown-up set up my choices</p>}

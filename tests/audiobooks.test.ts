@@ -1,4 +1,4 @@
-// Pod+ Audiobooks (server/audiobooks.ts): LibriVox books from the Internet Archive.
+// Podster Audiobooks (server/audiobooks.ts): LibriVox books from the Internet Archive.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -98,7 +98,7 @@ test("routes: list, book, other readings, AI search (answers matched to real boo
   assert.deepEqual(v.out.versions.map((b: any) => [b.id, b.kind]), [["emma_librivox", "group"], ["emma_2_librivox", "dramatic"]]);
   // The other route ids don't get caught by /books/:id.
   assert.ok(Object.keys(routes).indexOf("GET /api/podscroll/books/audio") < Object.keys(routes).indexOf("GET /api/podscroll/books/:id"));
-  // Ask AI, AI transcripts and Voice boost are for Pod+ members (signed in: req.creator).
+  // Ask AI, AI transcripts and Voice boost are for Podster members (signed in: req.creator).
   const free = await call("POST /api/podscroll/books/ai", { body: { q: "a funny love story" } });
   assert.equal(free.status, 402);
   assert.equal(free.out.needSignIn, true);

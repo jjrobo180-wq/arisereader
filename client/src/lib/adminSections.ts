@@ -1,4 +1,4 @@
-// The A.R.I.S.E. Reader admin console's sections, in menu order.
+// The Arise Reader admin console's sections, in menu order.
 //
 // They live here, apart from the admin page itself, so Arise WorkHub's Reader menu can list
 // them in its one dropdown without importing (and so eagerly loading) the admin console.
@@ -10,7 +10,7 @@ export const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: LucideIcon
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "stats", label: "Stats", icon: BarChart3 },
   { id: "updates", label: "News & updates", icon: Megaphone },
-  { id: "todo", label: "To-do", icon: ListTodo },
+  { id: "todo", label: "Needs review", icon: ListTodo },
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "people", label: "People", icon: Users },
   { id: "library", label: "Library", icon: Library },
@@ -22,7 +22,7 @@ export const adminSectionLabel = (id: AdminSection) => ADMIN_SECTIONS.find((s) =
 
 // The Settings section's own parts, in menu order. On its own page the admin console shows these
 // as a row of tabs across the top of Settings; inside Arise WorkHub they are listed in the
-// sidebar under Admin console → Settings instead, with the rest of A.R.I.S.E. Reader's items.
+// sidebar under Admin console → Settings instead, with the rest of Arise Reader's items.
 export type SettingsSection = "programs" | "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 
 export const SETTINGS_SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon }[] = [

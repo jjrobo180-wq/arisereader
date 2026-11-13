@@ -1,0 +1,71 @@
+{
+  "name": "arise-to-duo-desktop",
+  "productName": "Arise To Duo",
+  "version": "1.0.0",
+  "description": "Arise To Duo for Windows and Linux: your Life and Work hubs in their own window.",
+  "author": "A.R.I.S.E.",
+  "homepage": "https://arisetodo.com",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.arisereader.arisetodo.desktop",
+    "productName": "Arise To Duo",
+    "artifactName": "Arise-To-Duo-${os}.${ext}",
+    "files": [
+      "main.js",
+      "offline.html",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Arise To Duo",
+      "artifactName": "Arise-To-Duo-Setup.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "maintainer": "A.R.I.S.E. <support@arisetodo.com>",
+      "synopsis": "To-dos for life and work"
+    }
+  }
+}

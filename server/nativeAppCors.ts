@@ -7,7 +7,7 @@ export const NATIVE_APP_ORIGINS = new Set(["capacitor://localhost", "ionic://loc
  * The A.R.I.S.E. To-Do iPhone app runs its UI from capacitor://localhost and calls
  * https://arisetodo.com/api/... — a cross-origin request. Without these headers iOS blocks
  * the response, so sign-in shows "Login failed" even with the right password.
- * Pod+ has its own rules on /api/podscroll, so that path is left to them.
+ * Podster has its own rules on /api/podscroll, so that path is left to them.
  */
 export function nativeAppCors(req: Request, res: Response, next: NextFunction) {
   if (!req.path.startsWith("/api/") || req.path.startsWith("/api/podscroll")) return next();
