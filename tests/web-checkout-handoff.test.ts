@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import express from "express";
+import http from "node:http";
 import { ALL_ACCESS_APPS, allAccessLink } from "../shared/allAccess";
 import { issueEmailHandoff, registerAdminHandoffRoutes } from "../server/adminHandoff";
 
@@ -43,7 +44,14 @@ async function serve(emailAccount?: (e: string) => Promise<any>) {
   registerAdminHandoffRoutes(app, (_req: any, _res: any, next: any) => next(), { getSession: async () => null, emailAccount });
   const srv = app.listen(0); await new Promise((r) => srv.once("listening", r));
   const port = (srv.address() as any).port;
-  const consume = (code: string) => fetch(`http://127.0.0.1:${port}/api/auth/web-handoff/consume`, { method: "POST", headers: { "content-type": "application/json", host: "arisetodo.com" }, body: JSON.stringify({ code }) });
+  // Sent as arisetodo.com (fetch can't set Host, so a plain request).
+  const consume = (code: string) => new Promise<{ status: number; json: () => Promise<any> }>((resolve, reject) => {
+    const body = JSON.stringify({ code });
+    const req = http.request({ host: "127.0.0.1", port, path: "/api/auth/web-handoff/consume", method: "POST", headers: { "content-type": "application/json", "content-length": Buffer.byteLength(body), host: "arisetodo.com" } }, (res) => {
+      let d = ""; res.on("data", (c) => (d += c)); res.on("end", () => resolve({ status: res.statusCode || 0, json: async () => JSON.parse(d || "{}") }));
+    });
+    req.on("error", reject); req.end(body);
+  });
   return { srv, consume };
 }
 
