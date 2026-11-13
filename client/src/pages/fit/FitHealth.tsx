@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Bell, Footprints, HeartPulse, RefreshCw } from "lucide-react";
 import { dayKey, mergeWeights as mergeInto, type FitData } from "@shared/fit";
 import type { Update } from "./fitStore";
-import { applyReminders, connectHealth, disconnectHealth, healthConnected, readHealth, readReminders, type HealthSnapshot, type Reminders } from "./fitNative";
+import { applyReminders, canUseNative, connectHealth, disconnectHealth, healthConnected, readHealth, readReminders, testNotification, type HealthSnapshot, type Reminders } from "./fitNative";
+import { MEALS, type MealKey } from "@shared/fitReminders";
+import { PushPrefsList, Switch, usePushPrefs } from "../coach/PushPrefs";
 import { Btn, C, Card, Sheet, Title, display, fmtNum } from "./fitUi";
 
 /** Adds Apple Health weigh-ins the app doesn't have yet (its own entries win). */
@@ -65,26 +67,69 @@ export function HealthSheet({ data, update, onClose }: { data: FitData; update: 
 }
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-export function RemindersSheet({ onClose }: { onClose: () => void }) {
+const fmtTime = (t: string) => { const [h, m] = t.split(":").map(Number); return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); };
+const timeInput = (value: string, set: (t: string) => void, label: string) => <input type="time" value={value} aria-label={label} onChange={(e) => { if (/^\d{2}:\d{2}$/.test(e.target.value)) set(e.target.value); }} className="h-12 w-full rounded-[8px] px-3 text-[17px]" style={{ background: C.card2, color: C.text }} />;
+
+/** Every notification in Cooked: food, sleep, training, and alerts from other people, with one switch to pause them all. */
+export function RemindersSheet({ data, update, onClose }: { data?: FitData; update?: Update; onClose: () => void }) {
   const [r, setR] = useState<Reminders>(readReminders);
   const [msg, setMsg] = useState("");
-  const save = async (next: Reminders) => { setR(next); setMsg(""); try { await applyReminders(next); setMsg("Saved."); } catch (e: any) { setMsg(e.message); } };
-  const row = (label: string, sub: string, on: boolean, flip: () => void, id: string) => <button type="button" onClick={flip} aria-pressed={on} className="flex w-full items-center gap-3 rounded-[12px] p-4 text-left" style={{ background: C.card }} data-testid={`fit-remind-${id}`}>
-    <span className="min-w-0 flex-1"><span className="block text-[19px] leading-none" style={display}>{label}</span><span className="mt-1 block text-[12px]" style={{ color: C.dim }}>{sub}</span></span>
-    <span className="relative h-7 w-12 shrink-0 rounded-full transition" style={{ background: on ? C.lime : C.card2 }}><span className="absolute top-1 h-5 w-5 rounded-full bg-white transition-all" style={{ left: on ? 24 : 4 }} /></span>
-  </button>;
-  return <Sheet title="Reminders" onClose={onClose} testId="fit-reminders">
-    <div className="mt-1 flex items-center gap-3 rounded-[14px] p-4" style={{ background: C.card2 }}><Bell className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><p className="text-[14px]" style={{ color: C.steel }}>Notifications on this iPhone. Nothing is sent from a server.</p></div>
-    <div className="mt-3 space-y-2">
-      {row("Workout", `${r.workout.days.length} days a week at ${new Date(2000, 0, 1, r.workout.hour, r.workout.minute).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`, r.workout.on, () => save({ ...r, workout: { ...r.workout, on: !r.workout.on } }), "workout")}
+  const push = usePushPrefs();
+  const sc = data?.sleep?.schedule, rm = data?.sleep?.remind;
+  const sleep = sc ? { bed: sc.bed, wake: sc.wake, windDown: rm?.windDown ?? true, morning: rm?.morning ?? true, bedtime: rm?.bedtime ?? false } : null;
+  const save = async (next: Reminders, nextSleep = sleep) => { setR(next); setMsg(""); try { await applyReminders(next, nextSleep); setMsg(canUseNative() ? "Saved." : "Saved. Reminders ring on the Cooked iPhone app."); } catch (e: any) { setMsg(e.message); } };
+  const setSleep = (patch: Partial<NonNullable<typeof sleep>>) => {
+    if (!sleep || !update) return;
+    const next = { ...sleep, ...patch };
+    update((d) => ({ ...d, sleep: { ...(d.sleep ?? { goalH: 8, nights: [] }), remind: { windDown: next.windDown, morning: next.morning, bedtime: next.bedtime } } }));
+    void save(r, next);
+  };
+  const meal = (k: MealKey, patch: Partial<{ on: boolean; time: string }>) => save({ ...r, food: { ...r.food, meals: { ...r.food.meals, [k]: { ...r.food.meals[k], ...patch } } } });
+  const paused = r.paused || (push.prefs ? !push.prefs.all : false);
+  const pauseAll = (on: boolean) => { void save({ ...r, paused: on }); if (push.prefs) void push.save({ ...push.prefs, all: !on }); };
+  const off = r.paused;
+  return <Sheet title="Notifications" onClose={onClose} testId="fit-reminders">
+    <div className="mt-1 flex items-center gap-3 rounded-[14px] p-4" style={{ background: C.card2 }}><Bell className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><p className="text-[14px]" style={{ color: C.steel }}>Reminders ring on this iPhone at the times you pick. Alerts from your trainer and friends come from Arise.</p></div>
+    <div className="mt-3"><Switch label="Pause all" sub="Everything off for now. Medicine reminders stay on." on={paused} flip={() => pauseAll(!paused)} testId="fit-remind-pause" /></div>
+
+    <Title>Food</Title>
+    <div className={`space-y-2 ${off ? "opacity-50" : ""}`}>
+      {MEALS.map((m) => { const s = r.food.meals[m.key]; return <div key={m.key}>
+        <Switch label={m.label} sub={s.on ? `Every day at ${fmtTime(s.time)}` : "Off"} on={s.on} flip={() => meal(m.key, { on: !s.on })} testId={`fit-remind-${m.key}`} />
+        {s.on && <Card className="mt-1 !p-3">{timeInput(s.time, (t) => meal(m.key, { time: t }), `${m.label} time`)}</Card>}
+      </div>; })}
+      <Switch label="Log your day" sub={r.food.recap.on ? `At ${fmtTime(r.food.recap.time)}: add anything you didn't log` : "An evening nudge to finish your food log"} on={r.food.recap.on} flip={() => save({ ...r, food: { ...r.food, recap: { ...r.food.recap, on: !r.food.recap.on } } })} testId="fit-remind-recap" />
+      {r.food.recap.on && <Card className="!p-3">{timeInput(r.food.recap.time, (t) => save({ ...r, food: { ...r.food, recap: { ...r.food.recap, time: t } } }), "Log your day time")}</Card>}
+      <Switch label="Fast complete" sub="When you hit your fasting goal" on={r.fasting} flip={() => save({ ...r, fasting: !r.fasting })} testId="fit-remind-fast" />
+      <Switch label="Water" sub="10 AM, 1, 4 and 7 PM" on={r.water} flip={() => save({ ...r, water: !r.water })} testId="fit-remind-water" />
+    </div>
+
+    <Title>Sleep</Title>
+    {sleep ? <div className={`space-y-2 ${off ? "opacity-50" : ""}`}>
+      <p className="px-1 text-[13px]" style={{ color: C.dim }}>Bedtime {fmtTime(sleep.bed)} · wake {fmtTime(sleep.wake)}. Change the times in Sleep → Bedtime schedule.</p>
+      <Switch label="Wind down" sub={`${fmtTime(shiftTime(sleep.bed, -30))}, 30 minutes before bed`} on={sleep.windDown} flip={() => setSleep({ windDown: !sleep.windDown })} testId="fit-remind-winddown" />
+      <Switch label="Bedtime" sub={`${fmtTime(sleep.bed)}, tap to start tracking`} on={sleep.bedtime} flip={() => setSleep({ bedtime: !sleep.bedtime })} testId="fit-remind-bedtime" />
+      <Switch label="Morning check-in" sub={`${fmtTime(shiftTime(sleep.wake, 15))}, how did you sleep?`} on={sleep.morning} flip={() => setSleep({ morning: !sleep.morning })} testId="fit-remind-morning" />
+    </div> : <Card className="!p-4"><p className="text-[14px]" style={{ color: C.steel }}>Set a bedtime schedule in Sleep to get wind-down, bedtime and morning reminders.</p></Card>}
+
+    <Title>Training</Title>
+    <div className={`space-y-2 ${off ? "opacity-50" : ""}`}>
+      <Switch label="Workout" sub={`${r.workout.days.length} days a week at ${new Date(2000, 0, 1, r.workout.hour, r.workout.minute).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`} on={r.workout.on} flip={() => save({ ...r, workout: { ...r.workout, on: !r.workout.on } })} testId="fit-remind-workout" />
       {r.workout.on && <Card className="!p-3">
         <div className="grid grid-cols-7 gap-1">{DAYS.map((d, i) => { const on = r.workout.days.includes(i); return <button key={i} type="button" onClick={() => save({ ...r, workout: { ...r.workout, days: on ? r.workout.days.filter((x) => x !== i) : [...r.workout.days, i].sort() } })} aria-pressed={on} className="h-10 rounded-[8px] text-[15px]" style={{ ...display, ...(on ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card2 }) }}>{d}</button>; })}</div>
-        <input type="time" value={`${String(r.workout.hour).padStart(2, "0")}:${String(r.workout.minute).padStart(2, "0")}`} onChange={(e) => { const [h, m] = e.target.value.split(":").map(Number); if (Number.isFinite(h)) void save({ ...r, workout: { ...r.workout, hour: h, minute: m || 0 } }); }} aria-label="Reminder time" className="mt-2 h-12 w-full rounded-[8px] px-3 text-[17px]" style={{ background: C.card2, color: C.text }} />
+        <div className="mt-2">{timeInput(`${String(r.workout.hour).padStart(2, "0")}:${String(r.workout.minute).padStart(2, "0")}`, (t) => { const [h, m] = t.split(":").map(Number); void save({ ...r, workout: { ...r.workout, hour: h, minute: m } }); }, "Workout reminder time")}</div>
       </Card>}
-      {row("Water", "10 AM, 1, 4 and 7 PM", r.water, () => save({ ...r, water: !r.water }), "water")}
-      {row("Weigh-in", "7:15 AM every day", r.weighIn, () => save({ ...r, weighIn: !r.weighIn }), "weigh")}
-      {row("Fast complete", "When you hit your fasting goal", r.fasting, () => save({ ...r, fasting: !r.fasting }), "fast")}
+      <Switch label="Weigh-in" sub={`${fmtTime(r.weighTime)} every day`} on={r.weighIn} flip={() => save({ ...r, weighIn: !r.weighIn })} testId="fit-remind-weigh" />
+      {r.weighIn && <Card className="!p-3">{timeInput(r.weighTime, (t) => save({ ...r, weighTime: t }), "Weigh-in time")}</Card>}
+      <p className="px-1 text-[12px]" style={{ color: C.dim }}>Medicine reminders are set per medicine in the Medicine tracker.</p>
     </div>
+
+    <Title>From other people</Title>
+    <PushPrefsList app="fit" prefs={push.prefs} save={push.save} />
+    {push.err && <p className="mt-2 px-1 text-[13px]" style={{ color: C.red }}>{push.err}</p>}
+
+    {canUseNative() && <Btn kind="soft" className="mt-4 w-full" onClick={async () => setMsg((await testNotification()) ? "A test notification is coming in 5 seconds." : "Notifications are off for Cooked. Turn them on in Settings → Notifications → Cooked.")}>Send a test notification</Btn>}
     {msg && <p className="mt-3 rounded-[10px] px-3 py-2 text-[13px]" style={{ background: C.card, color: C.steel }}>{msg}</p>}
   </Sheet>;
 }
+const shiftTime = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (((h * 60 + m + mins) % 1440) + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };

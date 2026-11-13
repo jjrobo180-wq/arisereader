@@ -404,11 +404,12 @@ function ScheduleSheet({ data, update, say, onClose }: { data: FitData; update: 
   const sc = data.sleep?.schedule;
   const [bed, setBed] = useState(sc?.bed ?? "22:30"), [wake, setWake] = useState(sc?.wake ?? "06:30");
   const [windDown, setWind] = useState(data.sleep?.remind?.windDown ?? true), [morning, setMorning] = useState(data.sleep?.remind?.morning ?? true);
+  const [bedtime, setBedtime] = useState(data.sleep?.remind?.bedtime ?? false);
   const hours = useMemo(() => { const t = nightFrom(dayKey(), bed, wake); return (t.wake - t.bed) / 3_600_000; }, [bed, wake]);
   const goal = data.sleep?.goalH ?? 8;
   const save = async () => {
-    update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), schedule: { bed, wake }, remind: { windDown, morning } } }));
-    try { await applySleepReminders({ bed, wake }, { windDown, morning }); say("Schedule saved."); } catch (e: any) { say(e.message); }
+    update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), schedule: { bed, wake }, remind: { windDown, morning, bedtime } } }));
+    try { await applySleepReminders({ bed, wake }, { windDown, morning, bedtime }); say("Schedule saved."); } catch (e: any) { say(e.message); }
     onClose();
   };
   const clear = async () => { update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), schedule: undefined, remind: undefined } })); try { await applySleepReminders(undefined, { windDown: false, morning: false }); } catch { /* none */ } onClose(); };
@@ -423,6 +424,7 @@ function ScheduleSheet({ data, update, say, onClose }: { data: FitData; update: 
     <Title>Reminders</Title>
     <div className="space-y-2">
       {toggleRow("Wind down", "30 minutes before bedtime", windDown, () => setWind(!windDown))}
+      {toggleRow("Bedtime", "Right at bedtime, to start tracking tonight", bedtime, () => setBedtime(!bedtime))}
       {toggleRow("Morning check-in", "15 minutes after you wake, to save last night", morning, () => setMorning(!morning))}
     </div>
     {!isNativeApp() && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Reminders come from the Cooked iPhone app.</p>}

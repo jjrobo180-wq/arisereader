@@ -16,8 +16,8 @@ export type Nap = { start: number; end: number };
 /** Usual bedtime and wake time ("22:30", "06:30"). */
 export type SleepSchedule = { bed: string; wake: string };
 export type Sleep = { goalH: number; nights: SleepNight[]; asleepAt?: number; naps?: Nap[]; schedule?: SleepSchedule;
-  /** Reminders: wind down before bed, and the morning check-in. */
-  remind?: { windDown: boolean; morning: boolean };
+  /** Reminders: wind down before bed, at bedtime, and the morning check-in. */
+  remind?: { windDown: boolean; morning: boolean; bedtime?: boolean };
   /** Nights the morning check-in was dismissed (date keys), so it doesn't ask again. */
   skipped?: string[] };
 
@@ -47,7 +47,7 @@ export function cleanSleep(raw: any): Sleep | undefined {
     .filter((x: Nap) => Number.isFinite(x.start) && Number.isFinite(x.end) && x.end - x.start >= 5 * 60_000 && x.end - x.start <= 4 * 3_600_000);
   if (naps.length) out.naps = naps;
   if (raw.schedule && hhmm(raw.schedule.bed) && hhmm(raw.schedule.wake)) out.schedule = { bed: hhmm(raw.schedule.bed), wake: hhmm(raw.schedule.wake) };
-  if (raw.remind && typeof raw.remind === "object") out.remind = { windDown: !!raw.remind.windDown, morning: !!raw.remind.morning };
+  if (raw.remind && typeof raw.remind === "object") out.remind = { windDown: !!raw.remind.windDown, morning: !!raw.remind.morning, ...(raw.remind.bedtime === true ? { bedtime: true } : {}) };
   const skipped = (Array.isArray(raw.skipped) ? raw.skipped : []).map(String).filter((k: string) => /^\d{4}-\d{2}-\d{2}$/.test(k)).slice(-14);
   if (skipped.length) out.skipped = skipped;
   if (!nights.length && !out.asleepAt && out.goalH === 8 && !naps.length && !out.schedule && !out.remind) return undefined;

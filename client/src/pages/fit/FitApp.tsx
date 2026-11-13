@@ -280,10 +280,10 @@ function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount,
     <PlusRow />
     <Title>iPhone</Title>
     <Card onClick={() => setSheet("health")} className="!p-4" testId="fit-open-health"><div className="flex items-center gap-3"><HeartPulse className="h-5 w-5" style={{ color: "#ff375f" }} /><span className="flex-1 font-semibold">Apple Health</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
-    <Card onClick={() => setSheet("reminders")} className="mt-2 !p-4" testId="fit-open-reminders"><div className="flex items-center gap-3"><Bell className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Reminders</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
+    <Card onClick={() => setSheet("reminders")} className="mt-2 !p-4" testId="fit-open-reminders"><div className="flex items-center gap-3"><Bell className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1"><span className="block font-semibold">Notifications</span><span className="block text-[13px]" style={{ color: C.dim }}>Food, sleep, workouts and alerts</span></span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     <Card onClick={onSiri} className="mt-2 !p-4" testId="fit-open-siri"><div className="flex items-center gap-3"><Mic className="h-5 w-5" style={{ color: C.lime }} /><span className="flex-1 font-semibold">Siri & Shortcuts</span><ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>
     {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
-    {sheet === "reminders" && <RemindersSheet onClose={() => setSheet("")} />}
+    {sheet === "reminders" && <RemindersSheet data={data} update={update} onClose={() => setSheet("")} />}
     <Title>Measurements</Title>
     <div className="grid grid-cols-2 gap-2" data-testid="fit-units">{(["lb", "kg"] as const).map((v) => <button key={v} type="button" onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))} aria-pressed={data.profile.units === v} className="rounded-[12px] p-3 text-left" style={data.profile.units === v ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card }}>
       <span className="block text-[20px] leading-none" style={display}>{v === "lb" ? "US" : "Metric"}</span><span className="mt-1 block text-[12px] font-semibold">{v === "lb" ? "lb · miles · ft/in · oz" : "kg · km · cm · liters"}</span></button>)}</div>

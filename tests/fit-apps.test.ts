@@ -162,7 +162,7 @@ test("Siri and reminders: going to sleep, I'm awake, sleep, yoga and breathe", (
   const nat = read("client/src/pages/fit/fitNative.ts");
   assert.match(nat, /dataType: "sleep"/);
   assert.match(nat, /"sleep", "restingHeartRate", "heartRateVariability", "mindfulness"/);
-  assert.match(nat, /id: 600, title: "Time to wind down"/);
+  assert.match(read("shared/fitReminders.ts"), /id: 600, title: "Time to wind down"/);
   assert.match(read("client/src/pages/fit/FitSiri.tsx"), /localNotificationActionPerformed/);
 });
 

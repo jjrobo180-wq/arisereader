@@ -2,7 +2,7 @@
 // and #/trainer on the website). Tabs: Clients, Inbox, Schedule, Library, Business. Clients come from
 // Cooked, with their training, food and health data shared automatically (server/coach.ts).
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Briefcase, CalendarDays, CheckSquare, ChevronRight, Dumbbell, Inbox, BookOpen, LayoutTemplate, LogOut, Megaphone, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Square, Star, Trash2, UserPlus, Users } from "lucide-react";
+import { BadgeCheck, Bell, Briefcase, CalendarDays, CheckSquare, ChevronRight, Dumbbell, Inbox, BookOpen, LayoutTemplate, LogOut, Megaphone, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Square, Star, Trash2, UserPlus, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import { goToSignIn } from "@/lib/hubs";
@@ -17,6 +17,7 @@ import { FormBuilder, OwnExerciseSheet, ProgramBuilder, WorkoutBuilder, newId } 
 import { AiBuilderSheet, InviteSheet, TemplatesSheet } from "./TrainerTemplates";
 import { WebsiteCard } from "./TrainerWebsite";
 import { TrainerGroups } from "../coach/Groups";
+import { TrainerNotificationsSheet, loadAppts, useSessionReminders } from "./TrainerNotifications";
 import { CopilotCard } from "./TrainerCopilot";
 import { MoveCard } from "./TrainerMove";
 import { MarketCard } from "../coach/Market";
@@ -33,9 +34,12 @@ export default function TrainerApp() {
   const [tab, setTab] = useState<Tab>("clients");
   const [open, setOpen] = useState<ClientRow | null>(null);
   const [toast, setToast] = useState("");
+  const [bell, setBell] = useState(false);
   const say = (m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); };
   // Notifications for new requests, messages and check-ins (asks once, the first time).
   useEffect(() => { if (isNativeApp()) void startApplePush(true); }, []);
+  // Reminders before each booked session, kept in step with the schedule (Notifications).
+  useSessionReminders(token, data?.clients);
   useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
   // Back from Stripe after starting the listing plan.
   useEffect(() => {
@@ -54,9 +58,9 @@ export default function TrainerApp() {
     <StatusShade />
     <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
       {!data ? <p className="mt-24 text-center" style={{ color: C.dim }}>{err || "Loading…"}</p> : <div key={tab} className="fit-in">
-        {tab === "clients" && <Clients data={data} token={token} onOpen={setOpen} say={say} goBusiness={() => setTab("business")} />}
+        {tab === "clients" && <Clients data={data} token={token} onOpen={setOpen} say={say} goBusiness={() => setTab("business")} onBell={() => setBell(true)} />}
         {tab === "inbox" && <InboxTab data={data} onOpen={setOpen} />}
-        {tab === "schedule" && <Schedule token={token} data={data} onOpen={setOpen} />}
+        {tab === "schedule" && <Schedule token={token} data={data} onOpen={setOpen} onBell={() => setBell(true)} />}
         {tab === "library" && <LibraryTab lib={data.library} saveLib={saveLib} token={token} say={say} />}
         {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
       </div>}
@@ -67,9 +71,14 @@ export default function TrainerApp() {
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
         <Icon className="h-[22px] w-[22px]" />{label}{badge > 0 && <span className="fit-pop absolute right-[18%] top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{badge}</span>}</button>)}
     </nav>
+    {bell && <TrainerNotificationsSheet onClose={() => setBell(false)} />}
     {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} say={say} onClose={() => { setOpen(null); reload(); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
   </div>;
+}
+
+function BellButton({ onClick }: { onClick: () => void }) {
+  return <button type="button" onClick={onClick} aria-label="Notifications" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card }} data-testid="tr-open-notifications"><Bell className="h-5 w-5" style={{ color: C.lime }} /></button>;
 }
 
 function Header({ title, kicker, right }: { title: string; kicker?: string; right?: React.ReactNode }) {
@@ -92,7 +101,7 @@ function ClientRowCard({ c, onOpen, k, pick }: { c: ClientRow; onOpen: () => voi
   </Card>;
 }
 
-function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; token: string | null; onOpen: (c: ClientRow) => void; say: (m: string) => void; goBusiness: () => void }) {
+function Clients({ data, token, onOpen, say, goBusiness, onBell }: { data: TrainerHome; token: string | null; onOpen: (c: ClientRow) => void; say: (m: string) => void; goBusiness: () => void; onBell: () => void }) {
   const [q, setQ] = useState(""); const [tag, setTag] = useState(""); const [sort, setSort] = useState<"attention" | "name" | "recent">("attention");
   const [picking, setPicking] = useState(false); const [picked, setPicked] = useState<string[]>([]); const [cast, setCast] = useState(false); const [inviting, setInviting] = useState(false); const [seed, setSeed] = useState<number[] | null>(null);
   const tags = [...new Set(data.clients.flatMap((c) => c.tags))];
@@ -101,7 +110,7 @@ function Clients({ data, token, onOpen, say, goBusiness }: { data: TrainerHome; 
     .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "recent" ? (b.lastWorkout ?? "").localeCompare(a.lastWorkout ?? "") : (b.unread - a.unread) || ((a.compliance.pct ?? 101) - (b.compliance.pct ?? 101)));
   const hour = new Date().getHours();
   return <div>
-    <Header kicker={`${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, ${data.profile.name.split(" ")[0] || "coach"}`} title="Clients" right={active.length > 1 ? <button type="button" onClick={() => { setPicking(!picking); setPicked([]); }} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: picking ? C.lime : C.card, color: picking ? "var(--fit-on-accent)" : C.text }}>{picking ? "Done" : "Select"}</button> : undefined} />
+    <Header kicker={`${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, ${data.profile.name.split(" ")[0] || "coach"}`} title="Clients" right={<div className="flex items-center gap-2"><BellButton onClick={onBell} />{active.length > 1 && <button type="button" onClick={() => { setPicking(!picking); setPicked([]); }} className="h-10 rounded-full px-3 text-[13px] font-semibold" style={{ background: picking ? C.lime : C.card, color: picking ? "var(--fit-on-accent)" : C.text }}>{picking ? "Done" : "Select"}</button>}</div>} />
     {!data.listed && <Card onClick={goBusiness} className="fit-shine mb-3 !p-4" style={{ background: "linear-gradient(150deg, var(--fit-accent), var(--fit-accent-deep))", color: "var(--fit-on-accent)" }} testId="tr-get-listed">
       <p className="text-[24px] leading-none" style={display}>Get listed in Cooked</p><p className="mt-1 text-[13px] font-semibold">{data.problems.length ? `Finish your profile: ${data.problems[0].toLowerCase()}.` : `Go live in the trainer directory. ${data.price.trialDays} days free, then ${money(data.price.cents)}/month.`}</p></Card>}
     <CopilotCard token={token} clients={data.clients.filter((c) => c.status === "active").length} say={say} onOpenClient={(id) => { const c = data.clients.find((x) => x.id === id); if (c) onOpen(c); }} />
@@ -147,16 +156,12 @@ function InboxTab({ data, onOpen }: { data: TrainerHome; onOpen: (c: ClientRow) 
 }
 
 /** Every booked session, across clients. */
-function Schedule({ token, data, onOpen }: { token: string | null; data: TrainerHome; onOpen: (c: ClientRow) => void }) {
+function Schedule({ token, data, onOpen, onBell }: { token: string | null; data: TrainerHome; onOpen: (c: ClientRow) => void; onBell: () => void }) {
   const active = data.clients.filter((c) => c.status === "active");
-  const { data: all } = usePoll(async () => {
-    const out: { c: ClientRow; at: string; mins: number; mode: Mode; place: string; requested?: boolean }[] = [];
-    await Promise.all(active.map(async (c) => { const d = await coachApi<{ coaching: { appts: { at: string; mins: number; mode: Mode; place: string; status: string; requested?: boolean }[] } }>(token, `/links/${c.id}/client`); for (const a of d.coaching.appts) if (a.status === "booked" && Date.parse(a.at) > Date.now() - 3600e3) out.push({ c, ...a }); }));
-    return out.sort((a, b) => a.at.localeCompare(b.at));
-  }, [token, active.map((c) => c.id).join()], 60_000);
+  const { data: all } = usePoll(() => loadAppts(token, active) as Promise<{ c: ClientRow; at: string; mins: number; mode: Mode; place: string; requested?: boolean }[]>, [token, active.map((c) => c.id).join()], 60_000);
   const byDay = useMemo(() => { const m = new Map<string, NonNullable<typeof all>>(); for (const a of all ?? []) { const k = new Date(a.at).toDateString(); m.set(k, [...(m.get(k) ?? []), a]); } return [...m.entries()]; }, [all]);
   return <div>
-    <Header title="Schedule" />
+    <Header title="Schedule" right={<BellButton onClick={onBell} />} />
     {!all ? <p className="px-1" style={{ color: C.dim }}>Loading…</p> : byDay.length ? byDay.map(([d, list]) => <div key={d}><Title>{shortDate(list[0].at)}</Title><div className="space-y-2">{list.map((a, k) => <Card key={k} onClick={() => onOpen(a.c)} className="!p-3" style={a.requested ? { boxShadow: "inset 0 0 0 1px var(--fit-accent)" } : undefined}>
       <div className="flex items-center gap-3"><span className="w-16 shrink-0 text-[18px] leading-none" style={display}>{new Date(a.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
         <div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.c.name}</p><p className="truncate text-[12px]" style={{ color: C.dim }}>{MODE_LABEL[a.mode]} · {a.mins} min{a.place ? ` · ${a.place}` : ""}{a.requested ? " · requested" : ""}</p></div></div></Card>)}</div></div>)

@@ -39,6 +39,7 @@ import {
   type ClientSide, type Coaching, type Consent, type Library, type LinkStatus, type Message, type PublicTrainer, type Review, type TrainerProfile,
 } from "../shared/coach";
 import { cleanFit, type FitData } from "../shared/fit";
+import { cleanFitPushPrefs } from "../shared/fitPush";
 import { createHmac } from "node:crypto";
 import { cleanLead, cleanLeads, cleanSite, emptySite, idFromSlug, siteSlug, type Lead, type LeadStatus } from "../shared/coachSite";
 import { createSupabaseKv, type FitKv } from "./fitKv";
@@ -387,6 +388,10 @@ export function registerCoachRoutes(app: Express, auth: RequestHandler, deps: Co
     cache = null;
     return { profile, problems: listingProblems(profile) };
   }));
+  // Which server alerts this person wants (Notifications in Cooked and Cooked PT). Read in notifyUser.
+  app.get("/api/coach/push-prefs", auth, wrap(async (req) => ({ prefs: cleanFitPushPrefs(await kv.get(`fit_push_prefs_${me(req)}`)) })));
+  app.put("/api/coach/push-prefs", auth, wrap(async (req) => { const id = me(req); const prefs = cleanFitPushPrefs(req.body?.prefs); await kv.set(`fit_push_prefs_${id}`, prefs); return { prefs }; }));
+
   app.put("/api/coach/trainer/library", auth, wrap(async (req) => { const id = me(req); const lib = cleanLibrary(req.body?.library); await store.saveLibrary(id, lib); return { library: lib }; }));
 
   const num = (v: unknown, lo: number, hi: number, fb: number) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : fb; };

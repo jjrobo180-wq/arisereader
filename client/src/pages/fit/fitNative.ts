@@ -3,6 +3,7 @@
 // never needs those packages; on the website, or in an app build without the plugins, every call
 // says so instead of failing silently.
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { REPEATING_IDS, buildLocalReminders, cleanReminders, defaultReminders as defaults, type Reminders, type SleepRemind } from "@shared/fitReminders";
 
 const health = (method: string, options?: unknown) => nativeCall(/^Health$|CapacitorHealth/i, "Health", method, options);
 const notes = (method: string, options?: unknown) => nativeCall(/LocalNotifications/i, "LocalNotifications", method, options);
@@ -99,51 +100,55 @@ export function saveToHealth(kind: "weight" | "calories" | "distance", value: nu
 }
 
 // ——— Reminders —————————————————————————————————————————————————————————————————————————————————
-export type Reminders = { workout: { on: boolean; hour: number; minute: number; days: number[] }; water: boolean; weighIn: boolean; fasting: boolean };
-export const defaultReminders = (): Reminders => ({ workout: { on: false, hour: 18, minute: 0, days: [1, 2, 3, 4, 5] }, water: false, weighIn: false, fasting: true });
+// Which reminders, their times and ids are in shared/fitReminders.ts. Sleep reminders follow the bedtime
+// schedule saved with sleep (FitSleep), so they are passed in each time.
+export type { Reminders } from "@shared/fitReminders";
+export const defaultReminders = defaults;
+const LS_SLEEP = "arise-fit-sleep-remind";
 export function readReminders(): Reminders {
-  try { return { ...defaultReminders(), ...JSON.parse(read(LS.reminders) || "{}") }; } catch { return defaultReminders(); }
+  try { return cleanReminders(JSON.parse(read(LS.reminders) || "{}")); } catch { return defaults(); }
 }
+const readSleepRemind = (): SleepRemind | null => { try { return JSON.parse(read(LS_SLEEP) || "null"); } catch { return null; } };
+const OFF = "Notifications are off for Cooked. Turn them on in Settings → Notifications → Cooked.";
 
-// Fixed ids so each reminder replaces itself: 100–106 workout days, 200–206 water, 300 weigh-in, 400 fast.
-const WORKOUT_LINES = ["Time to train. Your workout's ready in Cooked.", "Don't break the streak. Get your session in.", "The bar won't lift itself. Let's go.", "Ten minutes beats zero. Start a workout."];
-export async function applyReminders(r: Reminders): Promise<void> {
+/** Saves the settings and sets every repeating reminder again (workout, water, weigh-in, meals, sleep). */
+export async function applyReminders(r: Reminders, sleep: SleepRemind | null = readSleepRemind()): Promise<void> {
   write(LS.reminders, JSON.stringify(r));
+  write(LS_SLEEP, sleep ? JSON.stringify(sleep) : null);
   if (!isNativeApp()) return;
   try {
-    const perm = await notes("requestPermissions");
-    if (perm?.display && perm.display !== "granted") throw new Error("Notifications are off for Cooked. Turn them on in Settings → Notifications → Cooked.");
-    await notes("cancel", { notifications: [...[0, 1, 2, 3, 4, 5, 6].flatMap((d) => [{ id: 100 + d }, { id: 200 + d }]), { id: 300 }] });
-    const list: any[] = [];
-    // iOS weekday: 1 = Sunday … 7 = Saturday; ours: 0 = Sunday.
-    if (r.workout.on) for (const d of r.workout.days) list.push({ id: 100 + d, title: "Cooked", body: WORKOUT_LINES[d % WORKOUT_LINES.length], schedule: { on: { weekday: d + 1, hour: r.workout.hour, minute: r.workout.minute }, allowWhileIdle: true } });
-    if (r.water) [10, 13, 16, 19].forEach((h, i) => list.push({ id: 200 + i, title: "Hydrate", body: "Drink a glass of water and log it.", schedule: { on: { hour: h, minute: 0 }, allowWhileIdle: true } }));
-    if (r.weighIn) list.push({ id: 300, title: "Weigh-in", body: "Step on the scale before breakfast and log it.", schedule: { on: { hour: 7, minute: 15 }, allowWhileIdle: true } });
-    if (list.length) await notes("schedule", { notifications: list });
+    const list = buildLocalReminders(r, sleep);
+    if (list.length) {
+      const perm = await notes("requestPermissions");
+      if (perm?.display && perm.display !== "granted") throw new Error(OFF);
+    }
+    await notes("cancel", { notifications: REPEATING_IDS.map((id) => ({ id })) });
+    if (r.paused) await notes("cancel", { notifications: [{ id: 400 }, { id: 500 }] });
+    if (list.length) await notes("schedule", { notifications: list.map((n) => ({ id: n.id, title: n.title, body: n.body, schedule: { on: n.on, allowWhileIdle: true }, ...(n.url ? { extra: { url: n.url } } : {}) })) });
   } catch (e) { throw friendly(e, "Reminders"); }
 }
 
-/** Sleep reminders, around a bedtime schedule ("22:30", "06:30"): wind down 30 minutes before bed,
- *  and a morning check-in 15 minutes after waking (ids 600 and 601). Off when `sc` is missing. */
-export async function applySleepReminders(sc: { bed: string; wake: string } | undefined, on: { windDown: boolean; morning: boolean }): Promise<void> {
-  if (!isNativeApp()) return;
+/** Sleep reminders, around a bedtime schedule ("22:30", "06:30"): wind down 30 minutes before bed, a
+ *  bedtime nudge, and a morning check-in 15 minutes after waking. Off when `sc` is missing. */
+export async function applySleepReminders(sc: { bed: string; wake: string } | undefined, on: { windDown: boolean; morning: boolean; bedtime?: boolean }): Promise<void> {
+  await applyReminders(readReminders(), sc ? { bed: sc.bed, wake: sc.wake, windDown: on.windDown, morning: on.morning, bedtime: on.bedtime === true } : null);
+}
+
+/** A test notification in 5 seconds, so you can see they work. false when notifications are off. */
+export async function testNotification(app = "Cooked"): Promise<boolean> {
+  if (!isNativeApp()) return false;
   try {
-    await notes("cancel", { notifications: [{ id: 600 }, { id: 601 }] });
-    if (!sc || (!on.windDown && !on.morning)) return;
     const perm = await notes("requestPermissions");
-    if (perm?.display && perm.display !== "granted") throw new Error("Notifications are off for Cooked. Turn them on in Settings → Notifications → Cooked.");
-    const shift = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (((h * 60 + m + mins) % 1440) + 1440) % 1440; return { hour: Math.floor(x / 60), minute: x % 60 }; };
-    const list: any[] = [];
-    if (on.windDown) list.push({ id: 600, title: "Time to wind down", body: "Bedtime in 30 minutes. Dim the lights, put the phone down, or try a breathing session.", schedule: { on: shift(sc.bed, -30), allowWhileIdle: true }, extra: { url: "arisefit://do/sleep-start" } });
-    if (on.morning) list.push({ id: 601, title: "Good morning", body: "How did you sleep? Tap to check in.", schedule: { on: shift(sc.wake, 15), allowWhileIdle: true }, extra: { url: "arisefit://do/sleep" } });
-    if (list.length) await notes("schedule", { notifications: list });
-  } catch (e) { throw friendly(e, "Reminders"); }
+    if (perm?.display && perm.display !== "granted") return false;
+    await notes("schedule", { notifications: [{ id: 999, title: app, body: "Notifications are working.", schedule: { at: new Date(Date.now() + 5000).toISOString(), allowWhileIdle: true } }] });
+    return true;
+  } catch { return false; }
 }
 
 /** A one-off "fast complete" alert at the goal time (replaced or cancelled with the fast). Only set for
  *  a goal at least a few minutes away, so starting a fast can never fire it on the spot. */
 export function scheduleFastEnd(at: number | null, startedAt?: number) {
-  if (!isNativeApp() || !readReminders().fasting) return;
+  if (!isNativeApp() || !readReminders().fasting || readReminders().paused) return;
   void (async () => {
     try {
       await notes("cancel", { notifications: [{ id: 400 }] });
@@ -185,6 +190,17 @@ export async function applyMedReminders(meds: { name: string; dose: string; time
       });
     });
     if (list.length) await notes("schedule", { notifications: list });
+    return true;
+  } catch { return false; }
+}
+
+/** Replaces a set of local notifications: cancels `ids`, then schedules `list` (at a time, or every day at hour:minute). */
+export async function replaceLocal(ids: number[], list: { id: number; title: string; body: string; at?: string; on?: { hour: number; minute: number } }[]): Promise<boolean> {
+  if (!isNativeApp()) return false;
+  try {
+    if (list.length) { const perm = await notes("requestPermissions"); if (perm?.display && perm.display !== "granted") return false; }
+    await notes("cancel", { notifications: ids.map((id) => ({ id })) });
+    if (list.length) await notes("schedule", { notifications: list.map((n) => ({ id: n.id, title: n.title, body: n.body, schedule: n.at ? { at: n.at, allowWhileIdle: true } : { on: n.on, allowWhileIdle: true } })) });
     return true;
   } catch { return false; }
 }
