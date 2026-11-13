@@ -87,13 +87,25 @@ for (const [kind, opts] of Object.entries(devices)) {
     ],
     cookedpt: [
       ["Clients", () => tap(/^Clients/i, { within: "nav" })],
+      ["Website", async () => { await tap(/^Business/i, { within: "nav", after: 3000 }); await tap(/^Build my website$/i, { after: 3500 }) || await tap(/^Edit$/i, { after: 3500 });
+        const pv = page.getByTestId("tr-site-preview").first(); if (await visible(pv)) { await pv.click(); await wait(4000); } }],
+      ["Business", async () => { await goto(""); await tap(/^Business/i, { within: "nav", after: 3000 }); }],
       // The client opened from the inbox, where the sample client is always at the top.
       ["Client", async () => { await tap(/^Inbox/i, { within: "nav", after: 2500 }); await tap(/Logged lunch/i, { after: 4000 }); }],
       ["Inbox", async () => { await goto(""); await tap(/^Inbox/i, { within: "nav" }); }],
       ["Library", async () => { await goto(""); await tap(/^Library/i, { within: "nav" }); }],
     ],
     notes: [
-      ["Recordings", async () => { if (kind === "iphone") await tap(/^All notes/i); }],
+      // A written note asking Arise for help: "@arise …" on a line, answered right under it.
+      ["At Arise", async () => {
+        await goto("", 6000); if (kind === "iphone") await tap(/^All notes/i, { after: 2000 });
+        await tap(/^New note$/i, { after: 2500 }); await tap(/^Blank/i, { after: 3000 });
+        const ed = page.locator('[contenteditable="true"]').first();
+        if (await reach(ed)) { await ed.click();
+          for (const line of ["Launch week", "Beta went out Monday: 40 sign-ups and two bugs to fix.", "Newsletter draft due Thursday."]) { await page.keyboard.type(line, { delay: 15 }); await page.keyboard.press("Enter"); }
+          await page.keyboard.type("@arise make a checklist for launch week", { delay: 25 }); await page.keyboard.press("Enter");
+          await wait(25000); await page.keyboard.press("Escape").catch(() => {}); await page.evaluate(() => document.activeElement?.blur?.()).catch(() => {}); await wait(800); } }],
+      ["Recordings", async () => { await goto("", 6000); if (kind === "iphone") await tap(/^All notes/i); }],
       ["Summary", async () => { await tap(/Weekly team check-in/i, { after: 3500 });
         const w = page.getByTestId("notes-summarize").first();
         if (await visible(w)) { await w.click(); await page.waitForSelector('[data-testid="notes-summarize"]', { state: "detached", timeout: 90000 }).catch(() => {}); await wait(2500); } }],
