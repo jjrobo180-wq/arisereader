@@ -78,3 +78,10 @@ test("a deleted account's email is free at once; one email, one account for app 
   assert.match(todo, /const signupLimits = createAttemptLimiter\(\{ max: 30,/);
   assert.match(read("server/podcastAccounts.ts"), /app\.post\(`\$\{P\}\/web-handoff`, gate/);
 });
+
+test("Podster defines its All Access pieces before the screen that uses them (a blank screen otherwise)", () => {
+  const s = read("podscroll/main.tsx");
+  const def = s.indexOf("const allAccessOffer ="), use = s.indexOf("allAccess={allAccessOffer}");
+  assert.ok(def > 0 && use > def, "allAccessOffer is made before it's passed to Home");
+  assert.ok(s.indexOf("const podsterHandoff =") < s.indexOf("const body ="));
+});

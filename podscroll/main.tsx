@@ -234,6 +234,11 @@ function App() {
   const backToFeed = useCallback(() => { setFeedSeen(true); setFeedTab(undefined); setTabNonce((n) => n + 1); setMode("feed"); }, []);
   const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
 
+  // Arise All Access (ad-free): Podster's own accounts hand Safari a one-use code for the Arise account with
+  // the same email, so its page opens signed in (server/podcastAccounts.ts web-handoff).
+  const podsterHandoff = useCallback(async () => { try { const b = await api("/api/earshot/account/web-handoff", { method: "POST" }); return typeof b?.code === "string" ? b.code : null; } catch { return null; } }, [api]);
+  const podsterMember = useCallback(async () => { try { return !!(await api("/api/earshot/ad-free"))?.adFree; } catch { return true; } }, [api]);
+  const allAccessOffer = pro && !paid ? <AllAccessOffer dark={false} app="podster" handoff={podsterHandoff} note={NATIVE_NO_PURCHASE} /> : null;
   const body = editing || (mode === "feed" && !es.setupDone)
     ? <div className={`min-h-full overflow-y-auto px-3 py-6 sm:py-10 ${day ? "ps-light" : ""}`}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
       <Setup brand="Podster" initial={es} student={false} onCancel={() => { setEditing(false); if (!es.setupDone) setMode("home"); }} onDone={(genres, pace) => {
@@ -257,11 +262,6 @@ function App() {
 
   useEffect(() => { if (editing || (mode === "feed" && !es.setupDone)) document.documentElement.style.background = day ? "#ffffff" : "#120e14"; }, [day, es.setupDone, editing, mode]);
 
-  // Arise All Access (ad-free): Podster's own accounts hand Safari a one-use code for the Arise account with
-  // the same email, so its page opens signed in (server/podcastAccounts.ts web-handoff).
-  const podsterHandoff = useCallback(async () => { try { const b = await api("/api/earshot/account/web-handoff", { method: "POST" }); return typeof b?.code === "string" ? b.code : null; } catch { return null; } }, [api]);
-  const podsterMember = useCallback(async () => { try { return !!(await api("/api/earshot/ad-free"))?.adFree; } catch { return true; } }, [api]);
-  const allAccessOffer = pro && !paid ? <AllAccessOffer dark={false} app="podster" handoff={podsterHandoff} note={NATIVE_NO_PURCHASE} /> : null;
   return <>
     {body}
     {welcome && !authMode && <Welcome key={pro ? "in" : "out"} api={api} signedIn={pro} onSignedIn={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAccount(mail); }}
