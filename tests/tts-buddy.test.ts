@@ -529,3 +529,17 @@ test("the phone sends a long worksheet a page at a time and keeps going past a p
   assert.match(teach, /testId="buddy-add-page"/);
   assert.match(read("server/index.ts"), /worksheets\\\/\[\^\/\]\+\\\/pages\$\/, express\.json\(\{ limit: "6mb" \}\)/);
 });
+
+test("an info button on every screen explains what TTS Buddy is and how it helps (a student version too)", async () => {
+  const info = read("client/src/pages/buddy/BuddyInfo.tsx");
+  for (const t of ["Reading isn't the test", "Follow along, word by word", "One question at a time", "Accommodations, done for you", "Private by design"]) assert.ok(info.includes(t), t);
+  assert.match(info, /arisetodo\.com\/buddy or arisereader\.com\/buddy/);
+  assert.match(info, /function StudentInfo/); assert.match(info, /I need help/);
+  assert.match(read("client/src/pages/buddy/TtsBuddy.tsx"), /<InfoButton testId="buddy-info-home"/);
+  assert.match(read("client/src/pages/buddy/BuddyTeacher.tsx"), /<InfoButton testId="buddy-info-teacher"/);
+  const lap = read("client/src/pages/buddy/BuddyLaptop.tsx");
+  assert.match(lap, /<InfoButton audience="student" testId="buddy-info-kid"/); assert.match(lap, /<InfoButton audience="student" testId="buddy-info-quiz"/);
+  // Questions are numbered in order across pages (each page's own "1." would repeat), and skipped ones are a tap away.
+  assert.match(lap, /\{qIndex \+ 1\}<\/span>/); assert.match(lap, /I skipped/);
+  assert.match(read("client/src/pages/buddy/BuddyTeacher.tsx"), /\{i \+ 1\}\. \{q\.text\}/);
+});

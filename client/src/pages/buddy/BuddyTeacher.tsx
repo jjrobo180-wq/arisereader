@@ -7,6 +7,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { B, BRAND_FONT, FONT, call, cropPhoto, loadImage, shrinkPhoto, snapBox, teacherKey, useBuddyFont, useVoice, type Clip } from "./buddyApi";
 import { BuddyMark } from "./BuddyMark";
 import { Figure, Words } from "./BuddyLaptop";
+import { InfoButton, STEPS } from "./BuddyInfo";
 
 type Summary = { id: string; title: string; questions: number; steps: number; createdAt: string };
 type LaptopView = Laptop & { answered: number; questions: number; worksheetTitle: string };
@@ -39,7 +40,8 @@ function Main({ home, reload, onOpen, say }: { home: Home | null; reload: () => 
   const current = home?.worksheets.find((w) => w.id === home.current);
   return <>
     <header className="flex items-center gap-3"><BuddyMark size={40} /><p className="flex-1 text-[26px] font-semibold" style={{ fontFamily: BRAND_FONT }}>TTS Buddy</p>
-      {home?.classCode && <span className="rounded-[10px] px-3 py-1.5 text-[15px] font-bold" style={{ background: B.card, border: `2px solid ${B.line}` }}>Class <b style={{ letterSpacing: ".15em" }}>{home.classCode}</b></span>}</header>
+      {home?.classCode && <span className="rounded-[10px] px-3 py-1.5 text-[15px] font-bold" style={{ background: B.card, border: `2px solid ${B.line}` }}>Class <b style={{ letterSpacing: ".15em" }}>{home.classCode}</b></span>}
+      <InfoButton testId="buddy-info-teacher" /></header>
     <Snap onDone={(ws) => { onOpen(ws.id); reload(); }} say={say} aiReady={home?.aiReady !== false} first={!home?.worksheets.length} />
     {current && <ClassPanel home={home!} current={current} reload={reload} say={say} />}
     {home && home.worksheets.length > 0 && <>
@@ -54,11 +56,7 @@ function Main({ home, reload, onOpen, say }: { home: Home | null; reload: () => 
 }
 
 function Steps() {
-  return <div className="mt-8 space-y-3">{[
-    ["Snap the worksheet", "Take a photo of each page. TTS Buddy splits it into one question at a time."],
-    ["Open arisetodo.com/buddy on the laptop", "The child picks “I'm a student”. The laptop shows a 4-digit code."],
-    ["Type the code here", "The worksheet appears on that laptop and reads every question and answer out loud, word by word."],
-  ].map(([t, d], i) => <div key={i} className="flex gap-3 rounded-[16px] p-4" style={{ background: B.card, border: `2px solid ${B.line}` }}>
+  return <div className="mt-8 space-y-3">{STEPS.map(([t, d], i) => <div key={i} className="flex gap-3 rounded-[16px] p-4" style={{ background: B.card, border: `2px solid ${B.line}` }}>
     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[17px] font-bold text-white" style={{ background: B.ink, fontFamily: BRAND_FONT }}>{i + 1}</span>
     <div><p className="text-[17px] font-bold">{t}</p><p className="text-[15px]" style={{ color: B.dim }}>{d}</p></div></div>)}</div>;
 }
@@ -146,11 +144,11 @@ function ClassPanel({ home, current, reload, say }: { home: Home; current: Summa
     <p className="text-[22px] font-bold">{current.title}</p>
     <div className="mt-4 rounded-[16px] p-4" style={{ background: B.bg }}>
       <p className="text-[16px] font-bold">Link a laptop</p>
-      <p className="text-[14px]" style={{ color: B.dim }}>Type the 4 numbers on the laptop's screen (arisetodo.com/buddy). Students can also type the class code <b style={{ color: B.ink, letterSpacing: ".1em" }}>{home.classCode}</b>.</p>
+      <p className="text-[14px]" style={{ color: B.dim }}>Type the 4 numbers on the laptop's screen (arisetodo.com/buddy or arisereader.com/buddy). Students can also type the class code <b style={{ color: B.ink, letterSpacing: ".1em" }}>{home.classCode}</b>.</p>
       <div className="mt-3 flex gap-2">
         <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="1234" aria-label="Laptop code" data-testid="buddy-link-code"
           className="w-28 rounded-[12px] px-3 py-3 text-center text-[24px] font-bold tracking-[.2em] outline-none" style={{ border: `2px solid ${B.ink}`, fontFamily: BRAND_FONT, background: "#fff" }} />
-        <input value={name} onChange={(e) => setName(e.target.value.slice(0, 24))} placeholder="Name or seat (optional)" aria-label="Student name or seat" className="min-w-0 flex-1 rounded-[12px] px-3 text-[16px] outline-none" style={{ border: `2px solid ${B.line}`, background: "#fff" }} />
+        <input value={name} onChange={(e) => setName(e.target.value.slice(0, 24))} placeholder="Name (optional)" aria-label="Student name or seat" className="min-w-0 flex-1 rounded-[12px] px-3 text-[16px] outline-none" style={{ border: `2px solid ${B.line}`, background: "#fff" }} />
       </div>
       <Btn className="mt-3 w-full" disabled={code.length !== 4 || busy} onClick={link} testId="buddy-link">{busy ? "Linking…" : "Link laptop"}</Btn>
     </div>
@@ -182,7 +180,7 @@ function LaptopRow({ l, n, open, onToggle, reload, say, worksheetId }: { l: Lapt
     {open && <div className="border-t px-3 pb-3 pt-2" style={{ borderColor: B.line }}>
       <p className="mb-1.5 text-[14px] font-bold" style={{ color: B.dim }}>Helpers {label} can use</p>
       <AccSwitches compact acc={acc} onChange={(a) => void patch({ acc: a }, "Updated. The laptop changes in a few seconds.")} />
-      <div className="mt-3">{ws ? ws.items.filter((i) => i.kind !== "read").map((q, i) => <div key={q.id} className="py-1.5 text-[15px]"><p style={{ color: B.dim }}>{q.number || i + 1}. {q.text}</p><p className="font-bold">{isAnswered(q, l.answers[q.id]) ? l.answers[q.id].trim() : <span style={{ color: B.dim, fontWeight: 400 }}>No answer yet</span>}</p></div>) : <Loader2 className="h-5 w-5 animate-spin" />}</div>
+      <div className="mt-3">{ws ? ws.items.filter((i) => i.kind !== "read").map((q, i) => <div key={q.id} className="py-1.5 text-[15px]"><p style={{ color: B.dim }}>{i + 1}. {q.text}</p><p className="font-bold">{isAnswered(q, l.answers[q.id]) ? l.answers[q.id].trim() : <span style={{ color: B.dim, fontWeight: 400 }}>No answer yet</span>}</p></div>) : <Loader2 className="h-5 w-5 animate-spin" />}</div>
       <div className="mt-3 flex flex-wrap gap-2">
         <Btn kind="soft" className="!min-h-10 !text-[14px]" onClick={() => { const v = prompt("Name or seat", l.name); if (v != null) void patch({ name: v }, "Renamed"); }}>Rename</Btn>
         <Btn kind="soft" className="!min-h-10 !text-[14px]" onClick={() => void patch({ restart: true }, "Started over")}><RotateCcw className="h-4 w-4" />Start over</Btn>
@@ -336,7 +334,7 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
   return <div data-testid="buddy-editor">
     <div className="flex items-center gap-2"><button type="button" onClick={onBack} className="flex items-center gap-1 py-2 text-[16px] font-bold" style={{ color: B.dim }}><ChevronLeft className="h-5 w-5" />Back</button><div className="flex-1" />
       <button type="button" onClick={remove} aria-label="Delete worksheet" className="p-2" style={{ color: B.dim }}><Trash2 className="h-5 w-5" /></button></div>
-    <input value={ws.title} onChange={(e) => { setWs({ ...ws, title: e.target.value.slice(0, 80) }); setDirty(true); }} aria-label="Worksheet title" className="mt-1 w-full bg-transparent text-[26px] font-bold outline-none" />
+    <textarea value={ws.title} onChange={(e) => { setWs({ ...ws, title: e.target.value.replace(/\n/g, " ").slice(0, 80) }); setDirty(true); }} aria-label="Worksheet title" rows={ws.title.length > 26 ? 2 : 1} className="mt-1 w-full resize-none bg-transparent text-[26px] font-bold leading-tight outline-none" data-testid="buddy-title" />
     <p className="text-[15px]" style={{ color: B.dim }}>{qs} question{qs === 1 ? "" : "s"}{ws.items.length > qs ? ` and ${ws.items.length - qs} reading step${ws.items.length - qs === 1 ? "" : "s"}` : ""}. Check the words, then send it. Tap the speaker to hear it.</p>
     <div className="mt-3 flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-[14px]" style={{ background: writing ? B.soft : B.card, border: `2px solid ${B.line}` }} data-testid="buddy-supports-status">
       {writing || drafting ? <><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><span className="flex-1">Writing supports for each question (easier words, hints, word bank, tricky words)…</span></>

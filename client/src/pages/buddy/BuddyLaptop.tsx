@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Check, Lightbulb, Loader2, Mic, Pause, Square, T
 import { LETTERS, cleanAcc, isAnswered, pictureFor, tokens, type Acc, type Item, type Worksheet } from "@shared/ttsBuddy";
 import { B, BRAND_FONT, BuddyError, FONT, call, figurePath, saveLaptop, savedLaptop, useAuthedImage, useBuddyFont, useRecorder, useVoice, type Clip, type LaptopId, type Playing } from "./buddyApi";
 import { BuddyMark } from "./BuddyMark";
+import { InfoButton } from "./BuddyInfo";
 
 type State = { state: "waiting"; code: string } | { state: "linked"; name: string } | { state: "ready"; name: string; worksheet: Worksheet; answers: Record<string, string>; step: number; done: boolean; acc?: Acc };
 
@@ -65,6 +66,7 @@ function Waiting({ me, st, err, onJoined }: { me: LaptopId | null; st: State | n
     try { await call(`/laptop/${me.id}/join`, { laptop: me, body: { classCode: cls, name } }); onJoined(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
   };
   return <div className="mx-auto flex min-h-[100dvh] max-w-3xl flex-col items-center justify-center px-6 py-10 text-center">
+    <div className="fixed right-4 top-4"><InfoButton audience="student" testId="buddy-info-kid" /></div>
     <BuddyMark size={64} />
     <p className="mt-3 text-[30px] font-semibold" style={{ fontFamily: BRAND_FONT }}>TTS Buddy</p>
     {st?.state === "linked" ? <p className="mt-10 text-[24px]" data-testid="buddy-linked">Hi{st.name ? ` ${st.name}` : ""}! Your teacher is getting your worksheet ready…</p> : <>
@@ -180,8 +182,11 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   if (done) return <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col items-center justify-center px-6 text-center" data-testid="buddy-done">
     <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: B.green }}><Check className="h-14 w-14 text-white" strokeWidth={3} /></div>
     <p className="mt-6 text-[44px] font-semibold" style={{ fontFamily: BRAND_FONT }}>All done{st.name ? `, ${st.name}` : ""}!</p>
-    <p className="mt-2 text-[22px]" style={{ color: B.dim }}>You answered {answeredCount} of {questions.length} questions. Your teacher can see your answers.</p>
-    <button type="button" onClick={() => setStep(0)} className="mt-8 rounded-[16px] px-6 py-4 text-[20px] font-bold" style={{ background: B.card, border: `2px solid ${B.ink}` }}>Check my answers</button>
+    <p className="mt-2 text-[22px]" style={{ color: B.dim }}>You answered {answeredCount} of {questions.length} question{questions.length === 1 ? "" : "s"}. Your teacher can see your answers.</p>
+    <div className="mt-8 flex flex-wrap justify-center gap-3">
+      {answeredCount < questions.length && <button type="button" data-testid="buddy-skipped" onClick={() => { tapped.current = true; setStep(ws.items.findIndex((it) => it.kind !== "read" && !isAnswered(it, answers[it.id]))); }} className="rounded-[16px] px-6 py-4 text-[20px] font-bold text-white" style={{ background: B.accent, boxShadow: `0 5px 0 ${B.accentDeep}` }}>Answer the {questions.length - answeredCount === 1 ? "one" : `${questions.length - answeredCount}`} I skipped</button>}
+      <button type="button" onClick={() => setStep(0)} className="rounded-[16px] px-6 py-4 text-[20px] font-bold" style={{ background: B.card, border: `2px solid ${B.ink}` }}>Check my answers</button>
+    </div>
   </div>;
 
   const qSize = item.kind === "read" ? (big ? "text-[30px] leading-[1.75]" : "text-[24px] sm:text-[26px] leading-[1.5]") : (big ? "text-[38px] leading-[1.6] font-bold" : "text-[28px] font-bold sm:text-[32px] leading-[1.5]");
@@ -189,6 +194,7 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
     <header className="flex items-center gap-3">
       <BuddyMark size={36} />
       <div className="min-w-0 flex-1"><p className="truncate text-[18px] font-bold">{ws.title}</p><p className="text-[14px]" style={{ color: B.dim }}>{st.name ? `${st.name} · ` : ""}{item.kind === "read" ? "Read first" : `Question ${qIndex + 1} of ${questions.length}`}</p></div>
+      <InfoButton audience="student" testId="buddy-info-quiz" />
       <button type="button" onClick={() => setBigOn((b) => !b)} aria-pressed={bigOn} aria-label="Bigger text" data-testid="buddy-big" className="rounded-[12px] px-3 py-1.5 font-bold" style={{ background: bigOn ? B.ink : B.card, color: bigOn ? "#fff" : B.ink, border: `2px solid ${bigOn ? B.ink : B.line}` }}><span className="text-[15px]">A</span><span className="text-[22px]">A</span></button>
       <div className="flex rounded-[12px] p-1" style={{ background: B.card, border: `2px solid ${B.line}` }} role="radiogroup" aria-label="Reading speed">
         {RATES.map((x) => <button key={x.r} type="button" role="radio" aria-checked={rate === x.r} onClick={() => setRate(x.r)} className="flex items-center gap-1 rounded-[9px] px-2.5 py-1.5 text-[14px] font-bold" style={{ background: rate === x.r ? B.ink : "transparent", color: rate === x.r ? "#fff" : B.dim }}>{x.r < 1 && <Turtle className="h-4 w-4" />}{x.label}</button>)}
@@ -199,7 +205,7 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
     <main className="mt-6 flex-1">
       <div className="rounded-[24px] p-6 sm:p-8" style={{ background: B.card, border: `2px solid ${B.line}` }} data-testid="buddy-question">
         <div className="flex items-start gap-4">
-          {item.kind !== "read" && <span className="grid h-12 min-w-12 shrink-0 place-items-center rounded-full px-2 text-[22px] font-bold text-white" style={{ background: B.ink, fontFamily: BRAND_FONT }}>{item.number || qIndex + 1}</span>}
+          {item.kind !== "read" && <span className="grid h-12 min-w-12 shrink-0 place-items-center rounded-full px-2 text-[22px] font-bold text-white" style={{ background: B.ink, fontFamily: BRAND_FONT }}>{qIndex + 1}</span>}
           <p className={`flex-1 ${qSize}`} data-testid="buddy-qtext"><Words text={qText} word={on(qPart)?.word ?? -1} active={!!on(qPart)} /></p>
         </div>
 
