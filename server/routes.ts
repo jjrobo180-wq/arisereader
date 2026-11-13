@@ -126,6 +126,7 @@ import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
 import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerClassBehaviorRoutes } from "./classBehavior";
+import { registerScholarRoutes } from "./scholar";
 import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAriseEnglishRoutes, type EnglishPerson } from "./ariseEnglish";
@@ -2217,6 +2218,33 @@ export async function registerRoutes(
       parentsOf: async (studentId) => Object.entries(await readParentStudentLinks()).filter(([, ids]) => normalizeLinkedIds(ids).includes(studentId)).map(([pid]) => Number(pid)).filter((n) => Number.isSafeInteger(n) && n > 0),
       notify: (id, message) => notifyUser(id, message),
     },
+  });
+  // AriseScholar (arisereader.com/scholar/): teachers tap to give academic points, students race on a school board. See server/scholar.ts.
+  const scholarRoster = new Map<number, { at: number; rows: Promise<Array<{ id: number; name: string; group: string }>> }>();
+  registerScholarRoutes(app, authMiddleware, {
+    viewer: async (id) => {
+      const u: any = await storage.getUser(id);
+      if (!u) return null;
+      const s = toSocialUser(u);
+      return s ? { id: s.id, role: s.role, displayName: s.displayName, schoolId: s.schoolId ?? (u.schoolId ? Number(u.schoolId) : null) } : null;
+    },
+    schoolStudents: (schoolId) => {
+      const hit = scholarRoster.get(schoolId);
+      if (hit && Date.now() - hit.at < 60_000) return hit.rows;
+      const rows = (async () => {
+        const users = await pagedRows((a, b) => supabase.from("users").select("id, display_name, username, role, is_admin").eq("school_id", schoolId).is("archived_at", null).order("id", { ascending: true }).range(a, b));
+        const picks = await pagedRows((a, b) => supabase.from("student_class_teachers").select("student_id, advisory_teacher_name").eq("school_id", schoolId).eq("school_year", schoolYearOf(new Date())).order("student_id", { ascending: true }).range(a, b));
+        const group = new Map(picks.map((r) => [Number(r.student_id), String(r.advisory_teacher_name || "").trim()]));
+        return users.filter((r) => !r.is_admin && (r.role || "student") === "student" && !isSampleAccount(r))
+          .map((r) => ({ id: Number(r.id), name: String(r.display_name || r.username || "Student"), group: group.get(Number(r.id)) || "" }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      })();
+      rows.catch(() => scholarRoster.delete(schoolId));
+      scholarRoster.set(schoolId, { at: Date.now(), rows });
+      return rows;
+    },
+    schoolName: async (schoolId) => String((await classTeacherStore.getSchool(schoolId))?.name || ""),
+    anySchool: async () => { const all = await classTeacherStore.allSchools(); return all.find((s: any) => advisoriesForSchool(s.name).length)?.id ?? all[0]?.id ?? null; },
   });
   // Class Goal Board (WorkHub app, #/class-goal): a class goal, its points and the reward. See server/classGoals.ts.
   registerClassGoalRoutes(app, authMiddleware, {
