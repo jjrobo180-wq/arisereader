@@ -9,11 +9,38 @@
 // Server: server/ttsBuddy.ts. Pages: client/src/pages/buddy/*.
 
 export type ItemKind = "read" | "choice" | "short" | "long";
+/** Where a picture sits on its page photo, as fractions of 1000 ([left, top, right, bottom]), and its saved crop. */
+export type Figure = { page: number; box: [number, number, number, number]; alt: string; img: string };
+/** Accommodations the AI drafts for an item (the teacher can edit them). Nothing here gives the answer away, except
+ *  the word bank and fewer choices, which by design include the right answer among fewer options. */
+export type Supports = {
+  simple: string;            // the question in plainer, shorter words (a passage: a short, simple summary)
+  steps: string[];           // hints, one step at a time, that guide thinking without giving the answer
+  starter: string;           // a sentence starter for a written answer
+  bank: string[];            // a word bank for a short answer (includes the answer)
+  vocab: { w: string; m: string }[]; // hard words with kid-friendly meanings
+  keep: number[];            // for multiple choice: which choices to keep when "fewer choices" is on
+};
 /** One step of the worksheet: directions or a passage to read ("read"), or a question. */
-export type Item = { id: string; kind: ItemKind; number: string; text: string; say: string; choices: string[] };
+export type Item = { id: string; kind: ItemKind; number: string; text: string; say: string; choices: string[]; figure: Figure | null; supports: Supports | null };
 export type Worksheet = { id: string; title: string; items: Item[]; createdAt: string; pages: number };
+/** Accommodations switched on for one student (the teacher sets them; a class default applies to new laptops). */
+export type Acc = { simple: boolean; steps: boolean; starter: boolean; bank: boolean; vocab: boolean; fewer: boolean; big: boolean; mic: boolean };
+export const ACC_KEYS: (keyof Acc)[] = ["simple", "steps", "bank", "starter", "vocab", "fewer", "big", "mic"];
+export const ACC_LABEL: Record<keyof Acc, [string, string]> = {
+  simple: ["Simpler words", "Questions in plainer words; passages shortened to a simple summary (the original is one tap away)"],
+  steps: ["Step-by-step hints", "A Help button that gives one hint at a time"],
+  bank: ["Word bank", "Tap a word to answer short questions"],
+  starter: ["Sentence starters", "Written answers start with a few words to build on"],
+  vocab: ["Word meanings", "Hard words are underlined; tap to hear what they mean"],
+  fewer: ["Fewer choices", "Multiple choice shows 2 choices instead of 4"],
+  big: ["Bigger text", "Larger letters and more space between lines"],
+  mic: ["Say the answer", "A microphone button types what they say"],
+};
+export const noAcc = (): Acc => ({ simple: false, steps: false, starter: false, bank: false, vocab: false, fewer: false, big: false, mic: false });
+export const cleanAcc = (raw: any): Acc => { const a = noAcc(); for (const k of ACC_KEYS) a[k] = raw?.[k] === true; return a; };
 /** What a child's laptop shows, and what the teacher sees about it. */
-export type Laptop = { id: string; name: string; worksheetId: string; answers: Record<string, string>; step: number; done: boolean; seen: string; linkedAt: string };
+export type Laptop = { id: string; name: string; worksheetId: string; answers: Record<string, string>; step: number; done: boolean; seen: string; linkedAt: string; acc: Acc };
 
 export const LIMITS = { items: 60, text: 1200, choices: 6, choice: 200, title: 80, pages: 4, worksheets: 60, laptops: 60, readsPerDay: 40, name: 24 };
 export const PAIR_MINUTES = 30;
@@ -34,7 +61,28 @@ export function cleanItem(raw: any, id: string): Item | null {
   if (kind === "choice" && choices.length < 2) kind = "short";
   if (kind !== "choice") choices = [];
   const say = clean(r.say, LIMITS.text);
-  return { id: clean(r.id, 40) || id, kind, number: clean(r.number, 8).replace(/[.)]+$/, ""), text, say: say && say !== text ? say : "", choices };
+  return { id: clean(r.id, 40) || id, kind, number: clean(r.number, 8).replace(/[.)]+$/, ""), text, say: say && say !== text ? say : "", choices, figure: cleanFigure(r.figure), supports: cleanSupports(r.supports, choices.length) };
+}
+
+const num = (v: unknown) => Math.max(0, Math.min(1000, Math.round(Number(v) || 0)));
+export function cleanFigure(raw: any): Figure | null {
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.box) || raw.box.length !== 4) return null;
+  let [x0, y0, x1, y1] = raw.box.map(num);
+  if (x1 < x0) [x0, x1] = [x1, x0];
+  if (y1 < y0) [y0, y1] = [y1, y0];
+  if (x1 - x0 < 15 || y1 - y0 < 15) return null; // too small to be a real picture
+  return { page: Math.max(1, Math.min(LIMITS.pages, Math.round(Number(raw.page) || 1))), box: [x0, y0, x1, y1], alt: clean(raw.alt, 200), img: typeof raw.img === "string" && /^[a-z0-9]{6,24}$/.test(raw.img) ? raw.img : "" };
+}
+export function cleanSupports(raw: any, choiceCount: number): Supports | null {
+  if (!raw || typeof raw !== "object") return null;
+  const list = (v: unknown, n: number, max: number) => (Array.isArray(v) ? v.map((x) => clean(x, max)).filter(Boolean).slice(0, n) : []);
+  const keep = Array.isArray(raw.keep) ? Array.from(new Set(raw.keep.map((x: unknown) => Math.round(Number(x))).filter((x: number) => x >= 0 && x < choiceCount))).slice(0, 3) as number[] : [];
+  const out: Supports = {
+    simple: clean(raw.simple, LIMITS.text), steps: list(raw.steps, 4, 240), starter: clean(raw.starter, 120), bank: list(raw.bank, 8, 40),
+    vocab: (Array.isArray(raw.vocab) ? raw.vocab : []).map((v: any) => ({ w: clean(v?.w ?? v?.word, 30), m: clean(v?.m ?? v?.meaning, 200) })).filter((v: any) => v.w && v.m).slice(0, 4),
+    keep: keep.length >= 2 ? keep.sort((a, b) => a - b) : [],
+  };
+  return out.simple || out.steps.length || out.starter || out.bank.length || out.vocab.length || out.keep.length ? out : null;
 }
 
 export function cleanWorksheet(raw: any, id: string, now: string): Worksheet {
@@ -47,15 +95,33 @@ export function cleanWorksheet(raw: any, id: string, now: string): Worksheet {
   return { id, title: clean(r.title, LIMITS.title) || "Worksheet", items, createdAt: clean(r.createdAt, 40) || now, pages: Math.max(1, Math.min(LIMITS.pages, Number(r.pages) || 1)) };
 }
 
+/** The picture a step should show: its own, or else the one shared from the steps just above it (a number line or
+ *  chart several questions use), stopping at a reading step that has no picture (a new section). */
+export function pictureFor(items: Item[], index: number): Item | null {
+  for (let i = index; i >= 0; i--) {
+    const it = items[i];
+    if (it.figure?.img) return it;
+    if (it.kind === "read") return null;
+  }
+  return null;
+}
 export const questionCount = (w: Worksheet) => w.items.filter((i) => i.kind !== "read").length;
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-/** The text the voice reads for one part of an item. "q" is the question (or passage); "c0".."c5" are choices. */
+/** The text the voice reads for one part of an item. "q" is the question (or passage); "c0".."c5" are choices;
+ *  "s" is the simpler wording; "h0".. are hints; "v0".. are word meanings; "st" the sentence starter; "p" the picture. */
 export function spokenFor(item: Item, part: string): string {
   if (part === "q") return item.say || item.text;
-  const m = /^c([0-5])$/.exec(part);
-  if (m && item.choices[Number(m[1])] != null) return `${LETTERS[Number(m[1])]}. ${item.choices[Number(m[1])]}`;
-  return "";
+  const sp = item.supports;
+  if (part === "s") return sp?.simple || "";
+  if (part === "st") return sp?.starter || "";
+  if (part === "p") return item.figure?.alt ? `Picture: ${item.figure.alt}` : "";
+  const m = /^([chv])([0-9])$/.exec(part);
+  if (!m) return "";
+  const i = Number(m[2]);
+  if (m[1] === "c") return item.choices[i] != null && i < 6 ? `${LETTERS[i]}. ${item.choices[i]}` : "";
+  if (m[1] === "h") return sp?.steps[i] || "";
+  const v = sp?.vocab[i]; return v ? `${v.w}. ${v.m}` : "";
 }
 /** What the screen shows for the same part (the words that light up). */
 export const shownFor = (item: Item, part: string) => (part === "q" ? item.text : spokenFor(item, part));
@@ -127,7 +193,7 @@ export function wordAt(times: WordTime[], t: number): number {
 // ---------- Reading the worksheet photo ----------
 export const READ_PROMPT = `You turn photos of a printed classroom worksheet into JSON so a child can hear it read aloud one question at a time.
 
-Return exactly: {"title": string, "items": [{"kind": "read" | "choice" | "short" | "long", "number": string, "text": string, "say": string, "choices": string[]}]}
+Return exactly: {"title": string, "items": [{"kind": "read" | "choice" | "short" | "long", "number": string, "text": string, "say": string, "choices": string[], "figure"?: {"box": [number, number, number, number], "alt": string}}]}
 
 Rules:
 - Go in the order a reader would: top to bottom, left column before right column, page 1 before page 2.
@@ -139,7 +205,20 @@ Rules:
 - "number": the question's own number or letter as printed ("1", "2a"), or "" if none.
 - In "text", write a blank line to fill in as "____".
 - "say" is how to read the text aloud, only when it differs from "text": math and symbols in words ("3/4" → "three fourths", "5 × 6 = ____" → "five times six equals blank", "<" → "is less than"), "____" → "blank", abbreviations spelled out. Otherwise "".
-- If a question depends on a picture, add a short description in square brackets to "text", like "[picture of 3 apples]".
+- Pictures: if an item has a picture, diagram, number line, graph, table or chart the child needs to see, do NOT describe it in "text". Instead add "figure": {"box": [left, top, right, bottom], "alt": "a short description"} — the box around the whole picture, as numbers from 0 to 1000 measured across the photo's width (left, right) and down its height (top, bottom). Make the box a little generous so nothing is cut off. A picture shared by several questions goes on the first of them (or on the "read" item before them).
 - Ignore handwriting, answers already filled in, page numbers, the name/date line, and copyright lines.
 - "title" is the worksheet's title, or a short description of it.
 - If the photo isn't a worksheet or can't be read, return {"title": "", "items": []}.`;
+
+// ---------- Accommodations, drafted by the AI ----------
+export const SUPPORTS_PROMPT = `You help a special education teacher make accommodations for a worksheet a child will hear read aloud.
+For EACH item you're given, write:
+- "simple": the same question in plainer, shorter words (about a 2nd-grade reading level), keeping its meaning and anything the child needs to answer. For a "read" item (directions or a passage), a short, simple summary in 1 to 3 short sentences. Never give the answer.
+- "steps": 2 to 4 hints, each one short sentence, that walk the child toward the answer one step at a time without saying it. For "read" items, [].
+- "starter": for "short" and "long" items, a sentence starter of 3 to 8 words that begins a good answer without giving it away (for math, ""). Otherwise "".
+- "bank": for "short" items, 3 to 5 single words or short phrases, one of them the correct answer, the others believable but wrong, in random order. Otherwise [].
+- "vocab": up to 3 words from the item a young reader may not know, each {"w": word, "m": a meaning a 7-year-old understands, one short sentence}. [] if none.
+- "keep": for "choice" items, the indexes (0 = first choice) of exactly 2 choices: the correct one and the most reasonable wrong one. For true/false, [0, 1]. Otherwise [].
+Reply with JSON only: {"items": [{"id": string, "simple": string, "steps": string[], "starter": string, "bank": string[], "vocab": [{"w": string, "m": string}], "keep": number[]}]}`;
+/** The worksheet as the AI sees it when drafting accommodations (passages give context for the questions). */
+export const supportsInput = (w: Worksheet, ids?: string[]) => JSON.stringify({ title: w.title, items: w.items.filter((i) => !ids || ids.includes(i.id)).map((i) => ({ id: i.id, kind: i.kind, number: i.number, text: i.text, choices: i.choices, picture: i.figure?.alt || undefined })), context: ids ? w.items.filter((i) => i.kind === "read").map((i) => i.text).join("\n\n").slice(0, 4000) : undefined });

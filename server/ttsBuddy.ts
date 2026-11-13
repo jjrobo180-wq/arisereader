@@ -24,8 +24,9 @@ import { createAttemptLimiter, clientAddress, waitWords } from "./attemptLimiter
 import { createMemoryKv, type FitKv } from "./fitKv";
 import { fitVisionTargets } from "./fit";
 import {
-  LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, alignWords, classCode, cleanName, cleanWorksheet, estimateTimes,
-  normClass, normPair, pairCode, questionCount, shownFor, spokenFor, tokens, type Laptop, type Timed, type Worksheet,
+  LAPTOP_HOURS, LIMITS, PAIR_MINUTES, READ_PROMPT, SUPPORTS_PROMPT, alignWords, classCode, cleanAcc, cleanFigure, cleanName, cleanSupports,
+  cleanWorksheet, estimateTimes, noAcc, normClass, normPair, pairCode, questionCount, shownFor, spokenFor, supportsInput, tokens,
+  type Acc, type Laptop, type Timed, type Worksheet,
 } from "../shared/ttsBuddy";
 
 export type Spoken = { audio: Buffer; type?: string; words: Timed[]; duration: number };
@@ -36,9 +37,33 @@ export type BuddyDeps = {
   /** The natural voice for a piece of text, with when each word is said. */
   speak?: (text: string) => Promise<Spoken>;
   aiConfigured?: () => boolean;
+  /** Where page photos and cropped pictures are kept (Supabase Storage; memory in tests). */
+  files?: BuddyFiles;
+  /** A text-only AI chat (the site's usual AI) that answers in JSON: drafts accommodations. */
+  askText?: (system: string, user: string) => Promise<string>;
+  /** Speech to text, for students who say their answer. */
+  hear?: (audio: Buffer, mime: string) => Promise<string>;
   now?: () => number;
   rand?: () => number;
 };
+
+export type BuddyFiles = { put(path: string, data: Buffer, type: string): Promise<void>; get(path: string): Promise<{ data: Buffer; type: string } | null>; del(paths: string[]): Promise<void> };
+export function createMemoryFiles(): BuddyFiles {
+  const m = new Map<string, { data: Buffer; type: string }>();
+  return { async put(p, data, type) { m.set(p, { data, type }); }, async get(p) { return m.get(p) ?? null; }, async del(ps) { for (const p of ps) m.delete(p); } };
+}
+/** Page photos and pictures in a private Supabase Storage bucket. Only this server reads them, for the right devices. */
+export function createSupabaseFiles(): BuddyFiles {
+  const BUCKET_NAME = "buddy-files";
+  let ready: Promise<unknown> | null = null;
+  const st = async () => { const s = (await import("./supabase")).getAdminSupabase().storage; await (ready ??= s.createBucket(BUCKET_NAME, { public: false, fileSizeLimit: "6MB" }).catch(() => null)); return s.from(BUCKET_NAME); };
+  return {
+    async put(p, data, type) { const r = await (await st()).upload(p, data, { contentType: type, upsert: true }); if (r.error) throw r.error; },
+    async get(p) { const r = await (await st()).download(p).catch(() => ({ data: null })); return r.data ? { data: Buffer.from(await r.data.arrayBuffer()), type: r.data.type || "image/jpeg" } : null; },
+    async del(ps) { if (ps.length) await (await st()).remove(ps).catch(() => null); },
+  };
+}
+const dataUrl = (s: string) => { const m = /^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=]+)$/.exec(s); return m ? { type: m[1], data: Buffer.from(m[2], "base64") } : null; };
 
 const IMAGE_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
 /** Groq takes about 4 MB per request, so each page must stay under that once it's text. */
@@ -46,7 +71,7 @@ const MAX_IMAGE = 3_700_000;
 const hash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
 const KEY_RE = /^[A-Za-z0-9_-]{32,80}$/;
 
-type TeacherRec = { classCode: string; worksheets: string[]; laptops: string[]; current: string };
+type TeacherRec = { classCode: string; worksheets: string[]; laptops: string[]; current: string; acc?: Acc };
 type LaptopRec = { secret: string; code: string; codeAt: number; teacher: string; laptop: Laptop | null; created: number };
 type WsRec = { owner: string; ws: Worksheet };
 
@@ -71,6 +96,11 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   const readPhotos = deps.readPhotos ?? ((images: string[]) => readWorksheet(images));
   const speak = deps.speak ?? createBuddyVoice().speak;
   const aiConfigured = deps.aiConfigured ?? buddyAiReady;
+  const files = deps.files ?? createMemoryFiles();
+  const askText = deps.askText ?? siteChat;
+  const hear = deps.hear ?? groqHear;
+  const draftsByTeacher = createAttemptLimiter({ max: 60, windowMs: 24 * 3600_000, now });
+  const hearsByLaptop = createAttemptLimiter({ max: 300, windowMs: 3600_000, now });
   const readsByTeacher = createAttemptLimiter({ max: LIMITS.readsPerDay, windowMs: 24 * 3600_000, now });
   // A whole school usually shares one internet address, so the per-address limits are roomy.
   const readsByPlace = createAttemptLimiter({ max: LIMITS.readsPerDay * 10, windowMs: 24 * 3600_000, now });
@@ -112,7 +142,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   const link = async (tid: string, t: TeacherRec, lid: string, rec: LaptopRec, wid: string, name: string) => {
     if (rec.code) { const held = await kv.get(K.p(rec.code)); if (held?.lid === lid) await kv.set(K.p(rec.code), null); }
     rec.teacher = tid; rec.code = "";
-    rec.laptop = { id: lid, name, worksheetId: wid, answers: {}, step: 0, done: false, seen: iso(), linkedAt: iso() };
+    rec.laptop = { id: lid, name, worksheetId: wid, answers: {}, step: 0, done: false, seen: iso(), linkedAt: iso(), acc: cleanAcc(t.acc) };
     await kv.set(K.l(lid), rec);
     t.laptops = [lid, ...t.laptops.filter((x) => x !== lid)].slice(0, LIMITS.laptops);
   };
@@ -139,7 +169,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
       if (!wsCache.has(wid)) wsCache.set(wid, (await getWs(wid))?.ws ?? null);
       laptops.push(progressOf(rec, wsCache.get(wid)!));
     }
-    res.json({ classCode: t.classCode, current: t.current, worksheets, laptops, aiReady: aiConfigured() });
+    res.json({ classCode: t.classCode, current: t.current, worksheets, laptops, aiReady: aiConfigured(), acc: cleanAcc(t.acc) });
   });
 
   app.post("/api/buddy/teacher/read", async (req: any, res: any) => {
@@ -157,6 +187,8 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     try { raw = looseJson(await readPhotos(images)); } catch (e: any) { console.error("[tts-buddy] read failed:", e?.message); return res.status(502).json({ message: e?.message || "Couldn't read that worksheet. Try again.", detail: String(e?.detail || "").slice(0, 600) }); }
     const ws = cleanWorksheet({ ...raw, pages: images.length }, randomUUID(), iso());
     if (!ws.items.length) return bad(res, 422, "That doesn't look like a worksheet I can read. Try a clearer photo, straight on, with the whole page in view.");
+    // The page photos are kept, so pictures can be cut out of them (now on the phone, or fixed later on any device).
+    await Promise.all(images.map((img, i) => { const f = dataUrl(img); return f ? files.put(`page/${ws.id}/${i + 1}`, f.data, f.type).catch((e) => console.error("[tts-buddy] page save:", e?.message)) : null; }));
     await kv.set(K.w(ws.id), { owner: tid, ws } satisfies WsRec);
     const t = await getTeacher(tid);
     const dropped = t.worksheets.slice(LIMITS.worksheets - 1);
@@ -177,6 +209,9 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
     const ws = cleanWorksheet({ ...req.body, pages: r.ws.pages, createdAt: r.ws.createdAt }, r.ws.id, iso());
     if (!ws.items.length) return bad(res, 400, "A worksheet needs at least one question.");
+    // Saved pictures are the server's to point at: an edit keeps the item's picture, or removes it, but never invents one.
+    const before = new Map(r.ws.items.map((i) => [i.id, i.figure]));
+    for (const it of ws.items) { const old = before.get(it.id); it.figure = it.figure && old ? { ...it.figure, img: old.img, page: old.page, box: old.box } : null; }
     await kv.set(K.w(ws.id), { owner: tid, ws } satisfies WsRec);
     res.json({ worksheet: ws });
   });
@@ -185,6 +220,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
     const r = await ownWs(tid, req.params.wid); if (!r) return res.json({ ok: true });
     await kv.set(K.w(r.ws.id), null);
+    void files.del([...Array.from({ length: r.ws.pages }, (_, i) => `page/${r.ws.id}/${i + 1}`), ...r.ws.items.filter((i) => i.figure?.img).map((i) => `fig/${r.ws.id}/${i.id}/${i.figure!.img}`)]);
     const t = await getTeacher(tid);
     t.worksheets = t.worksheets.filter((x) => x !== r.ws.id); if (t.current === r.ws.id) t.current = "";
     await kv.set(K.t(tid), t);
@@ -237,6 +273,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
       return res.json({ ok: true });
     }
     if (typeof req.body?.name === "string") rec.laptop.name = cleanName(req.body.name);
+    if (req.body?.acc) rec.laptop.acc = cleanAcc(req.body.acc);
     if (req.body?.restart) rec.laptop = { ...rec.laptop, answers: {}, step: 0, done: false };
     await kv.set(K.l(req.params.lid), rec);
     res.json({ ok: true });
@@ -266,7 +303,7 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     if (now() - Date.parse(l.seen) > 20_000) { l.seen = iso(); await kv.set(K.l(req.params.lid), rec); }
     const ws = (await getWs(l.worksheetId))?.ws;
     if (!ws) return res.json({ state: "linked", name: l.name });
-    res.json({ state: "ready", name: l.name, worksheet: ws, answers: l.answers, step: l.step, done: l.done });
+    res.json({ state: "ready", name: l.name, worksheet: ws, answers: l.answers, step: l.step, done: l.done, acc: cleanAcc(l.acc) });
   });
 
   app.post("/api/buddy/laptop/:lid/join", async (req: any, res: any) => {
@@ -292,6 +329,100 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     rec.laptop = { ...rec.laptop!, answers, step: Math.max(0, Math.min(ws.items.length, Number(req.body?.step) || 0)), done: req.body?.done === true, seen: iso() };
     await kv.set(K.l(req.params.lid), rec);
     res.json({ ok: true });
+  });
+
+  // ---------------- Pictures ----------------
+  app.get("/api/buddy/teacher/worksheets/:wid/pages/:n", async (req: any, res: any) => {
+    const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
+    const r = await ownWs(tid, req.params.wid); const n = Number(req.params.n);
+    if (!r || !(n >= 1 && n <= r.ws.pages)) return bad(res, 404, "That page is gone.");
+    const f = await files.get(`page/${r.ws.id}/${n}`); if (!f) return bad(res, 404, "That page photo wasn't kept. Snap it again to add pictures.");
+    res.set?.("Cache-Control", "private, max-age=3600"); res.type(f.type); res.send(f.data);
+  });
+
+  /** A picture cut out of a page photo (on the teacher's phone), or {remove: true}. */
+  app.put("/api/buddy/teacher/worksheets/:wid/figures/:itemId", async (req: any, res: any) => {
+    const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
+    const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
+    const it = r.ws.items.find((i) => i.id === req.params.itemId); if (!it) return bad(res, 404, "That question is gone.");
+    const old = it.figure?.img ? `fig/${r.ws.id}/${it.id}/${it.figure.img}` : "";
+    if (req.body?.remove) { it.figure = null; }
+    else {
+      const f = typeof req.body?.image === "string" && req.body.image.length <= 2_500_000 ? dataUrl(req.body.image) : null;
+      const fig = cleanFigure({ page: req.body?.page ?? it.figure?.page ?? 1, box: req.body?.box ?? it.figure?.box, alt: req.body?.alt ?? it.figure?.alt ?? "" });
+      if (!f || !fig || fig.page > r.ws.pages) return bad(res, 400, "That picture didn't come through. Try again.");
+      fig.img = randomBytes(6).toString("hex");
+      await files.put(`fig/${r.ws.id}/${it.id}/${fig.img}`, f.data, f.type);
+      it.figure = fig;
+    }
+    await kv.set(K.w(r.ws.id), r);
+    if (old) void files.del([old]);
+    res.json({ worksheet: r.ws });
+  });
+
+  /** A picture, for the worksheet's teacher or a laptop it was sent to. */
+  app.get("/api/buddy/figure/:wid/:itemId/:img", async (req: any, res: any) => {
+    const wid = String(req.params.wid);
+    let r: WsRec | null = null;
+    const tid = teacherId(req);
+    if (tid) r = await ownWs(tid, wid);
+    if (!r && req.query?.lid) { const rec = await getLaptop(req, String(req.query.lid)); if (rec && live(rec) && rec.laptop!.worksheetId === wid) r = await getWs(wid); }
+    if (!r) return bad(res, 403, "That picture isn't on this device.");
+    const it = r.ws.items.find((i) => i.id === req.params.itemId);
+    if (!it?.figure?.img || it.figure.img !== req.params.img) return bad(res, 404, "That picture is gone.");
+    const f = await files.get(`fig/${wid}/${it.id}/${it.figure.img}`); if (!f) return bad(res, 404, "That picture is gone.");
+    res.set?.("Cache-Control", "private, max-age=86400"); res.type(f.type); res.send(f.data);
+  });
+
+  // ---------------- Accommodations ----------------
+  /** The AI drafts accommodations for every item (or the ones named); the teacher can edit them after. */
+  app.post("/api/buddy/teacher/worksheets/:wid/supports", async (req: any, res: any) => {
+    res.set?.("Cache-Control", "no-store");
+    const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
+    const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
+    const wait = draftsByTeacher.retryAfter(tid); if (wait) return bad(res, 429, `Try again in ${waitWords(wait)}.`);
+    draftsByTeacher.fail(tid);
+    const want = Array.isArray(req.body?.itemIds) ? r.ws.items.filter((i) => req.body.itemIds.includes(i.id)) : r.ws.items;
+    const groups: string[][] = [];
+    for (let i = 0; i < want.length; i += 6) groups.push(want.slice(i, i + 6).map((x) => x.id));
+    let made = 0; const errors: string[] = [];
+    await Promise.all(groups.map(async (ids) => {
+      try {
+        const out = looseJson(await askText(SUPPORTS_PROMPT, supportsInput(r.ws, ids)));
+        for (const s of Array.isArray(out?.items) ? out.items : []) {
+          const it = r.ws.items.find((i) => i.id === s?.id && ids.includes(i.id)); if (!it) continue;
+          const sp = cleanSupports(s, it.choices.length); if (sp) { it.supports = sp; made++; }
+        }
+      } catch (e: any) { errors.push(String(e?.message || e)); console.error("[tts-buddy] supports:", e?.message); }
+    }));
+    if (!made) return res.status(502).json({ message: "Couldn't make accommodations right now. Try again in a moment.", detail: errors.join(" | ").slice(0, 400) });
+    await kv.set(K.w(r.ws.id), r);
+    res.json({ worksheet: r.ws, made });
+  });
+
+  /** The accommodations newly linked laptops start with (each laptop can be changed after). */
+  app.post("/api/buddy/teacher/acc", async (req: any, res: any) => {
+    const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
+    const t = await getTeacher(tid); t.acc = cleanAcc(req.body?.acc);
+    let changed = 0;
+    if (req.body?.everyone) for (const lid of t.laptops) {
+      const rec: LaptopRec | null = await kv.get(K.l(lid));
+      if (rec && rec.teacher === tid && live(rec)) { rec.laptop!.acc = t.acc; await kv.set(K.l(lid), rec); changed++; }
+    }
+    await kv.set(K.t(tid), t);
+    res.json({ acc: t.acc, changed });
+  });
+
+  /** "Say the answer": a student's recording → the words, when their teacher turned the microphone on for them. */
+  app.post("/api/buddy/laptop/:lid/hear", async (req: any, res: any) => {
+    const rec = await getLaptop(req, req.params.lid); if (!rec || !live(rec)) return bad(res, 404, "start over");
+    if (!cleanAcc(rec.laptop!.acc).mic) return bad(res, 403, "Ask your teacher to turn on Say the answer.");
+    const wait = hearsByLaptop.retryAfter(req.params.lid); if (wait) return bad(res, 429, "Try typing for a little while.");
+    hearsByLaptop.fail(req.params.lid);
+    const m = /^data:(audio\/[a-z0-9.+-]+)(?:;[^,]*)?;base64,([A-Za-z0-9+/=]+)$/i.exec(String(req.body?.audio || ""));
+    if (!m || m[2].length > 4_000_000) return bad(res, 400, "That recording didn't come through. Try again.");
+    try { res.json({ text: (await hear(Buffer.from(m[2], "base64"), m[1])).trim().slice(0, 2000) }); }
+    catch (e: any) { console.error("[tts-buddy] hear:", e?.message); bad(res, 503, "Couldn't hear that. Try again, or type it."); }
   });
 
   // ---------------- Voice ----------------
@@ -389,7 +520,7 @@ export async function readPage(image: string, page: number, pages: number, send:
 /** All the pages at once; the items come back in page order as one worksheet. */
 export async function readWorksheet(images: string[], read = readPage): Promise<string> {
   const pages = await Promise.all(images.map((img, i) => read(img, i + 1, images.length)));
-  return JSON.stringify({ title: pages.find((p) => p.title.trim())?.title || "", items: pages.flatMap((p) => p.items) });
+  return JSON.stringify({ title: pages.find((p) => p.title.trim())?.title || "", items: pages.flatMap((p, i) => p.items.map((it: any) => (it?.figure && typeof it.figure === "object" ? { ...it, figure: { ...it.figure, page: i + 1 } } : it))) });
 }
 
 const VOICE_VERSION = "v2";
@@ -462,4 +593,26 @@ export function createBuddyVoice(opts: { storage?: () => any } = {}) {
       const s = await p; remember(id, s); return s;
     },
   };
+}
+
+/** The site's usual AI for text (server/aiProvider.ts sends requests to OpenAI's address on to whichever service is working). */
+async function siteChat(system: string, user: string): Promise<string> {
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY || "routed"}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0.3, max_tokens: 5000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (!r.ok) throw new Error(`chat ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
+  const j: any = await r.json();
+  return String(j?.choices?.[0]?.message?.content || "");
+}
+async function groqHear(audio: Buffer, mime: string): Promise<string> {
+  const key = groqKey(); if (!key) throw new Error("no speech key");
+  const ext = /mp4|m4a|aac/.test(mime) ? "m4a" : /ogg/.test(mime) ? "ogg" : /wav/.test(mime) ? "wav" : /mpeg|mp3/.test(mime) ? "mp3" : "webm";
+  const form = new FormData();
+  form.append("file", new Blob([new Uint8Array(audio)], { type: mime }), `answer.${ext}`);
+  form.append("model", "whisper-large-v3-turbo"); form.append("language", "en"); form.append("response_format", "json");
+  const r = await fetch(`${GROQ}/audio/transcriptions`, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(30_000) });
+  if (!r.ok) throw new Error(`hear ${r.status}`);
+  return String((await r.json())?.text || "");
 }

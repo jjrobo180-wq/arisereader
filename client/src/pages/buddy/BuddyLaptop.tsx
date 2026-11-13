@@ -1,12 +1,12 @@
 // TTS Buddy on a child's school laptop: shows a code for the teacher, then the worksheet one question at a time,
 // read aloud with each word lit up as it's said. No account, no typing needed to get started.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, Pause, Turtle, Volume2 } from "lucide-react";
-import { LETTERS, tokens, type Item, type Worksheet } from "@shared/ttsBuddy";
-import { B, BRAND_FONT, BuddyError, FONT, call, saveLaptop, savedLaptop, useBuddyFont, useVoice, type Clip, type LaptopId, type Playing } from "./buddyApi";
+import { ArrowLeft, ArrowRight, Check, Lightbulb, Loader2, Mic, Pause, Square, Turtle, Volume2 } from "lucide-react";
+import { LETTERS, cleanAcc, pictureFor, tokens, type Acc, type Item, type Worksheet } from "@shared/ttsBuddy";
+import { B, BRAND_FONT, BuddyError, FONT, call, figurePath, saveLaptop, savedLaptop, useAuthedImage, useBuddyFont, useRecorder, useVoice, type Clip, type LaptopId, type Playing } from "./buddyApi";
 import { BuddyMark } from "./BuddyMark";
 
-type State = { state: "waiting"; code: string } | { state: "linked"; name: string } | { state: "ready"; name: string; worksheet: Worksheet; answers: Record<string, string>; step: number; done: boolean };
+type State = { state: "waiting"; code: string } | { state: "linked"; name: string } | { state: "ready"; name: string; worksheet: Worksheet; answers: Record<string, string>; step: number; done: boolean; acc?: Acc };
 
 /** Text with the word being read lit up, like a finger following along under the line. */
 export function Words({ text, word, active, size }: { text: string; word: number; active: boolean; size?: number }) {
@@ -88,19 +88,47 @@ function Waiting({ me, st, err, onJoined }: { me: LaptopId | null; st: State | n
   </div>;
 }
 
+/** The picture that goes with a question, cut from the worksheet photo. */
+export function Figure({ wid, item, auth, onHear, big }: { wid: string; item: Item; auth: { teacher?: boolean; laptop?: LaptopId | null }; onHear?: () => void; big?: boolean }) {
+  const url = useAuthedImage(figurePath(wid, item), auth);
+  if (!item.figure?.img) return null;
+  return <figure className="mt-5 overflow-hidden rounded-[16px] bg-white p-2" style={{ border: `2px solid ${B.line}` }} data-testid="buddy-figure">
+    {url ? <img src={url} alt={item.figure.alt || "Picture for this question"} className={`mx-auto w-auto max-w-full object-contain ${big ? "max-h-[440px]" : "max-h-[340px]"}`} />
+      : <div className="grid h-40 place-items-center"><Loader2 className="h-7 w-7 animate-spin" style={{ color: B.dim }} /></div>}
+    {onHear && item.figure.alt && <button type="button" onClick={onHear} className="mt-1 flex items-center gap-1.5 px-1 text-[15px] font-bold" style={{ color: B.blue }}><Volume2 className="h-4 w-4" />Hear about the picture</button>}
+  </figure>;
+}
+
 function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "ready" }>; onGone: () => void }) {
   const ws = st.worksheet;
+  const acc = cleanAcc(st.acc);
   const [step, setStep] = useState(() => Math.min(st.step, ws.items.length));
   const [answers, setAnswers] = useState<Record<string, string>>(st.answers);
   const [rate, setRate] = useState(() => { try { return Number(localStorage.getItem("tts-buddy-rate")) || 1; } catch { return 1; } });
   const [auto, setAuto] = useState(true);
+  const [original, setOriginal] = useState(false);
+  const [hints, setHints] = useState(0);
+  const [micBusy, setMicBusy] = useState(false);
+  const [micMsg, setMicMsg] = useState("");
+  const rec = useRecorder();
   const fetchClip = useCallback((itemId: string, part: string) => call<Clip>("/speak", { laptop: me, body: { laptopId: me.id, worksheetId: ws.id, itemId, part } }), [me, ws.id]);
   const voice = useVoice(fetchClip, rate);
   const done = step >= ws.items.length;
   const item = ws.items[Math.min(step, ws.items.length - 1)];
-  const parts = (it: Item) => ["q", ...it.choices.map((_, i) => `c${i}`)];
+  const sp = item.supports;
+  const pic = pictureFor(ws.items, Math.min(step, ws.items.length - 1));
+  const simpleOn = acc.simple && !!sp?.simple && !original;
+  const qPart = simpleOn ? "s" : "q";
+  const qText = simpleOn ? sp!.simple : item.text;
+  const shownChoices = item.choices.map((c, i) => ({ c, i })).filter(({ i }) => !(acc.fewer && sp && sp.keep.length >= 2) || sp.keep.includes(i));
+  const parts = (it: Item) => {
+    const s = it.supports; const simple = acc.simple && !!s?.simple && !original;
+    const keep = acc.fewer && s && s.keep.length >= 2 ? s.keep : it.choices.map((_, i) => i);
+    return [simple ? "s" : "q", ...keep.map((i) => `c${i}`)];
+  };
   const questions = ws.items.filter((i) => i.kind !== "read");
   const qIndex = questions.indexOf(item);
+  const big = acc.big;
 
   // Answers and the step go back to the teacher's phone (a moment after the last change).
   const save = useRef<ReturnType<typeof setTimeout>>();
@@ -111,12 +139,15 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   }, [answers, step, done, me, ws.id, onGone]);
   useEffect(() => { try { localStorage.setItem("tts-buddy-rate", String(rate)); } catch { /* fine */ } }, [rate]);
 
-  // Each new question: get its voice ready, and read it out if "Read each question" is on (after the first tap).
+  // Each new question: get its voice ready, read it out if "Read each question" is on (after the first tap), start the
+  // hints over, and put the sentence starter in an empty written answer.
   const tapped = useRef(false);
   useEffect(() => {
+    setHints(0); setOriginal(false); setMicMsg("");
     if (done) { voice.stop(); return; }
     voice.prefetch(item.id, parts(item));
-    const next = ws.items[step + 1]; if (next) voice.prefetch(next.id, ["q"]);
+    const next = ws.items[step + 1]; if (next) voice.prefetch(next.id, [parts(next)[0]]);
+    if (acc.starter && sp?.starter && item.kind !== "choice" && item.kind !== "read" && !(answers[item.id] || "").trim()) setAnswers((a) => ({ ...a, [item.id]: `${sp.starter} ` }));
     if (auto && tapped.current) void voice.play(item.id, parts(item)); else voice.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, done]);
@@ -126,6 +157,18 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
   const readAll = () => { tapped.current = true; if (voice.playing) voice.stop(); else void voice.play(item.id, parts(item)); };
   const setAnswer = (v: string) => setAnswers((a) => ({ ...a, [item.id]: v }));
   const answeredCount = questions.filter((q) => (answers[q.id] || "").trim()).length;
+  const nextHint = () => { tapped.current = true; const n = Math.min(hints + 1, sp?.steps.length || 0); setHints(n); void voice.play(item.id, [`h${n - 1}`]); };
+  const mic = async () => {
+    setMicMsg("");
+    if (rec.on) {
+      setMicBusy(true);
+      try { const audio = await rec.stop(); const r = await call<{ text: string }>(`/laptop/${me.id}/hear`, { laptop: me, body: { audio } }); if (r.text) { const cur = (answers[item.id] || "").trimEnd(); setAnswer(cur ? `${cur} ${r.text}` : r.text); } else setMicMsg("I didn't catch that. Try again, a little louder."); }
+      catch (e: any) { setMicMsg(e.message); } finally { setMicBusy(false); }
+    } else { try { await rec.start(); } catch { setMicMsg("The microphone is off. Ask your teacher to allow it in the browser."); } }
+  };
+  const MicBtn = () => acc.mic ? <button type="button" onClick={mic} disabled={micBusy} data-testid="buddy-mic" aria-label={rec.on ? "Stop and type what I said" : "Say your answer"}
+    className="flex shrink-0 items-center gap-2 self-start rounded-[16px] px-4 py-3 text-[18px] font-bold text-white disabled:opacity-60" style={{ background: rec.on ? "#d92d20" : B.ink }}>
+    {micBusy ? <Loader2 className="h-6 w-6 animate-spin" /> : rec.on ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}{micBusy ? "Listening…" : rec.on ? "Stop" : "Say it"}</button> : null;
 
   if (done) return <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col items-center justify-center px-6 text-center" data-testid="buddy-done">
     <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: B.green }}><Check className="h-14 w-14 text-white" strokeWidth={3} /></div>
@@ -134,7 +177,8 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
     <button type="button" onClick={() => setStep(0)} className="mt-8 rounded-[16px] px-6 py-4 text-[20px] font-bold" style={{ background: B.card, border: `2px solid ${B.ink}` }}>Check my answers</button>
   </div>;
 
-  return <div className="mx-auto flex min-h-[100dvh] max-w-4xl flex-col px-5 pb-6 pt-4 sm:px-8">
+  const qSize = item.kind === "read" ? (big ? "text-[30px] leading-[1.75]" : "text-[24px] sm:text-[26px] leading-[1.5]") : (big ? "text-[38px] leading-[1.6] font-bold" : "text-[28px] font-bold sm:text-[32px] leading-[1.5]");
+  return <div className="mx-auto flex min-h-[100dvh] max-w-4xl flex-col px-5 pb-6 pt-4 sm:px-8" data-big={big ? "1" : "0"}>
     <header className="flex items-center gap-3">
       <BuddyMark size={36} />
       <div className="min-w-0 flex-1"><p className="truncate text-[18px] font-bold">{ws.title}</p><p className="text-[14px]" style={{ color: B.dim }}>{st.name ? `${st.name} · ` : ""}{item.kind === "read" ? "Read first" : `Question ${qIndex + 1} of ${questions.length}`}</p></div>
@@ -148,31 +192,52 @@ function Quiz({ me, st, onGone }: { me: LaptopId; st: Extract<State, { state: "r
       <div className="rounded-[24px] p-6 sm:p-8" style={{ background: B.card, border: `2px solid ${B.line}` }} data-testid="buddy-question">
         <div className="flex items-start gap-4">
           {item.kind !== "read" && <span className="grid h-12 min-w-12 shrink-0 place-items-center rounded-full px-2 text-[22px] font-bold text-white" style={{ background: B.ink, fontFamily: BRAND_FONT }}>{item.number || qIndex + 1}</span>}
-          <p className={`flex-1 leading-[1.5] ${item.kind === "read" ? "text-[24px] sm:text-[26px]" : "text-[28px] font-bold sm:text-[32px]"}`}><Words text={item.text} word={on("q")?.word ?? -1} active={!!on("q")} /></p>
+          <p className={`flex-1 ${qSize}`} data-testid="buddy-qtext"><Words text={qText} word={on(qPart)?.word ?? -1} active={!!on(qPart)} /></p>
         </div>
-        <button type="button" onClick={readAll} data-testid="buddy-read" className="mt-6 flex items-center gap-3 rounded-full py-3 pl-3 pr-6 text-[20px] font-bold text-white" style={{ background: voice.playing ? B.ink : B.blue, boxShadow: `0 5px 0 ${voice.playing ? "#000" : "#1f4fa8"}` }}>
-          <span className="grid h-11 w-11 place-items-center rounded-full bg-white/20">{voice.loading ? <Loader2 className="h-6 w-6 animate-spin" /> : voice.playing ? <Pause className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}</span>
-          {voice.playing ? "Stop" : item.kind === "read" ? "Read it to me" : item.choices.length ? "Read question and answers" : "Read it to me"}
-        </button>
+        {acc.simple && sp?.simple && <button type="button" onClick={() => { voice.stop(); setOriginal((o) => !o); }} className="mt-2 text-[15px] font-bold underline" style={{ color: B.dim }} data-testid="buddy-original">{original ? "Show it in simpler words" : item.kind === "read" ? "Read the whole thing" : "Show the original question"}</button>}
+        {pic && <Figure wid={ws.id} item={pic} auth={{ laptop: me }} big={big} onHear={() => { tapped.current = true; void voice.play(pic.id, ["p"]); }} />}
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={readAll} data-testid="buddy-read" className="flex items-center gap-3 rounded-full py-3 pl-3 pr-6 text-[20px] font-bold text-white" style={{ background: voice.playing ? B.ink : B.blue, boxShadow: `0 5px 0 ${voice.playing ? "#000" : "#1f4fa8"}` }}>
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-white/20">{voice.loading ? <Loader2 className="h-6 w-6 animate-spin" /> : voice.playing ? <Pause className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}</span>
+            {voice.playing ? "Stop" : item.kind === "read" ? "Read it to me" : shownChoices.length ? "Read question and answers" : "Read it to me"}
+          </button>
+          {acc.steps && sp && sp.steps.length > 0 && hints < sp.steps.length && <button type="button" onClick={nextHint} data-testid="buddy-hint" className="flex items-center gap-2 rounded-full px-5 py-3 text-[19px] font-bold" style={{ background: B.mark, color: B.ink }}><Lightbulb className="h-6 w-6" />{hints ? "Another hint" : "I need help"}</button>}
+        </div>
+        {acc.steps && sp && hints > 0 && <ol className="mt-4 space-y-2" data-testid="buddy-hints">{sp.steps.slice(0, hints).map((h, i) => <li key={i} className={`flex items-start gap-3 rounded-[14px] p-3 ${big ? "text-[24px]" : "text-[19px]"}`} style={{ background: B.soft }}>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[16px] font-bold text-white" style={{ background: B.accent }}>{i + 1}</span>
+          <span className="flex-1"><Words text={h} word={on(`h${i}`)?.word ?? -1} active={!!on(`h${i}`)} /></span>
+          <button type="button" aria-label="Hear this hint" onClick={() => void voice.play(item.id, [`h${i}`])} style={{ color: B.blue }}><Volume2 className="h-6 w-6" /></button></li>)}</ol>}
+        {acc.vocab && sp && sp.vocab.length > 0 && <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="buddy-vocab"><span className="text-[15px] font-bold" style={{ color: B.dim }}>Tricky words:</span>
+          {sp.vocab.map((v, i) => { const speaking = on(`v${i}`); return <button key={i} type="button" onClick={() => { tapped.current = true; void voice.play(item.id, [`v${i}`]); }} className={`rounded-[12px] px-3 py-1.5 text-left ${big ? "text-[22px]" : "text-[18px]"}`} style={{ background: speaking ? B.mark : B.bg, border: `2px solid ${B.line}` }}>
+            <b className="underline decoration-dotted">{v.w}</b>{speaking && <span className="block text-[16px]">{v.m}</span>}</button>; })}</div>}
         {voice.error && <p className="mt-3 text-[16px]" style={{ color: B.accentDeep }}>{voice.error}</p>}
       </div>
 
-      {item.kind === "choice" && <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {item.choices.map((c, i) => {
+      {item.kind === "choice" && <div className={`mt-5 grid gap-3 ${shownChoices.length > 2 ? "sm:grid-cols-2" : ""}`}>
+        {shownChoices.map(({ c, i }) => {
           const picked = answers[item.id] === c; const speaking = on(`c${i}`);
           return <div key={i} className="flex items-stretch overflow-hidden rounded-[18px]" style={{ background: picked ? B.soft : B.card, border: `3px solid ${picked ? B.accent : speaking ? B.blue : B.line}` }}>
-            <button type="button" onClick={() => setAnswer(c)} aria-pressed={picked} data-testid={`buddy-choice-${i}`} className="flex flex-1 items-center gap-3 p-4 text-left text-[22px] sm:text-[24px]">
+            <button type="button" onClick={() => setAnswer(c)} aria-pressed={picked} data-testid={`buddy-choice-${i}`} className={`flex flex-1 items-center gap-3 p-4 text-left ${big ? "text-[30px]" : "text-[22px] sm:text-[24px]"}`}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[20px] font-bold" style={{ background: picked ? B.accent : B.bg, color: picked ? "#fff" : B.ink, fontFamily: BRAND_FONT }}>{picked ? <Check className="h-6 w-6" strokeWidth={3} /> : LETTERS[i]}</span>
+              {/* The voice says the letter first ("A. their tails"), so word 0 on screen is spoken word 1. */}
               <span className="min-w-0 flex-1"><Words text={c} word={(speaking?.word ?? 0) - 1} active={!!speaking} /></span>
             </button>
             <button type="button" aria-label={`Read answer ${LETTERS[i]}`} onClick={() => { tapped.current = true; void voice.play(item.id, [`c${i}`]); }} className="grid w-16 shrink-0 place-items-center" style={{ borderLeft: `2px solid ${B.line}`, color: B.blue }}><Volume2 className="h-7 w-7" /></button>
           </div>;
         })}
       </div>}
-      {item.kind === "short" && <input value={answers[item.id] || ""} onChange={(e) => setAnswer(e.target.value)} placeholder="Type your answer" aria-label="Your answer" data-testid="buddy-answer"
-        className="mt-5 w-full rounded-[18px] px-5 py-4 text-[26px] outline-none" style={{ background: B.card, border: `3px solid ${(answers[item.id] || "").trim() ? B.accent : B.line}` }} />}
-      {item.kind === "long" && <textarea value={answers[item.id] || ""} onChange={(e) => setAnswer(e.target.value)} placeholder="Type your answer" aria-label="Your answer" rows={5} data-testid="buddy-answer"
-        className="mt-5 w-full resize-y rounded-[18px] px-5 py-4 text-[22px] leading-relaxed outline-none" style={{ background: B.card, border: `3px solid ${(answers[item.id] || "").trim() ? B.accent : B.line}` }} />}
+      {(item.kind === "short" || item.kind === "long") && <div className="mt-5">
+        <div className="flex gap-3">
+          {item.kind === "short" ? <input value={answers[item.id] || ""} onChange={(e) => setAnswer(e.target.value)} placeholder="Type your answer" aria-label="Your answer" data-testid="buddy-answer"
+            className={`min-w-0 flex-1 rounded-[18px] px-5 py-4 outline-none ${big ? "text-[32px]" : "text-[26px]"}`} style={{ background: B.card, border: `3px solid ${(answers[item.id] || "").trim() ? B.accent : B.line}` }} />
+            : <textarea value={answers[item.id] || ""} onChange={(e) => setAnswer(e.target.value)} placeholder="Type your answer" aria-label="Your answer" rows={5} data-testid="buddy-answer"
+              className={`min-w-0 flex-1 resize-y rounded-[18px] px-5 py-4 outline-none ${big ? "text-[28px] leading-[1.7]" : "text-[22px] leading-relaxed"}`} style={{ background: B.card, border: `3px solid ${(answers[item.id] || "").trim() ? B.accent : B.line}` }} />}
+          <MicBtn />
+        </div>
+        {micMsg && <p className="mt-2 text-[16px]" style={{ color: B.accentDeep }}>{micMsg}</p>}
+        {acc.bank && sp && sp.bank.length > 0 && item.kind === "short" && <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="buddy-bank"><span className="text-[15px] font-bold" style={{ color: B.dim }}>Word bank:</span>
+          {sp.bank.map((w) => <button key={w} type="button" onClick={() => setAnswer(w)} className={`rounded-[12px] px-4 py-2 font-bold ${big ? "text-[26px]" : "text-[20px]"}`} style={{ background: answers[item.id] === w ? B.soft : B.card, border: `2px solid ${answers[item.id] === w ? B.accent : B.line}` }}>{w}</button>)}</div>}
+      </div>}
     </main>
 
     <footer className="mt-6 flex items-center gap-3">
