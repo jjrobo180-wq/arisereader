@@ -63,6 +63,20 @@ function Steps() {
     <div><p className="text-[17px] font-bold">{t}</p><p className="text-[15px]" style={{ color: B.dim }}>{d}</p></div></div>)}</div>;
 }
 
+/** Pictures: the reader marked where each one is; cut them out of that page's photo right here and save them. */
+async function cutPictures(ws: Worksheet, items: Item[], photoSrc: string, page: number) {
+    const figs = items.filter((i) => i.figure && !i.figure.img && i.figure.page === page);
+    if (!figs.length) return;
+    const photo = await loadImage(photoSrc);
+    for (const it of figs) {
+      try {
+        const box = snapBox(photo, it.figure!.box);
+        const image = await cropPhoto(photo, box, 12);
+        await call(`/teacher/worksheets/${ws.id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { image, page, box, alt: it.figure!.alt } });
+      } catch { /* the teacher can add it in the editor */ }
+    }
+  }
+
 function Snap({ onDone, say, aiReady, first }: { onDone: (ws: Worksheet) => void; say: (m: string) => void; aiReady: boolean; first: boolean }) {
   const [pages, setPages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -70,26 +84,26 @@ function Snap({ onDone, say, aiReady, first }: { onDone: (ws: Worksheet) => void
   const input = useRef<HTMLInputElement>(null);
   const pick = async (files: FileList | null) => {
     if (!files?.length) return;
-    try { const shrunk = await Promise.all(Array.from(files).slice(0, 4).map(shrinkPhoto)); setPages((p) => [...p, ...shrunk].slice(0, 4)); } catch (e: any) { say(e.message); }
+    try { const shrunk = await Promise.all(Array.from(files).slice(0, 8).map(shrinkPhoto)); setPages((p) => [...p, ...shrunk].slice(0, 8)); } catch (e: any) { say(e.message); }
     if (input.current) input.current.value = "";
   };
+  // A page at a time: each page is its own small request (a 3-page worksheet sent at once was too much for the
+  // reader), with "Reading page 2 of 3…" while it works. A page that can't be read is skipped, not fatal.
   const read = async () => {
     setBusy(true);
+    const missed: number[] = [];
+    let ws: Worksheet | null = null;
     try {
-      const r = await call<{ worksheet: Worksheet }>("/teacher/read", { teacher: true, body: { images: pages } });
-      // Pictures: the reader marked where each one is; cut them out of the photos right here and save them.
-      const figs = r.worksheet.items.filter((i) => i.figure && !i.figure.img && pages[i.figure.page - 1]);
-      if (figs.length) setStage(`Cutting out ${figs.length} picture${figs.length === 1 ? "" : "s"}…`);
-      for (const it of figs) {
+      for (let i = 0; i < pages.length; i++) {
+        setStage(pages.length > 1 ? `Reading page ${i + 1} of ${pages.length}…` : "Reading the worksheet…");
         try {
-          const photo = await loadImage(pages[it.figure!.page - 1]);
-          const box = snapBox(photo, it.figure!.box);
-          const image = await cropPhoto(photo, box, 12);
-          await call(`/teacher/worksheets/${r.worksheet.id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { image, page: it.figure!.page, box, alt: it.figure!.alt } });
-        }
-        catch { /* the teacher can add it in the editor */ }
+          if (!ws) { ws = (await call<{ worksheet: Worksheet }>("/teacher/read", { teacher: true, body: { images: [pages[i]] } })).worksheet; await cutPictures(ws, ws.items, pages[i], 1); }
+          else { const r = await call<{ worksheet: Worksheet; added: string[]; page: number }>(`/teacher/worksheets/${ws.id}/pages`, { teacher: true, body: { image: pages[i] } }); ws = r.worksheet; await cutPictures(ws, ws.items.filter((x) => r.added.includes(x.id)), pages[i], r.page); }
+        } catch (e: any) { missed.push(i + 1); if (pages.length === 1 || (!ws && i === pages.length - 1)) throw e; }
       }
-      setPages([]); onDone(r.worksheet);
+      if (!ws) throw new Error("Couldn't read those pages. Try clearer photos, straight on, in good light.");
+      if (missed.length) say(`Page ${missed.join(" and ")} couldn't be read. Open the worksheet and tap Add a page to snap it again.`);
+      setPages([]); onDone(ws);
     }
     catch (e: any) { say(e.message); } finally { setBusy(false); setStage(""); }
   };
@@ -98,7 +112,7 @@ function Snap({ onDone, say, aiReady, first }: { onDone: (ws: Worksheet) => void
     {first && !pages.length && <><p className="text-[28px] font-semibold leading-tight" style={{ fontFamily: BRAND_FONT }}>Snap a worksheet.<br />It reads it to your students.</p><p className="mt-2 text-[16px] opacity-80">One question at a time, out loud, with each word lit up as it's read.</p></>}
     {pages.length > 0 && <div className="mb-4 flex gap-2 overflow-x-auto">{pages.map((p, i) => <div key={i} className="relative shrink-0"><img src={p} alt={`Page ${i + 1}`} className="h-28 w-20 rounded-[10px] object-cover" style={{ border: `2px solid ${B.line}` }} />
       <button type="button" aria-label={`Remove page ${i + 1}`} onClick={() => setPages((x) => x.filter((_, j) => j !== i))} className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-white shadow" style={{ color: B.ink }}><X className="h-4 w-4" /></button></div>)}
-      {pages.length < 4 && <button type="button" onClick={() => input.current?.click()} className="grid h-28 w-20 shrink-0 place-items-center rounded-[10px] text-[13px] font-bold" style={{ border: `2px dashed ${B.dim}`, color: first ? "#fff" : B.dim }}><span className="grid place-items-center"><Plus className="h-6 w-6" />Page</span></button>}</div>}
+      {pages.length < 8 && <button type="button" onClick={() => input.current?.click()} className="grid h-28 w-20 shrink-0 place-items-center rounded-[10px] text-[13px] font-bold" style={{ border: `2px dashed ${B.dim}`, color: first ? "#fff" : B.dim }}><span className="grid place-items-center"><Plus className="h-6 w-6" />Page</span></button>}</div>}
     {!aiReady ? <p className="text-[15px] opacity-80">Reading worksheets isn't turned on yet.</p>
       : pages.length ? <Btn className="w-full" onClick={read} disabled={busy} testId="buddy-read-photos">{busy ? <><Loader2 className="h-5 w-5 animate-spin" />{stage || "Reading the worksheet…"}</> : <>Make it a quiz ({pages.length} page{pages.length === 1 ? "" : "s"})</>}</Btn>
       : <Btn className={`w-full ${first ? "mt-5" : ""}`} onClick={() => input.current?.click()} testId="buddy-snap"><Camera className="h-5 w-5" />Snap a worksheet</Btn>}
@@ -269,6 +283,7 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
   const [openSup, setOpenSup] = useState<Record<string, boolean>>({});
   const [cropping, setCropping] = useState<Item | null>(null);
   const [writing, setWriting] = useState(false);
+  const [follow, setFollow] = useState(0);
   // Supports are written in the background right after a worksheet is read (or the first time an older one opens):
   // keep checking until they're in, and add them to the questions without touching anything being edited.
   useEffect(() => {
@@ -283,9 +298,9 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
         if (r.drafting) timer = setTimeout(() => void get(false), 2500);
       } catch (e: any) { if (first && !gone) { say(e.message); onBack(); } }
     };
-    void get(true);
+    void get(follow === 0);
     return () => { gone = true; clearTimeout(timer); };
-  }, [id, say, onBack]);
+  }, [id, say, onBack, follow]);
   const fetchClip = useCallback((itemId: string, part: string) => call<Clip>("/speak", { teacher: true, body: { worksheetId: id, itemId, part } }), [id]);
   const voice = useVoice(fetchClip, 1);
   const edit = (i: number, patch: Partial<Item>) => { setWs((w) => w && { ...w, items: w.items.map((it, j) => (j === i ? { ...it, ...patch, ...(patch.text != null ? { say: "" } : {}) } : it)) }); setDirty(true); };
@@ -296,6 +311,23 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
     setDrafting(true);
     try { if (dirty && !(await save())) return; const r = await call<{ worksheet: Worksheet; made: number }>(`/teacher/worksheets/${id}/supports`, { method: "POST", teacher: true, body: {} }); setWs(r.worksheet); setOpenSup(Object.fromEntries(r.worksheet.items.map((i) => [i.id, true]))); say(`Supports rewritten for ${r.made} step${r.made === 1 ? "" : "s"}`); }
     catch (e: any) { say(e.message); } finally { setDrafting(false); }
+  };
+  const pageInput = useRef<HTMLInputElement>(null);
+  const [adding, setAdding] = useState("");
+  const addPage = async (files: FileList | null) => {
+    const list = Array.from(files || []).slice(0, 8); if (!list.length || !ws) return;
+    try {
+      for (const [i, f] of list.entries()) {
+        setAdding(list.length > 1 ? `Reading page ${i + 1} of ${list.length}…` : "Reading the page…");
+        const photo = await shrinkPhoto(f);
+        const r = await call<{ worksheet: Worksheet; added: string[]; page: number }>(`/teacher/worksheets/${id}/pages`, { teacher: true, body: { image: photo } });
+        await cutPictures(r.worksheet, r.worksheet.items.filter((x) => r.added.includes(x.id)), photo, r.page);
+        const fresh = (await call<{ worksheet: Worksheet }>(`/teacher/worksheets/${id}`, { teacher: true })).worksheet;
+        setWs((cur) => cur && { ...cur, pages: fresh.pages, items: [...cur.items, ...fresh.items.filter((x) => r.added.includes(x.id))] });
+        say(`Page ${r.page} added: ${r.added.length} step${r.added.length === 1 ? "" : "s"}`);
+      }
+      setFollow((n) => n + 1);
+    } catch (e: any) { say(e.message); } finally { setAdding(""); if (pageInput.current) pageInput.current.value = ""; }
   };
   const removePicture = async (it: Item) => { try { const r = await call<{ worksheet: Worksheet }>(`/teacher/worksheets/${id}/figures/${it.id}`, { method: "PUT", teacher: true, body: { remove: true } }); setWs(r.worksheet); } catch (e: any) { say(e.message); } };
   if (!ws) return <div className="mt-20 grid place-items-center"><Loader2 className="h-8 w-8 animate-spin" style={{ color: B.dim }} /></div>;
@@ -339,6 +371,8 @@ function Editor({ id, onBack, onSent, say }: { id: string; onBack: () => void; o
       </div>;
     })}</div>
     {voice.error && <p className="mt-3 text-[15px]" style={{ color: B.accentDeep }}>{voice.error}</p>}
+    <input ref={pageInput} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => void addPage(e.target.files)} data-testid="buddy-add-page-input" />
+    <Btn kind="soft" className="mt-4 w-full" disabled={!!adding || ws.pages >= 8} onClick={() => pageInput.current?.click()} testId="buddy-add-page">{adding ? <><Loader2 className="h-5 w-5 animate-spin" />{adding}</> : <><Plus className="h-5 w-5" />Add a page</>}</Btn>
     <div className="sticky bottom-0 -mx-4 mt-5 flex gap-2 px-4 pb-3 pt-3" style={{ background: B.bg }}>
       {dirty && <Btn kind="soft" className="flex-1" onClick={() => void save().then((ok) => ok && say("Saved"))}>Save</Btn>}
       <Btn className="flex-[2]" onClick={send} disabled={busy} testId="buddy-send"><Send className="h-5 w-5" />{busy ? "Sending…" : "Send to laptops"}</Btn>

@@ -159,7 +159,7 @@ test("a photo that isn't a worksheet gets a clear message, and reading is limite
   const r = await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
   assert.equal(r.status, 422); assert.match(r.body.message, /clearer photo/);
   assert.equal((await call("POST", "/api/buddy/teacher/read", T, { images: [] })).status, 400);
-  for (let i = 0; i < 39; i++) await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
+  for (let i = 0; i < 79; i++) await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
   assert.equal((await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] })).status, 429);
 });
 
@@ -471,4 +471,61 @@ test("arisereader.com/buddy opens TTS Buddy too, even for a student signed in to
   assert.match(app, /const buddyPage = /); assert.match(app, /readerPlanLocked && !buddyPage/);
   // The Reader homepage (what "/" is for anyone signed out on arisereader.com) sends #/ links on to the app.
   assert.match(read("client/public/reader-landing.html"), /location\.replace\("\/app" \+ location\.search \+ location\.hash\)/);
+});
+
+// Nov 13: a 3-page worksheet failed while 1 page worked — all pages went to the reader at the same moment in one
+// request, and one page failing lost them all. Now: one page at a time, each its own request, and pages can be added.
+test("several pages are read one after another, never all at once", async () => {
+  let running = 0, most = 0;
+  const merged = JSON.parse(await readWorksheet(["a", "b", "c"], async (img, page) => {
+    running++; most = Math.max(most, running); await new Promise((x) => setTimeout(x, 5)); running--;
+    return { title: page === 1 ? "Ratios" : "", items: [{ kind: "short", text: `from ${img}` }] };
+  }));
+  assert.equal(most, 1); assert.deepEqual(merged.items.map((i: any) => i.text), ["from a", "from b", "from c"]);
+});
+
+test("adding pages: each page read on its own, its steps go on the end with their pictures, and get supports too", async () => {
+  const { app, call } = fakeApp();
+  const files = createMemoryFiles();
+  const pagesRead: number[] = []; const drafted: string[][] = [];
+  const replies = [
+    JSON.stringify({ title: "Ratios Packet", items: [{ kind: "read", text: "Page one directions." }, { kind: "short", number: "1", text: "What is 50% of 10?" }] }),
+    JSON.stringify({ title: "", items: [{ kind: "short", number: "2", text: "What is 25% of 8?", figure: { box: [100, 100, 900, 300], alt: "a tape diagram" } }] }),
+    "", // page 3: the reader fails
+    JSON.stringify({ title: "", items: [{ kind: "long", number: "4", text: "Explain your thinking." }] }),
+  ];
+  let n = 0;
+  registerTtsBuddyRoutes(app, { kv: createMemoryKv(), files, aiConfigured: () => true,
+    readPhotos: async (imgs) => { pagesRead.push(imgs.length); const r = replies[n++]; if (!r) throw Object.assign(new Error("The reader is busy right now. Try again in a minute."), { detail: "groq 429" }); return r; },
+    askText: async (_s, u) => { const items = JSON.parse(u).items; drafted.push(items.map((i: any) => i.id)); await new Promise((x) => setTimeout(x, 5)); return JSON.stringify({ items: items.map((i: any) => ({ id: i.id, simple: `Short version of step ${i.id}`, steps: ["Try it."] })) }); },
+  });
+  const first = await call("POST", "/api/buddy/teacher/read", T, { images: [PHOTO] });
+  const wid = first.body.worksheet.id;
+  const p2 = await call("POST", `/api/buddy/teacher/worksheets/${wid}/pages`, T, { image: PHOTO });
+  assert.equal(p2.status, 200, JSON.stringify(p2.body)); assert.equal(p2.body.page, 2); assert.deepEqual(p2.body.added, ["p2q1"]);
+  assert.equal(p2.body.worksheet.items.at(-1).figure.page, 2, "its picture is on page 2's photo");
+  assert.ok(await files.get(`page/${wid}/2`), "page 2's photo is kept for cutting pictures");
+  const p3 = await call("POST", `/api/buddy/teacher/worksheets/${wid}/pages`, T, { image: PHOTO });
+  assert.equal(p3.status, 502); assert.match(p3.body.message, /busy/);
+  const p4 = await call("POST", `/api/buddy/teacher/worksheets/${wid}/pages`, T, { image: PHOTO });
+  assert.equal(p4.status, 200); assert.equal(p4.body.page, 3, "the failed page didn't take a number");
+  assert.deepEqual(pagesRead, [1, 1, 1, 1], "every request is one page");
+  await new Promise((x) => setTimeout(x, 60));
+  const ws = (await call("GET", `/api/buddy/teacher/worksheets/${wid}`, T)).body.worksheet;
+  assert.equal(ws.title, "Ratios Packet"); assert.equal(ws.pages, 3);
+  assert.deepEqual(ws.items.map((i: any) => i.text), ["Page one directions.", "What is 50% of 10?", "What is 25% of 8?", "Explain your thinking."]);
+  assert.ok(ws.items.every((i: any) => i.supports?.simple), "every page's steps got supports, even while page 1's were still being written");
+  assert.ok(drafted.some((ids) => ids.includes("p2q1")) && drafted.some((ids) => ids.includes("p3q1")));
+  assert.equal((await call("POST", `/api/buddy/teacher/worksheets/${wid}/pages`, T, { image: "nope" })).status, 400);
+  assert.equal((await call("POST", `/api/buddy/teacher/worksheets/${wid}/pages`, { "x-buddy-teacher": "someone-else-0123456789abcdefghijklmnop" }, { image: PHOTO })).status, 404);
+});
+
+test("the phone sends a long worksheet a page at a time and keeps going past a page that fails", () => {
+  const teach = read("client/src/pages/buddy/BuddyTeacher.tsx");
+  assert.match(teach, /body: \{ images: \[pages\[i\]\] \}/, "the first page alone");
+  assert.match(teach, /`\/teacher\/worksheets\/\$\{ws\.id\}\/pages`/, "then each next page on its own");
+  assert.match(teach, /Reading page \$\{i \+ 1\} of \$\{pages\.length\}/);
+  assert.match(teach, /missed\.push\(i \+ 1\)/); assert.match(teach, /tap Add a page/);
+  assert.match(teach, /testId="buddy-add-page"/);
+  assert.match(read("server/index.ts"), /worksheets\\\/\[\^\/\]\+\\\/pages\$\/, express\.json\(\{ limit: "6mb" \}\)/);
 });

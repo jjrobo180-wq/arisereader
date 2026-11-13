@@ -158,8 +158,9 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
   const drafting = new Map<string, Promise<{ made: number; errors: string[] }>>();
   const lastDraft = new Map<string, { by: string; at: number; errors: string[] }>();
   const tried = new Set<string>();
-  const draft = (wid: string, onlyIds?: string[]) => {
-    const running = drafting.get(wid); if (running) return running;
+  const draft = (wid: string, onlyIds?: string[]): Promise<{ made: number; errors: string[] }> => {
+    // Already writing for this worksheet: a whole-worksheet request waits for that one; new pages' steps go next.
+    const running = drafting.get(wid); if (running) return onlyIds ? running.then(() => draft(wid, onlyIds)) : running;
     const p = (async () => {
       const first = await getWs(wid); if (!first) return { made: 0, errors: ["gone"] };
       const want = onlyIds ? first.ws.items.filter((i) => onlyIds.includes(i.id)) : first.ws.items;
@@ -178,7 +179,8 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
         const sp = cleanSupports(raw, it.choices.length); if (sp) { it.supports = sp; made++; }
       }
       // One more try for the ones that came back weak (the same words as the question, a key math word unexplained).
-      const weak = latest.ws.items.map((it) => ({ it, why: weakSupports(it) })).filter((x) => x.why.length).slice(0, 12);
+      const wanted = new Set(want.map((i) => i.id));
+      const weak = latest.ws.items.filter((it) => wanted.has(it.id)).map((it) => ({ it, why: weakSupports(it) })).filter((x) => x.why.length).slice(0, 12);
       if (weak.length) {
         try {
           const note = `\n\nThis is a second try for these items. Fix exactly this:\n${weak.map((x) => `- item ${x.it.id}: ${x.why.join("; ")}`).join("\n")}`;
@@ -397,6 +399,39 @@ export function registerTtsBuddyRoutes(app: Express, deps: BuddyDeps = {}) {
     res.set?.("Cache-Control", "private, max-age=3600"); res.type(f.type); res.send(f.data);
   });
 
+  /** One more page of a worksheet: read on its own (the phone sends a long worksheet a page at a time, so no single
+   *  request is big or slow, and one page the reader can't manage doesn't lose the others). Its steps go on the end. */
+  app.post("/api/buddy/teacher/worksheets/:wid/pages", async (req: any, res: any) => {
+    res.set?.("Cache-Control", "no-store");
+    const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
+    const r = await ownWs(tid, req.params.wid); if (!r) return bad(res, 404, "That worksheet is gone.");
+    if (r.ws.pages >= LIMITS.pages) return bad(res, 400, `A worksheet can have up to ${LIMITS.pages} pages.`);
+    const image = typeof req.body?.image === "string" && IMAGE_RE.test(req.body.image) && req.body.image.length <= MAX_IMAGE ? req.body.image : "";
+    if (!image) return bad(res, 400, "That photo is too big or isn't a picture. Take it again.");
+    const place = clientAddress(req);
+    const wait = Math.max(readsByTeacher.retryAfter(tid), readsByPlace.retryAfter(place));
+    if (wait) return bad(res, 429, `That's a lot of pages today. Try again in ${waitWords(wait)}.`);
+    readsByTeacher.fail(tid); readsByPlace.fail(place);
+    let raw: any;
+    try { raw = looseJson(await readPhotos([image])); } catch (e: any) { console.error("[tts-buddy] page read failed:", e?.message); return res.status(502).json({ message: e?.message || "Couldn't read that page. Try again.", detail: String(e?.detail || "").slice(0, 600) }); }
+    const n = r.ws.pages + 1;
+    const page = cleanWorksheet({ ...raw, pages: 1 }, r.ws.id, iso());
+    page.items = foldLabelSteps(page.items);
+    if (!page.items.length) return bad(res, 422, "Couldn't find any questions on that page. Try a clearer photo, straight on, with the whole page in view.");
+    const latest = (await getWs(r.ws.id))!;
+    const taken = new Set(latest.ws.items.map((i) => i.id));
+    const added = page.items.slice(0, Math.max(0, LIMITS.items - latest.ws.items.length)).map((it, i) => {
+      let id = `p${n}q${i + 1}`; while (taken.has(id)) id += "x"; taken.add(id);
+      return { ...it, id, figure: it.figure ? { ...it.figure, page: n } : null };
+    });
+    latest.ws.items.push(...added); latest.ws.pages = n;
+    if (!latest.ws.title || latest.ws.title === "Worksheet") latest.ws.title = page.title;
+    const f = dataUrl(image); if (f) await files.put(`page/${r.ws.id}/${n}`, f.data, f.type).catch((e) => console.error("[tts-buddy] page save:", e?.message));
+    await kv.set(K.w(r.ws.id), latest);
+    void draft(r.ws.id, added.map((i) => i.id));
+    res.json({ worksheet: latest.ws, added: added.map((i) => i.id), page: n, drafting: true });
+  });
+
   /** A photo of a page, for a worksheet read before photos were kept (or to replace a blurry one). */
   app.put("/api/buddy/teacher/worksheets/:wid/pages/:n", async (req: any, res: any) => {
     const tid = teacherId(req); if (!tid) return bad(res, 401, "Open TTS Buddy again to start.");
@@ -567,7 +602,7 @@ export async function readPage(image: string, page: number, pages: number, send:
       console.error(`[tts-buddy] ${t.provider} ${t.model} page ${page}: ${r.status} ${reason.slice(0, 300)}`);
       why.push(`${t.provider} ${t.model}: ${r.status} ${String(looseJson(reason)?.error?.message || looseJson(reason)?.error || reason).replace(/(gsk|sk|xai)-?_?\w{8,}/g, "[key]").slice(0, 160)}`);
       if (r.status === 400 && json && /response_format|json|format/i.test(reason)) { json = false; continue; }
-      if (r.status === 429 || r.status >= 500) { await wait(Math.min(12, Number(r.headers.get("retry-after")) || 2 * 2 ** attempt) * 1000); continue; }
+      if (r.status === 429 || r.status >= 500) { await wait(Math.min(20, Number(r.headers.get("retry-after")) || 3 * 2 ** attempt) * 1000); continue; }
       break; // this one can't take it (bad key, retired model, too big): the next service
     }
   }
@@ -580,7 +615,9 @@ export async function readPage(image: string, page: number, pages: number, send:
 
 /** All the pages at once; the items come back in page order as one worksheet. */
 export async function readWorksheet(images: string[], read = readPage): Promise<string> {
-  const pages = await Promise.all(images.map((img, i) => read(img, i + 1, images.length)));
+  // One page after another: several big photos at the same moment is what makes the reader say "busy".
+  const pages: { title: string; items: any[] }[] = [];
+  for (const [i, img] of images.entries()) pages.push(await read(img, i + 1, images.length));
   return JSON.stringify({ title: pages.find((p) => p.title.trim())?.title || "", items: pages.flatMap((p, i) => p.items.map((it: any) => (it?.figure && typeof it.figure === "object" ? { ...it, figure: { ...it.figure, page: i + 1 } } : it))) });
 }
 

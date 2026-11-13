@@ -45,7 +45,7 @@ export const cleanAcc = (raw: any): Acc => { const a = defaultAcc(); if (raw && 
 /** What a child's laptop shows, and what the teacher sees about it. */
 export type Laptop = { id: string; name: string; worksheetId: string; answers: Record<string, string>; step: number; done: boolean; seen: string; linkedAt: string; acc: Acc };
 
-export const LIMITS = { items: 60, text: 1200, choices: 6, choice: 200, title: 80, pages: 4, worksheets: 60, laptops: 60, readsPerDay: 40, name: 24 };
+export const LIMITS = { items: 60, text: 1200, choices: 6, choice: 200, title: 80, pages: 8, worksheets: 60, laptops: 60, readsPerDay: 80, name: 24 };
 export const PAIR_MINUTES = 30;
 /** How long a linked laptop stays linked (a school day, give or take). */
 export const LAPTOP_HOURS = 10;
