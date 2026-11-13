@@ -14,7 +14,7 @@ on:
       contact_email: { description: App Review contact email, required: false, default: "" }
 jobs:
   fill:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment: app-store
     permissions:
