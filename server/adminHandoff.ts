@@ -17,7 +17,7 @@ type Authentication = (req: any, res: Response, next: NextFunction) => unknown;
 type SessionLookup = (token: string) => Promise<{ user?: any } | null | undefined>;
 type Ticket = { sessionToken: string; userId: number; expiresAt: number };
 /** A plan-page ticket: an Arise session, or (from Podster, whose accounts are separate) a verified email. */
-type PayTicket = { sessionToken: string; userId: number; expiresAt: number; email?: string; usedAt?: number; uses?: number };
+type PayTicket = { sessionToken: string; userId: number; expiresAt: number; email?: string; usedAt?: number; uses?: number; signedIn?: { user: any; token: string } };
 /** Signs in the Arise account for a verified email, making one if there isn't one (Podster's All Access). */
 export type EmailAccount = (email: string) => Promise<{ user: any; token: string } | null>;
 
@@ -109,11 +109,12 @@ export function registerAdminHandoffRoutes(
     }
     ticket.usedAt = ticket.usedAt ?? t; ticket.uses = (ticket.uses ?? 0) + 1;
     try {
-      if (ticket.email && !ticket.sessionToken) {
-        // From Podster: the Arise account for that verified email (made now if there isn't one).
-        const got = opts.emailAccount ? await opts.emailAccount(ticket.email) : null;
+      if (ticket.email) {
+        // From Podster: the Arise account for that verified email (made now if there isn't one), once;
+        // opening the link again gives the same sign-in.
+        const got = ticket.signedIn ?? (opts.emailAccount ? await opts.emailAccount(ticket.email) : null);
         if (!got) return res.status(401).json({ message: "Please sign in." });
-        ticket.sessionToken = got.token; ticket.userId = Number(got.user.id);
+        ticket.signedIn = got; ticket.sessionToken = got.token; ticket.userId = Number(got.user.id);
         return res.json({ user: got.user, token: got.token });
       }
       const session = await getSession(ticket.sessionToken);
