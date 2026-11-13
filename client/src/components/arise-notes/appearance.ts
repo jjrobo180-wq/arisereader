@@ -1,4 +1,4 @@
-// Light / Dark / Auto for the Notes tab and the typing screen. Auto follows the phone (or computer), so
+// Light / Dark / Auto for the Notes tab and the typing screen. New accounts start on Light; Auto follows the phone (or computer), so
 // dark mode just works; the choice is kept on this device, like Apple Notes does.
 import { useEffect, useState } from "react";
 
@@ -7,9 +7,9 @@ const KEY = "arise-notes-appearance";
 const EVENT = "arise-notes-appearance";
 
 export function getAppearance(): Appearance {
-  try { const v = localStorage.getItem(KEY); return v === "light" || v === "dark" ? v : "auto"; } catch { return "auto"; }
+  try { const v = localStorage.getItem(KEY); return v === "auto" || v === "dark" ? v : "light"; } catch { return "light"; }
 }
-/** Has this device ever been given a choice? (Until then it is Auto.) */
+/** Has this device ever been given a choice? (Until then it is Day, the light look, so new accounts never open dark.) */
 export function hasAppearance(): boolean { try { return localStorage.getItem(KEY) !== null; } catch { return false; } }
 export function setAppearance(v: Appearance) {
   try { localStorage.setItem(KEY, v); } catch { /* not kept */ }
