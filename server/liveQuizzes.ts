@@ -1,3 +1,4 @@
+import { siteAiConfigured, siteFirst } from "./aiChatBackup";
 import type { Express } from "express";
 import { randomBytes } from "node:crypto";
 import { getAdminSupabase } from "./supabase";
@@ -206,8 +207,9 @@ async function generateLiveQuizWithAI(input: {
   gameType: GameType;
   notes?: string;
 }) {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) throw new Error("AI quiz generation is not configured yet.");
+  // The site's AI first (Groq/Grok); Perplexity only as a backup — its credit running out broke this before.
+  const apiKey = await getPerplexityApiKey().catch(() => "");
+  if (!apiKey && !siteAiConfigured()) throw new Error("AI quiz generation is not configured yet.");
   const styleGuide: Record<GameType, string> = {
     quiz: "Fast classroom competition like a polished live multiple-choice quiz.",
     flash: "Quizlet-like vocabulary/definition matching. Keep prompts concise and answer choices easy to scan.",
@@ -242,22 +244,21 @@ Rules:
 - value should be a classroom game value from 100 to 2000.
 - No markdown and no commentary.`;
 
-  const response = await fetch("https://api.perplexity.ai/chat/completions", {
+  const response = await siteFirst({
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "sonar",
       messages: [
         { role: "system", content: "You create safe, accurate K-12 classroom games and return only valid JSON." },
         { role: "user", content: prompt },
       ],
       temperature: .65,
+      response_format: { type: "json_object" },
     }),
     signal: AbortSignal.timeout(60000),
-  });
+  }, { perplexityKey: apiKey });
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`AI generation failed (${response.status}). ${detail.slice(0, 160)}`);
+    console.error("[live-quiz] AI failed:", response.status, (await response.text().catch(() => "")).slice(0, 200));
+    throw new Error("The AI couldn't make the game right now. Try again in a minute.");
   }
   const data = await response.json() as any;
   const raw = String(data?.choices?.[0]?.message?.content || "").trim();

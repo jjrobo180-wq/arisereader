@@ -1,3 +1,4 @@
+import { siteAiConfigured, siteFirst } from "./aiChatBackup";
 // Study Squad — server. The study hall (who is where), its tables (one
 // StudyRoom each), study sets, AI-made sets, class rules for teachers, and the
 // coins and weekly board readers earn. Storage is the settings table, passed
@@ -172,8 +173,9 @@ export function registerStudyRoutes(app: Express, auth: RequestHandler, deps: St
   };
 
   async function generateSet(input: { topic: string; notes: string; grade: string; count: number; format: string }) {
-    const apiKey = await deps.aiKey();
-    if (!apiKey) throw new Refused("AI study sets aren't set up yet. You can still write your own or paste a list.");
+    // The site's AI first (Groq/Grok); Perplexity (deps.aiKey) only as a backup.
+    const apiKey = await deps.aiKey().catch(() => "");
+    if (!apiKey && !siteAiConfigured()) throw new Refused("AI study sets aren't set up yet. You can still write your own or paste a list.");
     const prompt = `Make a study set for students.
 
 TOPIC: ${input.topic || "(use the study material below)"}
@@ -196,11 +198,10 @@ Rules:
 - School-appropriate only: no politics, religion, violence, romance, or anything unkind about a person or group.
 - Don't repeat a question. Don't use "all of the above" or "none of the above".
 - No markdown, no commentary, JSON only.`;
-    const response = await doFetch("https://api.perplexity.ai/chat/completions", {
+    const response = await siteFirst({
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "sonar",
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "You write accurate, age-appropriate K-12 study questions and return only valid JSON." },
           { role: "user", content: prompt },
@@ -208,7 +209,7 @@ Rules:
         temperature: 0.4,
       }),
       signal: AbortSignal.timeout(60_000),
-    });
+    }, { perplexityKey: apiKey, fetch: doFetch });
     if (!response.ok) throw new Refused("The AI couldn't make a set right now. Try again in a minute.", 502);
     const data = (await response.json()) as any;
     const raw = String(data?.choices?.[0]?.message?.content || "");
@@ -395,7 +396,7 @@ Rules:
       room: roomOf(u.id)?.code ?? null,
       sets: sets.map((s) => summarize(s, u.id)),
       rules,
-      ai: { available: !!key && !aiLocked, locked: aiLocked, left: Math.max(0, limit - (Number(used) || 0)), perDay: limit },
+      ai: { available: (!!key || siteAiConfigured()) && !aiLocked, locked: aiLocked, left: Math.max(0, limit - (Number(used) || 0)), perDay: limit },
       stats: { games: stats.games, wins: stats.wins, correct: stats.correct, answered: stats.answered, coinsToday: stats.coinDay === clubDay(now) ? stats.coinsToday : 0 },
       rewards: STUDY_REWARDS,
       board,

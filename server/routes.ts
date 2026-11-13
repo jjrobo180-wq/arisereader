@@ -164,6 +164,7 @@ import { raw, text as expressText } from "express";
 import { confirmPicked, lookupBook, type LookupDeps } from "./bookLookup";
 import type { BookCandidate, QuizVerification } from "../shared/bookMatch";
 import { checkBookContent, contentNotice, isKidSafeSuggestion } from "../shared/bookContent";
+import { answeredWithoutWeb, webFirst } from "./aiChatBackup";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -230,10 +231,8 @@ async function getPerplexityApiKey(): Promise<string> {
 }
 
 async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string; evidence?: string; source?: string }>; bookGradeLevel: string; pointsValue: number; sources: string[]; aiUnsure: boolean; audience?: string; contentWarning?: string } | { error: string }> {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) {
-    return { error: "AI quizzes aren't available right now. Please try again later." };
-  }
+  // Perplexity first (it checks the web), the site's AI if Perplexity can't answer (server/aiChatBackup.ts).
+  const apiKey = await getPerplexityApiKey().catch(() => "");
   try {
     // Load admin-configured quiz guidelines
     let guidelines = "";
@@ -270,12 +269,8 @@ Rules:
 - Focus on the story content, characters, plot, and themes
 - Return exactly 10 questions${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
 
-    const res = await fetch(PERPLEXITY_API_URL, {
+    const res = await webFirst({
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
         model: "sonar",
         messages: [
@@ -285,11 +280,12 @@ Rules:
         temperature: 0.2,
       }),
       signal: AbortSignal.timeout(60000),
-    });
+    }, { perplexityKey: apiKey });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      return { error: `AI API error ${res.status}: ${errText.slice(0, 200)}` };
+      console.error("[ai] quiz failed:", res.status, errText.slice(0, 200));
+      return { error: "The AI is busy right now. Try again in a minute." };
     }
 
     const data = await res.json() as any;
@@ -352,7 +348,8 @@ Rules:
       ...validQuestions.map((q: any) => q.source),
     ].filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u));
     const sources = [...new Set(cited)].slice(0, 12);
-    const aiUnsure = parsed.bookFound === false;
+    // Written by the site's AI without a web lookup (Perplexity was out): a teacher should check it.
+    const aiUnsure = parsed.bookFound === false || answeredWithoutWeb(res);
     const audience = typeof parsed.audience === "string" ? parsed.audience.toLowerCase().trim().slice(0, 20) : undefined;
     const contentWarning = typeof parsed.contentWarning === "string" ? parsed.contentWarning.trim().slice(0, 240) : undefined;
 
@@ -364,12 +361,10 @@ Rules:
 
 /** "Did you mean": the AI's guess at the real published book a student meant ("Dog Man 2" → "Dog Man Unleashed"). Checked against Open Library before it's shown. */
 async function aiGuessBook(title: string, author: string): Promise<{ title: string; author: string } | null> {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) return null;
+  const apiKey = await getPerplexityApiKey().catch(() => "");
   try {
-    const res = await fetch(PERPLEXITY_API_URL, {
+    const res = await webFirst({
       method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "sonar",
         temperature: 0,
@@ -379,7 +374,7 @@ async function aiGuessBook(title: string, author: string): Promise<{ title: stri
         ],
       }),
       signal: AbortSignal.timeout(12000),
-    });
+    }, { perplexityKey: apiKey });
     if (!res.ok) return null;
     const data = (await res.json()) as any;
     const m = String(data.choices?.[0]?.message?.content || "").match(/\{[\s\S]*\}/);
@@ -391,10 +386,7 @@ async function aiGuessBook(title: string, author: string): Promise<{ title: stri
 
 // Generate iArise lesson content via AI — short readable lessons for students
 async function generateIariseLessonContent(topic: string, ageGroup: string): Promise<{ title: string; lessons: Array<{ title: string; content: string }> } | { error: string }> {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) {
-    return { error: "AI lesson generation is not configured." };
-  }
+  const apiKey = await getPerplexityApiKey().catch(() => "");
   try {
     const prompt = `You are an expert educator creating lesson content for students. Create a short lesson series about "${topic}" for ${ageGroup} students.
 
@@ -410,12 +402,8 @@ Rules:
 - End each lesson with a "Key takeaway:" line
 - Keep it engaging and easy to read`;
 
-    const res = await fetch(PERPLEXITY_API_URL, {
+    const res = await webFirst({
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
         model: "sonar",
         messages: [
@@ -425,10 +413,10 @@ Rules:
         temperature: 0.7,
       }),
       signal: AbortSignal.timeout(60000),
-    });
+    }, { perplexityKey: apiKey });
 
     if (!res.ok) {
-      return { error: `AI API error ${res.status}` };
+      return { error: "The AI is busy right now. Try again in a minute." };
     }
 
     const data = await res.json() as any;
@@ -730,10 +718,8 @@ async function qualityCheckQuiz(validQuestions: any[], allPics: boolean): Promis
 }
 
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true, customQuestions?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
-  const apiKey = await getPerplexityApiKey();
-  if (!apiKey) {
-    return { error: "AI quizzes aren't available right now. Please try again later." };
-  }
+  // Perplexity first (it checks the web), the site's AI if Perplexity can't answer (server/aiChatBackup.ts).
+  const apiKey = await getPerplexityApiKey().catch(() => "");
   try {
     let guidelines = "";
     try {
@@ -822,12 +808,8 @@ Return ONLY a JSON object (no markdown, no explanation, no code blocks) with thi
 Create exactly ${questionCount} questions. DO NOT use emojis. Each question has exactly 4 options. The correct_answer is a single letter A, B, C, or D. Make option texts concrete image-searchable nouns.${guidelines ? `\n\nAdditional guidelines from the admin:\n${guidelines}` : ""}`;
     }
 
-    const res = await fetch(PERPLEXITY_API_URL, {
+    const res = await webFirst({
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
         model: "sonar",
         messages: [
@@ -837,11 +819,12 @@ Create exactly ${questionCount} questions. DO NOT use emojis. Each question has 
         temperature: 0.7,
       }),
       signal: AbortSignal.timeout(60000),
-    });
+    }, { perplexityKey: apiKey });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      return { error: `AI API error ${res.status}: ${errText.slice(0, 200)}` };
+      console.error("[ai] quiz failed:", res.status, errText.slice(0, 200));
+      return { error: "The AI is busy right now. Try again in a minute." };
     }
 
     const data = await res.json() as any;
