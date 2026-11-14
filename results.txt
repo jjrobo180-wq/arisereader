@@ -1,0 +1,26 @@
+iphone: gallery shows 4/4 of the apps (1,1,1,1)
+iphone: Cooked: heading shown; pages: Today · Train · Food · Run · Fasting · Sleep · Ready · Yoga · Breathe · Water · Stats · Friends · Plugins
+iphone: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+iphone: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+iphone: Podster: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study Podster · Social · Library
+iphone: menu has Cooked: true
+iphone: menu has Cooked PT: true
+iphone: menu has Arise Notes: true
+iphone: menu has Podster: true
+iphone-night: Cooked: heading shown; pages: Today · Train · Food · Run · Fasting · Sleep · Ready · Yoga · Breathe · Water · Stats · Friends · Plugins
+iphone-night: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+iphone-night: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+iphone-night: Podster: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study Podster · Social · Library
+desktop: gallery shows 4/4 of the apps (1,1,1,1)
+desktop: Cooked: heading shown; pages: Today · Train · Food · Run · Fasting · Sleep · Ready · Yoga · Breathe · Water · Stats · Friends · Plugins
+desktop: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+desktop: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+desktop: Podster: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study Podster · Social · Library
+desktop: menu has Cooked: true
+desktop: menu has Cooked PT: true
+desktop: menu has Arise Notes: true
+desktop: menu has Podster: true
+desktop-night: Cooked: heading shown; pages: Today · Train · Food · Run · Fasting · Sleep · Ready · Yoga · Breathe · Water · Stats · Friends · Plugins
+desktop-night: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+desktop-night: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+desktop-night: Podster: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study Podster · Social · Library
