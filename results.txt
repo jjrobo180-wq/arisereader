@@ -1,0 +1,15 @@
+iphone-safari: 2 task checkboxes on screen
+iphone-safari: on top at the checkbox before tapping: INPUT.absolute inset-0 cursor-pointer opacity-0 Done: Task 155
+iphone-safari: tap Done: Task 155 -> saves sent: 1; open tasks saved 2 → 1 (TICKED OK)
+iphone-safari: quick add -> saves sent: 1; saved has it: true
+iphone-safari: page errors: TypeError: undefined is not an object (evaluating 'h.withMe')
+phone-chrome: 2 task checkboxes on screen
+phone-chrome: on top at the checkbox before tapping: INPUT.absolute inset-0 cursor-pointer opacity-0 Done: Task 155
+phone-chrome: tap Done: Task 155 -> saves sent: 1; open tasks saved 2 → 1 (TICKED OK)
+phone-chrome: quick add -> saves sent: 1; saved has it: true
+phone-chrome: page errors: h.withMe is not iterable
+desktop: 2 task checkboxes on screen
+desktop: on top at the checkbox before tapping: INPUT.absolute inset-0 cursor-pointer opacity-0 Done: Task 155
+desktop: tap Done: Task 155 -> saves sent: 1; open tasks saved 2 → 1 (TICKED OK)
+desktop: quick add -> saves sent: 1; saved has it: true
+desktop: page errors: h.withMe is not iterable
