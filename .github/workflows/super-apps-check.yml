@@ -1,0 +1,51 @@
+name: Super apps in To Duo check (in a browser)
+# Cooked, Cooked PT, Arise Notes and Podster inside Arise To Duo: the built app, signed in, opens each plugin and
+# every page in its row, in Day and Night, on an iPhone and a computer. Screenshots and results go to the
+# super-apps-check branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, 'claude/duo-super-apps']
+    paths:
+      - 'client/src/components/super-apps/**'
+      - 'client/src/pages/AriseTodo.tsx'
+      - 'client/src/pages/fit/**'
+      - 'client/src/pages/trainer/**'
+      - 'client/src/components/arise-notes/**'
+      - 'client/src/components/family-hub/earshot/**'
+      - 'podscroll/*.tsx'
+      - 'shared/superApps.ts'
+      - 'script/superAppsCheck.ts'
+      - '.github/workflows/super-apps-check.yml'
+permissions:
+  contents: write
+concurrency:
+  group: super-apps-check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+      - name: Open each plugin and every page
+        timeout-minutes: 25
+        run: npx tsx script/superAppsCheck.ts
+      - name: Save to the super-apps-check branch
+        if: always()
+        working-directory: screens
+        run: |
+          git init -q -b super-apps-check
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Super apps check ${GITHUB_SHA::7}" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" super-apps-check

@@ -1,7 +1,7 @@
 // Cooked PT: the coaching app for personal trainers (the iPhone app built with VITE_NATIVE_APP=trainer,
 // and #/trainer on the website). Tabs: Clients, Inbox, Schedule, Library, Business. Clients come from
 // Cooked, with their training, food and health data shared automatically (server/coach.ts).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BadgeCheck, Bell, Briefcase, CalendarDays, CheckSquare, ChevronRight, Dumbbell, Inbox, BookOpen, LayoutTemplate, LogOut, Megaphone, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Square, Star, Trash2, UserPlus, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
@@ -11,7 +11,7 @@ import { startApplePush } from "@/lib/applePush";
 import { MODES, MODE_LABEL, PER_LABEL, SPECIALTIES, US_STATES, cleanTrainer, fromCents, money, type Library, type Mode, type Per, type Price, type PublicTrainer, type TrainerProfile } from "@shared/coach";
 import { Avatar, Stars, TrainerPage } from "../coach/CoachUi";
 import { ago, coachApi, post, put, shortDate, shrinkImage, usePoll, when, type ClientRow, type TrainerHome } from "../coach/coachApi";
-import { Btn, C, Card, Chips, Field, Ring, Sheet, Title, display, font, glowBg, inputCls, inputStyle, stagger, useFitFonts, Layer, StatusShade, ThemePicker } from "../fit/fitUi";
+import { Btn, useDuoLook, C, Card, Chips, Field, Ring, Sheet, Title, display, font, glowBg, inputCls, inputStyle, stagger, useFitFonts, Layer, StatusShade, ThemePicker } from "../fit/fitUi";
 import { ClientSheet } from "./TrainerClient";
 import { FormBuilder, OwnExerciseSheet, ProgramBuilder, WorkoutBuilder, newId } from "./TrainerBuilder";
 import { AiBuilderSheet, InviteSheet, TemplatesSheet } from "./TrainerTemplates";
@@ -26,26 +26,36 @@ import { BrandCard } from "../coach/Brand";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
-export default function TrainerApp() {
+/** Cooked PT inside Arise To Duo (components/super-apps/CookedPtInDuo.tsx): To Duo draws the heading and the
+ *  row of pages (`top`, with what's waiting on each), Cooked PT the page, in To Duo's look and messages. */
+export type TrainerEmbed = {
+  night: boolean;
+  say: (m: string) => void;
+  top: (p: { tabs: { id: string; label: string; badge: number }[]; tab: string; go: (id: string) => void; openBell: () => void }) => ReactNode;
+  start?: string | null;
+};
+
+export default function TrainerApp({ embed }: { embed?: TrainerEmbed } = {}) {
   useFitFonts();
+  useDuoLook(embed ? (embed.night ? "dark" : "light") : null);
   const { user, token } = useAuth();
   const me = Number(user?.id) || 0;
   const { data, err, reload, setData } = usePoll(() => coachApi<TrainerHome>(token, "/trainer"), [token], 30_000);
-  const [tab, setTab] = useState<Tab>("clients");
+  const [tab, setTab] = useState<Tab>(() => (["clients", "inbox", "schedule", "library", "business"].includes(embed?.start ?? "") ? embed!.start as Tab : "clients"));
   const [open, setOpen] = useState<ClientRow | null>(null);
   const [toast, setToast] = useState("");
   const [bell, setBell] = useState(false);
-  const say = (m: string) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); };
+  const say = (m: string) => { if (embed) { embed.say(m); return; } setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), 2600); };
   // Notifications for new requests, messages and check-ins (asks once, the first time).
   useEffect(() => { if (isNativeApp()) void startApplePush(true); }, []);
   // Reminders before each booked session, kept in step with the schedule (Notifications).
   useSessionReminders(token, data?.clients);
-  useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
+  useEffect(() => { if (embed) return; const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Back from Stripe after starting the listing plan.
   useEffect(() => {
     const m = window.location.hash.match(/[?&]listing=(cs_[A-Za-z0-9_]+)/);
     if (!m) return;
-    window.location.hash = "#/trainer";
+    window.location.hash = embed ? "#/to-do?go=cookedpt" : "#/trainer";
     void post(token, "/trainer/listing/confirm", { session: m[1] }).then(() => { say("Your listing is live!"); reload(); setTab("business"); }).catch((e) => say(e.message));
   }, [token, reload]);
   const saveLib = async (library: Library) => { if (!data) return; setData({ ...data, library }); try { await put(token, "/trainer/library", { library }); } catch (e: any) { say(e.message); } };
@@ -54,16 +64,29 @@ export default function TrainerApp() {
   const requests = (data?.clients ?? []).filter((c) => c.status === "requested").length;
   const tabs: [Tab, string, typeof Users, number][] = [["clients", "Clients", Users, requests], ["inbox", "Inbox", Inbox, unread], ["schedule", "Schedule", CalendarDays, 0], ["library", "Library", BookOpen, 0], ["business", "Business", Briefcase, 0]];
   const at = tabs.findIndex(([id]) => id === tab);
+  const page = <>
+    {!data ? <p className="mt-24 text-center" style={{ color: C.dim }}>{err || "Loading…"}</p> : <div key={tab} className="fit-in">
+      {tab === "clients" && <Clients data={data} token={token} onOpen={setOpen} say={say} goBusiness={() => setTab("business")} onBell={() => setBell(true)} />}
+      {tab === "inbox" && <InboxTab data={data} onOpen={setOpen} />}
+      {tab === "schedule" && <Schedule token={token} data={data} onOpen={setOpen} onBell={() => setBell(true)} />}
+      {tab === "library" && <LibraryTab lib={data.library} saveLib={saveLib} token={token} say={say} />}
+      {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
+    </div>}
+  </>;
+  const sheets = <>
+    {bell && <TrainerNotificationsSheet onClose={() => setBell(false)} />}
+    {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} say={say} onClose={() => { setOpen(null); reload(); }} />}
+  </>;
+  // Inside To Duo: To Duo's heading and row of pages (with what's waiting on each), then the page.
+  if (embed) return <div className="min-w-0" style={{ color: C.text, ...font }} data-testid="trainer-app" data-fit-embed="duo">
+    {embed.top({ tabs: tabs.map(([id, label, , badge]) => ({ id, label, badge })), tab, go: (id) => setTab(id as Tab), openBell: () => setBell(true) })}
+    {page}
+    {sheets}
+  </div>;
   return <div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="trainer-app">
     <StatusShade />
     <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
-      {!data ? <p className="mt-24 text-center" style={{ color: C.dim }}>{err || "Loading…"}</p> : <div key={tab} className="fit-in">
-        {tab === "clients" && <Clients data={data} token={token} onOpen={setOpen} say={say} goBusiness={() => setTab("business")} onBell={() => setBell(true)} />}
-        {tab === "inbox" && <InboxTab data={data} onOpen={setOpen} />}
-        {tab === "schedule" && <Schedule token={token} data={data} onOpen={setOpen} onBell={() => setBell(true)} />}
-        {tab === "library" && <LibraryTab lib={data.library} saveLib={saveLib} token={token} say={say} />}
-        {tab === "business" && <Business data={data} token={token} reload={reload} say={say} />}
-      </div>}
+      {page}
     </main>
     <nav aria-label="Cooked PT" className="fixed inset-x-3 z-[40] mx-auto flex max-w-md items-center rounded-[14px] p-1.5" style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: C.nav, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: `${C.navShadow}, inset 0 0 0 1px ${C.navBorder}` }}>
       <span aria-hidden className="absolute bottom-1.5 top-1.5 rounded-[10px]" style={{ width: `calc((100% - 12px) / ${tabs.length})`, left: `calc(6px + ${at} * (100% - 12px) / ${tabs.length})`, background: "linear-gradient(180deg, rgba(var(--fit-accent-rgb),.24), rgba(var(--fit-accent-rgb),.08))", boxShadow: "inset 0 -2px 0 var(--fit-accent)", transition: "left .35s cubic-bezier(.2,.9,.2,1)" }} />
@@ -71,8 +94,7 @@ export default function TrainerApp() {
         className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-[11px] uppercase tracking-[.06em] transition-colors" style={{ fontFamily: display.fontFamily, fontWeight: 800, color: tab === id ? C.lime : C.dim }}>
         <Icon className="h-[22px] w-[22px]" />{label}{badge > 0 && <span className="fit-pop absolute right-[18%] top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px]" style={{ background: C.lime, color: "var(--fit-on-accent)" }}>{badge}</span>}</button>)}
     </nav>
-    {bell && <TrainerNotificationsSheet onClose={() => setBell(false)} />}
-    {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} say={say} onClose={() => { setOpen(null); reload(); }} />}
+    {sheets}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed left-1/2 z-[95] -translate-x-1/2 rounded-full px-4 py-2.5 text-[14px] font-semibold shadow-xl transition ${toast ? "opacity-100" : "opacity-0"}`} style={{ top: "max(16px, env(safe-area-inset-top))", background: C.text, color: C.bg }}>{toast}</div>
   </div>;
 }

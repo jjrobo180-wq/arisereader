@@ -3,7 +3,7 @@
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Cooked prototype (fitUi.tsx).
 import AllAccessPopup from "@/components/AllAccessPopup";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
@@ -46,7 +46,7 @@ import { HealthSheet, RemindersSheet, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
 import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoOfTheDay } from "@shared/fitVideos";
-import { Bar, Btn, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx, useFitLayout, useFitTheme, layoutChoice, type LayoutId } from "./fitUi";
+import { Bar, Btn, useDuoLook, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx, useFitLayout, useFitTheme, layoutChoice, type LayoutId } from "./fitUi";
 import { BloomFlower, BloomRitual, FitNav, LayoutPicker, ProTiles, StudioTrio, ZenRows, type DayVals } from "./FitLayouts";
 import { AskFitCard, FitAsk } from "./FitAsk";
 import { ProPlusAnalysis, ProPlusBoard } from "./FitProPlus";
@@ -327,15 +327,36 @@ export default function FitApp() {
   </PlusProvider>;
 }
 
-function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: string) => void }) {
+/** Cooked inside Arise To Duo (components/super-apps/CookedInDuo.tsx): To Duo draws the heading and the row of
+ *  pages (`top`), Cooked draws the page in To Duo's look (useDuoLook), and its sheets open over To Duo. */
+export type FitEmbed = {
+  night: boolean;
+  /** To Duo's heading and page row, given Cooked's pages: Today, every Cooked plugin with a screen, Plugins. */
+  top: (p: { tabs: { id: string; label: string }[]; tab: string; go: (id: string) => void; openSettings: () => void }) => ReactNode;
+  /** The page to open on (a link into To Duo, like go=cooked&page=food). */
+  start?: string | null;
+  /** A trainer's invite code from a link (#/to-do?go=cooked&coach=…). */
+  coach?: string | null;
+};
+
+/** Cooked as a plugin inside Arise To Duo: the same screens and data, To Duo's look, To Duo's messages. */
+export function FitInDuo({ say, embed }: { say: (m: string) => void; embed: FitEmbed }) {
+  const [passCode, setPassCode] = useState<string | undefined>();
+  return <PlusProvider say={say} passCode={passCode} onPassShown={() => setPassCode(undefined)}>
+    <FitMain say={say} onPass={setPassCode} embed={embed} />
+  </PlusProvider>;
+}
+
+function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (code: string) => void; embed?: FitEmbed }) {
   const { user, token } = useAuth();
   useEffect(() => { prefetchNearby(token); }, [token]);
   const { data, update, loaded, saving } = useFitData(token);
   useFitFonts();
   const chosenLayout = useFitLayout();
+  useDuoLook(embed ? (embed.night ? "dark" : "light") : null);
   const fetched = useLibrary(token);
   const list = fetched && fetched.length ? fetched : libraryFallback();
-  const [tab, setTab] = useState<Tab>(readTab);
+  const [tab, setTab] = useState<Tab>(() => (embed?.start as Tab | undefined) || readTab());
   const [app, setApp] = useState<FitAppId | null>(null);
   const [active, setActive] = useState(readActive);
   const [setup, setSetup] = useState(false);
@@ -350,7 +371,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
       .then(async (r) => { const b = await r.json().catch(() => null); say(r.ok ? "Payment sent. Thank you!" : b?.message || "We couldn't confirm that payment yet."); }).catch(() => {});
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
   // A trainer's invite link (#/fit?coach=CODE): the join sheet opens once, and the address is cleaned so a reload doesn't repeat it.
-  const [invite, setInvite] = useState<string | null>(() => { const m = /[?&]coach=([0-9a-z]{1,10}-[A-Za-z0-9_-]{10})/.exec(window.location.href); return m ? m[1] : null; });
+  const [invite, setInvite] = useState<string | null>(() => { if (embed?.coach) return embed.coach; const m = /[?&]coach=([0-9a-z]{1,10}-[A-Za-z0-9_-]{10})/.exec(window.location.href); return m ? m[1] : null; });
   useEffect(() => { if (!invite) return; try { history.replaceState(null, "", `${window.location.pathname}${window.location.search}${window.location.hash.replace(/[?&]coach=[^&]*/, "").replace(/\?$/, "")}`); } catch { /* keep the address */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [form, setForm] = useState(false);
   const [body, setBody] = useState(false);
@@ -358,14 +379,17 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   const [account, setAccount] = useState(false);
   const { plus, ask, loaded: plusLoaded } = usePlus();
   // Pro+ is Fit+: without it (or once it ends) the app shows the plain Pro layout.
-  const layout = chosenLayout === "proplus" && !plus ? "pro" : chosenLayout;
+  // Inside To Duo, Today keeps one arrangement and To Duo's own type (the layouts are Cooked's own look).
+  const layout = embed ? "athletic" : chosenLayout === "proplus" && !plus ? "pro" : chosenLayout;
   const [over, setOverRaw] = useState<Over>("");
   // Gyms near me and Eat out are Fit+.
   const setOver = (o: Over) => { if ((o === "gyms" || o === "eat") && !plus) { ask(o === "gyms" ? "gyms" : "eat-out"); return; } setOverRaw(o); };
   const [joinCode, setJoinCode] = useState<string | undefined>();
   const [snap, setSnap] = useState(false);
   const apps = appsOf(data.apps);
-  const tabIds = apps.tabs.filter((id) => FIT_APP_BY_ID.get(id)?.tab);
+  // Inside To Duo the row of pages has room for every added plugin with a screen of its own (the iPhone
+  // app's tab bar holds three).
+  const tabIds = (embed ? apps.added : apps.tabs).filter((id) => FIT_APP_BY_ID.get(id)?.tab);
   const sleepAuto = useSleepAuto(data, update, loaded, say);
   // Siri, Shortcuts and links: run once the data is here (a link can arrive before it loads).
   const [pending, setPending] = useState<SiriAction | null>(null);
@@ -380,7 +404,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
   // Apple Watch (native/fit-watch): today's numbers, water in a tap, and workouts tracked on the watch.
   useEffect(() => { if (loaded) publishWatch({ slots: fitWidgetSlots(data, latestKg(data)).filter((s) => ["fit.calories", "fit.water", "fit.workouts", "fit.next", "fit.streak", "fit.protein"].includes(s.id)) }); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!loaded) return; return watchActions((actions) => update((d) => applyWatchActions(d, actions))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []);
+  useEffect(() => { if (embed) return; const was = document.documentElement.style.background; document.documentElement.style.background = C.bg; return () => { document.documentElement.style.background = was; }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const startProgram = () => {
     const prog = data.program ? PROGRAM_BY_ID.get(data.program.id) : undefined; if (!prog || !data.program) return;
     const next = nextProgramDay(prog, data.program.done);
@@ -394,6 +418,7 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     haptic("light");
     if (!back) trail.current = [...trail.current.filter((x) => x !== t), tab].slice(-12);
     setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 });
+    if (embed) window.scrollTo({ top: 0 });
   };
   const goBack = () => {
     let to = trail.current.pop();
@@ -401,8 +426,9 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     go(to ?? "today", true);
   };
   // iPhone swipe-back / browser back: one entry in the history while a screen other than Today is open.
+  // (Inside To Duo, To Duo's own Back looks after that.)
   useEffect(() => {
-    if (tab === "today") return;
+    if (tab === "today" || embed) return;
     window.history.pushState({ fitTab: tab }, "");
     const onPop = () => goBack();
     window.addEventListener("popstate", onPop, { once: true });
@@ -472,28 +498,22 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
       default: return null;
     }
   };
-  return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
-    <StatusShade />
-    <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,var(--sat,env(safe-area-inset-top,0px)))]">
-      {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
-      <div key={tab} className="fit-in">
-        {tab === "today" && <TodayTab layout={layout} data={data} update={update} onApp={openApp} onAllApps={() => go("apps")} onStartProgram={startProgram} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={startNow} onOver={setOver} token={token} user={first} list={list} sleepGuess={sleepAuto.guess} onSkipSleep={sleepAuto.skip} say={say} />}
-        {tab === "apps" && <AppsTab data={data} update={update} say={say} onOpen={openApp} />}
-        {tab !== "today" && tab !== "apps" && screen(tab, true, goBack)}
-      </div>
-      {saving === "offline" && <p className="mt-6 text-center text-[12px]" style={{ color: C.dim }}>Offline: changes are kept on this phone and will save when you're back online.</p>}
-    </main>
-    {/* The clock and the island sit over a soft band of the page's color, so nothing scrolls under them
-        unreadably; and the tab bar has a fade under it, so the page doesn't peek out below it. */}
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[39]" style={{ height: "calc(var(--sat,env(safe-area-inset-top,0px)) + 12px)", backgroundColor: C.bg, backgroundImage: glowBg, backgroundSize: "100% 100dvh", backgroundRepeat: "no-repeat", WebkitMaskImage: "linear-gradient(#000 calc(100% - 12px), transparent)", maskImage: "linear-gradient(#000 calc(100% - 12px), transparent)" }} data-testid="fit-top-shade" />
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 z-[39]" style={{ height: "calc(env(safe-area-inset-bottom) + 96px)", background: `linear-gradient(transparent, ${C.bg} 62%)` }} />
-    <FitNav layout={layout} tabs={tabs} tab={tab} go={(id) => go(id as Tab)} />
+  const page = <>
+    {/* key={tab}: each tab's screen re-mounts, so it slides up into place and its rings and bars fill. */}
+    <div key={tab} className="fit-in">
+      {tab === "today" && <TodayTab layout={layout} data={data} update={update} onApp={openApp} onAllApps={() => go("apps")} onStartProgram={startProgram} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={startNow} onOver={setOver} token={token} user={first} list={list} sleepGuess={sleepAuto.guess} onSkipSleep={sleepAuto.skip} say={say} />}
+      {tab === "apps" && <AppsTab data={data} update={update} say={say} onOpen={openApp} />}
+      {tab !== "today" && tab !== "apps" && screen(tab, true, goBack)}
+    </div>
+    {saving === "offline" && <p className="mt-6 text-center text-[12px]" style={{ color: C.dim }}>Offline: changes are kept on this phone and will save when you're back online.</p>}
+  </>;
+  const sheets = <>
     {app && screen(app, false, () => setApp(null))}
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
     {/* After setup (the first-run goals): the All Access pop-up, once. */}
-    <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise All Access adds Premium with a guest pass for a friend, plus the extras in To Duo, Notes and Podster." />
+    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise All Access adds Premium with a guest pass for a friend, plus the extras in To Duo, Notes and Podster." />}
     {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}
@@ -512,6 +532,24 @@ function FitMain({ say, onPass }: { say: (m: string) => void; onPass: (code: str
     {over === "counter" && <CounterScreen kind="mind" update={update} say={say} onClose={() => setOver("")} />}
     {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
+  </>;
+  // Inside To Duo: To Duo's heading and row of pages, then the page, in the page's own flow (To Duo scrolls).
+  if (embed) return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="min-w-0" style={{ color: C.text, ...font }} data-testid="fit-app" data-fit-embed="duo">
+    {embed.top({ tabs: tabs.map(([id, label]) => ({ id, label })), tab, go: (id) => go(id as Tab), openSettings: () => setSettings(true) })}
+    {page}
+    {sheets}
+  </div></PointsModeCtx.Provider>;
+  return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
+    <StatusShade />
+    <main id="fit-main" className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-[max(14px,var(--sat,env(safe-area-inset-top,0px)))]">
+      {page}
+    </main>
+    {/* The clock and the island sit over a soft band of the page's color, so nothing scrolls under them
+        unreadably; and the tab bar has a fade under it, so the page doesn't peek out below it. */}
+    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[39]" style={{ height: "calc(var(--sat,env(safe-area-inset-top,0px)) + 12px)", backgroundColor: C.bg, backgroundImage: glowBg, backgroundSize: "100% 100dvh", backgroundRepeat: "no-repeat", WebkitMaskImage: "linear-gradient(#000 calc(100% - 12px), transparent)", maskImage: "linear-gradient(#000 calc(100% - 12px), transparent)" }} data-testid="fit-top-shade" />
+    <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 z-[39]" style={{ height: "calc(env(safe-area-inset-bottom) + 96px)", background: `linear-gradient(transparent, ${C.bg} 62%)` }} />
+    <FitNav layout={layout} tabs={tabs} tab={tab} go={(id) => go(id as Tab)} />
+    {sheets}
   </div></PointsModeCtx.Provider>;
 }
 

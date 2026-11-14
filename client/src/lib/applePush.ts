@@ -4,6 +4,7 @@
 // Apple device token once notifications are allowed; tapping a notification opens its page.
 import { apiRequest } from "@/lib/queryClient";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen, notificationHash } from "@/lib/nativeApp";
+import { duoLinkFor } from "@shared/superApps";
 
 /** Which app the server sends to (Arise To Duo unless this is the Educator app). */
 const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" || f === "reader" ? f : undefined; };
@@ -24,6 +25,10 @@ export const applePushAvailable = (): boolean => hasNativePlugin(PLUGIN);
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 const open = (url: string) => {
   if (!url) return;
+  // In Arise To Duo, Cooked, Cooked PT, Arise Notes and Podster are plugins: a coach's message (#/fit), a
+  // client's request (#/trainer) or a Notes alert opens that plugin here, not the app's own screens.
+  const inDuo = nativeFlavor() === "todo" ? duoLinkFor(url) : null;
+  if (inDuo) { window.location.hash = inDuo; return; }
   // Arise Notes links to its own page (/notes/#/usage); the Notes iPhone app is that page.
   const notes = /^\/notes\/#(.*)$/.exec(url);
   if (notes && nativeFlavor() === "notes") { window.location.hash = notes[1] || "/"; return; }

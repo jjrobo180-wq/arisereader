@@ -98,6 +98,11 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   dailyhub: { label: "Daily Reads", detail: "News, history, dictionary", icon: <BookOpenIcon size={17} /> },
   listhub: { label: "Lists", detail: "Reading, watchlist, bucket list", icon: <BookOpenIcon size={17} /> },
   focushub: { label: "Focus & Routines", detail: "Focus timer, clocks, routines", icon: <Wallet size={17} /> },
+  // Cooked, Cooked PT, Arise Notes and Podster, inside To Duo (shared/superApps.ts).
+  cooked: { label: "Cooked", detail: "Workouts, food, sleep and a coach", icon: <DumbbellIcon2 size={17} /> },
+  cookedpt: { label: "Cooked PT", detail: "Coach your clients", icon: <HeartHandshake size={17} /> },
+  arisenotes: { label: "Arise Notes", detail: "AI notes: record, transcribe, summarize", icon: <NotebookPen size={17} /> },
+  podster: { label: "Podster", detail: "Podcasts, audiobooks, radio and music", icon: <PodcastIcon3 size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };

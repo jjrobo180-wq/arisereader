@@ -136,7 +136,13 @@ import { Avatar, Modal } from "@/components/family-hub/ui";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
-import { Dumbbell as FamDumbbell, Podcast as FamPodcast, StickyNote as FamNotes, HeartHandshake as FamCoach } from "lucide-react";
+import { isSuperApp, type SuperAppId } from "@shared/superApps";
+import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
+// Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
+const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
+const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
+const NotesInDuo = lazy(() => import("@/components/super-apps/NotesInDuo"));
+const PodsterInDuo = lazy(() => import("@/components/super-apps/PodsterInDuo"));
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
@@ -295,6 +301,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2, accountability: BadgeCheckNav4,
   healthlite: HeartPulseNav2, inspire: NotebookPen, kitchen: ChefHatNav, moneyhub: Wallet, homehub: WrenchNav, datehub: CakeNav, dailyhub: Newspaper, listhub: ListTodo, focushub: TimerNav,
+  cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
@@ -426,6 +433,9 @@ export default function AriseTodo() {
     let t = ""; try { t = localStorage.getItem(JOIN_PENDING_KEY) || ""; } catch { /* none */ }
     if (/^[a-f0-9]{44}$/.test(t)) navigate(`/join/${t}`);
   }, [user?.id]);
+  // Cooked, Cooked PT, Arise Notes and Podster opened from a link or a notification: the page, episode or
+  // trainer's invite to open them on (#/to-do?go=podster&s=…&e=…, go=cooked&coach=…, go=arisenotes&page=record).
+  const [superStart, setSuperStart] = useState<{ app: SuperAppId; page: string | null; s: string | null; e: string | null; coach: string | null; at: number } | null>(null);
   // A tapped reminder opens "#/lifehub?go=<section>[&view=today]" (shared/todoReminders.ts goUrl):
   // straight to the screen it's about, then the address is tidied so a refresh doesn't do it again.
   useEffect(() => {
@@ -438,12 +448,14 @@ export default function AriseTodo() {
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         dismissOverlays();
         // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
-        if (go === "accountability" || go === "linked") setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
+        // The Cooked, Cooked PT, Notes and Podster plugins too (a coach's message, a new episode).
+        if (go === "accountability" || go === "linked" || isSuperApp(go)) setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
+        if (isSuperApp(go)) setSuperStart({ app: go, page: params.get("page"), s: params.get("s"), e: params.get("e"), coach: params.get("coach"), at: Date.now() });
         setSection(go as FamilySection);
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
       }
-      params.delete("go"); params.delete("view");
+      params.delete("go"); params.delete("view"); for (const k of ["page", "s", "e", "coach"]) params.delete(k);
       const rest = params.toString();
       try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
     };
@@ -784,6 +796,13 @@ export default function AriseTodo() {
     const p = officeAppPlugin("life", "life-para-team");
     if (p) setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, true) }));
   });
+  // Arise Notes used to be an Office app here that opened its own page; it's its own plugin now, inside To Duo
+  // (shared/superApps.ts). Anyone who had added it keeps it, moved over once.
+  const hadNotesOffice = (family.sheetsInstalled ?? []).includes("life-arise-notes");
+  useEffect(() => {
+    if (!user || !sync.loaded || sync.recovery || !hadNotesOffice) return;
+    setFamily((f) => ({ ...f, sheetsInstalled: (f.sheetsInstalled ?? []).filter((id) => id !== "life-arise-notes"), sections: f.sections.arisenotes === undefined ? { ...f.sections, arisenotes: true } : f.sections }));
+  }, [user?.id, sync.loaded, sync.recovery, hadNotesOffice]); // eslint-disable-line react-hooks/exhaustive-deps
   const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
   const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
   /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only
@@ -1027,14 +1046,6 @@ export default function AriseTodo() {
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
     ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <OfficeAppIcon icon={p.icon} />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
-    // The family apps, also inside To Duo. The standalone apps are untouched; these just open the same screens here.
-    // The flag makes a "Back to To Duo" chip show in them (components/FromDuoBack.tsx).
-    ...([
-      { id: "arise-fam-cooked", label: "Cooked", icon: <FamDumbbell />, color: "#ea580c", to: "#/fit" },
-      { id: "arise-fam-trainer", label: "Cooked PT", icon: <FamCoach />, color: "#0d9488", to: "#/trainer" },
-      { id: "arise-fam-notes", label: "Arise Notes", icon: <FamNotes />, color: "#7c3aed", to: "#/arise-notes" },
-      { id: "arise-fam-podster", label: "Podster", icon: <FamPodcast />, color: "#db2777", to: "#/podster" },
-    ] as const).map((a): PhoneMenuItem => ({ id: a.id, label: a.label, icon: a.icon, active: false, color: a.color, onClick: () => { try { sessionStorage.setItem("arise-from-duo", "1"); } catch {} window.location.hash = a.to; } })),
     { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
     { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
@@ -1105,11 +1116,18 @@ export default function AriseTodo() {
       {stripIds.map((id) => <button key={id} type="button" role="tab" aria-selected={id === shown} data-testid={`app-group-${id}`} onClick={() => { closeApps(); goSection(id); }}
         className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition ${id === shown ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{SECTION_INFO[id].label}{badge(id) > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{badge(id)}</span>}</button>)}
     </div>) : null;
+  const startFor = (app: SuperAppId) => (superStart?.app === app ? superStart : null);
+  const superWaiting = <div className="grid grid-cols-1 min-h-[40vh] place-items-center" role="status" aria-label="Opening"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>;
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
     : shown === "calendar" ? <FamilyCalendar {...appProps} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
+    // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): their own screens, signed in with this account, in To Duo's look.
+    : shown === "cooked" ? <Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense>
+    : shown === "cookedpt" ? <Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense>
+    : shown === "arisenotes" ? <Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense>
+    : shown === "podster" ? <Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense>
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
@@ -1290,6 +1308,8 @@ export default function AriseTodo() {
           return;
         }
         setFamily((f) => setLifePlugin(f, p, on));
+        // Podster taken out: its new-episode alerts stop on this iPhone too.
+        if (p.target.kind === "section" && p.target.section === "podster" && !on) forgetDuoPodPush(token);
         if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
         if (p.target.kind === "dropApp" && !on) setDropOpen(false);
         // A widget (like the Widgets board) is a part of Home, not its own section: adding it
