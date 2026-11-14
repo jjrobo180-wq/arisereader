@@ -11,8 +11,8 @@
   "marketingUrl": "https://arisetodo.com/",
   "copyright": "2026 Arise",
   "keywords": "personal trainer,coach,clients,training plan,workout builder,fitness business,check-in,PT,gym",
-  "promo": "Coach every client from your phone. See their workouts, food and progress from Cooked, send plans, message them and run your schedule.",
-  "description": "Cooked PT is the coaching app for personal trainers. Your clients use Cooked, and what they choose to share shows up for you automatically.\n\nYOUR CLIENTS\n- See each client's workouts, food, weigh-ins and steps, only with their permission\n- Set goals, habits and nutrition targets\n- Keep private notes only you can see\n\nPLANS\n- Build workouts and multi-week programs in your library\n- Put workouts on a client's calendar and see when they're done\n- Start from templates or let the builder draft a program for you to edit\n\nMESSAGES AND SCHEDULE\n- One inbox for every client, with quick replies\n- Book sessions in person, by live video or online\n- Reminders before each session\n\nYOUR BUSINESS\n- A profile with your specialties, certifications and prices\n- Group coaching\n- Get paid by clients directly through your own booking and payment links\n\nYour clients connect from the Cooked app, and they decide what you can see. Cooked PT is free to download and use with your clients.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
+  "promo": "Get found by new clients, get your own website, and coach every client from your phone. No client limits.",
+  "description": "Cooked PT is the coaching app for personal trainers. Get found by new clients, run your own website, and coach everyone from one app. Your clients use Cooked, and what they choose to share shows up for you automatically.\n\nGET NEW CLIENTS\n- List yourself in the Cooked trainer directory, where people near you look for a trainer\n- Answer client requests and turn them into clients\n- Your own website, built for you from your profile: pick a template and publish, and leads from its contact form come straight to you\n\nYOUR CLIENTS\n- See each client's workouts, food, weigh-ins and steps, only with their permission\n- Set goals, habits and nutrition targets\n- Keep private notes only you can see\n\nPLANS\n- Build workouts and multi-week programs in your library\n- Put workouts on a client's calendar and see when they're done\n- Start from templates or let the builder draft a program for you to edit\n\nMESSAGES AND SCHEDULE\n- One inbox for every client, with quick replies\n- Book sessions in person, by live video or online\n- Reminders before each session\n\nYOUR BUSINESS\n- A profile with your specialties, certifications, prices and reviews\n- Group coaching and challenges\n- Get paid by clients through your own booking and payment links, or in the app\n\nPRICING\n- Coach as many clients as you like: no client limits\n- The directory listing is $29 a month, with the first 14 days free\n\nYour clients connect from the Cooked app, and they decide what you can see.\n\nTerms: https://arisetodo.com/terms/\nPrivacy: https://arisetodo.com/privacy/",
   "age": {
     "yes": [
       "healthOrWellnessTopics",
@@ -24,17 +24,27 @@
   "reviewNotes": "Sign in with the account above (tap Sign in, then use the username and password). It's a sample trainer account with one sample client, Maya Brooks, who shares her Cooked data, so the client list, client details, messages and schedule all have content. Clients connect to a trainer from the Cooked app. Notifications are asked for so trainers hear about new client messages.",
   "shots": [
     "Clients",
+    "Website",
+    "Business",
     "Client",
     "Inbox",
     "Library"
   ],
   "headlines": [
     [
-      "Every client,<br>one screen",
-      "Workouts, food and progress, shared by them"
+      "Clients come<br>to you",
+      "Get listed and answer client requests"
     ],
     [
-      "Know how they're<br>really doing",
+      "Your own<br>website, done",
+      "Built from your profile, ready in minutes"
+    ],
+    [
+      "Unlimited<br>clients",
+      "Listing $29 a month, first 14 days free"
+    ],
+    [
+      "See how<br>they're doing",
       "Goals, habits and private notes"
     ],
     [

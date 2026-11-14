@@ -136,6 +136,7 @@ import { Avatar, Modal } from "@/components/family-hub/ui";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
+import { Dumbbell as FamDumbbell, Podcast as FamPodcast, StickyNote as FamNotes, HeartHandshake as FamCoach } from "lucide-react";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
@@ -1026,6 +1027,14 @@ export default function AriseTodo() {
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
     ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <OfficeAppIcon icon={p.icon} />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
+    // The family apps, also inside To Duo. The standalone apps are untouched; these just open the same screens here.
+    // The flag makes a "Back to To Duo" chip show in them (components/FromDuoBack.tsx).
+    ...([
+      { id: "arise-fam-cooked", label: "Cooked", icon: <FamDumbbell />, color: "#ea580c", to: "#/fit" },
+      { id: "arise-fam-trainer", label: "Cooked PT", icon: <FamCoach />, color: "#0d9488", to: "#/trainer" },
+      { id: "arise-fam-notes", label: "Arise Notes", icon: <FamNotes />, color: "#7c3aed", to: "#/arise-notes" },
+      { id: "arise-fam-podster", label: "Podster", icon: <FamPodcast />, color: "#db2777", to: "#/podster" },
+    ] as const).map((a): PhoneMenuItem => ({ id: a.id, label: a.label, icon: a.icon, active: false, color: a.color, onClick: () => { try { sessionStorage.setItem("arise-from-duo", "1"); } catch {} window.location.hash = a.to; } })),
     { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
     { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),

@@ -147,6 +147,8 @@ const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const ClassGoalBoard = lazyPage(() => import("./pages/ClassGoalBoard"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
 const AriseNotesPage = lazyPage(() => import("./pages/AriseNotesPage"));
+const PodsterEmbed = lazyPage(() => import("./pages/PodsterEmbed"));
+const FromDuoBack = lazyPage(() => import("./components/FromDuoBack"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 const ProApps = lazyPage(() => import("./pages/ProApps"));
 const ParaTeam = lazyPage(() => import("./pages/ParaTeam"));
@@ -642,6 +644,7 @@ function AppRoutes() {
   }
   return (
     <Suspense fallback={<PageFallback path={routePath} />}>
+    {(routePath === "/fit" || routePath === "/trainer" || routePath === "/podster" || routePath.split("?")[0] === "/arise-notes") && <FromDuoBack />}
     <Switch key={routePath}>
       <Route path="/fit">
         {/* Signed out on the website: Cooked Fitness by Arise's own sign-in (from arisetodo.com/cooked/), not the To Duo homepage. */}
@@ -766,6 +769,7 @@ function AppRoutes() {
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ClassGoalBoard /> : <Redirect to="/" replace />}
       </Route>
       {/* Arise Notes, the AI note taker, inside Arise To Duo (also on its own at /notes/). */}
+      <Route path="/podster">{!user ? <Redirect to="/signin" replace /> : <PodsterEmbed />}</Route>
       <Route path="/arise-notes">
         {!user ? <Redirect to="/signin" replace /> : <AriseNotesPage />}
       </Route>
