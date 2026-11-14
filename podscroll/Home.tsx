@@ -30,7 +30,7 @@ import { WikiMini, WikiView } from "./Wiki";
 import { SmartDownloads, setSmartDownloads, smartDownloadsOn } from "./smartDownloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string } | { kind: "wiki" };
+export type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "music" } | { kind: "books" } | { kind: "book"; id: string } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "newsstations" } | { kind: "standup" } | { kind: "study" } | { kind: "meeting" } | { kind: "import" } | { kind: "clips" } | { kind: "watch"; showId: string; episodeId: string } | { kind: "wiki" };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -123,7 +123,10 @@ const WHY: { h: string; p: string }[] = [
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, paid = false, allAccess, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal, visible = true, nowPod = null, onPodToggle, onPodOpen }: {
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, paid = false, allAccess, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal, visible = true, nowPod = null, onPodToggle, onPodOpen, embed }: {
+  /** Podster inside Arise To Duo (client/src/components/super-apps/PodsterInDuo.tsx): To Duo shows the page
+   *  (its row of pages replaces the header, side menu and tab bar here) and the address stays To Duo's. */
+  embed?: { view: View; onView: (v: View) => void };
   /** On screen (it keeps running, hidden, while the swipe player is open). */
   visible?: boolean;
   /** The podcast playing in the swipe player, with its pause button and a way back to it. */
@@ -149,15 +152,18 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, p
   setNickname: (n: string) => void;
   liveBase: string;
 }) {
-  const [view, setViewState] = useState<View>(parseHash);
+  const [ownView, setViewState] = useState<View>(() => (embed ? embed.view : parseHash()));
+  const view = embed ? embed.view : ownView;
+  const embedRef = useRef(embed); embedRef.current = embed;
   const [wikiOpen, setWikiOpen] = useState<string | null>(null);
-  // Switch views right away, and keep the address in step (so Back and links work).
-  const go = useCallback((v: View) => { const h = hashOf(v); setViewState(v); if (location.hash !== h) location.hash = h; window.scrollTo(0, 0); }, []);
-  useEffect(() => { const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
+  // Switch views right away, and keep the address in step (so Back and links work). Inside To Duo, To Duo
+  // keeps the page instead (its address is To Duo's own).
+  const go = useCallback((v: View) => { if (embedRef.current) { embedRef.current.onView(v); window.scrollTo(0, 0); return; } const h = hashOf(v); setViewState(v); if (location.hash !== h) location.hash = h; window.scrollTo(0, 0); }, []);
+  useEffect(() => { if (embedRef.current) return; const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   // Light or dark: the same setting as the swipe feed (follows the phone unless changed).
   const { theme, day } = useTheme();
   const dark = !day;
-  useEffect(() => { if (visible) document.documentElement.style.background = dark ? "#0f0f0f" : "#ffffff"; }, [dark, visible]);
+  useEffect(() => { if (visible && !embedRef.current) document.documentElement.style.background = dark ? "#0f0f0f" : "#ffffff"; }, [dark, visible]);
 
 
   const ex = es.settings.explicit ? "&explicit=1" : "";
@@ -284,7 +290,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, p
   const toggleBook = useCallback(() => setBookTap((n) => n + 1), []);
   // Listening together and the radio don't mix: the radio stops when a group opens.
   useEffect(() => { if (view.kind === "party") { setStation(null); setReading(null); setListening(null); } }, [view.kind]);
-  const onPartyRoom = useCallback((id: string) => { if (location.hash !== `#/party/${id}`) history.replaceState(null, "", `${location.pathname}${location.search}#/party/${id}`); }, []);
+  const onPartyRoom = useCallback((id: string) => { if (embedRef.current) return; if (location.hash !== `#/party/${id}`) history.replaceState(null, "", `${location.pathname}${location.search}#/party/${id}`); }, []);
 
   // LivePod (audio-only live): who's live now, on the home page too.
   const [live, setLive] = useState<LiveSummary[]>([]);
@@ -573,7 +579,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, p
           <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
         </div>}
   </>;
-  const sidebar = side && view.kind !== "watch" && (
+  const sidebar = !embed && side && view.kind !== "watch" && (
     <nav aria-label="Library" className="sticky top-[calc(3.5rem+var(--sat,env(safe-area-inset-top,0px)))] hidden max-h-[calc(100vh-56px-var(--sat,env(safe-area-inset-top,0px)))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {menuBody}
     </nav>
@@ -698,7 +704,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, p
   return <MoreCtx.Provider value={setAddTo}><HiddenCtx.Provider value={hidden}><div data-ps-root="" className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
     <style>{MENU_CSS}</style>
     {dark && <style>{DARK_CSS}</style>}
-    {header}
+    {!embed && header}
     {drawer && <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-label="Menu">
       <div className="ps-fade absolute inset-0 touch-none bg-black/45" onClick={() => setDrawer(false)} />
       <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] touch-pan-y flex-col gap-0.5 overflow-y-auto overflow-x-hidden overscroll-contain bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-0 shadow-2xl">
@@ -726,7 +732,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, p
     <div className={`flex items-start ${station || reading || listening || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1 pb-24 lg:pb-0">{content}</main></div>
     {/* Phones: a floating tab bar (Home, Swipe feed, Create, You), like the iPhone's own apps. It
         sits above whatever is playing at the bottom. The full menu is still behind ☰. */}
-    {view.kind !== "watch" && <nav aria-label="Podster tabs" className="ps-keep fixed left-1/2 z-[45] flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between rounded-full bg-[#121212]/90 p-1.5 text-white shadow-[0_10px_40px_rgba(0,0,0,.35)] ring-1 ring-white/10 backdrop-blur-xl lg:hidden"
+    {!embed && view.kind !== "watch" && <nav aria-label="Podster tabs" className="ps-keep fixed left-1/2 z-[45] flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between rounded-full bg-[#121212]/90 p-1.5 text-white shadow-[0_10px_40px_rgba(0,0,0,.35)] ring-1 ring-white/10 backdrop-blur-xl lg:hidden"
       style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${station || reading || listening || nowPod ? "5.25rem" : "0.75rem"})` }}>
       {([
         ["home", "Home", <HomeIcon key="h" size={24} strokeWidth={1.9} />, view.kind === "home" && !tabSheet, () => { setTabSheet(null); setChip("all"); go({ kind: "home" }); }],

@@ -50,7 +50,29 @@ export function accountSessions(getDb: () => any) {
     if (account && Date.now() - Date.parse(data.seen_at) > 6 * 3600_000) void getDb().from("podcast_account_sessions").update({ seen_at: new Date().toISOString() }).eq("token_hash", hash(token)).then(() => {}, () => {});
     return account;
   }
-  return { lookup, forget: (token: string) => cache.delete(token) };
+  /** Podster inside Arise To Duo signs in with the To Duo account (one login): the Podster account with that
+   *  email, made the first time (on the device it was first used on, like a code sign-in). Remembered a while. */
+  const byEmail = new Map<string, { account: Account; at: number }>();
+  async function forEmail(rawEmail: string, device: string): Promise<Account | null> {
+    const email = cleanEmail(rawEmail);
+    if (!email) return null;
+    const hit = byEmail.get(email);
+    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.account;
+    const find = async () => (await getDb().from("podcast_accounts").select("id,email,device").eq("email", email).maybeSingle()) as { data: any; error: any };
+    let { data, error } = await find();
+    if (error) throw error;
+    if (!data) {
+      const made = await getDb().from("podcast_accounts").insert({ email, device }).select("id,email,device").single();
+      // Two first requests at once: the other one made it, so read it back.
+      if (made.error) { ({ data, error } = await find()); if (error || !data) throw made.error; }
+      else data = made.data;
+    }
+    const account = { id: Number(data.id), email: data.email, device: data.device };
+    if (byEmail.size > 5000) byEmail.clear();
+    byEmail.set(email, { account, at: Date.now() });
+    return account;
+  }
+  return { lookup, forEmail, forget: (token: string) => cache.delete(token) };
 }
 
 const codeEmail = (code: string) => `

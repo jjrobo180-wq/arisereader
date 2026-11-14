@@ -1,0 +1,32 @@
+/* Podster inside Arise To Duo (PodsterInDuo.tsx): To Duo's violet where Podster has its orange, and To Duo's
+   frame around the page, so the banners Podster shows on its own website (what Podster is, its membership)
+   are left out: To Duo's account already is the membership. Only inside .pod-duo. */
+.pod-duo [class*="bg-[#ff6a1f]"], .pod-duo [class*="bg-[#ff8a3d]"] { background-color: #6e5ae0 !important; }
+.pod-duo [class*="text-[#ff6a1f]"], .pod-duo [class*="text-[#ff8a3d]"] { color: #6e5ae0 !important; }
+.pod-duo [class*="border-[#ff6a1f]"], .pod-duo [class*="border-[#ff8a3d]"] { border-color: #6e5ae0 !important; }
+.pod-duo [class*="ring-[#ff6a1f]"], .pod-duo [class*="ring-[#ff8a3d]"] { --tw-ring-color: #6e5ae0 !important; }
+.pod-duo [class*="accent-[#ff6a1f]"], .pod-duo [class*="accent-[#ff8a3d]"] { accent-color: #6e5ae0 !important; }
+.pod-duo [fill="#ff6a1f"], .pod-duo [fill="#ff8a3d"] { fill: #6e5ae0; }
+.pod-duo [stroke="#ff6a1f"], .pod-duo [stroke="#ff8a3d"] { stroke: #6e5ae0; }
+.pod-duo [class*="bg-[#fff4ee]"] { background-color: #f1effd !important; }
+.pod-duo [class*="bg-[#ffe9dc]"] { background-color: #e6e1fc !important; }
+.pod-duo section[aria-label="Why Podster"], .pod-duo section[aria-label="Podster Membership"] { display: none !important; }
+/* Night: the lighter violet reads on dark. */
+.pod-duo.pod-duo-night [class*="text-[#ff6a1f]"], .pod-duo.pod-duo-night [class*="text-[#ff8a3d]"] { color: #a99cf5 !important; }
+/* The page sits in To Duo's own card: no second rounded shadow inside it. */
+.pod-duo [data-testid="podster-home"] > [data-ps-root] { min-height: 60vh; }
+/* More of Podster's orange: soft peach panels, its lighter oranges and the ones set as inline colors. */
+.pod-duo [class*="bg-[#fff1e8]"], .pod-duo [class*="bg-[#fff4ec]"] { background-color: #f1effd !important; }
+.pod-duo [class*="ring-[#ffd9bf]"] { --tw-ring-color: #d9d2fb !important; }
+.pod-duo [class*="text-[#ffb37a]"], .pod-duo [class*="text-[#ff8a4c]"] { color: #8f80ee !important; }
+.pod-duo [class*="bg-[#ffb37a]"] { background-color: #c6bdfa !important; }
+.pod-duo [class*="from-[#ff8a3d]"] { --tw-gradient-from: #6e5ae0 var(--tw-gradient-from-position) !important; }
+.pod-duo [style*="background: rgb(255, 138, 61)"], .pod-duo [style*="background: rgb(255, 106, 31)"],
+.pod-duo [style*="background-color: rgb(255, 138, 61)"], .pod-duo [style*="background-color: rgb(255, 106, 31)"] { background: #6e5ae0 !important; }
+.pod-duo [style^="color: rgb(255, 138, 61)"], .pod-duo [style*="; color: rgb(255, 138, 61)"],
+.pod-duo [style^="color: rgb(255, 106, 31)"], .pod-duo [style*="; color: rgb(255, 106, 31)"] { color: #6e5ae0 !important; }
+/* To Duo's type in Podster's pages too. */
+.pod-duo [data-ps-root], .pod-duo [data-testid="podster-player"], .pod-duo [data-testid="podster-setup"] { font-family: 'Barlow', Arial, Helvetica, sans-serif; }
+/* Night: To Duo's hairline around the page instead of a bright one. */
+.pod-duo.pod-duo-night [data-testid="podster-home"] { --tw-ring-color: #2c2a4c; }
+.pod-duo.pod-duo-night [class*="bg-[#fff1e8]"], .pod-duo.pod-duo-night [class*="bg-[#fff4ec]"] { background-color: #26234a !important; }

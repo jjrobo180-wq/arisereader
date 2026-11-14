@@ -56,7 +56,10 @@ const agoWords = (iso: string) => {
 // ===========================================================================
 export type Theme = "system" | "light" | "dark";
 const THEME_KEY = "earshot.theme";
-const readTheme = (): Theme => { try { const v = localStorage.getItem(THEME_KEY); return v === "light" || v === "dark" ? v : "system"; } catch { return "system"; } };
+/** Podster inside Arise To Duo: To Duo's Day or Night decides while it shows (forceTheme), not this device's pick. */
+let forcedTheme: Theme | null = null;
+const readTheme = (): Theme => { if (forcedTheme) return forcedTheme; try { const v = localStorage.getItem(THEME_KEY); return v === "light" || v === "dark" ? v : "system"; } catch { return "system"; } };
+export function forceTheme(t: Theme | null, quiet = false) { if (forcedTheme === t) return; forcedTheme = t; if (!quiet) window.dispatchEvent(new Event("earshot-theme")); }
 export function setTheme(t: Theme) { try { localStorage.setItem(THEME_KEY, t); } catch { /* not kept */ } window.dispatchEvent(new Event("earshot-theme")); }
 /** The chosen theme, and whether the app should be light right now. */
 export function useTheme(): { theme: Theme; day: boolean } {

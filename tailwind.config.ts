@@ -2,7 +2,8 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
+  // Podster's pages also run inside Arise To Duo (client/src/components/super-apps/PodsterInDuo.tsx).
+  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}", "./podscroll/*.{ts,tsx}"],
   theme: {
     extend: {
       borderRadius: {

@@ -38,7 +38,7 @@ export function InfoSheet({ audience, onClose }: { audience: "teacher" | "studen
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key);
   }, [onClose]);
-  return <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" style={{ background: "rgba(20,24,33,.55)", fontFamily: FONT }} onClick={onClose} data-testid="buddy-info-sheet">
+  return <div className="fixed inset-0 kb-sheet z-[60] flex items-end justify-center sm:items-center" style={{ background: "rgba(20,24,33,.55)", fontFamily: FONT }} onClick={onClose} data-testid="buddy-info-sheet">
     <div role="dialog" aria-modal="true" aria-label="About TTS Buddy" className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-[26px] p-5 sm:rounded-[26px] sm:p-7" style={{ background: B.bg, color: B.ink }} onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-3">
         <BuddyMark size={44} />

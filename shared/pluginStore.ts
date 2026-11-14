@@ -20,6 +20,7 @@ import { KIT_DEFS, type KitDef } from "./pluginKit";
 import { showSection } from "./hubLayout";
 import { cleanLifeLayout } from "./lifeLayout";
 import { AI_TOOL_TO_PRO, PRO_GROUPS, liveProApps, type ProApp } from "./pro/apps";
+import { SUPER_APPS } from "./superApps";
 
 export type PluginHub = "work" | "life";
 
@@ -98,7 +99,7 @@ export type Plugin = {
 const PRO_CATEGORIES = Object.values(PRO_GROUPS).map((g) => g.category);
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
   work: ["Premium", ...PRO_CATEGORIES, "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps", "For teachers"],
-  life: ["Premium", ...PRO_CATEGORIES, "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
+  life: ["Premium", "Super apps", ...PRO_CATEGORIES, "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
 const tab = (t: HubTab): PluginTarget => ({ kind: "tab", tab: t });
@@ -199,6 +200,15 @@ const PREMIUM_APPS = (hub: PluginHub): Plugin[] => {
   return [...office, ...live.filter((x) => !taken.has(x.id)).map((x) => proPlugin(hub, x))];
 };
 
+/** Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): each its own App Store app, and also a
+ *  LifeHub plugin that opens inside Arise To Duo, signed in with the To Duo account. Their own add-ons
+ *  (Cooked's plugins, the Notes apps, Podster's pages) are picked inside each one. They don't use one of
+ *  Free's 3 plugins (shared/todoPlan.ts): each has its own free version, the same as on its own. */
+const SUPER_APP_PLUGINS: readonly Plugin[] = SUPER_APPS.map((a): Plugin => ({
+  id: a.id === "arisenotes" ? "life-arise-notes" : `life-${a.id}`, hub: "life", name: a.name, tagline: a.tagline, description: a.description,
+  features: a.features, category: "Super apps", icon: a.icon, color: a.color, featured: true, target: section(a.section),
+}));
+
 /** Classroom apps that open their own page (WorkHub only). */
 const CLASSROOM_APPS: readonly Plugin[] = [
   {
@@ -213,7 +223,9 @@ const CLASSROOM_APPS: readonly Plugin[] = [
 export const PLUGINS: readonly Plugin[] = [
   ...PREMIUM_APPS("work"),
   ...CLASSROOM_APPS,
-  ...PREMIUM_APPS("life"),
+  // Arise Notes in LifeHub is its own plugin now (SUPER_APP_PLUGINS below), opened inside To Duo.
+  ...PREMIUM_APPS("life").filter((p) => p.id !== "life-arise-notes"),
+  ...SUPER_APP_PLUGINS,
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
   WIDGETS_PLUGIN("work"),
   BRIEF_PLUGIN("work"),

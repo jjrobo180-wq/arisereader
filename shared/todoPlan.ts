@@ -13,6 +13,7 @@
 // Nothing is ever taken away: someone over 3 (an account from before) keeps every app they have;
 // they just can't add another until they're back under 3 or on Unlimited. The page and the server
 // both count with these functions, so they always agree.
+import { isSuperApp } from "./superApps";
 import { ADD_ON_SECTIONS, cleanFamily, isOn, type Family } from "./familyHub";
 import { parentOf } from "./appBundles";
 import { WORK_ADD_ON_TABS, isTabOn, type HubTab } from "./teacherHub";
@@ -41,7 +42,7 @@ export function lifeApps(workspace: unknown): string[] {
   const family: Family = cleanFamily(w.family);
   return [
     // A bundled plugin (Health Lite, Kitchen…) is one app, however many pages it holds (shared/appBundles.ts).
-    ...ADD_ON_SECTIONS.filter((id) => !parentOf(id) && isOn(id, family)).map((id) => `section:${id}`),
+    ...ADD_ON_SECTIONS.filter((id) => !parentOf(id) && !isSuperApp(id) && isOn(id, family)).map((id) => `section:${id}`),
     // The App Store also offers independent widgets, the AI toggle and a
     // WorkHub calendar layer. They count just like any other installed app.
     ...(family.widgets?.board ? ["widget:board"] : []),
@@ -79,7 +80,8 @@ export function countsAsApp(hub: "work" | "life", p: Plugin): boolean {
   if (t.kind === "notesApp" || t.kind === "sheetsApp" || t.kind === "officeApp" || t.kind === "driveApp" || t.kind === "dropApp" || t.kind === "kit") return true;
   if (t.kind === "widget" || t.kind === "assistant" || t.kind === "layer") return true;
   if (hub === "work" && t.kind === "tab") return WORK_ADD_ON_TABS.includes(t.tab);
-  return hub === "life" && t.kind === "section" && ADD_ON_SECTIONS.includes(t.section);
+  // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts) each have their own free version.
+  return hub === "life" && t.kind === "section" && ADD_ON_SECTIONS.includes(t.section) && !isSuperApp(t.section);
 }
 
 export const appsIn = (hub: "work" | "life", workspace: unknown) => (hub === "work" ? workApps(workspace) : lifeApps(workspace)).length;

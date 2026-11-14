@@ -47,6 +47,37 @@ const LAYOUT_CSS = `:root{--fit-display:${LAYOUTS.athletic.display};--fit-font:$
     return head + mode("light") + mode("dark"); }).join("")
   + ROUND_CSS;
 
+// ——— Inside Arise To Duo ——————————————————————————————————————————————————————————————————————————
+// Cooked and Cooked PT are also plugins inside Arise To Duo (shared/superApps.ts). There they wear To Duo's
+// look, over whatever was picked in the app itself: To Duo's page color, white cards with a hairline edge,
+// its violet and its Barlow type, in To Duo's Day or Night (pages/todoNight.css). Set on the page only
+// while one of them is showing (useDuoLook), so the Cooked apps keep their own look everywhere else.
+const DUO_TOKENS = {
+  light: {
+    bg: "#f6f7fc", glow: "linear-gradient(#f6f7fc, #f6f7fc)", card: "#ffffff", "card-bg": "#ffffff", "card-shadow": "0 0 0 1px #e7e8f0, 0 8px 28px rgba(23,21,43,.04)",
+    card2: "#f1f2f8", line: "#e7e8f0", text: "#232139", dim: "#64748b", steel: "#475569", track: "#eceef5",
+    accent: "#6e5ae0", "on-accent": "#ffffff", "accent-rgb": "110,90,224", "accent-deep": "#4b3bb0", "accent-hi": "#8f80ee", "ember-soft": "#f1effd", tint: "rgba(110,90,224,.10)", "glow-tint": "#ece9fd",
+    nav: "rgba(255,255,255,.96)", "nav-border": "#e7e8f0", "nav-shadow": "0 10px 30px rgba(23,21,43,.10)", body: "#e9eaf2", muscle: "#d4d6e2", gap: "#ffffff",
+  },
+  dark: {
+    bg: "#0e0d1a", glow: "linear-gradient(#0e0d1a, #0e0d1a)", card: "#191730", "card-bg": "#191730", "card-shadow": "0 0 0 1px #2c2a4c",
+    card2: "#1f1d38", line: "#2c2a4c", text: "#f1effa", dim: "#9a97b8", steel: "#cfcce3", track: "rgba(255,255,255,.09)",
+    accent: "#a99cf5", "on-accent": "#16132a", "accent-rgb": "169,156,245", "accent-deep": "#6e5ae0", "accent-hi": "#c6bdfa", "ember-soft": "#26234a", tint: "rgba(169,156,245,.16)", "glow-tint": "#26234a",
+    nav: "rgba(25,23,48,.96)", "nav-border": "#2c2a4c", "nav-shadow": "0 12px 32px rgba(0,0,0,.5)", body: "#26234a", muscle: "#36325e", gap: "#191730",
+  },
+} as const;
+/** To Duo's type: Barlow throughout, headings heavy but not shouting (no capitals, no condensed face). */
+const DUO_TYPE = {
+  display: "'Barlow', Arial, Helvetica, sans-serif", font: "'Barlow', Arial, Helvetica, sans-serif", "display-w": "800", "display-case": "none", "display-ls": "-.01em",
+  rk: "1", "btn-font": "var(--fit-font)", "btn-case": "none", "btn-size": "16px", num: "'Barlow', Arial, Helvetica, sans-serif",
+};
+/** Wins over every Cooked theme and layout (they set the same variables on the same element). */
+const important = (t: Record<string, string>) => Object.entries(t).map(([k, x]) => `--fit-${k}:${x} !important`).join(";");
+export const DUO_CSS = `html[data-fit-duo="light"]{${important({ ...DUO_TOKENS.light, ...DUO_TYPE })}}html[data-fit-duo="dark"]{${important({ ...DUO_TOKENS.dark, ...DUO_TYPE })}}`;
+/** To Duo's Day or Night while Cooked or Cooked PT shows inside it; null on their own. */
+let duoLook: "light" | "dark" | null = null;
+export const inDuo = () => duoLook !== null;
+
 // The color themes (accents per mode, worked-out glows) live in fitThemes.ts.
 /** Dark's true-black version (for OLED screens): black behind, near-black cards. */
 const BLACK = { bg: "#000000", card: "#0e0f11", "card-bg": "linear-gradient(180deg, #15161a, #0e0f11)", card2: "#1a1c20", gap: "#0e0f11", body: "#1c1e22", muscle: "#2e3238",
@@ -57,7 +88,7 @@ export const THEME_CSS = BASE_CSS + PALETTE_IDS.map((id) =>
   `[data-fit-theme="dark"][data-fit-black="1"][data-fit-palette="${id}"]{${vars({ ...BLACK, ...paletteTokens(id, "dark", true) })}}`).join("")
   // Before a theme is set (or on pages without one), Ember's extras are the defaults.
   + `:root{${vars(paletteTokens("ember", "light"))}}[data-fit-theme="dark"]{${vars(paletteTokens("ember", "dark"))}}`
-  + LAYOUT_CSS;
+  + LAYOUT_CSS + DUO_CSS;
 
 // "lime" is the accent's old name (it was lime green); every screen uses it, so it keeps the name.
 export const C = { bg: v("bg"), card: v("card"), card2: v("card2"), line: v("line"), text: v("text"), dim: v("dim"), lime: v("accent"), orange: v("amber"), blue: v("blue"), pink: v("pink"), red: v("red"), steel: v("steel"), green: v("green"), track: v("track"), emberSoft: v("ember-soft"), tint: v("tint"), body: v("body"), muscle: v("muscle"), gap: v("gap"), nav: v("nav"), navBorder: v("nav-border"), navShadow: v("nav-shadow"), ink: "var(--fit-on-accent)", deep: "var(--fit-accent-deep)", hi: "var(--fit-accent-hi)" };
@@ -87,12 +118,14 @@ function ensureStyles() {
 export function applyTheme() {
   if (typeof document === "undefined" || !document.documentElement) return;
   ensureStyles();
-  const t = resolvedTheme();
+  // Inside To Duo, To Duo's Day or Night decides (and To Duo looks after the clock's color itself).
+  const t = duoLook ?? resolvedTheme();
   document.documentElement.setAttribute("data-fit-theme", t);
   document.documentElement.setAttribute("data-fit-palette", paletteChoice());
-  document.documentElement.setAttribute("data-fit-black", trueBlack() ? "1" : "0");
-  if (layoutsOn) { const l = layoutChoice(); document.documentElement.setAttribute("data-fit-layout", l); loadFonts(LAYOUTS[l].fonts); }
-  if (statusBarAdjustable()) void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: t === "light" ? "LIGHT" : "DARK" }).catch(() => {});
+  document.documentElement.setAttribute("data-fit-black", !duoLook && trueBlack() ? "1" : "0");
+  if (duoLook) document.documentElement.setAttribute("data-fit-duo", duoLook); else document.documentElement.removeAttribute("data-fit-duo");
+  if (layoutsOn) { const l = layoutChoice(); document.documentElement.setAttribute("data-fit-layout", duoLook ? "duo" : l); if (!duoLook) loadFonts(LAYOUTS[l].fonts); }
+  if (statusBarAdjustable() && !duoLook) void nativeCall(/statusbar/i, "StatusBar", "setStyle", { style: t === "light" ? "LIGHT" : "DARK" }).catch(() => {});
   try { window.dispatchEvent(new Event("fit-theme")); } catch { /* old browser */ }
 }
 export function setThemeChoice(c: ThemeChoice) { try { localStorage.setItem(THEME_KEY, c); } catch { /* private mode */ } applyTheme(); }
@@ -122,7 +155,21 @@ export const trueBlack = (): boolean => { try { return localStorage.getItem(BLAC
 export function setPalette(p: PaletteId) { try { localStorage.setItem(PALETTE_KEY, p); } catch { /* private mode */ } applyTheme(); }
 export function setTrueBlack(on: boolean) { try { localStorage.setItem(BLACK_KEY, on ? "1" : "0"); } catch { /* private mode */ } applyTheme(); }
 /** The accent showing now as #rrggbb, for things that can't take a CSS variable (map lines, canvas). */
-export const accentNow = () => PALETTES[paletteChoice()][resolvedTheme()][0];
+export const accentNow = () => duoLook ? DUO_TOKENS[duoLook].accent : PALETTES[paletteChoice()][resolvedTheme()][0];
+/** Cooked or Cooked PT inside Arise To Duo: To Duo's look on the page while it shows (null: their own). */
+export function useDuoLook(mode: "light" | "dark" | null) {
+  useEffect(() => {
+    if (!mode) return;
+    duoLook = mode; applyTheme();
+    return () => {
+      duoLook = null;
+      if (typeof document === "undefined") return;
+      document.documentElement.removeAttribute("data-fit-duo");
+      // Still showing a Cooked screen (rare: one plugin swapped for the other): its own theme comes back.
+      if (themeUsers > 0) applyTheme();
+    };
+  }, [mode]);
+}
 /** The theme chosen and the one showing, kept current when either changes. */
 export function useFitTheme(): [ThemeChoice, "light" | "dark", (c: ThemeChoice) => void] {
   const [, tick] = useState(0);
@@ -227,7 +274,7 @@ export function useFitFonts() {
       document.head.appendChild(l);
     }
     // Leaving Cooked on the website hands the page back to the site's own theme.
-    return () => { if (--themeUsers === 0) { const r = document.documentElement; r.removeAttribute("data-fit-theme"); r.removeAttribute("data-fit-palette"); r.removeAttribute("data-fit-black"); } };
+    return () => { if (--themeUsers === 0) { const r = document.documentElement; r.removeAttribute("data-fit-theme"); r.removeAttribute("data-fit-palette"); r.removeAttribute("data-fit-black"); r.removeAttribute("data-fit-duo"); } };
   }, []);
 }
 

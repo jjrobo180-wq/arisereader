@@ -1,0 +1,24 @@
+/* Arise Notes inside Arise To Duo (NotesInDuo.tsx): To Duo frames the page (its own header, menu and page
+   color), so Notes paints no backdrop or clock strip of its own, its headers sit in the page instead of
+   sticking under the clock, and its colors are To Duo's: the page, white cards with a hairline edge, the
+   violet. Night follows To Duo's Night (pages/todoNight.css). Only inside .an-in-duo. */
+.an-root.an-in-duo { min-height: 0; background: transparent !important; background-image: none !important; font-family: 'Barlow', Arial, Helvetica, sans-serif; }
+.an-root.an-in-duo::before { display: none !important; }
+.an-root.an-in-duo header.an-noprint.sticky { position: static; padding-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: 0; }
+.an-root.an-in-duo, .an-root.an-in-duo.an-pro, .an-root.an-in-duo.an-themed {
+  --an-bg: #f6f7fc !important; --an-card: #ffffff !important; --an-line: #e7e8f0 !important;
+  --an-ink: #232139 !important; --an-muted: #64748b !important; --an-faint: #94a3b8 !important;
+  --an-violet: #6e5ae0 !important; --an-violet-ink: #4b3bb0 !important; --an-violet-soft: #f1effd !important; --an-on-accent: #ffffff !important;
+  --pp-accent: #6e5ae0; --pp-accent-2: #5948c8; --pp-row-on: #f1effd; --pp-icon: #6e5ae0;
+}
+.an-root.an-in-duo.an-pro.an-pro-dark, .an-root.an-in-duo.an-night, .todo-night .an-root.an-in-duo {
+  --an-bg: #0e0d1a !important; --an-card: #191730 !important; --an-line: #2c2a4c !important;
+  --an-ink: #f1effa !important; --an-muted: #9a97b8 !important; --an-faint: #7c7999 !important;
+  --an-violet: #a99cf5 !important; --an-violet-ink: #c6bdfa !important; --an-violet-soft: #26234a !important; --an-on-accent: #16132a !important;
+  --pp-accent: #a99cf5; --pp-accent-2: #c6bdfa; --pp-row-on: #26234a; --pp-icon: #a99cf5;
+}
+/* Notes' own rules for its plain look are more specific (pages/pages-pro.css paints the whole page white and
+   sets Apple's type); inside To Duo, To Duo's page color and its Barlow win. */
+.an-root.an-root.an-in-duo.an-in-duo.an-in-duo { background: transparent !important; background-image: none !important; --an-bg: #f6f7fc !important; font-family: 'Barlow', Arial, Helvetica, sans-serif !important; }
+.an-root.an-root.an-in-duo.an-in-duo.an-pro-dark, .todo-night .an-root.an-root.an-in-duo.an-in-duo.an-in-duo { --an-bg: #0e0d1a !important; }
+.an-root.an-in-duo .pp-min { background: transparent !important; }

@@ -85,7 +85,8 @@ export type ParaApp = {
 };
 
 /** LifeHub screens that belong to one person's account, not a shared team page. */
-const PERSONAL: readonly FamilySection[] = ["home", "tasks", "start", "reader", "lifeplan", "linked", "notifications", "family"];
+/** Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts) are one person's own apps too. */
+const PERSONAL: readonly FamilySection[] = ["home", "tasks", "start", "reader", "lifeplan", "linked", "notifications", "family", "cooked", "cookedpt", "arisenotes", "podster"];
 
 let catalog: { list: ParaApp[]; byKey: Map<string, ParaApp> } | null = null;
 

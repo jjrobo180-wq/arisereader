@@ -1792,7 +1792,9 @@ export async function registerRoutes(
     return ok;
   };
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
-  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener,
+    // Podster inside Arise To Duo: the To Duo sign-in is the Podster sign-in (server/earshot.ts ariseListener).
+    ariseUser: async (token) => { const s: any = await storage.getSession(token); const u = s?.user; return u ? { id: Number(u.id), email: u.email ?? null, role: u.role ?? null, displayName: u.displayName ?? null } : null; } });
   // Contact us (server/supportContact.ts): Arise To Duo's and Podster's Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {

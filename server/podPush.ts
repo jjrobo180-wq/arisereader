@@ -11,6 +11,12 @@ import type { Express, RequestHandler } from "express";
 import { cleanAppleToken, sendApplePush, type AppleMessage } from "./applePush";
 
 export const PODPLUS_TOPIC = "com.arisereader.podplus";
+/** Podster inside Arise To Duo (client/src/components/super-apps/PodsterInDuo.tsx): the To Duo iPhone app signs up
+ *  its own token, saved as "todo:<token>", and its alerts go to To Duo, opening Podster there. */
+export const TODO_PREFIX = "todo:";
+const todoToken = (saved: string) => (saved.startsWith(TODO_PREFIX) ? saved.slice(TODO_PREFIX.length) : null);
+/** The address a new-episode alert opens: the episode in Podster, or in To Duo's Podster. */
+export const podAlertUrl = (saved: string, showId: string, episodeId: string) => (todoToken(saved) !== null ? `/#/to-do?go=podster&s=${showId}&e=${episodeId}` : `?s=${showId}&e=${episodeId}`);
 const MAX_FOLLOWS = 300;
 const PER_DAY = 4;
 const SHOW_ID = /^\d{3,15}$/;
@@ -26,7 +32,8 @@ export type PodPushDeps = {
   };
   /** The newest episode of a show (from the podcast directory). */
   newest(showId: string): Promise<{ show: string; episodeId: string; title: string } | null>;
-  send?: (token: string, m: AppleMessage) => Promise<{ ok: boolean; gone: boolean }>;
+  /** `topic` is the app it goes to: undefined for Arise To Duo (the default), Podster's otherwise. */
+  send?: (token: string, m: AppleMessage, topic?: string) => Promise<{ ok: boolean; gone: boolean }>;
   /** The server is free to call Apple (nobody is waiting on it). */
   idle?: () => boolean;
   /** Loads the APNs key (saved in the database) before sending. */
@@ -43,7 +50,7 @@ export const quietHour = (hour: number) => hour >= 21 || hour < 8;
 
 /** One pass: every followed show once, then each phone's new episodes. Returns how many were sent. */
 export async function runPodPush(deps: PodPushDeps, now = new Date()): Promise<number> {
-  const send = deps.send ?? ((t, m) => sendApplePush(t, m, PODPLUS_TOPIC));
+  const send = deps.send ?? ((t, m, topic) => sendApplePush(t, m, topic));
   await deps.loadKey?.().catch(() => {});
   const rows = await deps.db.all();
   if (!rows.length) return 0;
@@ -66,7 +73,8 @@ export async function runPodPush(deps: PodPushDeps, now = new Date()): Promise<n
       if (!seen[id]) { seen[id] = n.episodeId; changed = true; continue; } // first look: only remember it
       if (seen[id] === n.episodeId) continue;
       if (quietHour(hour) || count >= PER_DAY) continue; // it waits for a better time
-      const r = await send(row.token, { title: n.show, body: `New episode: ${n.title}`.slice(0, 300), url: `?s=${id}&e=${n.episodeId}`, tag: `pod-${id}` });
+      const todo = todoToken(row.token);
+      const r = await send(todo ?? row.token, { title: n.show, body: `New episode: ${n.title}`.slice(0, 300), url: podAlertUrl(row.token, id, n.episodeId), tag: `pod-${id}` }, todo !== null ? undefined : PODPLUS_TOPIC);
       if (r.gone) { await deps.db.forget(row.token); gone = true; break; } // the app was deleted from that phone
       if (r.ok) { sent++; count++; }
       seen[id] = n.episodeId; changed = true;
@@ -104,14 +112,16 @@ export function supabasePodPushDb(getDb: () => any): PodPushDeps["db"] {
 /** POST /api/podscroll/push (the phone's token and the shows it follows) and /push/forget. */
 export function registerPodPushRoutes(app: Express, gate: RequestHandler, deps: PodPushDeps, opts: { ticker?: boolean } = {}) {
   app.post("/api/podscroll/push", gate, async (req: any, res) => {
-    const token = cleanAppleToken(req.body?.token);
+    const hex = cleanAppleToken(req.body?.token);
+    const token = hex && req.body?.app === "todo" ? TODO_PREFIX + hex : hex;
     if (!token) return res.status(400).json({ message: "That iPhone's notification details look wrong." });
     const follows = [...new Set((Array.isArray(req.body?.follows) ? req.body.follows : []).map(String).filter((id: string) => SHOW_ID.test(id)))].slice(0, MAX_FOLLOWS) as string[];
     try { await deps.db.save({ token, follows, time_zone: cleanZone(req.body?.timeZone) }); res.json({ ok: true }); }
     catch (e: any) { console.error("[podplus push] save failed", e?.message); res.status(500).json({ message: "Couldn't turn notifications on. Try again in a moment." }); }
   });
   app.post("/api/podscroll/push/forget", gate, async (req: any, res) => {
-    const token = cleanAppleToken(req.body?.token);
+    const hex = cleanAppleToken(req.body?.token);
+    const token = hex && req.body?.app === "todo" ? TODO_PREFIX + hex : hex;
     if (token) await deps.db.forget(token).catch(() => {});
     res.json({ ok: true });
   });
