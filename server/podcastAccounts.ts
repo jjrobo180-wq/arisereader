@@ -19,6 +19,10 @@ export const SESSION = /^[A-Za-z0-9_-]{40,60}$/;
 
 /** Passwords: scrypt with a random salt per account, stored as "s1$salt$hash". */
 export const PASSWORD_MIN = 8;
+/** A username: 3 to 20 letters, numbers, dots, dashes and underscores. "" when it isn't one. */
+/** True when a query failed only because the username column isn't in the database yet (the migration hasn't run). */
+const noUsernameColumn = (e: any) => /username/i.test(String(e?.message || e?.details || "")) && /column|schema/i.test(String(e?.message || e?.details || ""));
+export const cleanUsername = (v: unknown): string => { const u = typeof v === "string" ? v.trim() : ""; return /^[A-Za-z0-9._-]{3,20}$/.test(u) ? u : ""; };
 export function hashPassword(pw: string): string {
   const salt = randomBytes(16).toString("base64url");
   return `s1$${salt}$${scryptSync(pw, salt, 32).toString("base64url")}`;
@@ -78,8 +82,15 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     const email = cleanEmail(req.body?.email);
     if (!email) return res.status(400).json({ message: "Enter a real email address." });
     if (!o.sendEmail) return res.status(503).json({ message: "Sign-in email isn't set up yet. Try again later." });
+    const wanted = req.body?.username === undefined || req.body?.username === "" ? "" : cleanUsername(req.body.username);
+    if (req.body?.username && !wanted) return res.status(400).json({ message: "A username is 3 to 20 letters, numbers, dots, dashes or underscores." });
     if (tooMany(asks, device(req), res)) return;
     try {
+      if (wanted) {
+        const { data: taken, error: et } = await db().from("podcast_accounts").select("id,email").ilike("username", wanted).maybeSingle();
+        if (et && !noUsernameColumn(et)) throw et;
+        if (taken && taken.email !== email) return res.status(409).json({ message: "That username is taken. Try another." });
+      }
       const { data: row, error } = await db().from("podcast_account_codes").select("sent_day,sent_today,sent_at").eq("email", email).maybeSingle();
       if (error) throw error;
       const today = new Date().toISOString().slice(0, 10);
@@ -106,13 +117,16 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
 
   /** Email and password. */
   app.post(`${P}/login`, gate, async (req: any, res) => {
-    const email = cleanEmail(req.body?.email), pw = typeof req.body?.password === "string" ? req.body.password : "";
-    if (!email || !pw) return res.status(400).json({ message: "Enter your email and password." });
-    if (tooMany(guesses, device(req), res) || tooMany(guesses, `e:${email}`, res)) return;
+    // The box takes an email or a username (older app versions send "email").
+    const who = String(req.body?.identifier ?? req.body?.email ?? "").trim(), pw = typeof req.body?.password === "string" ? req.body.password : "";
+    const byEmail = who.includes("@"), email = byEmail ? cleanEmail(who) : "", name = byEmail ? "" : cleanUsername(who);
+    if ((!email && !name) || !pw) return res.status(400).json({ message: "Enter your email or username and your password." });
+    if (tooMany(guesses, device(req), res) || tooMany(guesses, `e:${email || name.toLowerCase()}`, res)) return;
     try {
-      const { data: acct, error } = await db().from("podcast_accounts").select("id,email,device,password_hash").eq("email", email).maybeSingle();
-      if (error) throw error;
-      if (!acct || !acct.password_hash) return res.status(400).json({ noPassword: true, message: acct ? "This account doesn't have a password yet. Tap Forgot password to set one, or sign in with an email code." : "No account with that email yet. Create one, or sign in with an email code." });
+      const q = db().from("podcast_accounts").select("id,email,device,password_hash");
+      const { data: acct, error } = await (email ? q.eq("email", email) : q.ilike("username", name)).maybeSingle();
+      if (error && !(name && noUsernameColumn(error))) throw error;
+      if (!acct || !acct.password_hash) return res.status(400).json({ noPassword: true, message: acct ? "This account doesn't have a password yet. Tap Forgot password to set one, or sign in with an email code." : "No account with that email or username yet. Create one, or sign in with an email code." });
       if (!checkPassword(pw, acct.password_hash)) return res.status(400).json({ message: "That password isn't right. Try again, or tap Forgot password." });
       const token = randomBytes(33).toString("base64url");
       const { error: e3 } = await db().from("podcast_account_sessions").insert({ token_hash: hash(token), account_id: acct.id });
@@ -143,12 +157,24 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
         return res.status(400).json({ message: "That code isn't right. Check the email and try again." });
       }
       await db().from("podcast_account_codes").delete().eq("email", email);
+      const username = cleanUsername(req.body?.username);
       let { data: acct, error: e2 } = await db().from("podcast_accounts").select("id,email,device").eq("email", email).maybeSingle();
       if (e2) throw e2;
+      let saveName = !!username;
+      if (username) {
+        const { data: taken, error: et } = await db().from("podcast_accounts").select("id").ilike("username", username).maybeSingle();
+        if (et && noUsernameColumn(et)) saveName = false;
+        else if (taken && taken.id !== acct?.id) return res.status(409).json({ message: "That username is taken. Try another." });
+      }
       if (!acct) {
         const made = await db().from("podcast_accounts").insert({ email, device: device(req) }).select("id,email,device").single();
         if (made.error) throw made.error;
         acct = made.data;
+      }
+      // Kept when the account has none yet (older accounts get theirs on their next sign-in with a code).
+      if (saveName) {
+        const { error: eu } = await db().from("podcast_accounts").update({ username }).eq("id", acct.id).is("username", null);
+        if (eu && !noUsernameColumn(eu)) throw eu;
       }
       if (newPassword) {
         const { error: ep } = await db().from("podcast_accounts").update({ password_hash: hashPassword(newPassword) }).eq("id", acct.id);

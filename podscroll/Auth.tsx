@@ -11,6 +11,7 @@ type Mode = "signin" | "signup" | "forgot" | "code";
 export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { api: Api; onDone: (token: string, email: string) => void; onClose: () => void; dark: boolean; start?: Mode }) {
   const [mode, setMode] = useState<Mode>(start);
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
@@ -20,13 +21,14 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const go = (m: Mode) => { setMode(m); setSent(false); setCode(""); setErr(""); setInfo(""); setPassword(""); setConfirm(""); };
-  const ok = email.includes("@") && email.includes(".");
+  const ok = mode === "signin" ? email.trim().length >= 3 : email.includes("@") && email.includes(".");
+  const nameOk = /^[A-Za-z0-9._-]{3,20}$/.test(username.trim());
   const run = async (fn: () => Promise<void>) => { setBusy(true); setErr(""); try { await fn(); } catch (e: any) { setErr(e?.message || "That didn't work. Try again."); } finally { setBusy(false); } };
 
-  const signIn = () => run(async () => { const b = await api("/api/earshot/account/login", { method: "POST", body: { email: email.trim(), password } }); onDone(b.token, b.email); });
-  const sendCode = () => run(async () => { await api("/api/earshot/account/code", { method: "POST", body: { email: email.trim() } }); setSent(true); setInfo(`We sent a 6-digit code to ${email.trim()}. Check your spam folder if it isn't there.`); });
+  const signIn = () => run(async () => { const b = await api("/api/earshot/account/login", { method: "POST", body: { identifier: email.trim(), password } }); onDone(b.token, b.email); });
+  const sendCode = () => run(async () => { await api("/api/earshot/account/code", { method: "POST", body: { email: email.trim(), ...(mode === "signup" ? { username: username.trim() } : {}) } }); setSent(true); setInfo(`We sent a 6-digit code to ${email.trim()}. Check your spam folder if it isn't there.`); });
   const verify = (withPassword: boolean) => run(async () => {
-    const b = await api("/api/earshot/account/verify", { method: "POST", body: { email: email.trim(), code, ...(withPassword ? { password } : {}) } });
+    const b = await api("/api/earshot/account/verify", { method: "POST", body: { email: email.trim(), code, ...(mode === "signup" ? { username: username.trim() } : {}), ...(withPassword ? { password } : {}) } });
     onDone(b.token, b.email);
   });
 
@@ -80,14 +82,18 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
       <form className="mt-5" onSubmit={(e) => {
         e.preventDefault(); if (busy) return;
         if (mode === "signin") { if (ok && password) signIn(); return; }
-        if (!sent) { if (!ok) return; if (mode === "signup" && (!pwOk || password !== confirm)) return; sendCode(); return; }
+        if (!sent) { if (!ok) return; if (mode === "signup" && (!nameOk || !pwOk || password !== confirm)) return; sendCode(); return; }
         if (code.length !== 6) return;
         if (mode === "forgot" && (!pwOk || password !== confirm)) return;
         verify(mode !== "code");
       }}>
+        {!sent && mode === "signup" && <div className="mb-4">
+          <label htmlFor="ps-auth-username" className={label}>Username</label>
+          <input id="ps-auth-username" autoComplete="username" autoCapitalize="none" autoCorrect="off" maxLength={20} value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} placeholder="3 to 20 letters or numbers" className={input} />
+        </div>}
         {!sent && <div>
-          <label htmlFor="ps-auth-email" className={label}>Email</label>
-          <input id="ps-auth-email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={input} />
+          <label htmlFor="ps-auth-email" className={label}>{mode === "signin" ? "Email or username" : "Email"}</label>
+          <input id="ps-auth-email" type={mode === "signin" ? "text" : "email"} inputMode={mode === "signin" ? "text" : "email"} autoComplete={mode === "signin" ? "username" : "email"} autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={mode === "signin" ? "you@example.com or username" : "you@example.com"} className={input} />
         </div>}
 
         {mode === "signin" && <>
@@ -100,7 +106,7 @@ export function AuthScreen({ api, onDone, onClose, dark, start = "signin" }: { a
           <div className="mt-4">{pwField("ps-auth-newpw", password, setPassword, "Password (at least 8 characters)", "new-password")}</div>
           <div className="mt-4">{pwField("ps-auth-confirm", confirm, setConfirm, "Confirm password", "new-password")}</div>
           {confirm && password !== confirm && <p className="mt-2 text-sm text-[#e5484d]">The passwords don't match.</p>}
-          <button type="submit" disabled={busy || !ok || !pwOk || password !== confirm} className={primary}>{busy && <Loader2 size={18} className="animate-spin" />}Create account</button>
+          <button type="submit" disabled={busy || !ok || !nameOk || !pwOk || password !== confirm} className={primary}>{busy && <Loader2 size={18} className="animate-spin" />}Create account</button>
           <p className={`mt-3 text-center text-xs ${C.sub}`}>We'll email you a code to confirm it's you.</p>
         </>}
 
