@@ -1,0 +1,29 @@
+PASS  parent sign-up asks no username
+PASS  no 'How would you like to start?' choice
+PASS  signing up doesn't reload the page
+PASS  no 'your account is ready' box in between
+PASS  the sign-up form never flashes back
+PASS  no blank or spinner-only screen in between
+PASS  after sign-up the parent lands on the plan page
+FAIL  plan page shows
+PASS  no student tour for a parent
+PASS  no 'add to Home Screen' shortcut pop-up
+PASS  username made from the email (testparent)
+PASS  Reader stays locked before paying
+PASS  tapping a plan opens arisereader.com
+PASS  it carries a one-use sign-in code (no password)
+PASS  lands straight on the $7 payment page, without signing in again
+PASS  Safari never flashes the homepage or a sign-in form on the way to payment
+PASS  signed in by the code, then checkout opened
+PASS  no second password sign-in
+PASS  after paying the Reader opens
+PASS  a bad or used code just shows sign-in
+PASS  To Duo sign-up asks no username
+PASS  To Duo sign-up goes to the email code step
+PASS  To Duo username made from the email (person)
+FAIL  All Access link (signed out) opens the All Access sign-in, not the homepage
+PASS  To Duo's first screen shows no All Access price or link
+PASS  To Duo's sign-up shows no All Access price or link
+PASS  no All Access pop-up during the walkthrough
+PASS  after the walkthrough the All Access pop-up shows
+PASS  it shows only once
