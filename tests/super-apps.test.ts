@@ -169,7 +169,7 @@ test("each app runs inside To Duo's frame: To Duo's heading and row of pages, it
   const todo = read("client/src/pages/AriseTodo.tsx");
   for (const [section, comp] of [["cooked", "CookedInDuo"], ["cookedpt", "CookedPtInDuo"], ["arisenotes", "NotesInDuo"], ["podster", "PodsterInDuo"]]) {
     assert.match(todo, new RegExp(`const ${comp} = lazy\\(\\(\\) => import\\("@/components/super-apps/${comp}"\\)\\);`), `${comp} loads when opened`);
-    assert.match(todo, new RegExp(`shown === "${section}" \\? <Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Duo`);
+    assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperBoundary key="${section}" name="[^"]+"><Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Duo, and a crash in it stays in it`);
   }
   assert.match(todo, /cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3,/);
   assert.doesNotMatch(todo, /arise-fam-|arise-from-duo/, "no shortcuts that leave To Duo");

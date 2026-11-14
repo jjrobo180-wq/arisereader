@@ -17,3 +17,8 @@
   --an-violet: #a99cf5 !important; --an-violet-ink: #c6bdfa !important; --an-violet-soft: #26234a !important; --an-on-accent: #16132a !important;
   --pp-accent: #a99cf5; --pp-accent-2: #c6bdfa; --pp-row-on: #26234a; --pp-icon: #a99cf5;
 }
+/* Notes' own rules for its plain look are more specific (pages/pages-pro.css paints the whole page white and
+   sets Apple's type); inside To Duo, To Duo's page color and its Barlow win. */
+.an-root.an-root.an-in-duo.an-in-duo.an-in-duo { background: transparent !important; background-image: none !important; --an-bg: #f6f7fc !important; font-family: 'Barlow', Arial, Helvetica, sans-serif !important; }
+.an-root.an-root.an-in-duo.an-in-duo.an-pro-dark, .todo-night .an-root.an-root.an-in-duo.an-in-duo.an-in-duo { --an-bg: #0e0d1a !important; }
+.an-root.an-in-duo .pp-min { background: transparent !important; }

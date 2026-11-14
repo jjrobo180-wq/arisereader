@@ -7,6 +7,8 @@ import { readFile, stat, mkdir, writeFile, appendFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { chromium, webkit, devices, type BrowserContext, type Page } from "playwright";
 import { emptyLibrary, emptyTrainer, LISTING } from "../shared/coach";
+import { emptyBrand } from "../shared/coachBrand";
+import { emptySite } from "../shared/coachSite";
 import { DEFAULT_SETTINGS, NOTES_PLANS, NOTES_TEMPLATES, allows, newAccount, usageView } from "../shared/ariseNotes";
 import { SUPER_APPS, superPagesFor } from "../shared/superApps";
 
@@ -66,6 +68,12 @@ async function serve(ctx: BrowserContext, label: string) {
       if (p === "/api/fit/exercises") return json({ exercises: [] });
       if (p === "/api/fit/plus") return json({ plus: false });
       if (p === "/api/coach/trainer") return json(trainer);
+      if (p === "/api/coach/trainer/brand") return json({ brand: emptyBrand(), url: "" });
+      if (p === "/api/coach/trainer/site") return json({ site: emptySite(), slug: "jermaine", url: "https://arisetodo.com/t/jermaine" });
+      if (p === "/api/coach/trainer/copilot") return json({ at: new Date().toISOString(), ai: false, totals: { urgent: 0, watch: 0, win: 0, clients: 0 }, items: [] });
+      if (p === "/api/coach/trainer/payouts") return json({ configured: false, started: false, ready: false, feePct: 0, month: { cents: 0, fee: 0, count: 0, net: 0 }, all: { cents: 0, count: 0, net: 0 }, recent: [] });
+      if (p.startsWith("/api/coach/") && req.method() === "GET") return json({ groups: [], leads: [], requests: [], checks: [], chat: [], payments: [], prices: [], problem: "", ready: false, payUrl: "", url: "", code: "" });
+      if (p === "/api/profile-links") return json({ mine: [], withMe: [], myEmail: user.email, requests: [] });
       if (p === "/api/notes/me") return json(notesMe);
       if (p === "/api/notes") return json({ notes: [] });
       if (req.method() !== "GET") return json({ ok: true });
@@ -91,8 +99,10 @@ const closePopups = async (page: Page) => {
 for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], ["desktop", chromium, { viewport: { width: 1366, height: 900 } }]] as const) {
   for (const night of [false, true]) {
     const tag = `${label}${night ? "-night" : ""}`;
-    const browser = await engine.launch();
-    const ctx = await browser.newContext({ ...opts, serviceWorkers: "block", timezoneId: "America/Denver" });
+    // Night only checks the look, so the iPhone's night pass uses Chrome at the iPhone's size (WebKit is slow here).
+    const browser = await (night ? chromium : engine).launch();
+    const { defaultBrowserType: _engine, ...size } = opts as any;
+    const ctx = await browser.newContext({ ...size, serviceWorkers: "block", timezoneId: "America/Denver" });
     await serve(ctx, tag);
     const page = await ctx.newPage();
     const errors: string[] = [];
@@ -107,7 +117,7 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
         localStorage.setItem("arise-todo-night", n ? "1" : "0");
         localStorage.setItem("arise-hub-night", n ? "1" : "0");
         localStorage.setItem("arise-night", n ? "1" : "0");
-        for (const k of ["arise-duo-setup-v1:1", "arise-getting-started:1", "arise-all-access-popup:1", "podscroll.asked"]) localStorage.setItem(k, k === "podscroll.asked" ? "yes" : "1");
+        for (const k of ["arise-duo-setup-v2:1", "arise-getting-started:1", "arise-all-access-popup:1", "podscroll.asked"]) localStorage.setItem(k, k === "podscroll.asked" ? "yes" : "1");
       } catch { /* fine */ }
     }, [session, night] as const);
     try {

@@ -138,6 +138,7 @@ import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { isSuperApp, type SuperAppId } from "@shared/superApps";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
+import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 // Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
 const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
 const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
@@ -1128,10 +1129,10 @@ export default function AriseTodo() {
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
     // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): their own screens, signed in with this account, in To Duo's look.
-    : shown === "cooked" ? <Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense>
-    : shown === "cookedpt" ? <Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense>
-    : shown === "arisenotes" ? <Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense>
-    : shown === "podster" ? <Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense>
+    : shown === "cooked" ? <SuperBoundary key="cooked" name="Cooked"><Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense></SuperBoundary>
+    : shown === "cookedpt" ? <SuperBoundary key="cookedpt" name="Cooked PT"><Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense></SuperBoundary>
+    : shown === "arisenotes" ? <SuperBoundary key="arisenotes" name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense></SuperBoundary>
+    : shown === "podster" ? <SuperBoundary key="podster" name="Podster"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary>
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
