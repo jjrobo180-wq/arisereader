@@ -15,7 +15,7 @@ import { Home, type View } from "../../../../podscroll/Home";
 import { setWikiMeter } from "../../../../podscroll/wikiPlayer";
 import { downloads, installDownloads } from "../../../../podscroll/downloads";
 import { PagePicker, PageStrip, SuperHead, useSuperPages } from "./SuperShell";
-import { duoPushToken, podDevice } from "./podsterLink";
+import { podDevice, syncDuoPodPush } from "./podsterLink";
 import "./podster-duo.css";
 
 type PlayerTab = "openmic" | "social" | "library";
@@ -34,8 +34,6 @@ const isPlayerPage = (id: string) => Object.prototype.hasOwnProperty.call(PLAYER
 /** Which page a home-page view belongs to (an audiobook is under Audiobooks, a search under Home). */
 export const podsterPageOf = (v: View): string => (v.kind === "book" ? "books" : HOME_VIEWS[v.kind] ? v.kind : "home");
 const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
-
-const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 
 export type PodsterStart = { page?: string | null; s?: string | null; e?: string | null };
 
@@ -127,11 +125,9 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   // New-episode alerts on this iPhone, through To Duo's notifications (server/podPush.ts sends them to To Duo).
   const followKey = es.follows.map((f) => f.id).join(",");
   useEffect(() => {
-    const apns = duoPushToken();
-    if (!apns) return;
-    const t = setTimeout(() => { void apiRef.current("/api/earshot/push", { method: "POST", body: { token: apns, follows: es.follows.map((f) => f.id), timeZone: zone(), app: "todo" } }).catch(() => {}); }, 1500);
+    const t = setTimeout(() => syncDuoPodPush(token, es.follows.map((f) => f.id)), 1500);
     return () => clearTimeout(t);
-  }, [followKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [followKey, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Pages ──
   const first = start?.page && (HOME_VIEWS[start.page] || isPlayerPage(start.page)) ? start.page : start?.s && start?.e ? "feed" : "home";

@@ -448,9 +448,13 @@ export default function AriseTodo() {
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         dismissOverlays();
         // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
-        // The Cooked, Cooked PT, Notes and Podster plugins too (a coach's message, a new episode).
-        if (go === "accountability" || go === "linked" || isSuperApp(go)) setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
-        if (isSuperApp(go)) setSuperStart({ app: go, page: params.get("page"), s: params.get("s"), e: params.get("e"), coach: params.get("coach"), at: Date.now() });
+        if (go === "accountability" || go === "linked") setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
+        // Cooked, Cooked PT, Notes and Podster too (a coach's message, a new episode): turned on if they weren't,
+        // and opened on the page, episode or trainer's invite the link is about.
+        if (isSuperApp(go)) {
+          setFamily((f) => (f.sections[go] ? f : { ...f, sections: { ...f.sections, [go]: true } }));
+          setSuperStart({ app: go, page: params.get("page"), s: params.get("s"), e: params.get("e"), coach: params.get("coach"), at: Date.now() });
+        }
         setSection(go as FamilySection);
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);

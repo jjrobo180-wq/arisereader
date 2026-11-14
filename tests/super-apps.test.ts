@@ -79,6 +79,11 @@ test("Plugin Gallery: each app is a featured Super apps plugin for everyone, and
   }
 });
 
+test("they're one person's own apps: not offered as Para Team apps", async () => {
+  const { paraApp } = await import("../shared/paraApps");
+  for (const a of SUPER_APPS) assert.equal(paraApp(a.id), undefined, a.id);
+});
+
 test("they don't use one of Free's 3 plugins (each has its own free version)", () => {
   const family = emptyFamily();
   for (const a of SUPER_APPS) {
@@ -87,8 +92,8 @@ test("they don't use one of Free's 3 plugins (each has its own free version)", (
     family.sections[a.id] = true;
   }
   assert.deepEqual(lifeApps({ family }).filter((x) => /cooked|notes|podster/.test(x)), []);
-  family.sections.journal = true;
-  assert.ok(lifeApps({ family }).includes("section:journal"), "ordinary plugins still count");
+  family.sections.chores = true;
+  assert.ok(lifeApps({ family }).includes("section:chores"), "ordinary plugins still count");
 });
 
 test("their alerts and links open them inside To Duo", () => {
@@ -106,7 +111,7 @@ test("their alerts and links open them inside To Duo", () => {
   assert.match(push, /const inDuo = nativeFlavor\(\) === "todo" \? duoLinkFor\(url\) : null;/);
   // To Duo opens the plugin from go=… (and turns it on if it wasn't), with the page, episode or invite.
   const todo = read("client/src/pages/AriseTodo.tsx");
-  assert.match(todo, /go === "accountability" \|\| go === "linked" \|\| isSuperApp\(go\)/);
+  assert.match(todo, /if \(isSuperApp\(go\)\) \{\s*setFamily\(\(f\) => \(f\.sections\[go\] \? f : \{ \.\.\.f, sections: \{ \.\.\.f\.sections, \[go\]: true \} \}\)\);/);
   assert.match(todo, /setSuperStart\(\{ app: go, page: params\.get\("page"\), s: params\.get\("s"\), e: params\.get\("e"\), coach: params\.get\("coach"\)/);
 });
 
@@ -127,7 +132,14 @@ test("Podster's new-episode alerts reach To Duo's Podster on the To Duo iPhone a
   const server = read("server/podPush.ts");
   assert.match(server, /const token = hex && req\.body\?\.app === "todo" \? TODO_PREFIX \+ hex : hex;/);
   // To Duo signs its token up with the shows followed there, and forgets it when Podster is taken out.
-  assert.match(read("client/src/components/super-apps/PodsterInDuo.tsx"), /"\/api\/earshot\/push", \{ method: "POST", body: \{ token: apns, follows: es\.follows\.map\(\(f\) => f\.id\), timeZone: zone\(\), app: "todo" \} \}/);
+  assert.match(read("client/src/components/super-apps/PodsterInDuo.tsx"), /syncDuoPodPush\(token, es\.follows\.map\(\(f\) => f\.id\)\)/);
+  const link = read("client/src/components/super-apps/podsterLink.ts");
+  assert.match(link, /body: JSON\.stringify\(\{ token: apns, follows, timeZone: zone\(\), app: "todo" \}\)/);
+  assert.match(link, /if \(!apns \|\| !duoPodAlertsOn\(\)\) return;/, "turned off in To Duo's Notifications: not sent");
+  // To Duo's Notifications lists what each plugin sends, with Podster's alerts as a switch.
+  const settings = read("client/src/components/family-hub/NotificationSettings.tsx");
+  assert.match(settings, /data-testid="notify-super-apps"/);
+  assert.match(settings, /setDuoPodAlerts\(on, token, \(family\.earshot\?\.follows \?\? \[\]\)\.map\(\(f\) => f\.id\)\)/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /p\.target\.section === "podster" && !on\) forgetDuoPodPush\(token\)/);
 });
 

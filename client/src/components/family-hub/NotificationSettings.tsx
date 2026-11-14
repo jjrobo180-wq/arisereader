@@ -9,6 +9,10 @@ import { NEWS_TOPICS } from "@shared/todoNews";
 import { HEADS_UP_CHOICES, NEWS_MAX, NOTIFY_LEVELS, WATER_MAX, dailyEstimate, defaultNotify, spreadTimes, type NotifyPrefs, type Weekday } from "@shared/todoNotify";
 import { goalsFor, healthPeople } from "@shared/familyHealth";
 import TodoNotifications from "./TodoNotifications";
+import { useState } from "react";
+import { HeartHandshake, NotebookPen, Podcast } from "lucide-react";
+import { isNativeApp } from "@/lib/nativeApp";
+import { duoPodAlertsOn, setDuoPodAlerts } from "@/components/super-apps/podsterLink";
 import { PageHead, Panel, Toggle, clock12, inputClass, plain, type SectionProps } from "./ui";
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -17,7 +21,9 @@ const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch
 const timeInput = inputClass + " !min-h-10 !w-[7.5rem] shrink-0 px-2";
 
 export default function NotificationSettings({ family, setFamily, today, say }: SectionProps) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  // Podster's new-episode alerts are kept per iPhone (they go to this phone's To Duo).
+  const [podAlerts, setPodAlerts] = useState(duoPodAlertsOn);
   const prefs = family.notify;
   const set = (fn: (p: NotifyPrefs) => NotifyPrefs) => setFamily((f) => ({ ...f, notify: fn(f.notify) }));
   const people = healthPeople(family, (user?.displayName || "").split(" ")[0]);
@@ -151,6 +157,22 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
       </ul>
     </Panel>}
 
+    {/* Cooked, Cooked PT, Arise Notes and Podster inside To Duo: their alerts come here and open them here. */}
+    {(["cooked", "cookedpt", "arisenotes", "podster"] as const).some((id) => isOn(id, family)) && <Panel eyebrow="Your plugins" title="From your apps">
+      <ul className="divide-y divide-slate-100" data-testid="notify-super-apps">
+        {isOn("cooked", family) && <Info icon={<Dumbbell size={18} />} tint="bg-orange-50 text-orange-600" title="Cooked" open="cooked"
+          detail="Messages from your trainer, new workouts and reminders. Pick which ones in Cooked: settings, then Notifications." />}
+        {isOn("cookedpt", family) && <Info icon={<HeartHandshake size={18} />} tint="bg-teal-50 text-teal-600" title="Cooked PT" open="cookedpt"
+          detail="New client requests, messages, check-ins and session reminders. Pick which ones with the bell in Cooked PT." />}
+        {isOn("arisenotes", family) && <Info icon={<NotebookPen size={18} />} tint="bg-violet-50 text-violet-600" title="Arise Notes" open="arisenotes"
+          detail="When a recording is written up, and when your AI minutes run low." />}
+        {isOn("podster", family) && <Row icon={<Podcast size={18} />} tint="bg-pink-50 text-pink-600" title="Podster: new episodes"
+          detail={isNativeApp() ? "From the shows you follow, at most 4 a day and never between 9 pm and 8 am. Tap one to listen in Podster here." : "On your iPhone: from the shows you follow in Podster here, at most 4 a day."}
+          on={podAlerts} onChange={(on) => { setPodAlerts(on); setDuoPodAlerts(on, token, (family.earshot?.follows ?? []).map((f) => f.id)); say(on ? "Podster's new episodes will come here." : "No more Podster alerts on this phone."); }} />}
+      </ul>
+      <p className="mt-3 text-xs leading-5 text-slate-500">They arrive as To Duo notifications and open the app right here in To Duo.</p>
+    </Panel>}
+
     <Panel eyebrow="Do not disturb" title="Quiet hours">
       <ul className="divide-y divide-slate-100">
         <Row icon={<Moon size={18} />} tint="bg-indigo-50 text-indigo-600" title="Quiet hours" detail="Nothing is sent during this time, not even heads-ups"
@@ -175,6 +197,15 @@ function Row({ icon, tint, title, detail, on, onChange, children }: { icon: Reac
       <Toggle on={on} label={title} onChange={onChange} />
     </div>
     {on && children && <div className="mt-3 space-y-3 rounded-2xl bg-slate-50 p-3 sm:ml-12">{children}</div>}
+  </li>;
+}
+
+/** One of the plugins' own alerts: what it sends, and a way to its settings. */
+function Info({ icon, tint, title, detail, open }: { icon: ReactNode; tint: string; title: string; detail: string; open: string }) {
+  return <li className="flex items-center gap-3 py-3.5 first:pt-0 last:pb-0">
+    <span className={`shrink-0 rounded-xl p-2 ${tint}`}>{icon}</span>
+    <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-800">{title}</span><span className="block text-xs leading-5 text-slate-500">{detail}</span></span>
+    <button type="button" onClick={() => { window.location.hash = `#/to-do?go=${open}`; }} className={`${plain} shrink-0`}>Open</button>
   </li>;
 }
 
