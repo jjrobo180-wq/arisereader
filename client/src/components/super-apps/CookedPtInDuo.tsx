@@ -4,15 +4,14 @@ import { useMemo } from "react";
 import { superAppOf } from "@shared/superApps";
 import TrainerApp, { type TrainerEmbed } from "@/pages/trainer/TrainerApp";
 import { PageStrip, SuperHead } from "./SuperShell";
-import { Bell } from "lucide-react";
 
 export default function CookedPtInDuo({ say, night, start }: { say: (m: string) => void; night: boolean; start?: string | null }) {
   const app = superAppOf("cookedpt")!;
   const embed = useMemo<TrainerEmbed>(() => ({
     night, say, start,
-    top: ({ tabs, tab, go, openBell }) => <>
-      <SuperHead app={app} right={<button type="button" onClick={openBell} aria-label="Cooked PT notifications" data-testid="super-cookedpt-bell"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"><Bell size={18} /></button>} />
+    // Its notifications are the bell on Clients and Schedule, as in the app.
+    top: ({ tabs, tab, go }) => <>
+      <SuperHead app={app} />
       <PageStrip app={app} pages={tabs.map((t) => t.id)} current={tab} onPick={go} badges={Object.fromEntries(tabs.map((t) => [t.id, t.badge]))} />
     </>,
   }), [night, say, start]); // eslint-disable-line react-hooks/exhaustive-deps

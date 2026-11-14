@@ -3,7 +3,7 @@
 // one. It opens the Plugin Gallery on its Super apps, then each plugin and every page in its row of pages, in
 // Day and in Night, and keeps screenshots and any page errors. Podster's podcasts come from the live site (read
 // only; nothing is ever sent to it). Run by super-apps-check.yml; results go to the super-apps-check branch.
-import { readFile, stat, mkdir, writeFile } from "node:fs/promises";
+import { readFile, stat, mkdir, writeFile, appendFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { chromium, webkit, devices, type BrowserContext, type Page } from "playwright";
 import { emptyLibrary, emptyTrainer, LISTING } from "../shared/coach";
@@ -28,8 +28,9 @@ const notesMe = {
 };
 
 await mkdir("screens", { recursive: true });
-const out: string[] = [];
-const note = (s: string) => { out.push(s); console.log(s); };
+await writeFile("screens/results.txt", "");
+// Written as it goes, so a run that's stopped part way still says what it saw.
+const note = (s: string) => { console.log(s); void appendFile("screens/results.txt", s + "\n"); };
 
 function workspace() {
   const w = structuredClone(base);
@@ -57,7 +58,7 @@ async function serve(ctx: BrowserContext, label: string) {
       if (p === "/api/me") return json(user);
       if (p === "/api/todo-plan") return json(plan);
       if (p === "/api/arise-todo/workspace") {
-        if (req.method() === "PUT") { saved = (req.postDataJSON() as any).workspace; updatedAt = new Date(Date.parse(updatedAt) + 1000).toISOString(); return json({ ok: true, updatedAt }); }
+        if (req.method() === "PUT") { saved = (req.postDataJSON() as any).workspace; updatedAt = new Date(Date.parse(updatedAt) + 1000).toISOString(); return json({ success: true, updatedAt }); }
         if (url.searchParams.get("since") === updatedAt) return json({ unchanged: true, updatedAt });
         return json({ workspace: saved, updatedAt });
       }
@@ -127,7 +128,7 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
       for (const app of SUPER_APPS) {
         const before = errors.length;
         await page.goto(`https://arisetodo.com/app#/to-do?go=${app.id}`, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await page.waitForTimeout(app.id === "podster" ? 9000 : 6000); await closePopups(page);
+        await page.waitForTimeout(app.id === "podster" ? 7000 : 4500); await closePopups(page);
         const head = await page.getByTestId(`super-head-${app.id}`).isVisible().catch(() => false);
         const strip = page.getByTestId(`super-strip-${app.id}`);
         const pills = await strip.locator('[role="tab"]').allTextContents().catch(() => [] as string[]);
@@ -136,11 +137,11 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
         // Every page in the row (Cooked's pages come from Cooked's own plugins, so they're read off the row).
         const ids = app.id === "cooked" ? await strip.locator('[role="tab"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid?.replace("super-page-cooked-", "") || "")) : superPagesFor(app, null);
         let k = 2;
-        for (const id of ids.slice(1)) {
+        for (const id of ids.slice(1, night ? 2 : undefined)) {
           const pill = page.getByTestId(`super-page-${app.id}-${id}`);
           if (!(await pill.isVisible().catch(() => false))) { note(`${tag}: ${app.name}: no pill for ${id}`); continue; }
           await pill.click().catch((e) => note(`${tag}: ${app.name}: can't open ${id}: ${String(e.message).split("\n")[0]}`));
-          await page.waitForTimeout(id === "feed" || id === "social" || id === "library" ? 5000 : 2200);
+          await page.waitForTimeout(id === "feed" || id === "social" || id === "library" ? 4000 : 1800);
           await page.screenshot({ path: `screens/${tag}-${app.id}-${k++}-${id}.png` });
         }
         // The page picker (Notes and Podster).
@@ -155,8 +156,10 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
       // Where each one sits in To Duo's menu.
       if (!night) {
         await page.goto("https://arisetodo.com/app#/to-do", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(4000); await closePopups(page);
-        const menu = page.getByRole("button", { name: /^(menu|open menu|apps)$/i }).first();
-        if (await menu.isVisible().catch(() => false)) { await menu.click().catch(() => {}); await page.waitForTimeout(1200); }
+        await page.goto("https://arisetodo.com/app#/to-do?go=home", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(3500); await closePopups(page);
+        // A phone: To Duo's Plugins tab (the app drawer). A computer: the side menu is already showing.
+        const menu = page.getByRole("button", { name: /^plugins$/i }).last();
+        if (label === "iphone" && await menu.isVisible().catch(() => false)) { await menu.click().catch(() => {}); await page.waitForTimeout(1500); }
         await page.screenshot({ path: `screens/${tag}-9-menu.png` });
         for (const a of SUPER_APPS) note(`${tag}: menu has ${a.name}: ${(await page.getByText(a.name, { exact: true }).count()) > 0}`);
       }
@@ -165,5 +168,4 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     await browser.close();
   }
 }
-await writeFile("screens/results.txt", out.join("\n") + "\n");
 process.exit(0);

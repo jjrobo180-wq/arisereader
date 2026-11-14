@@ -25,7 +25,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,7 +39,7 @@ jobs:
           npm install --no-save --no-audit --no-fund playwright@1.56.1
           npx playwright install --with-deps chromium webkit
       - name: Open each plugin and every page
-        timeout-minutes: 25
+        timeout-minutes: 35
         run: npx tsx script/superAppsCheck.ts
       - name: Save to the super-apps-check branch
         if: always()

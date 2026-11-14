@@ -258,7 +258,8 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   // Inside To Duo, To Duo's Day or Night decides.
   const appearance = duo ? { ...ownAppearance, mode: (duo.night ? "dark" : "light") as typeof ownAppearance.mode, dark: duo.night } : ownAppearance;
   useEffect(() => { if (meRaw?.settings.night && !hasAppearance()) setAppearance("dark"); }, [meRaw?.settings.night]);
-  const me = useMemo(() => (meRaw ? { ...meRaw, settings: { ...meRaw.settings, night: appearance.dark } } : null), [meRaw, appearance.dark]);
+  // Inside To Duo, Notes wears To Duo's look (the classic one, recolored by super-apps/notes-duo.css) whatever look was picked here.
+  const me = useMemo(() => (meRaw ? { ...meRaw, settings: { ...meRaw.settings, night: appearance.dark, ...(duo ? { theme: "classic" as Me["settings"]["theme"] } : {}) } } : null), [meRaw, appearance.dark, !!duo]); // eslint-disable-line react-hooks/exhaustive-deps
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
   // High contrast is an accessibility need, so it always wins over a look.
@@ -273,9 +274,9 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   const suite = SUITE_LOOKS.has(look.id) && !s?.contrast;
   // Every other look dresses the Notes tab and the writing page too (they stayed plain gray and white,
   // though the look's preview shows its colors everywhere).
-  const proLook = pro && !suite && !s?.contrast && (look.id !== "classic" || !!s?.night);
+  const proLook = pro && !suite && !s?.contrast && !duo && (look.id !== "classic" || !!s?.night);
   const proDark = pro && (suite || proLook ? !!look.dark : appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
-  const themed = !pro && !s?.contrast && (look.id !== "classic" || !!s?.night);
+  const themed = !pro && !s?.contrast && !duo && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
   const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : route.name === "pages" || route.name === "page" ? "#ffffff" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
