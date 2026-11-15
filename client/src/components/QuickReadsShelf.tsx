@@ -3,7 +3,7 @@ import { BookOpen, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import QuizTakersTag, { quizTakersText } from "@/components/QuizTakersTag";
-import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsCoverSrc, newsReadMinutes, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsCoverSrc, newsReadMinutes, quickCategoryId, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
 import { newsCoverSvg } from "@shared/newsArt";
 function onImageFailure(img: HTMLImageElement, a: NewsArticle) { img.onerror = null; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(newsCoverSvg(a)); }
 
@@ -39,17 +39,23 @@ export function QuickReadRow({ a, result, onOpen, takers }: { a: NewsArticle; re
   );
 }
 
+/** Reads shown in each category's row before its "See all". */
+const ROW_SIZE = 12;
+
 /**
- * 5-Minute Reads: the library's shelf of short pieces (sports, biographies, famous speeches,
- * fun facts and more), in the same card format as the other quiz shelves.
+ * 5-Minute Reads: the library's shelf of short pieces, in the same card format as the other quiz shelves.
+ * "All" shows every category (sports, soccer, stars, famous people, history, science, space, animals and
+ * nature, inventions, arts and music, speeches, fun facts) as its own row; a chip shows one category.
  */
-export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll, quizTakers }: {
+export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll, onSeeCategory, quizTakers }: {
   newsBookIds: Record<string, number>;
   /** Students who took each quiz, by book id (null while loading). */
   quizTakers?: Record<number, number> | null;
   results: Result[];
   onOpen: (slug: string) => void;
   onSeeAll: () => void;
+  /** Opens every read in one category on the Reads page (by its id, e.g. "space"). */
+  onSeeCategory?: (id: string) => void;
 }) {
   const [cat, setCat] = useState<string>("All");
   // newest first, so new pieces show up at the front of the shelf
@@ -61,6 +67,31 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
     return id ? results.find((r) => r.bookId === id) : undefined;
   };
 
+  const card = (a: NewsArticle) => {
+    const r = resultFor(a.slug);
+    return (
+      <Card key={a.slug} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
+        style={{ scrollSnapAlign: "start" }} onClick={() => onOpen(a.slug)}>
+        <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+          <img src={newsCoverSrc(a)} alt={a.photo ? a.photo.alt : `Cover of ${a.title}`} onError={(e) => onImageFailure(e.currentTarget, a)} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" style={a.photo?.focus ? { objectPosition: a.photo.focus } : undefined} loading="lazy" />
+          <QuizTakersTag count={quizTakers && newsBookIds[a.slug] ? quizTakers[newsBookIds[a.slug]] || 0 : undefined} mine={!!r} />
+          {r && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
+        </div>
+        <div className="p-3">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{a.title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{quickCategoryOf(a).label} · {newsReadMinutes(a)} min</p>
+          <div className="mt-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{NEWS_POINTS} pts</span>
+          </div>
+          {r && <p className="mt-1 text-xs font-semibold text-primary">{r.score}/{r.total} correct</p>}
+          <div className="mt-2">
+            <Button size="sm" variant="default" className="h-7 w-full text-xs"><BookOpen className="mr-1 h-3 w-3" />Read &amp; Quiz</Button>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <section className="mb-10" aria-labelledby="quick-reads-h">
       <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -70,7 +101,7 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
         <span className="text-xs font-medium text-primary">{NEWS_POINTS} points each</span>
         <button type="button" onClick={onSeeAll} className="ml-auto text-sm font-semibold text-primary hover:underline">See all</button>
       </div>
-      <p className="mb-3 ml-7 text-sm text-muted-foreground">Short stories you can finish in 5 minutes, then a 5-question quiz.</p>
+      <p className="mb-3 ml-7 text-sm text-muted-foreground">Short stories you can finish in 5 minutes, then a 5-question quiz. Pick a kind of read, or scroll every category.</p>
 
       <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin" role="group" aria-label="Pick a kind of read">
         {["All", ...cats.map((c) => c.label)].map((label) => {
@@ -84,32 +115,22 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
         })}
       </div>
 
-      <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: "x mandatory" }}>
-        {shown.map((a) => {
-          const r = resultFor(a.slug);
-          return (
-            <Card key={a.slug} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
-              style={{ scrollSnapAlign: "start" }} onClick={() => onOpen(a.slug)}>
-              <div className="relative aspect-[2/3] overflow-hidden bg-muted">
-                <img src={newsCoverSrc(a)} alt={a.photo ? a.photo.alt : `Cover of ${a.title}`} onError={(e) => onImageFailure(e.currentTarget, a)} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" style={a.photo?.focus ? { objectPosition: a.photo.focus } : undefined} loading="lazy" />
-                <QuizTakersTag count={quizTakers && newsBookIds[a.slug] ? quizTakers[newsBookIds[a.slug]] || 0 : undefined} mine={!!r} />
-                {r && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
-              </div>
-              <div className="p-3">
-                <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{a.title}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{quickCategoryOf(a).label} · {newsReadMinutes(a)} min</p>
-                <div className="mt-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{NEWS_POINTS} pts</span>
+      {cat === "All"
+        ? cats.map((c) => {
+            const list = all.filter((a) => quickCategoryOf(a).label === c.label);
+            const id = quickCategoryId(c.label);
+            return (
+              <div key={c.label} className="mb-5" data-testid="quick-shelf-category">
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-base font-bold text-foreground"><span aria-hidden="true">{c.emoji} </span>{c.label}</h3>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{list.length}</span>
+                  {list.length > ROW_SIZE && <button type="button" onClick={() => (onSeeCategory ? onSeeCategory(id) : setCat(c.label))} className="ml-auto text-sm font-semibold text-primary hover:underline">See all {list.length}</button>}
                 </div>
-                {r && <p className="mt-1 text-xs font-semibold text-primary">{r.score}/{r.total} correct</p>}
-                <div className="mt-2">
-                  <Button size="sm" variant="default" className="h-7 w-full text-xs"><BookOpen className="mr-1 h-3 w-3" />Read &amp; Quiz</Button>
-                </div>
+                <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: "x mandatory" }}>{list.slice(0, ROW_SIZE).map(card)}</div>
               </div>
-            </Card>
-          );
-        })}
-      </div>
+            );
+          })
+        : <div className="book-row flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: "x mandatory" }}>{shown.map(card)}</div>}
     </section>
   );
 }

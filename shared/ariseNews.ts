@@ -14,7 +14,7 @@
 import { QUICK_READS } from "./quickReads";
 import { READ_PHOTOS, READ_PHOTO_FALLBACKS, READ_PHOTO_FILES } from "./readPhotos";
 
-export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Soccer" | "Biography" | "Speeches" | "Fun Facts" | "Arts" | "Reading";
+export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Soccer" | "Biography" | "Speeches" | "Fun Facts" | "Arts" | "Reading" | "Entertainment" | "Inventions";
 
 export type NewsBlock =
   | { kind: "p"; text: string }
@@ -88,6 +88,8 @@ export const SECTION_COLORS: Record<NewsSection, { ink: string; tint: string; de
   "Fun Facts": { ink: "#f08c00", tint: "#fff3bf", deep: "#7a4500" },
   Arts: { ink: "#c2255c", tint: "#f9dbe6", deep: "#6b0e31" },
   Reading: { ink: "#7048e8", tint: "#e9e1fd", deep: "#3a1d8f" },
+  Entertainment: { ink: "#d6336c", tint: "#ffdeeb", deep: "#7a1238" },
+  Inventions: { ink: "#1098ad", tint: "#d0f4f7", deep: "#0a4f5a" },
 };
 
 const p = (text: string): NewsBlock => ({ kind: "p", text });
@@ -862,7 +864,24 @@ const ISSUE_ARTICLES: NewsArticle[] = [
 /** Every story: the issue articles plus the 5-Minute Reads (sports, soccer, biographies, speeches, fun facts). */
 // Every story has a real photo: the ones that had none get theirs from shared/readPhotos.ts, and
 // stories whose page often has only a logo get more places to look.
-export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS].map((a) => {
+/** Earlier biographies, filed with their kind of fame so each 5-Minute Reads category gathers its own:
+ *  athletes with Sports or Soccer, singers, actors and online creators with Stars & Entertainment. The
+ *  historic and science figures stay in Famous People (Biography). */
+export const SECTION_OF_SLUG: Record<string, NewsSection> = {
+  "aja-wilson-two-ends-of-court": "Sports", "caitlin-clark-passing-and-shooting": "Sports", "coco-gauff-first-title": "Sports",
+  "jackie-robinson-42": "Sports", "katie-ledecky-lap-by-lap": "Sports", "lebron-james-bio": "Sports", "lewis-hamilton-racing-decisions": "Sports",
+  "naomi-osaka-four-grand-slams": "Sports", "patrick-mahomes-football-reading-defenses": "Sports", "serena-williams-bio": "Sports",
+  "shacarri-richardson-speed-science": "Sports", "shohei-ohtani-bio": "Sports", "simone-biles-bio": "Sports", "stephen-curry-bio": "Sports",
+  "suni-lee-gymnastics-precision": "Sports", "victor-wembanyama-basketball-new-style": "Sports",
+  "cristiano-ronaldo-practice-and-goals": "Soccer", "kylian-mbappe-speed-and-timing": "Soccer", "lionel-messi-bio": "Soccer",
+  "aphmau-minecraft-worlds-friends": "Entertainment", "bad-bunny-bio": "Entertainment", "beyonce-from-group-to-renaissance": "Entertainment",
+  "billie-eilish-bedroom-to-grammys": "Entertainment", "bruno-mars-performing-from-hawaii": "Entertainment", "dantdm-minecraft-storyteller": "Entertainment",
+  "mark-rober-science-squirrels-mars": "Entertainment", "mrbeast-videos-to-team-trees": "Entertainment", "olivia-rodrigo-songwriter-stories": "Entertainment",
+  "pokimane-online-community": "Entertainment", "rihanna-barbados-global-music": "Entertainment", "sabrina-carpenter-acting-to-pop": "Entertainment",
+  "taylor-swift-bio": "Entertainment", "zendaya-from-disney-to-leading-roles": "Entertainment",
+};
+
+export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS].map((a) => (SECTION_OF_SLUG[a.slug] ? { ...a, section: SECTION_OF_SLUG[a.slug] } : a)).map((a) => {
   // An exact photo file wins: it loads straight from Wikimedia Commons, like the biographies.
   const file = !a.photo?.file ? READ_PHOTO_FILES[a.slug] : undefined;
   if (file) return { ...a, photo: { ...(READ_PHOTOS[a.slug] || {}), ...(a.photo || {}), alt: a.photo?.alt || READ_PHOTOS[a.slug]?.alt || a.title, file } };
@@ -875,14 +894,21 @@ export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS].
 export const QUICK_CATEGORIES: { label: string; emoji: string; sections: NewsSection[] }[] = [
   { label: "Sports", emoji: "🏀", sections: ["Sports"] },
   { label: "Soccer", emoji: "⚽", sections: ["Soccer"] },
-  { label: "Biographies", emoji: "🌟", sections: ["Biography"] },
+  { label: "Stars & Entertainment", emoji: "🎬", sections: ["Entertainment"] },
+  { label: "Famous People", emoji: "🌟", sections: ["Biography"] },
+  { label: "History", emoji: "🏛️", sections: ["History", "World"] },
+  { label: "Science", emoji: "🔬", sections: ["Science", "Health"] },
+  { label: "Space", emoji: "🚀", sections: ["Space"] },
+  { label: "Animals & Nature", emoji: "🐾", sections: ["Animals", "Nature"] },
+  { label: "Inventions", emoji: "💡", sections: ["Inventions"] },
+  { label: "Arts & Music", emoji: "🎨", sections: ["Arts", "Reading"] },
   { label: "Famous Speeches", emoji: "🎤", sections: ["Speeches"] },
   { label: "Fun Facts", emoji: "🤯", sections: ["Fun Facts"] },
-  { label: "Animals", emoji: "🐙", sections: ["Animals"] },
-  { label: "Space", emoji: "🚀", sections: ["Space"] },
-  { label: "Science & Nature", emoji: "🔬", sections: ["Science", "Nature", "Health"] },
-  { label: "History & Arts", emoji: "🎨", sections: ["History", "Arts", "Reading", "World"] },
 ];
+/** A category's id for links, e.g. "Stars & Entertainment" -> "stars-entertainment" (#/reads?quick=stars-entertainment). */
+export const quickCategoryId = (label: string) => label.toLowerCase().replace(/&/g, " ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+/** The category a link names, from its id (null for none or an unknown one). */
+export const quickCategoryById = (id: string | null | undefined) => (id ? QUICK_CATEGORIES.find((c) => quickCategoryId(c.label) === id) ?? null : null);
 export const quickCategoryOf = (a: NewsArticle) => QUICK_CATEGORIES.find((c) => c.sections.includes(a.section)) ?? QUICK_CATEGORIES[QUICK_CATEGORIES.length - 1];
 
 /** Recent news, newest first. */

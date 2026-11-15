@@ -4,7 +4,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { quizTakersText } from "@/components/QuizTakersTag";
 import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
-import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, newsReadMinutes, quickCategoryById, quickCategoryId, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
 import { NewsArt, sectionStyle } from "../news/useNews";
 import { POEMS, POEM_BANDS, poemLineCount, type PoemBand } from "@shared/poems";
 import { poemsRead, progressKey, readProgress, timeLabel, useLibrary, useReadsFonts } from "./useReads";
@@ -36,8 +36,20 @@ export default function ReadHub() {
     void fetch(`${API_BASE}/api/news/books`, { headers }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.books) setNewsIds(d.books); }).catch(() => {});
     void fetch(`${API_BASE}/api/books/quiz-takers`, { headers }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && typeof d === "object") setTakers(d); }).catch(() => {});
   }, [token]);
-  // the library's "See all quick reads" button lands on /reads#quick
-  useEffect(() => { if (window.location.hash === "#quick") setTimeout(() => document.getElementById("quick")?.scrollIntoView({ block: "start" }), 50); }, []);
+  // The library's "See all" buttons land on #/reads?quick=all, or #/reads?quick=<category> (e.g. quick=space)
+  // opened to that category. (The router matches the page name before the "?", so the page reads it here.)
+  useEffect(() => {
+    const h = window.location.hash;
+    const asked = new URLSearchParams(h.split("?")[1] || "").get("quick") ?? (/#quick\b/.test(h.slice(1)) ? "all" : null);
+    if (asked === null) return;
+    const c = quickCategoryById(asked);
+    if (c) setCat(c.label);
+    setTimeout(() => document.getElementById("quick")?.scrollIntoView({ block: "start" }), 50);
+  }, []);
+  // "All" shows every category as its own section (the newest few each); a category shows all of its reads.
+  const QUICK_PREVIEW = 6;
+  const quickSections = quickCats.map((c) => ({ c, list: quick.filter((a) => quickCategoryOf(a).label === c.label) }));
+  const pickCat = (label: string) => { setCat(label); document.getElementById("quick")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const readPoems = useMemo(() => new Set(poemsRead(user?.id)), [user?.id]);
   const poems = POEMS.filter((p) => band === "All" || p.band === band);
   const jumpTo = (id: string) => (e: { preventDefault(): void }) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
@@ -50,6 +62,20 @@ export default function ReadHub() {
   const prog = (b: ReadableBook) => progress[progressKey(b)];
   const reading = available.filter((b) => prog(b) && !prog(b).finished);
   const shown = available.filter((b) => filter === "All" || sizeOf(b.words) === filter);
+
+  function quickCard(a: NewsArticle) {
+    return (
+      <Link key={a.slug} href={`/news/${a.slug}`} className="nw-card" style={sectionStyle(a)}>
+        <NewsArt article={a} />
+        <div className="nw-card-text">
+          <span className="nw-kicker"><span className="nw-section">{quickCategoryOf(a).emoji} {quickCategoryOf(a).label}</span></span>
+          <h3>{a.title}</h3>
+          <div className="nw-meta"><span>⏱ {newsReadMinutes(a)} min read</span><span className="nw-pts">{NEWS_POINTS} pts</span></div>
+          {takers && newsIds[a.slug] ? <div className="nw-meta"><span><span aria-hidden="true">👥 </span>{quizTakersText(takers[newsIds[a.slug]] || 0, !!result(newsIds[a.slug]))}</span></div> : null}
+        </div>
+      </Link>
+    );
+  }
 
   function bookCard(b: ReadableBook) {
     const lb = b.bookId > 0 ? libBook(b.bookId) : undefined, r = b.bookId > 0 ? result(b.bookId) : undefined, p = prog(b);
@@ -72,7 +98,7 @@ export default function ReadHub() {
         <div className="nw-wrap">
           <div className="nw-topline"><Link href="/library" className="nw-back"><Back /><span>Library</span></Link></div>
           <h1 className="nw-wordmark">Read <span>on Arise</span></h1>
-          <p className="nw-tagline">Start with a 5-minute read: {NEWS_ARTICLES.length} short stories about sports, soccer, famous people, speeches and wild facts. Plus {available.length} books and {POEMS.length} poems. Finish one, pass the quiz, earn points.</p>
+          <p className="nw-tagline">Start with a 5-minute read: {NEWS_ARTICLES.length} short stories about sports, stars, history, science, space, animals, inventions and wild facts. Plus {available.length} books and {POEMS.length} poems. Finish one, pass the quiz, earn points.</p>
           <nav className="rd-jump" aria-label="Jump to">
             <button type="button" onClick={jumpTo("quick")}>⚡ 5-Minute Reads</button>
             {reading.length > 0 && <button type="button" onClick={jumpTo("continue")}>Continue reading</button>}
@@ -89,19 +115,17 @@ export default function ReadHub() {
             <button type="button" className="nw-chip" aria-pressed={cat === "All"} onClick={() => setCat("All")}>All {quick.length}</button>
             {quickCats.map((c) => <button key={c.label} type="button" className="nw-chip" aria-pressed={cat === c.label} onClick={() => setCat(c.label)}><span aria-hidden="true">{c.emoji} </span>{c.label}</button>)}
           </nav>
-          <div className="nw-grid">
-            {quickShown.map((a) => (
-              <Link key={a.slug} href={`/news/${a.slug}`} className="nw-card" style={sectionStyle(a)}>
-                <NewsArt article={a} />
-                <div className="nw-card-text">
-                  <span className="nw-kicker"><span className="nw-section">{quickCategoryOf(a).emoji} {quickCategoryOf(a).label}</span></span>
-                  <h3>{a.title}</h3>
-                  <div className="nw-meta"><span>⏱ {newsReadMinutes(a)} min read</span><span className="nw-pts">{NEWS_POINTS} pts</span></div>
-                  {takers && newsIds[a.slug] ? <div className="nw-meta"><span><span aria-hidden="true">👥 </span>{quizTakersText(takers[newsIds[a.slug]] || 0, !!result(newsIds[a.slug]))}</span></div> : null}
-                </div>
-              </Link>
-            ))}
-          </div>
+          {cat === "All"
+            ? quickSections.map(({ c, list }) => (
+                <section key={c.label} className="nw-quick-cat" id={`quick-${quickCategoryId(c.label)}`} aria-labelledby={`quick-${quickCategoryId(c.label)}-h`} data-testid="quick-category">
+                  <div className="nw-quick-cat-head">
+                    <h3 id={`quick-${quickCategoryId(c.label)}-h`}><span aria-hidden="true">{c.emoji} </span>{c.label} <span className="nw-quick-count">{list.length}</span></h3>
+                    {list.length > QUICK_PREVIEW && <button type="button" className="nw-quick-all" onClick={() => pickCat(c.label)}>See all {list.length}</button>}
+                  </div>
+                  <div className="nw-grid">{list.slice(0, QUICK_PREVIEW).map(quickCard)}</div>
+                </section>
+              ))
+            : <div className="nw-grid">{quickShown.map(quickCard)}</div>}
         </section>
 
         {reading.length > 0 && (
