@@ -12,7 +12,8 @@
 // Making one is metered like every To Duo AI use (plans.aiMeter), so it's part of Unlimited.
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
-import { ASK_LIMITS, askKind, askSystemPrompt, cleanAsks, isAskId, newAskId, type AriseAsk } from "../shared/ariseAsks";
+import { ASK_LIMITS, TZ, askKind, askSystemPrompt, cleanAsks, isAskId, needsLookup, newAskId, type AriseAsk } from "../shared/ariseAsks";
+import type { Lookup } from "./askLookup";
 
 export type AskAi = (system: string, user: string) => Promise<string>;
 export type AsksDeps = {
@@ -22,6 +23,8 @@ export type AsksDeps = {
   aiReady: () => boolean;
   notify: (userId: number, message: { title: string; body: string; url: string; tag: string }) => Promise<unknown>;
   now?: () => number;
+  /** Live facts for questions about now (the weather, news, scores): server/askLookup.ts. */
+  lookup?: (ask: string, tz: string | undefined, today: string) => Promise<Lookup>;
 };
 
 const KEY = (userId: number) => `todo_asks_u${userId}`;
@@ -94,15 +97,20 @@ export function createAsks(deps: AsksDeps) {
     if (!started) return null;
     const today = new Date(now()).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     let made: ReturnType<typeof readMade> = null;
-    try { made = readMade(await deps.ai(askSystemPrompt(today, people), `Request: ${started.ask}\nKind: ${started.kind}${started.due ? `\nIt's needed by: ${started.due}` : ""}`)); }
+    // Questions about now get today's facts first, so Arise answers instead of saying it can't know.
+    let live: Lookup = null;
+    if (deps.lookup && (started.kind === "answer" || needsLookup(started.ask))) live = await deps.lookup(started.ask, started.tz, today).catch(() => null);
+    const asked = `Request: ${started.ask}\nKind: ${started.kind}${started.due ? `\nIt's needed by: ${started.due}` : ""}`
+      + (live ? `\n\nLive information (use this for anything current):\n${live.facts}` : (started.kind === "answer" && needsLookup(started.ask) ? "\n\nNo live information could be fetched for this right now." : ""));
+    try { made = readMade(await deps.ai(askSystemPrompt(today, people), asked)); }
     catch (e: any) { console.error("[todo-asks] AI:", e?.message || e); }
     const finished = await update(userId, id, (a) => made
-      ? { ...a, status: "done", title: made.title, summary: made.summary, result: made.markdown, finishedAt: new Date(now()).toISOString(), error: undefined, seen: false }
+      ? { ...a, status: "done", title: made.title, summary: made.summary, result: made.markdown, finishedAt: new Date(now()).toISOString(), error: undefined, seen: false, ...(live ? { source: live.source } : {}) }
       : { ...a, status: "failed", error: "Arise couldn't make this one. Try again.", finishedAt: new Date(now()).toISOString() });
     if (finished) {
       const url = `/#/to-do?go=asks&ask=${id}`;
       await deps.notify(userId, made
-        ? { title: `Arise finished: ${finished.title}`, body: finished.summary || "It's ready in your Arise tab.", url, tag: `arise-ask-${id}` }
+        ? { title: finished.kind === "answer" ? `Arise: ${finished.title}` : `Arise finished: ${finished.title}`, body: finished.summary || "It's ready in your Arise tab.", url, tag: `arise-ask-${id}` }
         : { title: "Arise couldn't finish", body: `"${finished.ask.slice(0, 80)}" didn't work. Tap to try again.`, url, tag: `arise-ask-${id}` }).catch(() => {});
     }
     return finished;
@@ -122,6 +130,7 @@ export function createAsks(deps: AsksDeps) {
       due: /^\d{4}-\d\d-\d\d$/.test(String(body?.due || "")) ? String(body.due) : "",
       when: String(body?.when || (later ? "Made later" : "Made now")).slice(0, 120),
       ...(typeof body?.taskId === "string" && body.taskId.length <= 80 ? { taskId: body.taskId } : {}),
+      ...(typeof body?.tz === "string" && TZ.test(body.tz) ? { tz: body.tz } : {}),
     };
     await serial(userId, async () => save(userId, [rec, ...(await list(userId))]));
     const people = Array.isArray(body?.people) ? body.people.map((p: unknown) => String(p || "").replace(/[^\p{L}\p{N} '.-]/gu, "").trim().slice(0, 30)).filter(Boolean).slice(0, 20) : [];

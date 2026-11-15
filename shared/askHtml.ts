@@ -3,6 +3,8 @@
 // made here can appear, never anything from the AI.
 export const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const inline = (s: string) => escHtml(s)
+  // A blank to write in (____) is a line to write on, kept on the same line as the words before it.
+  .replace(/\s*_{3,}/g, '&nbsp;<span class="blank" aria-label="blank"></span>')
   .replace(/`([^`]+)`/g, "<code>$1</code>")
   .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
   .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
@@ -51,3 +53,11 @@ export function askHtml(md: string): string {
   return out.join("");
 }
 
+
+/** A worksheet's or quiz's answer key, taken off the end ("## Answer key" and what follows), so the
+ *  page can hide it until asked and print with or without it. */
+export function splitAnswerKey(md: string): { main: string; key: string } {
+  const m = /^#{1,4}\s*\**\s*(answer key|answers|answer sheet|key)\b.*$/im.exec(md);
+  if (!m || m.index < 20) return { main: md, key: "" };
+  return { main: md.slice(0, m.index).trimEnd(), key: md.slice(m.index + m[0].length).trim() };
+}

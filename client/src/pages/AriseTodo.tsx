@@ -665,11 +665,13 @@ export default function AriseTodo() {
       if (started) {
         smartRef.current = null;
         setEditing(null);
-        setMessage("Sending to Arise…");
+        setMessage(started.task ? "Sending to Arise…" : "Asking Arise…");
         started.sent.then((a) => {
           const t = started.task;
-          setData((previous) => ({ ...previous, tasks: [...previous.tasks, { ...base, title: t.title, due: t.due, time: t.dueTime || "", notes: t.notes, repeat: "none" }] }));
-          setMessage(a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.");
+          // A question is answered in the Arise tab; it isn't a to-do.
+          if (!t) { setSection("tasks"); openAsk(a.id); } // the answer opens in the Arise tab, filling in when it's ready
+          else setData((previous) => ({ ...previous, tasks: [...previous.tasks, { ...base, title: t.title, due: t.due, time: t.dueTime || "", notes: t.notes, repeat: "none" }] }));
+          setMessage(!t ? "Arise is looking into it. The answer will be in the Arise tab in a moment." : a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.");
         }).catch((err: Error) => setMessage(err.message || "Arise couldn't take that. Try again."));
         return;
       }

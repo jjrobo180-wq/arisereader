@@ -57,7 +57,8 @@ test("the kind of thing asked for, and the task's name", () => {
   assert.equal(askKind("email the coach about Saturday"), "email");
   assert.equal(askKind("plan a week of dinners"), "recipe");
   assert.equal(askKind("weekly chore schedule"), "plan");
-  assert.equal(askKind("tell me something"), "other");
+  assert.equal(askKind("tell me something"), "answer");
+  assert.equal(askKind("tidy up the garage notes"), "other");
   assert.equal(askTaskTitle("make a worksheet for Kha"), "Arise: make a worksheet for Kha");
 });
 
@@ -180,6 +181,80 @@ test("wired into To Duo: @arise in Tasks and the Add sheet, the Arise tab, notif
   const server = read("server/todoAsks.ts");
   assert.match(server, /app\.post\("\/api\/arise-todo\/asks", authMiddleware, async \(req: any, res, next\) => \{/);
   assert.match(server, /\}, aiMeter, async \(req: any, res\) => \{/);
-  assert.match(read("client/src/components/teacher-hub/AriseAsks.tsx"), /dangerouslySetInnerHTML=\{\{ __html: askHtml\(current\.result\) \}\}/);
+  assert.match(read("client/src/components/teacher-hub/AriseAsks.tsx"), /dangerouslySetInnerHTML=\{\{ __html: askHtml\(main\) \}\}/);
   assert.match(read("shared/askHtml.ts"), /export const escHtml = \(s: string\) => s\.replace\(\/&\/g, "&amp;"\)/);
+});
+
+// ── Questions, live facts and cleaner results (November 2026) ───────────────────────────────────
+import { needsLookup } from "../shared/ariseAsks";
+import { placeIn, tzCity, weatherFacts, makeLookup } from "../server/askLookup";
+import { askHtml, splitAnswerKey } from "../shared/askHtml";
+
+test("a question is answered now, not turned into a to-do due on the day it mentions", () => {
+  for (const q of ["what's the weather tomorrow", "whats the weather tomorrow?", "will it snow on Monday", "who won the Broncos game", "is the library open today"]) {
+    assert.equal(askKind(q), "answer", q);
+    const t = askTiming(q, SAT);
+    assert.equal(t.mode, "now", q); assert.equal(t.due, "", q);
+  }
+  // Things to make stay things to make, with their timing.
+  assert.equal(askKind("make a worksheet for Kha by Monday"), "worksheet");
+  assert.equal(askTiming("make a worksheet for Kha by Monday", SAT).due, "2026-11-16");
+  assert.equal(askKind("plan a week of dinners"), "recipe");
+  assert.equal(askKind("make a packing list for the weekend weather"), "list");
+  assert.ok(needsLookup("what's the weather tomorrow") && needsLookup("latest news about the Mars rover") && !needsLookup("make a worksheet"));
+});
+
+test("the weather: the place named in the ask, or the phone's time zone, from Open-Meteo", async () => {
+  assert.equal(placeIn("what's the weather in Chicago tomorrow"), "Chicago");
+  assert.equal(placeIn("will it rain in San Diego on Saturday?"), "San Diego");
+  assert.equal(placeIn("what's the weather tomorrow"), "");
+  assert.equal(placeIn("weather in the morning"), "");
+  assert.equal(tzCity("America/Los_Angeles"), "Los Angeles");
+  const urls: string[] = [];
+  const fake = (async (url: string) => {
+    urls.push(url);
+    if (url.includes("geocoding")) return new Response(JSON.stringify({ results: [{ name: "Denver", admin1: "Colorado", country: "United States", country_code: "US", latitude: 39.7, longitude: -104.9 }] }));
+    return new Response(JSON.stringify({ current: { temperature_2m: 41.2, apparent_temperature: 37, weather_code: 3, wind_speed_10m: 8 },
+      daily: { time: ["2026-11-15", "2026-11-16"], weather_code: [3, 71], temperature_2m_max: [52.4, 38], temperature_2m_min: [30, 24.6], precipitation_probability_max: [10, 70], snowfall_sum: [0, 1.2], wind_speed_10m_max: [12, 20], sunrise: ["2026-11-15T06:41", "2026-11-16T06:42"], sunset: ["2026-11-15T16:44", "2026-11-16T16:43"] } }));
+  }) as any;
+  const w = await weatherFacts("what's the weather tomorrow", "America/Denver", fake);
+  assert.ok(w);
+  assert.match(urls[0], /name=Denver/);
+  assert.match(urls[1], /temperature_unit=fahrenheit/);
+  assert.match(w!.facts, /Weather for Denver, Colorado \(from the phone's time zone/);
+  assert.match(w!.facts, /Monday, Nov 16: light snow, high 38°F, low 25°F, chance of rain or snow 70%, snow 1.2 in/);
+  assert.equal(w!.source, "Open-Meteo forecast for Denver, Colorado");
+  // Other questions about now are looked up on the web.
+  const look = makeLookup({ search: async () => JSON.stringify({ facts: "- The Broncos beat the Chiefs 24-17 on Sunday night.", sources: ["NFL.com"] }), fetchImpl: fake });
+  const news = await look("who won the Broncos game", undefined, "Saturday");
+  assert.match(news!.facts, /Broncos beat the Chiefs/); assert.equal(news!.source, "Looked up on the web: NFL.com");
+});
+
+test("Arise answers from the live facts and says where they came from", async () => {
+  const f = fakeDeps(async () => JSON.stringify({ title: "Tomorrow's weather in Denver", summary: "Light snow tomorrow.", markdown: "**Light snow** tomorrow in Denver, high 38°F and low 25°F." }));
+  const asks = createAsks({ ...f.deps, lookup: async () => ({ facts: "Weather for Denver: Monday light snow, high 38°F", source: "Open-Meteo forecast for Denver, Colorado" }) });
+  await asks.start(7, { ask: "what's the weather tomorrow", tz: "America/Denver", when: "Answered now" });
+  await wait();
+  const [saved] = await asks.list(7);
+  assert.equal(saved.status, "done"); assert.equal(saved.kind, "answer"); assert.equal(saved.tz, "America/Denver");
+  assert.equal(saved.source, "Open-Meteo forecast for Denver, Colorado");
+  assert.match(f.prompts[0], /Live information \(use this for anything current\):\nWeather for Denver/);
+  assert.match(f.prompts[0], /Never say you can't look things up/);
+  assert.equal(f.notes[0].title, "Arise: Tomorrow's weather in Denver");
+});
+
+test("worksheets read cleanly: blanks stay on their line, the answer key is kept apart", () => {
+  const html = askHtml("1. Write 0.875 as a fraction in simplest form. ____");
+  assert.match(html, /simplest form\.&nbsp;<span class="blank" aria-label="blank"><\/span>/);
+  const { main, key } = splitAnswerKey("# Fractions\n\n1. 1/2 + 1/4 = ____\n\n## Answer Key\n1. 3/4");
+  assert.match(main, /1\/2 \+ 1\/4/); assert.ok(!/3\/4/.test(main)); assert.equal(key, "1. 3/4");
+  assert.deepEqual(splitAnswerKey("Just text"), { main: "Just text", key: "" });
+  const ui = read("client/src/components/teacher-hub/AriseAsks.tsx");
+  assert.match(ui, /data-testid="arise-ask-key"/);
+  assert.match(ui, /printAsk\(current, false\)/); assert.match(ui, /Print with answers/);
+  assert.match(ui, /data-testid="arise-ask-source"/);
+  // A question isn't a to-do: no task, and it opens straight to the answer.
+  assert.match(read("client/src/lib/ariseAsks.ts"), /const task: TaskFromAsk \| null = question \? null :/);
+  assert.match(read("client/src/components/teacher-hub/HubTasks.tsx"), /if \(!t\) openAsk\(a\.id\);/);
+  assert.match(read("server/routes.ts"), /lookup: makeLookup\(\{ search: \(system, user\) => perplexityChat\(system, user, 30_000\) \}\)/);
 });

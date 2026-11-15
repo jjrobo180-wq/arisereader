@@ -4,7 +4,7 @@ name: Arise asks in To Duo check (in a browser)
 on:
   workflow_dispatch:
   push:
-    branches: [master, 'claude/todo-arise-asks']
+    branches: [master, 'claude/todo-arise-asks', 'claude/arise-asks-better']
     paths:
       - 'shared/ariseAsks.ts'
       - 'shared/askHtml.ts'
