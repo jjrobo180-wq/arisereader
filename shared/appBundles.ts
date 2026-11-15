@@ -5,6 +5,7 @@
 // everyone who already added one of them keeps it, now inside the new plugin.
 import type { FamilySection } from "./familyHub";
 
+/** "healthlite" is retired (no bundle): kept in the type so saved choices still read. */
 export type BundleId = "healthlite" | "inspire" | "kitchen" | "moneyhub" | "homehub" | "datehub" | "dailyhub" | "listhub" | "focushub";
 export type BundleMember = { id: FamilySection; label?: string; detail?: string };
 export type Bundle = {
@@ -28,57 +29,9 @@ export type Bundle = {
   promo?: { title: string; body: string; cta: string; href: string };
 };
 
-const FIT_LINK = "https://arisetodo.com/#/fit";
 
 export const BUNDLES: Bundle[] = [
-  {
-    id: "healthlite", section: "healthlite", name: "Health Lite", category: "Health & wellness", icon: "HeartPulse", color: "#e0566b",
-    tagline: "Everything for your health, in one place",
-    description: "One simple home for your health. Pick the tools you want, like a period tracker, medicine reminders, a food diary, workouts, sleep, mood or water, and switch between them with one tap. Want more depth? Cooked Fitness by Arise has full programs, meal tracking and coaching.",
-    features: ["Pick only the tools you need", "Period tracker, medicine, food, workouts, sleep, mood", "Daily trackers for water, steps, pain and more", "Your records stay private to you"],
-    pickerTitle: "Pick your health tools", pickerIntro: "Choose what you want in Health Lite. You can change this any time with the settings button.",
-    fixed: [],
-    groups: [
-      { title: "Body", members: [
-        { id: "health", label: "Food & fitness", detail: "Calories, water, exercise and weight" },
-        { id: "workouts", label: "Workouts", detail: "Sets, reps and personal bests" },
-        { id: "cycle", label: "Period tracker", detail: "Cycle, symptoms and predictions" },
-        { id: "pills", label: "Medicine", detail: "Pill and vitamin reminders and refills" },
-        { id: "sleep", label: "Sleep", detail: "Sleep log, sounds and stories" },
-        { id: "sleepfinder", label: "Sleep Finder", detail: "Find something to fall asleep to" },
-      ] },
-      { title: "Mind", members: [
-        { id: "mood", label: "Mood", detail: "A daily check-in and patterns" },
-        { id: "meditate", label: "Meditate", detail: "Guided breathing and a quiet timer" },
-        { id: "habits", label: "Habits", detail: "Build habits, one day at a time" },
-        { id: "self-care" as FamilySection, label: "Self-care ideas" },
-      ] },
-      { title: "Records", members: [
-        { id: "medical", label: "Medical info", detail: "Health cards for your family" },
-        { id: "checkups", label: "Checkups", detail: "Who is due for the dentist?" },
-        { id: "doctors" as FamilySection, label: "Doctors & dentists" },
-        { id: "vaccines" as FamilySection, label: "Vaccine records" },
-        { id: "allergies-list" as FamilySection, label: "Allergies" },
-        { id: "pain-level" as FamilySection, label: "Pain level" },
-      ] },
-      { title: "Daily trackers", members: [
-        { id: "water-log" as FamilySection, label: "Water" },
-        { id: "steps-log" as FamilySection, label: "Steps" },
-        { id: "veggie-log" as FamilySection, label: "Fruits & veggies" },
-        { id: "outdoor-log" as FamilySection, label: "Outdoor time" },
-        { id: "stretch-log" as FamilySection, label: "Stretching" },
-        { id: "yoga-log" as FamilySection, label: "Yoga" },
-        { id: "screen-time" as FamilySection, label: "Screen time" },
-        { id: "coffee-log" as FamilySection, label: "Caffeine" },
-        { id: "alcohol-free" as FamilySection, label: "Alcohol-free days" },
-        { id: "smoke-free" as FamilySection, label: "Smoke-free days" },
-        { id: "sugar-free" as FamilySection, label: "No added sugar" },
-        { id: "soda-free" as FamilySection, label: "No soda" },
-        { id: "flossed" as FamilySection, label: "Flossed" },
-      ] },
-    ],
-    promo: { title: "Want more from your health?", body: "Cooked Fitness by Arise has full training programs, meal tracking, sleep scores, a medicine tracker and a period tracker, plus a coach.", cta: "Get Cooked Fitness", href: FIT_LINK },
-  },
+  // Health Lite was here until Nov 15, 2026 (retired: its tools are separate plugins again, see RETIRED_SECTIONS).
   {
     id: "inspire", section: "inspire", name: "Journal & Inspiration", category: "Inspiration", icon: "NotebookPen", color: "#8b5cf6",
     tagline: "Journal, quotes, gratitude and more",

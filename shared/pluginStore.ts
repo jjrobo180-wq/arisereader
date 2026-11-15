@@ -157,6 +157,8 @@ const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
 
 /** Office editors and AI utilities appear as individual installable App Store apps in BOTH hubs. */
 const OFFICE_APPS = (hub: PluginHub): Plugin[] => [
+  // Arise Buddy (TTS Buddy, shared/ttsBuddy.ts): snap a worksheet and a student hears it read aloud on a laptop.
+  { id: `${hub}-buddy`, hub, name: "Arise Buddy", tagline: "Worksheets read aloud to students", description: "Snap a photo of any worksheet with your phone. Arise Buddy splits it into one question at a time, and a student on a laptop hears each question and every answer choice read aloud in a natural voice while the words light up. The student opens arisetodo.com/buddy and you pair with a 4-digit code: no student accounts or names needed.", features: ["Snap a worksheet, ready in seconds", "Natural voice with words that light up", "Supports: simpler wording, hints, word banks", "Pairs with a 4-digit code, no student accounts"], category: "Premium", icon: "AudioLines", color: "#0ea5a4", featured: true, target: { kind: "officeApp", id: `${hub}-buddy`, href: "#/buddy" } },
   { id: `${hub}-arise-notes`, hub, name: "Arise Notes", tagline: "AI note taker: record, transcribe, summarize", description: "Record a meeting, class or visit (or upload one, up to 2 hours) and get a transcript with times, a clear summary, decisions and action items. Check the to-dos and they go straight into your planner. Templates for IEP meetings, parent conferences, lectures and doctor visits, parent-friendly emails in any language, flashcards and quizzes, and Ask your notes. Free: 60 minutes a month.", features: ["Record live or upload audio and video", "Summaries, decisions and action items", "To-dos and dates into your planner, after you check them", "IEP mode, parent emails, study tools", "Audio deleted after transcription by default"], category: "Premium", icon: "NotebookPen", color: "#6a55dc", featured: true, target: { kind: "officeApp", id: `${hub}-arise-notes`, href: `#/arise-notes?hub=${hub}` } },
   { id: `${hub}-sleep-studio`, hub, name: "A.R.I.S.E. Sleep Studio", tagline: "Ultra-realistic rain and sleep sounds", description: "An immersive landscape sanctuary with cinematic raindrops on glass, photo scenery, customizable rain intensity, rich ambient sound, wind mixing, bedtime clock and an automatic sleep timer.", features: ["Rain on glass with detailed reflections", "Looping layered rain and wind sound", "Sleep timer from 15 minutes to 8 hours", "Full screen, high-resolution, landscape-first"], category: hub === "work" ? "Wellness" : "Health & wellness", icon: "Moon", color: "#788cbb", featured: true, target: { kind: "officeApp", id: `${hub}-sleep-studio`, href: `#/ambient?mode=sleep&hub=${hub}` } },
   { id: `${hub}-atmosphere`, hub, name: "A.R.I.S.E. Standby", tagline: "Real night scenery, live clock, weather and sleep sounds", description: "A premium StandBy display for your desk or bedside, on a phone held either way. Six long 4K video scenes that run 10 minutes to nearly an hour before repeating (northern lights, starry skies, city nights, rainy city, campfire, or a mix), your own YouTube link for hour-long videos, 28 short 4K loops and eighteen real night photographs shown in up to 4K, with shooting stars, fireflies, snow and drifting mist, plus kite scenes and scenery that follows your live weather. A big clock, your WorkHub or LifeHub Daily Brief, and a Sleep Studio with rain, ocean, breeze and deep soundscapes and a sleep timer.", features: ["Long 4K video scenes (10+ minutes), or paste your own YouTube link", "Live Weather turns to night scenery after dark", "Clock styles, 12 or 24 hour, big-clock layout", "Rain, ocean, breeze and deep sleep sounds with a timer", "True full screen on phones, with controls that hide themselves"], category: "Premium", icon: "CloudSun", color: "#c8a878", featured: true, target: { kind: "officeApp", id: `${hub}-atmosphere`, href: `#/ambient?mode=standby&hub=${hub}` } },
@@ -661,7 +663,7 @@ const TEACHER_CHECKLIST = /\b(IEP|504|teach|teacher|student|class|classroom|scho
 export type PluginTier = "premium" | "mini";
 
 /** Office apps that are full apps (the rest of the officeApp listings are Mini tools). */
-const PREMIUM_OFFICE = /-(office-(doc|sheet|slides)|arise-notes|atmosphere|sleep-studio|para-team)$/;
+const PREMIUM_OFFICE = /-(office-(doc|sheet|slides)|arise-notes|atmosphere|sleep-studio|para-team|buddy)$/;
 
 export function pluginTier(p: Plugin): PluginTier {
   const k = p.target.kind;
@@ -697,7 +699,7 @@ const CATEGORY_SHELF: Readonly<Record<string, string>> = {
 /** The shelf a plugin sits on (its category as the hub shows it, so "For teachers" stays together). */
 export function pluginShelf(p: Plugin): string {
   if (pluginTier(p) === "premium") {
-    if (p.target.kind === "app") return "Learning apps";
+    if (p.target.kind === "app" || /-buddy$/.test(p.id)) return "Learning apps";
     if (/-(atmosphere|sleep-studio)$/.test(p.id)) return "Sleep & Standby";
     if (p.category === "Super apps" || /-(arise-notes|para-team)$/.test(p.id)) return "Super apps";
     return "Office & files";
@@ -711,9 +713,9 @@ export function pluginShelf(p: Plugin): string {
 }
 
 /** Plugins no longer offered: a bundle whose pages are now each their own Mini plugin. */
-const RETIRED_IDS = new Set(["life-healthlite"]);
+const RETIRED_IDS = new Set<string>([]);
 /** Bundles whose pages show in the gallery on their own (their bundle is retired above). */
-const RELEASED_BUNDLES = new Set<string>(["healthlite"]);
+const RELEASED_BUNDLES = new Set<string>([]);
 
 /** Every plugin this hub can add: the ones built for it, then the ones built for the other hub that
  *  work here all the same (marked `recommendedFor`). The Arise learning apps are only for teachers and

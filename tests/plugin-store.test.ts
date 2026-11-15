@@ -162,17 +162,26 @@ test("the gallery splits into Premium apps and Mini plugins, and every plugin si
   }
 });
 
-test("Health Lite is retired: gone from the gallery, its tools listed on their own, still removable for anyone who has it", () => {
+test("Health Lite is gone from the gallery, even for anyone who had it; its tools are listed on their own", () => {
+  for (const includeRetired of [false, true]) {
+    const life = pluginsFor("life", { teacher: false, includeRetired });
+    assert.ok(!life.some((p) => p.id === "life-healthlite"));
+    assert.ok(!searchPlugins(life, "health lite").some((p) => p.id === "life-healthlite"));
+  }
   const life = pluginsFor("life", { teacher: false });
-  assert.ok(!life.some((p) => p.id === "life-healthlite"));
-  assert.ok(!searchPlugins(life, "health lite").some((p) => p.id === "life-healthlite"));
   for (const id of ["life-health", "life-cycle", "life-pills", "life-mood", "life-sleep", "life-workouts", "life-meditate", "life-habits", "life-medical", "life-checkups"])
     assert.ok(life.some((p) => p.id === id), id);
-  const withRetired = pluginsFor("life", { teacher: false, includeRetired: true });
-  const hl = withRetired.find((p) => p.id === "life-healthlite")!;
-  assert.equal(hl.retired, true);
-  assert.ok(!hl.featured);
   assert.ok(!read("client/src/components/DuoSetup.tsx").includes('"life-healthlite"'));
+});
+
+test("Arise Buddy (TTS Buddy) is a Premium app in both hubs' galleries", () => {
+  for (const hub of ["life", "work"] as const) {
+    const b = pluginsFor(hub, { teacher: true }).find((p) => p.id === `${hub}-buddy`);
+    assert.ok(b, hub);
+    assert.equal(b!.name, "Arise Buddy"); assert.equal(b!.tier, "premium"); assert.equal(b!.shelf, "Learning apps");
+    assert.deepEqual(b!.target, { kind: "officeApp", id: `${hub}-buddy`, href: "#/buddy" });
+    assert.equal(searchPlugins(pluginsFor(hub, { teacher: true }), "buddy")[0]?.name, "Arise Buddy");
+  }
 });
 
 test("search finds things by what people call them, best match first", () => {
