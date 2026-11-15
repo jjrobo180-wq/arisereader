@@ -17,7 +17,7 @@ export const LIFE_PARTS = [
   { id: "stars", label: "Kids' stars" },
   { id: "bills", label: "Bills due" },
   { id: "notes", label: "Pinned notes" },
-  { id: "links", label: "My links" },
+  { id: "links", label: "My link page" },
 ] as const;
 export type LifePart = (typeof LIFE_PARTS)[number]["id"];
 

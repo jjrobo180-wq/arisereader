@@ -135,12 +135,27 @@ export function registerTodoShareRoutes(app: Express, authMiddleware: RequestHan
 
   /* ---------------- the page someone opens from the link (no account) ---------------- */
 
-  /** The address people get. Chat apps read it for a preview, so it's a bare page that moves on. */
-  app.get("/share/:token", (req, res) => {
+  /** The address people get. Chat apps read it for a preview, so it's a bare page that moves on. A Link page's
+   *  preview shows the person's name and their line about themselves. */
+  app.get("/share/:token", async (req, res) => {
     const token = String(req.params.token || "");
     const to = TOKEN.test(token) ? `/#/share/${token}` : "/";
+    let title = "Shared from Arise LifeHub", about = "";
+    if (TOKEN.test(token) && !views.retryAfter(clientAddress(req))) {
+      try {
+        views.fail(clientAddress(req));
+        const { data } = await deps.db.from(SHARES).select("user_id, target, revoked").eq("token", token).maybeSingle();
+        if (data && !data.revoked && data.target === "links" && (await deps.ownerAllowed(Number(data.user_id)).catch(() => false))) {
+          const saved = await readWorkspace(Number(data.user_id));
+          const page = saved ? cleanFamily((saved.workspace as any)?.family ?? {}).linkPage : null;
+          if (page) { title = page.title.trim() || "Links"; about = page.bio.trim() || `${title}'s links`; }
+        }
+      } catch { /* the plain preview */ }
+    }
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const meta = `<title>${esc(title)}</title><meta property="og:title" content="${esc(title)}">${about ? `<meta name="description" content="${esc(about)}"><meta property="og:description" content="${esc(about)}">` : ""}<meta property="og:type" content="profile"><meta name="twitter:card" content="summary">`;
     res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
-    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Shared from Arise LifeHub</title></head><body><script>location.replace(${JSON.stringify(to)});</script><noscript><a href="${to}">Open the shared page</a></noscript></body></html>`);
+    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">${meta}</head><body><script>location.replace(${JSON.stringify(to)});</script><noscript><a href="${to}">Open the shared page</a></noscript></body></html>`);
   });
 
   /** Finds a working link, or answers for it. */

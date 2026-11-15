@@ -13,6 +13,8 @@ private func sample(_ app: String) -> [Slot] {
             Slot(id: "duo.agenda", title: "Today's agenda", value: "3 events", detail: "Next: Dentist 4:30 PM", tint: "#6366f1", lines: ["4:30 PM  Dentist", "6:00 PM  Soccer practice", "7:30 PM  Dinner with Sam"]),
             Slot(id: "duo.goals", title: "Goals", value: "2 of 3", detail: "Read 20 pages left", tint: "#10b981", progress: 0.66, lines: ["Walk 10k steps ✓", "Meditate ✓", "Read 20 pages"]),
             Slot(id: "duo.bills", title: "Next bill", value: "$1,200", detail: "Rent · due in 3 days", tint: "#ef4444", lines: ["Rent $1,200 · Nov 5", "Phone $65 · Nov 9"]),
+            Slot(id: "duo.linkpage", title: "Jermaine Robinson", value: "JR", detail: "arisetodo.com/share/Xq3…", tint: "#ffffff", lines: ["Portfolio", "Book a call", "Newsletter"], qr: "https://arisetodo.com/share/Xq3vR8kLmN2pQ7sT9wYz1a"),
+            Slot(id: "duo.linkpage", title: "Jermaine Robinson", value: "JR", detail: "arisetodo.com/share/Xq3…", tint: "#0f0f12", lines: ["Portfolio", "Book a call", "Newsletter"], qr: "https://arisetodo.com/share/Xq3vR8kLmN2pQ7sT9wYz1a"),
         ]
     }
     return [
@@ -36,6 +38,17 @@ private struct Tile<Content: View>: View {
     }
 }
 
+/** A Link page widget tile: its own plain page colour, not a gradient. */
+private struct PlainTile<Content: View>: View {
+    let w: CGFloat, h: CGFloat
+    let color: Color
+    let content: Content
+    init(_ w: CGFloat, _ h: CGFloat, color: Color, @ViewBuilder content: () -> Content) { self.w = w; self.h = h; self.color = color; self.content = content() }
+    var body: some View {
+        content.padding(16).frame(width: w, height: h).background(color).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
 private struct Sheet: View {
     let slots: [Slot]
     var body: some View {
@@ -43,12 +56,21 @@ private struct Sheet: View {
         VStack(alignment: .leading, spacing: 18) {
             ForEach(Array(slots.enumerated()), id: \.offset) { i, s in
                 let e = SlotEntry(date: date, slot: s, look: Look.forId(s.id), tick: 1)
+                if s.id.hasSuffix("linkpage") {
+                    let bg = RGB(s.tint).color
+                    HStack(alignment: .top, spacing: 18) {
+                        PlainTile(170, 170, color: bg) { LinkPageEntryView(entry: e, forced: .systemSmall) }
+                        PlainTile(364, 170, color: bg) { LinkPageEntryView(entry: e, forced: .systemMedium) }
+                        PlainTile(364, 382, color: bg) { LinkPageEntryView(entry: e, forced: .systemLarge) }
+                    }
+                } else {
                 HStack(alignment: .top, spacing: 18) {
                     Tile(170, 170, bg: Theme.vivid(s.tint)) { SimpleView(entry: e, forced: .systemSmall) }
                     Tile(364, 170, bg: Theme.vivid(s.tint)) { SimpleView(entry: e, forced: .systemMedium) }
                     Tile(170, 170, bg: Theme.look(e.look, tint: s.tint)) { DetailView(entry: e, forced: .systemSmall) }
                     Tile(364, 170, bg: Theme.look(e.look, tint: s.tint)) { DetailView(entry: e, forced: .systemMedium) }
                     if i < 2 { Tile(364, 382, bg: Theme.look(e.look, tint: s.tint)) { DetailView(entry: e, forced: .systemLarge) } }
+                }
                 }
             }
         }

@@ -9,6 +9,8 @@
 // AriseWidgets, with the widget list below filled in for the app.
 import SwiftUI
 import WidgetKit
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 private let appWidgets: [[String]] = __WIDGETS__
 private let appTint = "__TINT__"
@@ -35,6 +37,8 @@ struct Slot: Codable {
     var current: Double?
     var goal: Double?
     var unit: String?
+    /// A web address to show as a QR code (the Link page widget).
+    var qr: String?
 }
 
 private func group() -> String {
@@ -553,6 +557,129 @@ struct DetailWidget {
         }
         .configurationDisplayName(name + " +") // a plain String: an interpolated name crashed the extension
         .description("Detailed, with a spotlight that moves through your day.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+// MARK: - Link page widget
+// Your Link page on the Home Screen: your initials, name and address, and a QR code anyone can scan to
+// open the page. Plain and calm in the page's own colours (the slot's tint is the page colour).
+
+/// A QR code for some text, as a crisp image (one black square per module, scaled up).
+func qrImage(_ text: String) -> CGImage? {
+    let filter = CIFilter.qrCodeGenerator()
+    filter.message = Data(text.utf8)
+    filter.correctionLevel = "M"
+    guard let out = filter.outputImage else { return nil }
+    let scaled = out.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+    return CIContext(options: [.useSoftwareRenderer: true]).createCGImage(scaled, from: scaled.extent)
+}
+
+struct QRPlate: View {
+    let image: CGImage
+    let size: CGFloat
+    var body: some View {
+        Image(decorative: image, scale: 1)
+            .interpolation(.none).resizable().aspectRatio(1, contentMode: .fit)
+            .padding(size * 0.07)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.12, style: .continuous).fill(Color.white))
+    }
+}
+
+/// The round mark with your initials.
+struct Monogram: View {
+    let text: String
+    let size: CGFloat
+    let ink: Color
+    let dark: Bool
+    var body: some View {
+        Text(verbatim: text).font(.system(size: size * 0.38, weight: .semibold)).foregroundStyle(dark ? Color.black : Color.white)
+            .frame(width: size, height: size).background(Circle().fill(ink))
+    }
+}
+
+struct LinkPageEntryView: View {
+    @Environment(\.widgetFamily) private var envFamily
+    let entry: SlotEntry
+    var forced: WidgetFamily? = nil
+    private var family: WidgetFamily { forced ?? envFamily }
+
+    var body: some View {
+        let s = entry.slot
+        let bg = RGB(s.tint ?? "#ffffff")
+        let dark = (0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b) < 0.5
+        let ink = dark ? Color(red: 0.96, green: 0.96, blue: 0.97) : Color(red: 0.07, green: 0.07, blue: 0.08)
+        let sub = ink.opacity(0.55)
+        let qr = s.qr.flatMap { qrImage($0) }
+        let initials = s.value.isEmpty ? "?" : s.value
+        switch family {
+        case .systemSmall:
+            if let qr {
+                VStack(spacing: 8) {
+                    QRPlate(image: qr, size: 104)
+                    Text(verbatim: s.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(ink).lineLimit(1)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Monogram(text: initials, size: 40, ink: ink, dark: dark)
+                    Spacer(minLength: 0)
+                    Text(verbatim: s.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(ink).lineLimit(2)
+                    Text(verbatim: s.detail ?? "Share your page in the app").font(.system(size: 11)).foregroundStyle(sub).lineLimit(2)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+        case .systemLarge:
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Monogram(text: initials, size: 48, ink: ink, dark: dark)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: s.title).font(.system(size: 18, weight: .semibold)).foregroundStyle(ink).lineLimit(1)
+                        Text(verbatim: s.detail ?? "").font(.system(size: 12)).foregroundStyle(sub).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                if let qr {
+                    HStack { Spacer(); QRPlate(image: qr, size: 150); Spacer() }
+                    Text(verbatim: "Scan to see my links").font(.system(size: 12, weight: .medium)).foregroundStyle(sub).frame(maxWidth: .infinity)
+                }
+                VStack(spacing: 6) {
+                    ForEach(Array((s.lines ?? []).prefix(qr == nil ? 7 : 3).enumerated()), id: \.offset) { _, line in
+                        HStack {
+                            Text(verbatim: line).font(.system(size: 13, weight: .medium)).foregroundStyle(ink).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(sub)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(ink.opacity(0.14), lineWidth: 1))
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        default:
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Monogram(text: initials, size: 42, ink: ink, dark: dark)
+                    Spacer(minLength: 0)
+                    Text(verbatim: s.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(ink).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(verbatim: s.detail ?? "").font(.system(size: 11)).foregroundStyle(sub).lineLimit(1)
+                    Text(verbatim: qr == nil ? "Share your page in the app to get a QR code" : "Scan to see my links").font(.system(size: 11, weight: .medium)).foregroundStyle(sub).lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let qr { QRPlate(image: qr, size: 124) }
+            }
+        }
+    }
+}
+
+struct LinkPageWidget {
+    let id: String
+    let name: String
+    var config: some WidgetConfiguration {
+        StaticConfiguration(kind: "Arise.\(id)", provider: SimpleProvider(id: id, name: name)) { entry in
+            LinkPageEntryView(entry: entry).containerBackground(for: .widget) { RGB(entry.slot.tint ?? "#ffffff").color }
+        }
+        .configurationDisplayName(name)
+        .description("Your Link page, with a QR code anyone can scan to open it.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

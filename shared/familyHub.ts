@@ -3,6 +3,7 @@
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
 import { cleanKitchen, emptyKitchen, type Kitchen } from "./kitchen";
+import { isLinkTheme, type LinkPageTheme } from "./linkPageLook";
 import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan";
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
@@ -155,10 +156,11 @@ export type RandomList = { id: string; name: string; items: string[] };
 export type SavedWord = { id: string; word: string; definition: string };
 /** One link. `group` is an optional folder name ("School", "Shopping"), used by the Directory look. */
 export type PageLink = { id: string; title: string; url: string; emoji: string; group?: string };
-/** How the link page looks: big buttons like a link tree, or a directory of tiles grouped into folders. */
+/** How the links are laid out: a list of rows ("buttons", the default) or a grid of tiles grouped into folders. */
 export type LinkPageStyle = "buttons" | "directory";
-/** The family's own link page (like a link tree), shareable with a link, and a "My links" part of Home. */
-export type LinkPage = { title: string; bio: string; links: PageLink[]; style?: LinkPageStyle };
+/** Your own link page: a minimal profile page, shareable with a link, a card on Home and an iPhone widget.
+ *  `theme` is its colours (shared/linkPageLook.ts); no theme is Paper (white). */
+export type LinkPage = { title: string; bio: string; links: PageLink[]; style?: LinkPageStyle; theme?: LinkPageTheme };
 export type Habit = { id: string; name: string; emoji: string; color: string; days: string[] };
 export type GratitudeDay = { id: string; date: string; items: string[] };
 export type FocusLog = { id: string; date: string; minutes: number };
@@ -624,6 +626,7 @@ export function cleanFamily(input: unknown): Family {
       return {
         title: str(lp.title, 80), bio: str(lp.bio, 300),
         ...(lp.style === "directory" ? { style: "directory" as const } : {}),
+        ...(isLinkTheme(lp.theme) && lp.theme !== "light" ? { theme: lp.theme } : {}),
         links: rows(lp.links, LIMITS.links, (r) => {
           const title = typedEnd(str(r.title, 80)), url = typedEnd(str(r.url, 1000));
           const group = str(r.group, 30).replace(/[\u0000-\u001f]/g, " ").trim();

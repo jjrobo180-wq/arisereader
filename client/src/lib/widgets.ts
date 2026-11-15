@@ -25,6 +25,8 @@ export type WidgetSlot = {
   current?: number;
   goal?: number;
   unit?: string;
+  /** A web address the widget shows as a QR code (the Link page widget). */
+  qr?: string;
 };
 export type WidgetTap = { id: string; action: string; amount: number; at: number };
 
@@ -48,6 +50,7 @@ export function cleanSlots(slots: WidgetSlot[]): WidgetSlot[] {
     ...(Number.isFinite(s.current) ? { current: s.current } : {}),
     ...(Number.isFinite(s.goal) ? { goal: s.goal } : {}),
     ...(s.unit ? { unit: text(s.unit, 8) } : {}),
+    ...(typeof s.qr === "string" && /^https:\/\/[^\s]{4,300}$/.test(s.qr) ? { qr: s.qr } : {}),
   }));
 }
 

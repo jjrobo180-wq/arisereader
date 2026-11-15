@@ -27,13 +27,20 @@ root = File.expand_path("../..", __dir__)
 own = ENV["WIDGET_SOURCE"].to_s.strip
 if own.empty?
   src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
+  # A Link page widget (an id ending in "linkpage") is one widget of its own with a QR code; every other id
+  # is a simple widget and a detailed one.
+  link = ->(w) { w[0].to_s.end_with?("linkpage") }
   structs = widgets.each_with_index.map do |w, i|
-    "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }
+    if link.(w)
+      "struct AriseLink#{i}: Widget { var body: some WidgetConfiguration { LinkPageWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+    else
+      "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }
 " \
-    "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+      "struct AriseDetail#{i}: Widget { var body: some WidgetConfiguration { DetailWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+    end
   end.join("
 ")
-  bundle = widgets.each_index.map { |i| "        AriseSimple#{i}()
+  bundle = widgets.each_with_index.map { |w, i| link.(w) ? "        AriseLink#{i}()" : "        AriseSimple#{i}()
         AriseDetail#{i}()" }.join("
 ")
   src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)

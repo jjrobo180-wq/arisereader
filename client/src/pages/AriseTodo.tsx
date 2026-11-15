@@ -29,6 +29,7 @@ import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
+import { LinkPageWidgetFeed } from "@/components/family-hub/LinkPageCard";
 import DuoSetup, { duoSetupDone, rememberDuoSetupDone } from "@/components/DuoSetup";
 import { fetchSeen } from "@/lib/seenOnce";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
@@ -1304,6 +1305,8 @@ export default function AriseTodo() {
             onSettings={() => setSection("notifications")}
             triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />;
   return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div ref={hubRootRef} style={hubLook.style} className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night && !hubLook.look ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}>
+    {/* The iPhone Link page widget (Home Screen), kept up to date while there's a page with links. */}
+    {isNativeApp() && family.linkPage.links.length > 0 && <LinkPageWidgetFeed page={family.linkPage} />}
     <UpgradeHost hub="life" />
     {/* After the tour: the coach on the real hub (hold a widget, switch hubs, the Plugin Gallery). */}
     <HubCoach userId={user.id} hub="life" />
