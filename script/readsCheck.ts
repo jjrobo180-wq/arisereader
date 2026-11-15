@@ -85,6 +85,13 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     await page.locator("#quick-reads-h").scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(800);
     note(`${label}: library shelf shows ${await page.getByTestId("quick-shelf-category").count()} category rows`);
+    // How many cards of the first row are on screen (three and a bit on a phone).
+    const fit = await page.getByTestId("quick-shelf-category").first().locator(".book-row > *").evaluateAll((cards) => {
+      const w = window.innerWidth;
+      const boxes = cards.map((c) => c.getBoundingClientRect());
+      return { whole: boxes.filter((b) => b.left >= 0 && b.right <= w + 1).length, part: boxes.filter((b) => b.left < w && b.right > w).length, width: Math.round(boxes[0]?.width || 0), height: Math.round(boxes[0]?.height || 0) };
+    }).catch(() => null);
+    note(`${label}: first row on screen: ${fit ? `${fit.whole} whole card(s) + ${fit.part} partly, each ${fit.width}x${fit.height}px` : "?"}`);
     await shot("4-library-shelf");
     await page.evaluate(() => window.scrollBy(0, 900)); await page.waitForTimeout(500); await shot("5-library-shelf-more");
     // A few of the new reads.
