@@ -174,6 +174,8 @@ import "./todoNight.css";
 import "./hubThemes.css";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookTaskList, useHubLook } from "@/components/HubLook";
+import { onAskFinished, openAsk, startTaskAsk, useAriseAsks } from "@/lib/ariseAsks";
+import { isAskId } from "@shared/ariseAsks";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
@@ -460,7 +462,14 @@ export default function AriseTodo() {
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
       }
-      params.delete("go"); params.delete("view"); for (const k of ["page", "s", "e", "coach"]) params.delete(k);
+      // An "@arise" ask is ready (a notification from server/todoAsks.ts): Tasks, on the Arise tab, opened on it.
+      if (go === "asks") {
+        dismissOverlays();
+        setSection("tasks");
+        const askId = params.get("ask");
+        openAsk(askId && isAskId(askId) ? askId : "");
+      }
+      params.delete("go"); params.delete("view"); params.delete("ask"); for (const k of ["page", "s", "e", "coach"]) params.delete(k);
       const rest = params.toString();
       try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
     };
@@ -548,6 +557,9 @@ export default function AriseTodo() {
   const [view, setView] = useSavedChoice<View>("life-todo-view", "all", ["all", "today", "upcoming", "completed", "archived"]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
+  // "@arise" asks (lib/ariseAsks.ts): kept fresh while one is being made; one finishing while the app is open says so.
+  const ariseAsks = useAriseAsks(user ? token : null);
+  useEffect(() => onAskFinished((a) => setMessage(a.status === "done" ? `Arise finished: ${a.title || a.ask}. It's in Tasks › Arise asks.` : `Arise couldn't make "${a.ask.slice(0, 60)}". Open Tasks › Arise asks to try again.`)), []);
   // Refreshing with a to-do open opens it again once the lists have loaded.
   const [openTaskId, setOpenTaskId] = useStayOnRefresh<string | null>("life-task", null);
   const reopened = useRef(false);
@@ -643,6 +655,25 @@ export default function AriseTodo() {
   const saveTask = (event: FormEvent) => {
     event.preventDefault();
     if (!editing?.title.trim()) return;
+    // A new "@arise" task goes to Arise's AI (lib/ariseAsks.ts); its task is added once Arise has it.
+    if (!data.tasks.some((t) => t.id === editing.id)) {
+      const typed = editing.title;
+      const [y, m, d] = (editing.due || "").split("-").map(Number);
+      const text = editing.due && !smartRef.current && !/\b(by|before|on|due)\b/i.test(typed) ? `${typed} by ${m}/${d}/${y}` : typed;
+      const base = editing;
+      const started = startTaskAsk(text, base.id, data.family.members.map((x) => x.name).filter(Boolean));
+      if (started) {
+        smartRef.current = null;
+        setEditing(null);
+        setMessage("Sending to Arise…");
+        started.sent.then((a) => {
+          const t = started.task;
+          setData((previous) => ({ ...previous, tasks: [...previous.tasks, { ...base, title: t.title, due: t.due, time: t.dueTime || "", notes: t.notes, repeat: "none" }] }));
+          setMessage(a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.");
+        }).catch((err: Error) => setMessage(err.message || "Arise couldn't take that. Try again."));
+        return;
+      }
+    }
     const smartTitle = smartFound?.title;
     smartRef.current = null;
     const clean = { ...editing, title: (smartTitle || editing.title).trim(), notes: editing.notes.trim(), assignee: editing.assignee.trim(), repeat: editing.due ? editing.repeat : "none" };
@@ -1601,7 +1632,7 @@ export default function AriseTodo() {
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
-              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} />
+              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} />
             </Suspense>
             <div className="mt-5 max-w-xl"><EmailForwardCard token={token} /></div>
           </>}
