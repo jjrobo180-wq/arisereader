@@ -10,7 +10,9 @@ export const NATIVE_APP_ORIGINS = new Set(["capacitor://localhost", "ionic://loc
  * Podster has its own rules on /api/podscroll, so that path is left to them.
  */
 export function nativeAppCors(req: Request, res: Response, next: NextFunction) {
-  if (!req.path.startsWith("/api/") || req.path.startsWith("/api/podscroll")) return next();
+  // The books' chapter files (/reads/, /classics/) are read by the apps from here too (client/src/main.tsx).
+  const files = (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") && /^\/(reads|classics|covers)\//.test(req.path);
+  if ((!req.path.startsWith("/api/") && !files) || req.path.startsWith("/api/podscroll")) return next();
   const origin = String(req.headers.origin || "");
   res.append("Vary", "Origin");
   if (!NATIVE_APP_ORIGINS.has(origin)) return next();

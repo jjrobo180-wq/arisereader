@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { BookOpen, Trophy, Zap } from "lucide-react";
+import { useCatalogTick } from "@/lib/liveCatalog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import QuizTakersTag, { quizTakersText } from "@/components/QuizTakersTag";
@@ -59,7 +60,8 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
 }) {
   const [cat, setCat] = useState<string>("All");
   // newest first, so new pieces show up at the front of the shelf
-  const all = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), []);
+  const catalogTick = useCatalogTick();
+  const all = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), [catalogTick]);
   const shown = cat === "All" ? all : all.filter((a) => quickCategoryOf(a).label === cat);
   const cats = QUICK_CATEGORIES.filter((c) => all.some((a) => c.sections.includes(a.section)));
   const resultFor = (slug: string) => {

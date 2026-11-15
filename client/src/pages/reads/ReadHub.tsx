@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
+import { useCatalogTick } from "@/lib/liveCatalog";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { quizTakersText } from "@/components/QuizTakersTag";
@@ -23,7 +24,9 @@ export default function ReadHub() {
   const [filter, setFilter] = useState<Filter>("All");
   const [band, setBand] = useState<PoemBand | "All">("All");
   const [cat, setCat] = useState("All");
-  const quick = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), []);
+  // New reads the app picked up from the server while open (lib/liveCatalog.ts).
+  const catalogTick = useCatalogTick();
+  const quick = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), [catalogTick]);
   const quickCats = QUICK_CATEGORIES.filter((c) => quick.some((a) => c.sections.includes(a.section)));
   const quickShown = cat === "All" ? quick : quick.filter((a) => quickCategoryOf(a).label === cat);
   // How many readers took each quick read's quiz: each read's quiz id, and the counts by quiz id.

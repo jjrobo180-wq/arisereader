@@ -12,6 +12,7 @@
 // questions that can be answered from the text.
 
 import { QUICK_READS } from "./quickReads";
+import { addKept, okRead } from "./liveCatalogKept";
 import { READ_PHOTOS, READ_PHOTO_FALLBACKS, READ_PHOTO_FILES } from "./readPhotos";
 
 export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Soccer" | "Biography" | "Speeches" | "Fun Facts" | "Arts" | "Reading" | "Entertainment" | "Inventions";
@@ -889,6 +890,9 @@ export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS].
   if (a.photo?.wikipediaTitle && READ_PHOTO_FALLBACKS[a.slug]) return { ...a, photo: { ...a.photo, ...READ_PHOTO_FALLBACKS[a.slug] } };
   return a;
 });
+// Reads an iPhone app picked up from the server since it was built (shared/liveCatalogKept.ts).
+addKept(NEWS_ARTICLES, "reads", okRead, (a) => a.slug);
+
 
 /** The kid-facing groups on the 5-Minute Reads shelf. Each group gathers one or more sections. */
 export const QUICK_CATEGORIES: { label: string; emoji: string; sections: NewsSection[] }[] = [
