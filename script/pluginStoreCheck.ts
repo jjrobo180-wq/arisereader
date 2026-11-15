@@ -75,7 +75,18 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
   try {
     await page.goto("https://arisetodo.com/app#/to-do?go=home", { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForTimeout(6000);
-    if (!(await page.getByTestId("plugin-store").isVisible().catch(() => false))) { await closePopups(page); }
+    if (!(await page.getByTestId("plugin-store").isVisible().catch(() => false))) {
+      await closePopups(page);
+      // Open it the way a person does: the Plugins button in the bottom bar (or the menu's Plugin Gallery).
+      const btn = page.getByRole("button", { name: /^(plugins|plugin gallery)$/i }).first();
+      if (await btn.isVisible().catch(() => false)) await btn.click(); else await page.getByText(/^Plugins$/).first().click().catch(() => {});
+      await page.waitForTimeout(1500);
+      if (!(await page.getByTestId("plugin-store").isVisible().catch(() => false))) {
+        const gallery = page.getByText(/^(Plugin Gallery|Get more plugins|Browse plugins|Add plugins)/i).first();
+        if (await gallery.isVisible().catch(() => false)) { await gallery.click(); await page.waitForTimeout(1500); }
+      }
+      await shot("0-opening");
+    }
     const store = page.getByTestId("plugin-store");
     note(`${label}: gallery open: ${await store.isVisible().catch(() => false)}; count "${(await page.getByTestId("store-app-count").textContent().catch(() => ""))?.trim()}"`);
     note(`${label}: tier buttons: ${(await page.getByTestId("plugin-tiers").locator("button").allTextContents()).join(" / ")}`);
