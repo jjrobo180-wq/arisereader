@@ -5,7 +5,7 @@ import { useRoute } from "wouter";
 import { CalendarDays, Check, CheckCircle2, Crown, Loader2, MapPin, Plane, RefreshCw, Target, Vote } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import type { SharedView } from "@shared/todoShare";
-import { LinkPageLinks } from "@/components/family-hub/LinkDirectory";
+import { LinkPageView } from "@/components/family-hub/LinkPageView";
 
 const NAME_KEY = "arise-share-name";
 const VOTER_KEY = "arise-share-voter";
@@ -58,6 +58,9 @@ export default function TodoShare() {
   }, [data?.view.kind, data?.view.kind === "poll" && data.view.open, load]);
 
   const view = data?.view;
+  // A Link page is a page of its own: just the person's page, full screen, with their name as the tab's title.
+  useEffect(() => { if (view?.kind === "links") document.title = view.title || "Links"; }, [view]);
+  if (view?.kind === "links") return <div data-testid="todo-share"><LinkPageView title={view.title} bio={view.bio} links={view.links} style={view.style} theme={view.theme} /></div>;
   return <div className="min-h-screen bg-[#f6f7fc] px-4 py-8 text-slate-900" data-testid="todo-share">
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 flex items-center justify-between gap-3 text-sm font-semibold text-slate-500">
@@ -245,14 +248,9 @@ function MealsView({ view, today }: { view: Extract<SharedView, { kind: "meals" 
   </Card>)}</div>;
 }
 
-/** A family's link page: their links as big buttons, like a link tree. */
+/** Someone's Link page inside Linked profiles (the full page is drawn above, on its own). */
 function LinksView({ view }: { view: Extract<SharedView, { kind: "links" }> }) {
-  return <div className="rounded-[2rem] bg-gradient-to-b from-[#2d2555] to-[#6d5ce7] p-6 text-center text-white shadow-[0_18px_40px_#4b3fa033] sm:p-8">
-    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-black">{view.title.trim().charAt(0).toUpperCase()}</div>
-    {view.bio && <p className="mx-auto mt-3 max-w-md text-sm text-violet-100">{view.bio}</p>}
-    <div className="mt-6">{view.links.length ? <LinkPageLinks links={view.links} style={view.style} big />
-      : <p className="rounded-2xl border border-dashed border-white/40 p-5 text-sm text-violet-100">No links yet.</p>}</div>
-  </div>;
+  return <div className="overflow-hidden rounded-[2rem] border border-[#e7e8f0]"><LinkPageView title={view.title} bio={view.bio} links={view.links} style={view.style} theme={view.theme} preview /></div>;
 }
 
 function GoalsView({ view }: { view: Extract<SharedView, { kind: "goals" }> }) {

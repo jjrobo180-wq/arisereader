@@ -3,7 +3,7 @@
 import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, Clock, CloudSun, LayoutGrid, Link2, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
-import { HomeLinks } from "./LinkDirectory";
+import { LinkPageCard } from "./LinkPageCard";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
 import { withSharedLook } from "@/lib/sharedLook";
 import { pinId } from "@shared/hubLayout";
@@ -155,9 +155,10 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
             {n.title && <p className="truncate text-sm font-black">{n.title}</p>}{n.body && <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{n.body}</p>}
           </button>)}</div>
         </Panel>) || null,
-    // My links: the Link page's links as tiles, one tap from Home. Nothing here until there are links.
-    links: (on("links") && family.linkPage.links.length > 0 && <Panel eyebrow="Link page" title="My links" right={<Link2 size={17} className="text-violet-500" />} collapseKey="home-links">
-          <HomeLinks links={family.linkPage.links} onOpenPage={() => go("links")} />
+    // The Link page: a card of the page with copy, share, open and edit, and the links as tiles below.
+    // Nothing here until there are links.
+    links: (on("links") && family.linkPage.links.length > 0 && <Panel eyebrow="Link page" title="My link page" right={<Link2 size={17} className="text-violet-500" />} collapseKey="home-links">
+          <LinkPageCard page={family.linkPage} say={say} onEdit={() => go("links")} />
         </Panel>) || null,
   };
   // A pinned Notes app gets a small tile that opens straight into it, same as tapping it in the menu.
