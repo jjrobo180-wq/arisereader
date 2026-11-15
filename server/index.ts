@@ -11,6 +11,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { postJson, sitemapPages, submitChanged } from "./indexNow";
+import { readerSitemapXml, registerReaderSeo } from "./readerSeo";
 import { nativeAppCors } from "./nativeAppCors";
 
 const app = express();
@@ -25,6 +26,11 @@ function isAriseTodoHostname(req: Request): boolean {
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
   return host === "arisetodo.com" || host === "www.arisetodo.com";
 }
+
+// The 5-Minute Reads as pages search engines can read (arisereader.com/5-minute-reads/), and the Reader sitemap
+// with every read in it (server/readerSeo.ts).
+const readerStaticSitemap = () => readFile(process.env.NODE_ENV === "production" ? path.resolve(__dirname, "public", "sitemap.xml") : path.resolve(process.cwd(), "client", "public", "sitemap.xml"), "utf8");
+registerReaderSeo(app, readerStaticSitemap);
 
 app.get("/robots.txt", (req, res, next) => {
   if (!isAriseTodoHostname(req)) return next();
@@ -355,7 +361,7 @@ app.use((req, res, next) => {
         await submitChanged(
           { getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), post: postJson, log },
           [
-            { host: "www.arisereader.com", pages: sitemapPages(readerXml) },
+            { host: "www.arisereader.com", pages: sitemapPages(readerSitemapXml(readerXml)) },
             { host: "arisetodo.com", pages: TODO_SITEMAP.map((p) => ({ loc: `https://arisetodo.com${p.path}`, lastmod: p.lastmod })) },
           ],
         );
