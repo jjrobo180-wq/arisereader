@@ -1,7 +1,7 @@
 // The Arise tab in Arise To Duo's Tasks: every "@arise" ask the person has made (shared/ariseAsks.ts), newest
 // first, with what Arise made for each. Open one to read it, copy it, print it, save it as a file, make it
 // again or delete it. Asks still waiting for their day show when they'll be made.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CalendarClock, CheckCircle2, ChevronDown, Copy, Download, Globe, Loader2, Printer, RefreshCw, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import type { AriseAsk, AskKind } from "@shared/ariseAsks";
 import { deleteAsk, markAskSeen, openAsk, retryAsk } from "@/lib/ariseAsks";
@@ -64,6 +64,9 @@ function StatusChip({ a }: { a: AriseAsk }) {
 export function AriseAsks({ asks, loaded, open, say }: { asks: AriseAsk[]; loaded: boolean; open: string | null; say: (text: string) => void }) {
   const [busy, setBusy] = useState("");
   const current = useMemo(() => (open ? asks.find((a) => a.id === open) || null : null), [asks, open]);
+  // An ask opened from a notification or straight after asking may be below the stats: bring it into view.
+  const openRef = useRef<HTMLElement | null>(null);
+  useEffect(() => { if (current) requestAnimationFrame(() => openRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (current?.status === "done" && !current.seen) void markAskSeen(current.id); }, [current?.id, current?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const run = async (what: string, work: () => Promise<unknown>, done: string) => {
     setBusy(what);
@@ -77,7 +80,7 @@ export function AriseAsks({ asks, loaded, open, say }: { asks: AriseAsk[]; loade
     const copy = () => run("copy", () => navigator.clipboard.writeText(bodyOf(current)), "Copied.");
     const btn = "inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50";
     return (
-      <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6" data-testid="arise-ask-open">
+      <section ref={openRef} className="min-w-0 scroll-mt-24 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6" data-testid="arise-ask-open">
         <button type="button" onClick={() => openAsk(null)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-bold text-violet-700 hover:bg-violet-50"><ArrowLeft className="h-4 w-4" />All asks</button>
         <div className="mt-2 flex items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-50 text-xl" aria-hidden="true">{KIND_EMOJI[current.kind]}</span>
