@@ -42,6 +42,11 @@ test("timing: 'on Monday' and set times are made later, at that time or 7 in the
   assert.equal(at.mode, "later"); assert.equal(at.runAt.getHours(), 15); assert.equal(at.dueTime, "15:00");
   // "by" wins over a time: it's made now so it's ready in time.
   assert.equal(askTiming("report by Monday at 3pm", SAT).mode, "now");
+  // Two days named: the one after "on", "by" or "before" is the one that counts.
+  const two = askTiming("email the coach about Saturday on Monday", SAT);
+  assert.equal(two.mode, "later"); assert.equal(two.due, "2026-11-16"); assert.equal(two.title, "email the coach about Saturday");
+  const two2 = askTiming("practice sheet for Friday's test by Wednesday", SAT);
+  assert.equal(two2.mode, "now"); assert.equal(two2.due, "2026-11-18");
   // A time that has already gone by today is made now.
   assert.equal(askTiming("a story at 8am today", SAT).mode, "now");
 });

@@ -69,7 +69,7 @@ export type AskTiming = {
 
 /** Reads when the person wants it, in their own time zone (the phone's clock). */
 export function askTiming(ask: string, now: Date = new Date()): AskTiming {
-  const found = smartDate(ask, now);
+  const found = timingWords(ask, now);
   if (!found) return { mode: "now", runAt: now, due: "", dueTime: "", title: ask, when: "Made now" };
   const said = found.matched.toLowerCase();
   const date = found.date || iso(now);
@@ -90,6 +90,25 @@ export function askTiming(ask: string, now: Date = new Date()): AskTiming {
     }
   }
   return { mode: "now", runAt: now, due: date, dueTime: found.time, title, when: date === iso(now) ? "Made now · due today" : `Made now · due ${pretty(date)}` };
+}
+
+/**
+ * The day and time the ask is for. When it names more than one day ("email the coach about Saturday on
+ * Monday"), the one after "on", "by", "before", "due", "for", "until" wins, the last one said.
+ */
+function timingWords(ask: string, now: Date) {
+  const preps = [...ask.matchAll(/\b(on|by|before|due|for|until|till)\s+/gi)].reverse();
+  for (const p of preps) {
+    const rest = ask.slice(p.index!);
+    const r = smartDate(rest, now);
+    // The date has to come right after the word ("on Monday", "by the 1st"), not somewhere later.
+    if (r && rest.toLowerCase().indexOf(r.matched.toLowerCase().trim()) <= p[0].length + 4) {
+      const at = rest.toLowerCase().indexOf(r.matched.toLowerCase().trim());
+      const left = (ask.slice(0, p.index!) + rest.slice(0, at) + rest.slice(at + r.matched.trim().length)).replace(/\s{2,}/g, " ").trim();
+      return { ...r, title: left || ask };
+    }
+  }
+  return smartDate(ask, now);
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
