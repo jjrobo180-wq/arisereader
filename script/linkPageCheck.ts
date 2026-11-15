@@ -34,7 +34,7 @@ async function serve(ctx: BrowserContext) {
     const json = (b: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(b) });
     // The app may call its server at arisetodo.com or www.arisereader.com.
     if (/(^|\.)(arisetodo|arisereader)\.com$/.test(url.hostname) && url.pathname.startsWith("/api/")) {
-      const m = /^\/api\/todo-share\/([a-z]+)x+$/.exec(url.pathname);
+      const m = /^\/api\/todo-share\/([a-z]+?)x{24}$/.exec(url.pathname);
       if (m && PAGES[m[1]]) {
         const p = PAGES[m[1]];
         return json({ owner: "Jermaine", today: "2026-11-15", myVote: null, view: { kind: "links", title: "Jermaine Robinson", bio: "Teacher, builder of Arise. Helping kids fall in love with reading.", ...(p.style ? { style: p.style } : {}), ...(p.theme ? { theme: p.theme } : {}), links: LINKS.map((l, i) => p.style === "directory" ? { ...l, group: i < 6 ? "Work" : "Reading" } : l) } });
