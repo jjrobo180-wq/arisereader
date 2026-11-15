@@ -140,3 +140,65 @@ test("search ranks by name and category and doesn't match mid-word", () => {
   assert.ok(/fit|health|workout|exercise|train/i.test([first.name, first.category, first.tagline].join(" ")), first.name);
   assert.equal(searchPlugins(life, "").length, life.length);
 });
+
+// ── Premium and Mini (November 2026) ──────────────────────────────────────────
+import { MINI_SHELVES, PREMIUM_SHELVES } from "../shared/pluginStore";
+
+test("the gallery splits into Premium apps and Mini plugins, and every plugin sits on exactly one shelf", () => {
+  for (const [hub, teacher] of [["life", false], ["life", true], ["work", true], ["work", false]] as const) {
+    const all = pluginsFor(hub, { teacher, arise: true });
+    for (const p of all) {
+      assert.ok(p.tier === "premium" || p.tier === "mini", `${p.id}: no tier`);
+      const shelves = p.tier === "premium" ? PREMIUM_SHELVES : MINI_SHELVES[hub];
+      assert.ok(shelves.includes(p.shelf!), `${hub}: ${p.name} is on "${p.shelf}", which isn't a ${p.tier} shelf`);
+    }
+    const premium = new Set(all.filter((p) => p.tier === "premium").map((p) => p.name));
+    for (const name of ["A.R.I.S.E. Docs", "A.R.I.S.E. Sheets", "A.R.I.S.E. Slides", "Drive", "Drop", "A.R.I.S.E. Standby"]) assert.ok(premium.has(name), `${hub}: ${name} is Premium`);
+    if (hub === "life") for (const name of ["Cooked", "Cooked PT", "Podster", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
+    const mini = new Set(all.filter((p) => p.tier === "mini").map((p) => p.name));
+    for (const name of ["Final Grade Calculator", "AI Gift Ideas", "GPA Calculator", "Widgets"]) assert.ok(mini.has(name), `${hub}: ${name} is Mini`);
+    if (hub === "life") assert.ok(mini.has("Gifts & Dates"));
+    assert.ok(premium.size < 25 && mini.size > 400, `${hub}: ${premium.size} premium, ${mini.size} mini`);
+  }
+});
+
+test("Health Lite is retired: gone from the gallery, its tools listed on their own, still removable for anyone who has it", () => {
+  const life = pluginsFor("life", { teacher: false });
+  assert.ok(!life.some((p) => p.id === "life-healthlite"));
+  assert.ok(!searchPlugins(life, "health lite").some((p) => p.id === "life-healthlite"));
+  for (const id of ["life-health", "life-cycle", "life-pills", "life-mood", "life-sleep", "life-workouts", "life-meditate", "life-habits", "life-medical", "life-checkups"])
+    assert.ok(life.some((p) => p.id === id), id);
+  const withRetired = pluginsFor("life", { teacher: false, includeRetired: true });
+  const hl = withRetired.find((p) => p.id === "life-healthlite")!;
+  assert.equal(hl.retired, true);
+  assert.ok(!hl.featured);
+  assert.ok(!read("client/src/components/DuoSetup.tsx").includes('"life-healthlite"'));
+});
+
+test("search finds things by what people call them, best match first", () => {
+  const life = pluginsFor("life", { teacher: false, arise: true });
+  const top = (q: string) => searchPlugins(life, q)[0]?.name;
+  assert.equal(top("final grade"), "Final Grade Calculator");
+  assert.equal(top("gift dates"), "Gifts & Dates");
+  assert.equal(top("gifts & dates"), "Gifts & Dates");
+  assert.equal(top("docs"), "A.R.I.S.E. Docs");
+  assert.equal(top("podcast"), "Podster");
+  assert.equal(top("spreadsheet")?.endsWith("Sheets"), true);
+  assert.equal(top("calorie"), "Calorie counter");
+  assert.equal(top("resume"), "Résumé Builder");
+  assert.ok(searchPlugins(life, "period").slice(0, 3).some((p) => p.name === "Cycle"));
+  // A plural finds the plain word, and "notes" isn't cut to "not".
+  assert.ok(searchPlugins(life, "notes").every((p) => !/\bnot\b|nothing/i.test(p.name)));
+  assert.ok(searchPlugins(life, "birthdays").some((p) => p.name === "Gifts & Dates"));
+});
+
+test("the gallery screen: Premium and Mini switch, shelves, grouped results, and a clear button", () => {
+  const s = read("client/src/components/plugin-store/PluginStore.tsx");
+  assert.match(s, /data-testid="plugin-tiers"/);
+  assert.match(s, /\(\["all", "premium", "mini"\] as const\)/);
+  assert.match(s, /data-testid="plugin-search-clear"/);
+  assert.match(s, /data-testid=\{`plugin-results-\$\{t\}`\}/);
+  assert.match(s, /includeRetired: true/);
+  assert.match(s, /if \(category\) list = list\.filter\(\(p\) => p\.shelf === category\);/);
+  assert.ok(!s.includes("PLUGIN_CATEGORIES"), "shelves, not the old category list, drive the chips");
+});

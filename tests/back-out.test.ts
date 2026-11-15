@@ -39,7 +39,8 @@ test("Back, Escape and the iPhone edge swipe close the gallery's top layer, then
   assert.match(s, /const close = \(\) => \{ if \(ownStepOnTop\(\)\) inAppBack\(\); else onCloseRef\.current\(\); \};/);
   // A running app, then a detail, then a template, then the gallery itself.
   assert.match(s, /const goBack = \(\) => \{ if \(runningRef\.current\) setRunning\(null\); else if \(openIdRef\.current\) setOpenId\(null\); else if \(openTemplateIdRef\.current\) setOpenTemplateId\(null\); else close\(\); \};/);
-  assert.match(s, /if \(e\.key !== "Escape"\) return; e\.stopPropagation\(\); goBackRef\.current\(\);/);
+  // Escape clears a search first, then goes back.
+  assert.match(s, /if \(e\.key !== "Escape"\) return; e\.stopPropagation\(\);\s*if \(queryRef\.current && !runningRef\.current && !openIdRef\.current\) \{ setQuery\(""\); return; \}\s*goBackRef\.current\(\);/);
   // The iPhone app has no Back button: a swipe in from the left edge goes back.
   assert.match(s, /if \(!isNativeApp\(\)\) return;\s*let start/);
   assert.match(s, /t\.clientX < 28/);

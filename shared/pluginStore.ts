@@ -94,6 +94,14 @@ export type Plugin = {
    *  tile and card; "Add" sends to Billing to subscribe instead of switching the plugin on directly.
    *  $ is per month, per hub (one subscription covers everyone in that WorkHub or LifeHub). */
   premium?: { priceMonthly: number; note?: string };
+  /** Set by pluginsFor: a Premium app (a full app of its own, like Docs or Cooked) or a Mini plugin
+   *  (one small job, like a final grade calculator). The gallery shows the two apart. */
+  tier?: PluginTier;
+  /** Set by pluginsFor: the shelf it sits on in the gallery (see PREMIUM_SHELVES and MINI_SHELVES). */
+  shelf?: string;
+  /** Set by pluginsFor({ includeRetired }): no longer offered. Shown only under Added, so anyone who
+   *  has it can still find and remove it. */
+  retired?: boolean;
 };
 
 const PRO_CATEGORIES = Object.values(PRO_GROUPS).map((g) => g.category);
@@ -641,20 +649,97 @@ export const galleryName = (name: string) => RENAMED.get(name)?.name || name;
 export const TEACHER_CATEGORIES = ["Students & IEPs", "Classroom", "Families", "Teaching tools", "Ideas", "Arise apps"];
 const TEACHER_CHECKLIST = /\b(IEP|504|teach|teacher|student|class|classroom|school|sub\b|grading|report card|parent-teacher|field (day|trip)|picture day|open house|state test|test prep|science fair|fire drill|reevaluation|transition planning|observation|unit|graduation|winter break|end of year|back-to-school|first day|first month|monday ready|friday wrap)/i;
 
+// ── Premium and Mini ─────────────────────────────────────────────────────────
+// The gallery shows two kinds of plugin apart (November 2026):
+//  - Premium: a full app of its own: Docs, Sheets, Slides, Drive, Drop, Notes, Cooked, Cooked PT,
+//    Podster, Arise Notes, Standby, Sleep Studio, Para Team and the Arise learning apps.
+//  - Mini: one small job each, like a final grade calculator, gift dates and ideas, or a chore chart.
+// Each sits on one shelf. The catalog's own categories grew over time (a Premium · School tool, a
+// "Families" kit, a "Tools" widget); shelves fold them into one short list per kind, so nothing is
+// left off every shelf and nothing sits on two.
+
+export type PluginTier = "premium" | "mini";
+
+/** Office apps that are full apps (the rest of the officeApp listings are Mini tools). */
+const PREMIUM_OFFICE = /-(office-(doc|sheet|slides)|arise-notes|atmosphere|sleep-studio|para-team)$/;
+
+export function pluginTier(p: Plugin): PluginTier {
+  const k = p.target.kind;
+  if (k === "sheetsApp" || k === "driveApp" || k === "dropApp" || k === "notesApp" || k === "app") return "premium";
+  if (k === "officeApp" && PREMIUM_OFFICE.test(p.id)) return "premium";
+  if (p.category === "Super apps") return "premium";
+  return "mini";
+}
+
+export const PREMIUM_SHELVES: readonly string[] = ["Super apps", "Office & files", "Sleep & Standby", "Learning apps"];
+export const MINI_SHELVES: Record<PluginHub, readonly string[]> = {
+  work: ["Teaching", "School & study", "Work & planning", "Everyday tools", "Checklists", "Health & wellness", "Family", "Kitchen", "Money & home", "Fun & inspiration", "Connections", "For teachers"],
+  life: ["Family", "Everyday tools", "Health & wellness", "Kitchen", "Money & home", "School & study", "Work & planning", "Checklists", "Fun & inspiration", "Teaching", "Connections"],
+};
+
+/** The single-purpose AI tools, by task, to the shelf for what they make. */
+const AI_TOOL_SHELF: Readonly<Record<string, string>> = {
+  "email-rewrite": "Work & planning", "resume-bullets": "Work & planning", "cover-letter": "Work & planning", brainstorm: "Work & planning", newsletter: "Work & planning",
+  "meeting-agenda": "Work & planning", "meeting-summary": "Work & planning", rubric: "Teaching",
+  "study-guide": "School & study", mnemonic: "School & study", flashcards: "School & study", quiz: "School & study", "essay-outline": "School & study", vocab: "School & study",
+  "meal-plan": "Kitchen", "gift-ideas": "Family", "party-plan": "Family",
+  "workout-plan": "Health & wellness", "journal-reflect": "Health & wellness", "thought-reframe": "Health & wellness",
+};
+const CATEGORY_SHELF: Readonly<Record<string, string>> = {
+  "Health & wellness": "Health & wellness", Wellness: "Health & wellness", "Premium · Health": "Health & wellness", "Premium · Fitness": "Health & wellness", "Premium · Mind": "Health & wellness",
+  "Premium · Work": "Work & planning", "Premium · Meetings": "Work & planning", Planning: "Work & planning",
+  "Premium · School": "School & study", "Premium · Teaching": "Teaching", "Premium · Money & home": "Money & home", "Premium · Create": "Fun & inspiration",
+  "Students & IEPs": "Teaching", Classroom: "Teaching", "Teaching tools": "Teaching", Families: "Teaching", Ideas: "Teaching",
+  Family: "Family", Kitchen: "Kitchen", "Money & home": "Money & home", Everyday: "Everyday tools", Tools: "Everyday tools", Checklists: "Checklists",
+  Fun: "Fun & inspiration", Inspiration: "Fun & inspiration", Discover: "Fun & inspiration", Connections: "Connections", "For teachers": "For teachers",
+};
+
+/** The shelf a plugin sits on (its category as the hub shows it, so "For teachers" stays together). */
+export function pluginShelf(p: Plugin): string {
+  if (pluginTier(p) === "premium") {
+    if (p.target.kind === "app") return "Learning apps";
+    if (/-(atmosphere|sleep-studio)$/.test(p.id)) return "Sleep & Standby";
+    if (p.category === "Super apps" || /-(arise-notes|para-team)$/.test(p.id)) return "Super apps";
+    return "Office & files";
+  }
+  if (p.category === "For teachers") return "For teachers";
+  const k = p.target.kind;
+  if (k === "brief" || k === "widget" || k === "assistant" || k === "assistantPro") return "Everyday tools";
+  const ai = /^(?:work|life)-ai-(.+)$/.exec(p.id);
+  if (ai && AI_TOOL_SHELF[ai[1]]) return AI_TOOL_SHELF[ai[1]];
+  return CATEGORY_SHELF[p.category] ?? "Everyday tools";
+}
+
+/** Plugins no longer offered: a bundle whose pages are now each their own Mini plugin. */
+const RETIRED_IDS = new Set(["life-healthlite"]);
+/** Bundles whose pages show in the gallery on their own (their bundle is retired above). */
+const RELEASED_BUNDLES = new Set<string>(["healthlite"]);
+
 /** Every plugin this hub can add: the ones built for it, then the ones built for the other hub that
  *  work here all the same (marked `recommendedFor`). The Arise learning apps are only for teachers and
- *  parents who came from Arise Reader (`arise`). */
-export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean }): Plugin[] {
+ *  parents who came from Arise Reader (`arise`). Each comes with its tier and shelf. Retired plugins
+ *  are left out unless `includeRetired` (the gallery's Added list, so they can still be removed). */
+export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean; includeRetired?: boolean }): Plugin[] {
   const arise = opts.arise ?? opts.teacher;
-  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !(hub === "life" && p.target.kind === "section" && BUNDLE_PARENT.has(p.target.section)) && (p.category !== "Arise apps" || arise);
+  const bundled = (p: Plugin) => hub === "life" && p.target.kind === "section" && BUNDLE_PARENT.has(p.target.section) && !RELEASED_BUNDLES.has(BUNDLE_PARENT.get(p.target.section)!);
+  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !bundled(p) && (p.category !== "Arise apps" || arise)
+    && (opts.includeRetired || !RETIRED_IDS.has(p.id));
   const shown = (p: Plugin): Plugin => {
     const m = RENAMED.get(p.name);
     let out = m ? { ...p, name: m.name || p.name, tagline: m.tagline || p.tagline } : p;
     if (hub === "work" && !opts.teacher && (TEACHER_CATEGORIES.includes(out.category) || (out.category === "Checklists" && TEACHER_CHECKLIST.test(out.name)) || out.category === "Planning" && /lesson|PLC|PD hours|duty|testing|para|committee|observation|room & cart/i.test(out.name)))
       out = { ...out, category: "For teachers" };
-    return out;
+    // A plugin shown as-is keeps its own object (tier and shelf are set on it once, below), so code
+    // that finds a plugin in this list by identity still does.
+    return out === p ? out : { ...out, shelf: pluginShelf(out) };
   };
   return [...PLUGINS.filter(mine), ...CROSS_PLUGINS.filter(mine)].map(shown);
+}
+// Each plugin's tier and shelf, worked out once.
+for (const p of allPlugins()) {
+  const m = p as { -readonly [K in keyof Plugin]: Plugin[K] };
+  m.tier = pluginTier(p); m.shelf = pluginShelf(p);
+  if (RETIRED_IDS.has(p.id)) { m.retired = true; m.featured = false; }
 }
 
 /** Looks a plugin up by id across both the built-for-this-hub list and the crossed-over ones. */
@@ -830,9 +915,28 @@ export function connectionNeeds(p: Plugin): Plugin | null {
 }
 
 /** Words in a text, lowercased, for whole-word and word-start matching. */
-const wordsOf = (t: string): string[] => t.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+const wordsOf = (t: string): string[] => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 /** "fitness" -> "fit", "workouts" -> "workout": so a plural or "-ness" still finds the plain word. */
-const stem = (w: string): string => w.length > 4 ? w.replace(/(ness|ing|es|s)$/, "") : w;
+const stem = (w: string): string => {
+  if (w.length <= 4) return w;
+  if (/(ness|ing)$/.test(w)) return w.replace(/(ness|ing)$/, "");
+  // "boxes", "watches" -> "box", "watch"; "notes", "dates" -> "note", "date" (not "not", "dat").
+  if (/(s|x|z|ch|sh)es$/.test(w)) return w.slice(0, -2);
+  if (/[^s]s$/.test(w)) return w.slice(0, -1);
+  return w;
+};
+
+/** Words people search with that aren't in the name: "period" finds Cycle, "podcast" finds Podster.
+ *  Keyed by the id without its hub, so both hubs' copies get them. Scored just under the name. */
+const SEARCH_ALIASES: Readonly<Record<string, string>> = {
+  cycle: "period menstrual", health: "food diet nutrition calories", pills: "medicine meds vitamins", podster: "podcast audiobook radio music",
+  cooked: "fitness workout recipes meals coach", cookedpt: "personal trainer clients coach", "arise-notes": "transcribe transcription recording meeting",
+  "office-doc": "document word writing", "office-sheet": "spreadsheet excel", sheets: "spreadsheet excel", "office-slides": "presentation powerpoint deck",
+  drive: "files photos storage upload", drop: "airdrop share send files", atmosphere: "clock nightstand standby", "sleep-studio": "rain sleep sounds white noise",
+  datehub: "birthday birthdays anniversary anniversaries gifts", moneyhub: "budget bills finance", kitchen: "meals recipes grocery cooking", listhub: "reading watchlist bucket",
+  focushub: "pomodoro timer routine", inspire: "journal quotes gratitude", "para-team": "paraprofessional aide", "work-notes": "notes", "lifehub-notes": "notes",
+};
+const aliasOf = (p: Plugin) => SEARCH_ALIASES[p.id.replace(/^(work|life)-(?:kit-|pro-)?/, "")] || "";
 
 /** How well one search word fits one plugin. 0 = no match. Name and category count far more than the small print. */
 function wordScore(p: Plugin, w: string): number {
@@ -846,6 +950,8 @@ function wordScore(p: Plugin, w: string): number {
   return Math.max(
     hit(p.name, 100, 80),
     hit(p.category, 70, 60),
+    hit(p.shelf || "", 70, 60),
+    hit(aliasOf(p), 90, 70),
     hit(p.tagline, 40, 30),
     ...p.features.map((f) => hit(f, 12, 8)),
     hit(p.description, 4, 3),
@@ -859,11 +965,17 @@ function wordScore(p: Plugin, w: string): number {
  * fitness apps rather than everything that mentions it once.
  */
 export function searchPlugins(list: readonly Plugin[], query: string): Plugin[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // Punctuation and "&" aren't words: "gift & dates" is "gift dates", "grade-calculator" is "grade calculator".
+  const words = wordsOf(query);
   if (!words.length) return [...list];
+  const phrase = words.join(" ");
   const scored = list.map((p, i) => {
     const each = words.map((w) => wordScore(p, w));
-    return { p, i, ok: each.every((n) => n > 0), score: each.reduce((a, n) => a + n, 0), strong: each.every((n) => n >= 30) };
+    // The whole query as the start of the name, or as a run of its words, comes first: "final grade"
+    // puts Final Grade Calculator above everything that mentions grades.
+    const name = wordsOf(p.name).join(" ");
+    const bonus = name === phrase ? 400 : name.startsWith(phrase) ? 300 : ` ${name}`.includes(` ${phrase}`) ? 200 : 0;
+    return { p, i, ok: each.every((n) => n > 0), score: each.reduce((a, n) => a + n, 0) + bonus, strong: each.every((n) => n >= 30) };
   }).filter((r) => r.ok);
   const strong = scored.filter((r) => r.strong);
   return (strong.length ? strong : scored).sort((x, y) => y.score - x.score || x.i - y.i).map((r) => r.p);

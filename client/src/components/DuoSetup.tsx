@@ -39,7 +39,7 @@ export const rememberDuoSetupDone = (id: number | string) => { try { localStorag
 const STARTER_THEMES = ["classic", "studio", "bloom", "frost", "aurora", "zen", "tide", "grove", "glass", "cassette", "vinyl", "console"];
 /** Everyday apps most people want first, in this order. */
 const STARTER_APPS: { id: string; icon: LucideIcon }[] = [
-  { id: "life-healthlite", icon: Apple }, { id: "life-moneyhub", icon: Wallet },
+  { id: "life-health", icon: Apple }, { id: "life-moneyhub", icon: Wallet },
   { id: "life-ai-meal-plan", icon: UtensilsCrossed }, { id: "life-inspire", icon: NotebookPen },
   { id: "life-ai-workout-plan", icon: Dumbbell }, { id: "life-sleep-studio", icon: Moon },
 ];
