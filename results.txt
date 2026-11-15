@@ -1,0 +1,20 @@
+iphone: Reads page shows 12 category sections (expected 12)
+iphone: category link stars-entertainment -> chip "🎬 Stars & Entertainment"
+iphone: category link inventions -> chip "💡 Inventions"
+iphone: library shelf shows 12 category rows
+iphone: first row on screen: 3 whole card(s) + 1 partly, each 105x246px
+iphone: read great-pyramid-of-giza-mystery -> "The Great Pyramid: A Mountain Made by People"
+iphone: read walt-disney-mouse-to-magic-kingdom -> "Walt Disney: From a Mouse to a Magic Kingdom"
+iphone: read black-holes-gravity-traps -> "Black Holes: Where Not Even Light Escapes"
+iphone: read why-yawns-are-contagious -> "Why Are Yawns Contagious?"
+iphone: page errors: none
+desktop: Reads page shows 12 category sections (expected 12)
+desktop: category link stars-entertainment -> chip "🎬 Stars & Entertainment"
+desktop: category link inventions -> chip "💡 Inventions"
+desktop: library shelf shows 12 category rows
+desktop: first row on screen: 6 whole card(s) + 1 partly, each 180x420px
+desktop: read great-pyramid-of-giza-mystery -> "The Great Pyramid: A Mountain Made by People"
+desktop: read walt-disney-mouse-to-magic-kingdom -> "Walt Disney: From a Mouse to a Magic Kingdom"
+desktop: read black-holes-gravity-traps -> "Black Holes: Where Not Even Light Escapes"
+desktop: read why-yawns-are-contagious -> "Why Are Yawns Contagious?"
+desktop: page errors: none
