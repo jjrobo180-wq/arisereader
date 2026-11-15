@@ -2,7 +2,13 @@
 // newer copy of its web code exists (.github/scripts/ota_setup.py sets it up; @capgo/capacitor-updater
 // does the asking, downloading and rolling back). New copies are built from master by
 // .github/workflows/ota-publish.yml and kept as GitHub releases ("ota-<app>-<version>", a zip each)
-// on this public repository, so nothing else stores them.
+// on this repository, so nothing else stores them.
+//
+// Phones never download from GitHub's address directly: they're given /api/ota-file/<app>/<version>.zip
+// here, which sends them on to the file. With GITHUB_TOKEN set (a token that can read this repository),
+// that's a short-lived signed link from GitHub, so it works whether the repository is public or
+// private. Without one it's the public download link, which works only while the repository is public.
+// The Windows and Linux apps are downloaded the same way, from /download/desktop/<file>.
 //
 // Versions are "<native level>.<minutes at build>.0". An app is only offered a copy with its own
 // native level (web code made for the native shell it has) that was built after the one it's running.
@@ -13,7 +19,12 @@ export type OtaApp = typeof OTA_APPS[number];
 /** `checksum`: the zip's SHA-256 (hex). The updater on the phone (@capgo/capacitor-updater 8) refuses
  *  any update without it ("Checksum required") and checks the download against it before unpacking.
  *  GitHub records it for every release file (`digest: "sha256:…"`). */
-export type OtaRelease = { app: OtaApp; level: number; built: number; version: string; url: string; checksum: string };
+export type OtaRelease = { app: OtaApp; level: number; built: number; version: string; url: string; checksum: string; assetId?: number };
+/** Where phones and computers fetch files from: this server (arisetodo.com), never GitHub directly. */
+export const FILE_HOST = "https://arisetodo.com";
+export const otaFileUrl = (r: Pick<OtaRelease, "app" | "version">) => `${FILE_HOST}/api/ota-file/${r.app}/${r.version}.zip`;
+/** A desktop download's file names: "Arise-To-Duo-Setup.exe", "latest.yml", "Arise-To-Duo-linux.AppImage". */
+const DESKTOP_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
 
 const VERSION = /^(\d{1,4})\.(\d{1,10})\.0$/;
 export function parseVersion(v: unknown): { level: number; built: number } | null {
@@ -32,7 +43,7 @@ export function releasesFrom(list: unknown): OtaRelease[] {
     const checksum = /^sha256:([a-f0-9]{64})$/i.exec(String(asset?.digest || ""))?.[1]?.toLowerCase();
     // Without a checksum the phone won't install it, so it isn't offered.
     if (!asset || !checksum) continue;
-    out.push({ app: m[1] as OtaApp, level: v.level, built: v.built, version: m[2], url: asset.browser_download_url, checksum });
+    out.push({ app: m[1] as OtaApp, level: v.level, built: v.built, version: m[2], url: asset.browser_download_url, checksum, ...(Number.isFinite(asset.id) ? { assetId: Number(asset.id) } : {}) });
   }
   return out;
 }
@@ -44,14 +55,44 @@ export function pickUpdate(releases: OtaRelease[], app: OtaApp, current: unknown
   return releases.filter((r) => r.app === app && r.level === now.level && r.built > now.built).sort((a, b) => b.built - a.built)[0] ?? null;
 }
 
-export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) => Promise<any>; repo?: string; now?: () => number } = {}) {
+/** The desktop app's files (the "desktop" release): name -> { id, url }. */
+export function desktopFilesFrom(list: unknown): Map<string, { id?: number; url: string }> {
+  const out = new Map<string, { id?: number; url: string }>();
+  const rel = (Array.isArray(list) ? list : []).find((r: any) => r?.tag_name === "desktop" && !r?.draft);
+  for (const a of rel?.assets || []) {
+    const name = String(a?.name || ""), url = String(a?.browser_download_url || "");
+    if (DESKTOP_FILE.test(name) && /^https:\/\/github\.com\//.test(url)) out.set(name, { ...(Number.isFinite(a?.id) ? { id: Number(a.id) } : {}), url });
+  }
+  return out;
+}
+
+type Resolve = (assetId: number | undefined, publicUrl: string) => Promise<string>;
+
+export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) => Promise<any>; repo?: string; now?: () => number; resolve?: Resolve; token?: () => string | undefined } = {}) {
   const repo = o.repo ?? "jjrobo180-wq/arisereader";
   const now = o.now ?? Date.now;
+  const token = o.token ?? (() => process.env.GITHUB_TOKEN || undefined);
+  /** Where a release file can be fetched right now. With a token GitHub hands out a signed link that
+   *  lasts a few minutes (works for a private repository); without one, the public link. */
+  const resolve: Resolve = o.resolve ?? (async (assetId, publicUrl) => {
+    const t = token();
+    if (!t || !assetId) return publicUrl;
+    try {
+      const r = await fetch(`https://api.github.com/repos/${repo}/releases/assets/${assetId}`, { redirect: "manual", headers: { Accept: "application/octet-stream", "User-Agent": "arisetodo-ota", Authorization: `Bearer ${t}` }, signal: AbortSignal.timeout(10_000) });
+      const where = r.headers.get("location");
+      if (r.status >= 300 && r.status < 400 && where && /^https:\/\//.test(where)) return where;
+      lastError = `asset ${assetId}: github ${r.status}`;
+    } catch (e: any) { lastError = `asset ${assetId}: ${e?.message || e}`; }
+    return publicUrl;
+  });
+  let lastError = "", lastOk = "";
+  let rawList: unknown = [];
   // GitHub answers "not changed" (304) to a repeat look without counting it against the hourly
   // allowance, so the list is asked for with the last answer's ETag.
   let etag = "", lastBody: any = null;
   const fetchJson = o.fetchJson ?? (async (url: string) => {
-    const r = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "arisetodo-ota", ...(etag ? { "If-None-Match": etag } : {}), ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}) }, signal: AbortSignal.timeout(10_000) });
+    const t = token();
+    const r = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "arisetodo-ota", ...(etag ? { "If-None-Match": etag } : {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) }, signal: AbortSignal.timeout(10_000) });
     if (r.status === 304 && lastBody) return lastBody;
     if (!r.ok) throw new Error(`github ${r.status} (left this hour: ${r.headers.get("x-ratelimit-remaining") ?? "?"})`);
     etag = r.headers.get("etag") || "";
@@ -60,15 +101,15 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
   });
   // One look at GitHub a minute with a token (5,000 an hour allowed; repeats that didn't change don't count),
   // every 5 minutes without one (60 an hour), shared by every app and phone.
-  const every = process.env.GITHUB_TOKEN ? 60_000 : 5 * 60_000;
+  const every = token() ? 60_000 : 5 * 60_000;
   let cache: { at: number; list: OtaRelease[] } | null = null;
   let loading: Promise<OtaRelease[]> | null = null;
   const releases = async (): Promise<OtaRelease[]> => {
     if (cache && now() - cache.at < every) return cache.list;
     loading ??= fetchJson(`https://api.github.com/repos/${repo}/releases?per_page=100`)
-      .then((list) => { const l = releasesFrom(list); cache = { at: now(), list: l }; return l; })
+      .then((list) => { rawList = list; const l = releasesFrom(list); cache = { at: now(), list: l }; lastOk = new Date(now()).toISOString(); return l; })
       // A failed look keeps the last list but tries again in a minute, not five.
-      .catch((e) => { console.warn("[ota] couldn't read the releases:", e?.message || e); if (cache) cache = { at: now() - Math.max(0, every - 60_000), list: cache.list }; return cache?.list ?? []; })
+      .catch((e) => { lastError = String(e?.message || e).slice(0, 200); console.warn("[ota] couldn't read the releases:", lastError); if (cache) cache = { at: now() - Math.max(0, every - 60_000), list: cache.list }; return cache?.list ?? []; })
       .finally(() => { loading = null; });
     return loading;
   };
@@ -76,7 +117,31 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
   // The last few update checks, so we can see what a phone is running and what it was offered
   // (app, versions and plugin details only: nothing about the person).
   const recent: { at: string; app: string; running: string; build: string; plugin: string; os: string; offered: string }[] = [];
-  app.get("/api/ota-checks", (_req, res) => { res.set("Cache-Control", "no-store"); res.json({ checks: recent }); });
+  // Also whether this server can read the releases (and so whether the repository can be private).
+  app.get("/api/ota-checks", async (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    const list = await releases();
+    res.json({ github: { token: !!token(), releases: list.length, desktopFiles: desktopFilesFrom(rawList).size, lastRead: lastOk || null, lastError: lastError || null }, checks: recent });
+  });
+
+  // The update zip a phone was offered: sent on to the file itself.
+  app.get("/api/ota-file/:app/:file", async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const m = /^(\d{1,4}\.\d{1,10}\.0)\.zip$/.exec(String(req.params.file || ""));
+    const r = m ? (await releases()).find((x) => x.app === req.params.app && x.version === m[1]) : undefined;
+    if (!r) return res.status(404).json({ message: "No such update" });
+    res.redirect(302, await resolve(r.assetId, r.url));
+  });
+
+  // The Windows and Linux apps (and the update files the installed apps check): sent on to the file.
+  app.get("/download/desktop/:file", async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
+    const name = String(req.params.file || "");
+    await releases();
+    const f = DESKTOP_FILE.test(name) ? desktopFilesFrom(rawList).get(name) : undefined;
+    if (!f) return res.status(404).send("Not found");
+    res.redirect(302, await resolve(f.id, f.url));
+  });
 
   app.post("/api/ota/:app", async (req: any, res) => {
     res.set("Cache-Control", "no-store");
@@ -93,7 +158,7 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
     recent.unshift({ at: new Date(now()).toISOString(), app: which, running: String(req.body?.version_name ?? "").slice(0, 40), build: String(req.body?.version_build ?? "").slice(0, 40), plugin: String(req.body?.plugin_version ?? "").slice(0, 20), os: String(req.body?.version_os ?? "").slice(0, 20), offered: next ? next.version : `nothing (newest ${newest})` });
     if (recent.length > 40) recent.length = 40;
     if (!next) return none(res);
-    res.json({ version: next.version, url: next.url, checksum: next.checksum });
+    res.json({ version: next.version, url: otaFileUrl(next), checksum: next.checksum });
   });
   // Channel requests (the updater may ask): there's one channel.
   app.put("/api/ota/:app", (_req, res) => res.json({ status: "ok", channel: "production" }));

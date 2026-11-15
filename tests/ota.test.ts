@@ -34,7 +34,8 @@ test("the endpoint answers the updater's way, and reads GitHub at most every 5 m
   let calls = 0;
   registerOtaRoutes(app, { fetchJson: async () => { calls++; return [gh("ota-todo-1.300.0")]; } });
   const call = async (appId: string, body: any) => { let out: any; let code = 200; const res: any = { set: () => res, status: (c: number) => { code = c; return res; }, json: (b: any) => { out = b; return res; } }; await routes["POST /api/ota/:app"]({ params: { app: appId }, body }, res); return { code, out }; };
-  assert.deepEqual((await call("todo", { version_name: "builtin", version_build: "1.200.0" })).out, { version: "1.300.0", url: "https://github.com/jjrobo180-wq/arisereader/releases/download/ota-todo-1.300.0/ota-todo-1.300.0.zip", checksum: SUM });
+  // Phones are sent to our own server for the file, never straight to GitHub (so the repository can be private).
+  assert.deepEqual((await call("todo", { version_name: "builtin", version_build: "1.200.0" })).out, { version: "1.300.0", url: "https://arisetodo.com/api/ota-file/todo/1.300.0.zip", checksum: SUM });
   assert.equal((await call("todo", { version_name: "1.300.0" })).out.error, "no_new_version_available");
   assert.equal((await call("nope", {})).code, 404);
   assert.equal(calls, 1);
@@ -93,4 +94,29 @@ test("the iPhone apps get new web code quietly: downloaded in the background, us
   // Only the Settings button switches at once, because someone asked for it.
   const button = native.slice(native.indexOf("export async function checkForUpdateNow"), native.indexOf("export function keepLiveUpdated"));
   assert.match(button, /await u\.set\(\{ id: bundle\.id \}\)/);
+});
+
+test("files are handed out by our server: a signed GitHub link with a token, the public link without", async () => {
+  const routes: Record<string, any> = {};
+  const app: any = { post: () => {}, put: () => {}, get: (p: string, h: any) => { routes[`GET ${p}`] = h; } };
+  const list = [{ ...gh("ota-todo-1.300.0"), assets: [{ ...gh("ota-todo-1.300.0").assets[0], id: 77 }] },
+    { tag_name: "desktop", draft: false, assets: [{ id: 5, name: "Arise-To-Duo-Setup.exe", browser_download_url: "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/Arise-To-Duo-Setup.exe" }, { id: 6, name: "latest.yml", browser_download_url: "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/latest.yml" }] }];
+  const asked: (number | undefined)[] = [];
+  registerOtaRoutes(app, { fetchJson: async () => list, token: () => "t", resolve: async (id, url) => { asked.push(id); return id ? `https://objects.example/signed/${id}` : url; } });
+  const get = async (route: string, params: any) => { let to = "", code = 200; const res: any = { set: () => res, status: (c: number) => { code = c; return res; }, json: () => res, send: () => res, redirect: (c: number, u: string) => { code = c; to = u; return res; } }; await routes[route]({ params }, res); return { code, to }; };
+  assert.deepEqual(await get("GET /api/ota-file/:app/:file", { app: "todo", file: "1.300.0.zip" }), { code: 302, to: "https://objects.example/signed/77" });
+  assert.equal((await get("GET /api/ota-file/:app/:file", { app: "todo", file: "1.999.0.zip" })).code, 404);
+  assert.equal((await get("GET /api/ota-file/:app/:file", { app: "todo", file: "../x" })).code, 404);
+  assert.deepEqual(await get("GET /download/desktop/:file", { file: "Arise-To-Duo-Setup.exe" }), { code: 302, to: "https://objects.example/signed/5" });
+  assert.deepEqual(await get("GET /download/desktop/:file", { file: "latest.yml" }), { code: 302, to: "https://objects.example/signed/6" });
+  assert.equal((await get("GET /download/desktop/:file", { file: "nope.exe" })).code, 404);
+  assert.deepEqual(asked, [77, 5, 6]);
+});
+
+test("the download page and the desktop app's updates come from our server, not GitHub", () => {
+  const page = readFileSync("client/public/download/index.html", "utf8");
+  assert.ok(!page.includes("github.com/jjrobo180-wq/arisereader/releases"));
+  assert.match(page, /https:\/\/arisetodo\.com\/download\/desktop\/Arise-To-Duo-Setup\.exe/);
+  const pub = JSON.parse(readFileSync("desktop/package.json", "utf8")).build.publish[0];
+  assert.equal(pub.url, "https://arisetodo.com/download/desktop");
 });

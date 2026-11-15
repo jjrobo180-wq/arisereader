@@ -34,7 +34,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop"
+        "url": "https://arisetodo.com/download/desktop"
       }
     ],
     "win": {
