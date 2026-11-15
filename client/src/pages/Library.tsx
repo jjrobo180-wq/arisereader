@@ -2144,7 +2144,8 @@ export default function Library() {
                 quizTakers={quizTakers}
                 results={results}
                 onOpen={(slug) => navigate(`/news/${slug}`)}
-                onSeeAll={() => navigate("/reads#quick")}
+                onSeeAll={() => navigate("/reads?quick=all")}
+                onSeeCategory={(id) => navigate(`/reads?quick=${id}`)}
               />
             )}
 
