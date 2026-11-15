@@ -32,7 +32,8 @@ async function serve(ctx: BrowserContext) {
   await ctx.route("**/*", async (route) => {
     const req = route.request(), url = new URL(req.url());
     const json = (b: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(b) });
-    if (url.hostname === "arisetodo.com" && url.pathname.startsWith("/api/")) {
+    // The app may call its server at arisetodo.com or www.arisereader.com.
+    if (/(^|\.)(arisetodo|arisereader)\.com$/.test(url.hostname) && url.pathname.startsWith("/api/")) {
       const m = /^\/api\/todo-share\/([a-z]+)x+$/.exec(url.pathname);
       if (m && PAGES[m[1]]) {
         const p = PAGES[m[1]];
