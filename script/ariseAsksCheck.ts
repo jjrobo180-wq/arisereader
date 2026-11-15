@@ -117,7 +117,8 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     await page.waitForTimeout(1200);
     note(`${label}: Arise tab rows: ${await page.getByTestId("arise-ask-row").count()}`);
     await shot("5-arise-tab");
-    await page.getByTestId("arise-ask-row").first().click();
+    // The worksheet (the newest row is the email, still waiting for Monday).
+    await page.getByTestId("arise-ask-row").filter({ hasText: "Fractions" }).first().click();
     await page.waitForTimeout(1200);
     const result = page.getByTestId("arise-ask-result");
     const text = (await result.textContent().catch(() => "")) || "";
