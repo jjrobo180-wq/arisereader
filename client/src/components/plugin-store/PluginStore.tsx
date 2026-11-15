@@ -28,10 +28,9 @@ import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { KIT_ICONS } from "@/components/plugin-kit/kitIcons";
 import { kitDef, type KitRecord } from "@shared/pluginKit";
-import { countsAsApp } from "@shared/todoPlan";
 import type { Note } from "@shared/notesApp";
 import {
-  HUB_TEMPLATES, PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, templatePlugins, OPEN_STORE_KEY, type HubTemplate, type Plugin, type PluginHub,
+  HUB_TEMPLATES, MINI_SHELVES, PREMIUM_SHELVES, connectionNeeds, isAddable, pluginsFor, searchPlugins, templatePlugins, OPEN_STORE_KEY, type HubTemplate, type Plugin, type PluginHub, type PluginTier,
 } from "@shared/pluginStore";
 
 /** In the iPhone app, a description never talks about the app "coming soon": that's this app. */
@@ -153,8 +152,13 @@ function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" | "xl" }) {
   </span>;
 }
 
-/** How many apps a category shows before "See all". */
+/** How many apps a shelf shows before "See all". */
 const PER_CATEGORY = 6;
+const TIER_NAME: Record<PluginTier, string> = { premium: "Premium apps", mini: "Mini plugins" };
+const TIER_BLURB: Record<PluginTier, string> = {
+  premium: "Full apps of their own: documents, spreadsheets, files, Cooked, Podster and more.",
+  mini: "Small tools that each do one job, like a grade calculator, gift dates or a chore chart.",
+};
 
 export default function PluginStore({ hub, teacher, teacherApps, arise, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
   const { token } = useAuth();
@@ -166,7 +170,11 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   } as CSSProperties;
   const [view, setView] = useState<"discover" | "installed" | "templates">("discover");
   const [category, setCategory] = useState<string | null>(null);
+  /** Premium apps, Mini plugins, or both. */
+  const [tier, setTier] = useState<"all" | PluginTier>("all");
   const [query, setQuery] = useState("");
+  const queryRef = useRef(query);
+  queryRef.current = query;
   const [openId, setOpenId] = useState<string | null>(initialOpen ?? null);
   const [openTemplateId, setOpenTemplateId] = useState<string | null>(null);
   const [apps, setApps] = useState<AppAccess | null>(null);
@@ -188,9 +196,12 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   const openTemplateIdRef = useRef(openTemplateId);
   openTemplateIdRef.current = openTemplateId;
 
-  const all = useMemo(() => pluginsFor(hub, { teacher: teacherApps ?? teacher, arise: arise ?? teacher }), [hub, teacher, teacherApps, arise]);
-  /** How many apps this hub's store has (built-in tools that are always there aren't counted). */
-  const appCount = useMemo(() => all.filter((p) => countsAsApp(hub, p)).length, [all, hub]);
+  // Everything, retired plugins included (they show only under Added, so they can still be removed).
+  const all = useMemo(() => pluginsFor(hub, { teacher: teacherApps ?? teacher, arise: arise ?? teacher, includeRetired: true }), [hub, teacher, teacherApps, arise]);
+  /** What's on offer: everything but the retired plugins. */
+  const live = useMemo(() => all.filter((p) => !p.retired), [all]);
+  const premiumCount = live.filter((p) => p.tier === "premium").length;
+  const miniCount = live.length - premiumCount;
   /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id).
    *  Must stay below `all`: read above it, opening a Kit or Notes app threw a ReferenceError. */
   const runningNotesApp = running ? all.find((p) => p.id === running && p.target.kind === "notesApp") : null;
@@ -254,7 +265,12 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
   // The page behind is held still, iPhone included: fixing the body in place is the only thing Safari
   // respects, so the hub can't slide under the store.
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); goBackRef.current(); };
+    // Escape clears the search first, then goes back.
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return; e.stopPropagation();
+      if (queryRef.current && !runningRef.current && !openIdRef.current) { setQuery(""); return; }
+      goBackRef.current();
+    };
     window.addEventListener("keydown", key, true);
     const body = document.body.style, y = window.scrollY;
     const was = { overflow: body.overflow, position: body.position, top: body.top, width: body.width };
@@ -270,22 +286,26 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
 
   useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 2400); return () => clearTimeout(t); }, [note]);
   // Changing what's shown starts the list at the top.
-  useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [view, category]);
+  useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [view, category, tier]);
 
   const shown = useMemo(() => {
-    let list = searchPlugins(all, query);
+    let list = searchPlugins(view === "installed" ? all : live, query);
     if (view === "installed") list = list.filter((p) => isAddable(p) && isInstalled(p));
-    if (category) list = list.filter((p) => p.category === category);
+    if (tier !== "all") list = list.filter((p) => p.tier === tier);
+    if (category) list = list.filter((p) => p.shelf === category);
     return list;
-  }, [all, query, view, category, isInstalled]);
+  }, [all, live, query, view, tier, category, isInstalled]);
 
   const installedCount = all.filter((p) => isAddable(p) && isInstalled(p)).length;
   const browsing = view === "discover" && !category && !query.trim();
-  // Featured: the ones not added yet first, worked out once when the store opens, so a card never
-  // jumps to a new place the moment it's added. The first becomes the spotlight; the rest run as a rail.
-  const [featured] = useState(() => all.filter((p) => p.featured).map((p, i) => ({ p, i, on: isAddable(p) && isInstalled(p) ? 1 : 0 }))
-    .sort((a, b) => a.on - b.on || a.i - b.i).slice(0, 9).map((x) => x.p));
-  const [spotlight, ...rail] = featured;
+  // The Plugin of the day: a featured one not added yet, worked out once when the store opens, so it
+  // never changes the moment it's added.
+  const [spotlight] = useState(() => live.filter((p) => p.featured).map((p, i) => ({ p, i, on: isAddable(p) && isInstalled(p) ? 1 : 0 }))
+    .sort((a, b) => a.on - b.on || a.i - b.i)[0]?.p);
+  const premiumList = useMemo(() => {
+    const order = (p: Plugin) => PREMIUM_SHELVES.indexOf(p.shelf || "");
+    return live.filter((p) => p.tier === "premium").map((p, i) => ({ p, i })).sort((a, b) => order(a.p) - order(b.p) || a.i - b.i).map((x) => x.p);
+  }, [live]);
 
   // The hub can refuse an add (the free plan's plugins are used up: it opens the upgrade box instead),
   // so "added" is only said once the plugin really is in the hub.
@@ -395,6 +415,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate text-[16px] font-semibold leading-tight text-[var(--s-text)]">{p.name}</span>
+              {p.tier === "premium" && tier === "all" && !browsing && <span className="shrink-0 rounded-md bg-[var(--s-accent-soft)] px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-[var(--s-accent-text)]" data-testid="plugin-premium-badge">Premium</span>}
               {p.recommendedFor && <span title={`Recommended for Arise ${HUB_NAME[p.recommendedFor]}`} className="shrink-0 rounded-md bg-[var(--s-raised)] px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-[var(--s-faint)]">{HUB_NAME[p.recommendedFor]}</span>}
             </span>
             <span className="mt-0.5 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
@@ -444,7 +465,29 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     {list.map((p) => <li key={p.id} className="flex shrink-0">{railCard(p)}</li>)}
   </ul>;
 
-  const categories = PLUGIN_CATEGORIES[hub].filter((c) => all.some((p) => p.category === c));
+  /** The shelves for a tier that have something on them, in order. */
+  const shelvesOf = (t: PluginTier) => (t === "premium" ? PREMIUM_SHELVES : MINI_SHELVES[hub]).filter((s) => live.some((p) => p.tier === t && p.shelf === s));
+  const chipShelves = tier === "all" ? [] : shelvesOf(tier);
+  const pickTier = (t: "all" | PluginTier) => { setTier(t); setCategory(null); setView("discover"); };
+  /** One shelf: its name, the first few (or all) of its apps, and See all. */
+  const shelf = (t: PluginTier, s: string, limit = PER_CATEGORY) => {
+    const inShelf = live.filter((p) => p.tier === t && p.shelf === s);
+    return <section key={`${t}-${s}`} aria-labelledby={`ps-${t}-${s}`} className="border-t border-[var(--s-line)] pt-5" data-testid="plugin-shelf" data-tier={t}>
+      <div className="mb-1 flex items-baseline justify-between gap-3">
+        <h2 id={`ps-${t}-${s}`} className={`min-w-0 truncate ${heading}`}>{s}<span className="ml-2 text-[15px] font-medium text-[var(--s-faint)]">{inShelf.length}</span></h2>
+        {inShelf.length > limit && <button type="button" onClick={() => { setTier(t); setView("discover"); setCategory(s); }} className={`-mr-2 inline-flex h-9 shrink-0 items-center rounded-full px-2 text-[15px] font-medium text-[var(--s-accent-text)] ${ring}`}>See all</button>}
+      </div>
+      {rows(inShelf.slice(0, limit))}
+    </section>;
+  };
+  /** A tier's heading: its name, how many, one line on what's in it, and See all. */
+  const tierHead = (t: PluginTier, more: boolean) => <div className="flex items-end justify-between gap-3" data-testid={`plugin-tier-${t}`}>
+    <div className="min-w-0">
+      <h2 className="text-[26px] font-bold leading-tight tracking-[-.015em] text-[var(--s-text)]">{TIER_NAME[t]}<span className="ml-2 text-[15px] font-medium text-[var(--s-faint)]">{t === "premium" ? premiumCount : miniCount}</span></h2>
+      <p className="mt-0.5 text-sm text-[var(--s-sub)]">{TIER_BLURB[t]}</p>
+    </div>
+    {more && <button type="button" onClick={() => pickTier(t)} className={`-mr-2 inline-flex h-9 shrink-0 items-center rounded-full px-2 text-[15px] font-medium text-[var(--s-accent-text)] ${ring}`}>See all</button>}
+  </div>;
   const chip = (on: boolean) => `inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)]" : "bg-[var(--s-raised)] text-[var(--s-text)]"}`;
   const heading = "text-[22px] font-bold leading-tight tracking-[-.01em] text-[var(--s-text)]";
 
@@ -469,22 +512,32 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
         </div>
         <div className="flex items-end justify-between gap-3 pb-3">
           <h1 className="text-[32px] font-bold leading-none tracking-[-.02em] text-[var(--s-text)] sm:text-[36px]">{STORE_NAME}</h1>
-          <span className="pb-1 text-[13px] font-medium text-[var(--s-faint)]" data-testid="store-app-count">{appCount.toLocaleString()} plugins</span>
+          <span className="pb-1 text-right text-[13px] font-medium leading-tight text-[var(--s-faint)]" data-testid="store-app-count">{premiumCount} premium · {miniCount.toLocaleString()} mini</span>
         </div>
         <label className="relative block pb-3">
           <span className="sr-only">Search apps</span>
           <Search className="pointer-events-none absolute left-3 top-[1.1rem] h-[18px] w-[18px] text-[var(--s-faint)]" />
           {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
-          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} plugins`}
-            className={`h-11 w-full rounded-xl border-0 bg-[var(--s-raised)] pl-10 pr-3 text-base text-[var(--s-text)] outline-none placeholder:text-[var(--s-faint)] ${ring}`}
+          <input value={query} onChange={(e) => setQuery(e.target.value)} type="text" inputMode="search" enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false}
+            placeholder={tier === "all" ? `Search ${live.length.toLocaleString()} apps and plugins` : `Search ${tier === "premium" ? premiumCount : miniCount} ${TIER_NAME[tier].toLowerCase()}`}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            className={`h-11 w-full rounded-xl border-0 bg-[var(--s-raised)] pl-10 pr-11 text-base text-[var(--s-text)] outline-none placeholder:text-[var(--s-faint)] ${ring}`}
             data-testid="plugin-search" />
+          {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className={`absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--s-faint)] hover:bg-[var(--s-line)] ${ring}`} data-testid="plugin-search-clear"><X className="h-4 w-4" /></button>}
         </label>
+        {/* Premium apps and Mini plugins: one gallery, shown together or apart. */}
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--s-raised)] p-1 pb-1" role="group" aria-label="Kind of plugin" data-testid="plugin-tiers">
+          {(["all", "premium", "mini"] as const).map((t) => <button key={t} type="button" onClick={() => pickTier(t)} aria-pressed={tier === t}
+            className={`h-9 rounded-lg text-[14px] font-semibold transition-colors ${ring} ${tier === t ? "bg-[var(--s-surface)] text-[var(--s-text)] shadow-sm" : "text-[var(--s-sub)]"}`} data-testid={`plugin-tier-btn-${t}`}>
+            {t === "all" ? "All" : t === "premium" ? `Premium · ${premiumCount}` : `Mini · ${miniCount}`}
+          </button>)}
+        </div>
         {/* The chips scroll sideways; they start on the same edge as the title. */}
-        <div className="-mx-5 flex gap-2 overflow-x-auto overscroll-x-contain px-5 pb-3 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
-          <button type="button" onClick={() => { setView("discover"); setCategory(null); }} aria-pressed={browsing} className={chip(view === "discover" && !category)}>All</button>
+        <div className="-mx-5 flex gap-2 overflow-x-auto overscroll-x-contain px-5 py-3 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show" data-testid="plugin-chips">
+          <button type="button" onClick={() => { setView("discover"); setCategory(null); }} aria-pressed={view === "discover" && !category} className={chip(view === "discover" && !category)}>{tier === "all" ? "Browse" : "Everything"}</button>
           <button type="button" onClick={() => { setView("installed"); setCategory(null); }} aria-pressed={view === "installed"} className={chip(view === "installed")} data-testid="plugin-store-added">Added · {installedCount}</button>
-          {templates.length > 0 && <button type="button" onClick={() => { setView("templates"); setCategory(null); }} aria-pressed={view === "templates"} className={chip(view === "templates")} data-testid="plugin-store-templates">Hubs</button>}
-          {categories.map((c) => <button key={c} type="button" onClick={() => { setView("discover"); setCategory(c === category ? null : c); }} aria-pressed={category === c} className={chip(category === c)}>{c}</button>)}
+          {templates.length > 0 && tier !== "premium" && <button type="button" onClick={() => { setView("templates"); setCategory(null); }} aria-pressed={view === "templates"} className={chip(view === "templates")} data-testid="plugin-store-templates">Hubs</button>}
+          {chipShelves.map((c) => <button key={c} type="button" onClick={() => { setView("discover"); setCategory(c === category ? null : c); }} aria-pressed={category === c} className={chip(category === c)} data-testid="plugin-shelf-chip">{c}</button>)}
         </div>
       </div>
     </header>
@@ -492,14 +545,9 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
       <div className="mx-auto max-w-[1100px] px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-8">
         <div className="space-y-9">
-          {browsing && spotlight && <section aria-labelledby="ps-spotlight">
+          {browsing && tier === "all" && spotlight && <section aria-labelledby="ps-spotlight">
             <h2 id="ps-spotlight" className="sr-only">Plugin of the day</h2>
             {spotlightCard(spotlight)}
-          </section>}
-
-          {browsing && rail.length > 0 && <section aria-labelledby="ps-featured">
-            <h2 id="ps-featured" className={`mb-3 ${heading}`}>Featured for your {HUB_NAME[hub]}</h2>
-            {posterRail(rail)}
           </section>}
 
           {view === "templates" && <section aria-live="polite">
@@ -508,30 +556,44 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
           </section>}
 
-          {view !== "templates" && (browsing
-            ? categories.map((c) => {
-                const inCat = all.filter((p) => p.category === c);
-                return <section key={c} aria-labelledby={`ps-${c}`} className="border-t border-[var(--s-line)] pt-5">
-                  <div className="mb-1 flex items-baseline justify-between gap-3">
-                    <h2 id={`ps-${c}`} className={`min-w-0 truncate ${heading}`}>{c}</h2>
-                    {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`-mr-2 inline-flex h-9 shrink-0 items-center rounded-full px-2 text-[15px] font-medium text-[var(--s-accent-text)] ${ring}`}>See all</button>}
-                  </div>
-                  {rows(inCat.slice(0, PER_CATEGORY))}
-                </section>;
-              })
-            : <section aria-live="polite">
-                <h2 className={`mb-1 ${heading}`}>
-                  {view === "installed" ? `Added to your ${HUB_NAME[hub]}` : category ?? "Results"}
-                  <span className="ml-2 text-[15px] font-medium text-[var(--s-faint)]">{shown.length}{query.trim() ? ` · “${query.trim()}”` : ""}</span>
-                </h2>
-                {shown.length
-                  ? rows(shown)
-                  : <div className="mt-3 rounded-[1.4rem] bg-[var(--s-surface)] p-10 text-center ring-1 ring-[var(--s-line)]">
-                      <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
-                      <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No plugins match that."}</p>
-                      <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap All to add your first one." : "Try another word, or tap All."}</p>
-                    </div>}
-              </section>)}
+          {/* Browsing everything: Premium apps first, as a row of cards, then the Mini plugins shelf by shelf. */}
+          {view !== "templates" && browsing && tier === "all" && <>
+            <section className="space-y-3" aria-label={TIER_NAME.premium}>
+              {tierHead("premium", true)}
+              {posterRail(premiumList)}
+            </section>
+            <section className="space-y-6" aria-label={TIER_NAME.mini}>
+              {tierHead("mini", true)}
+              {shelvesOf("mini").map((s) => shelf("mini", s))}
+            </section>
+          </>}
+          {view !== "templates" && browsing && tier !== "all" && <section className="space-y-6" aria-label={TIER_NAME[tier]}>
+            {tierHead(tier, false)}
+            {shelvesOf(tier).map((s) => shelf(tier, s, tier === "premium" ? 99 : PER_CATEGORY))}
+          </section>}
+
+          {view !== "templates" && !browsing && <section aria-live="polite" className="space-y-7">
+            <h2 className={heading} data-testid="plugin-results-title">
+              {view === "installed" ? `Added to your ${HUB_NAME[hub]}` : category ?? (query.trim() ? "Results" : tier === "all" ? "Everything" : TIER_NAME[tier])}
+              <span className="ml-2 text-[15px] font-medium text-[var(--s-faint)]">{shown.length}{query.trim() ? ` · “${query.trim()}”` : ""}</span>
+            </h2>
+            {shown.length
+              // Results come in two groups, Premium apps then Mini plugins, best match first in each.
+              ? (["premium", "mini"] as const).map((t) => {
+                  const group = shown.filter((p) => p.tier === t);
+                  if (!group.length) return null;
+                  return <div key={t} data-testid={`plugin-results-${t}`}>
+                    {(tier === "all" || view === "installed") && !category && <h3 className="mb-1 text-[13px] font-bold uppercase tracking-[.12em] text-[var(--s-faint)]">{TIER_NAME[t]} · {group.length}</h3>}
+                    {rows(group)}
+                  </div>;
+                })
+              : <div className="mt-3 rounded-[1.4rem] bg-[var(--s-surface)] p-10 text-center ring-1 ring-[var(--s-line)]">
+                  <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-raised)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
+                  <p className="text-[15px] font-semibold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : `No ${tier === "all" ? "plugins" : TIER_NAME[tier].toLowerCase()} match that.`}</p>
+                  <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap Browse to add your first one." : tier !== "all" && query.trim() ? "Try All, or another word." : "Try another word."}</p>
+                  {view !== "installed" && tier !== "all" && query.trim() && <button type="button" onClick={() => pickTier("all")} className={`mt-4 inline-flex h-10 items-center rounded-full px-4 text-sm font-bold ${soft} ${ring}`} data-testid="plugin-search-all">Search everything</button>}
+                </div>}
+          </section>}
         </div>
       </div>
     </main>
@@ -560,7 +622,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
           <span className="inline-block rounded-[1.5rem] bg-[var(--s-surface)] p-1.5 shadow-[0_8px_20px_-8px_rgba(0,0,0,.35)]"><Tile p={open} size="lg" /></span>
           <div>
             <h3 className="text-2xl font-black tracking-tight text-[var(--s-text)]">{open.name}</h3>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">{open.category}<span aria-hidden className="text-[var(--s-line)]">•</span>Made by Arise</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]" data-testid="plugin-detail-kind">{open.tier ? TIER_NAME[open.tier].replace(/s$/, "") : open.category}{open.shelf && <><span aria-hidden className="text-[var(--s-line)]">•</span>{open.shelf}</>}</p>
             {open.recommendedFor && <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${soft}`} data-testid="plugin-recommended-for">
               <Sparkles className="h-3.5 w-3.5" /> Recommended for Arise {HUB_NAME[open.recommendedFor]} — works here too
             </p>}
@@ -577,6 +639,7 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
               ? <p className={`mt-3 rounded-xl p-3 text-xs ${soft}`}>This connects inside {need.name}. Add {need.name} first, then start setup.</p>
               : null; })()}
           </div>}
+          {open.retired && <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]" data-testid="plugin-retired-note">No longer offered: each of its tools is now its own Mini plugin. You can keep it, or remove it and add just the tools you use.</p>}
           {isAddable(open) && isInstalled(open) && <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">Removing it only hides it from your menu. Everything in it is kept, and adding it back brings it all back.</p>}
           {open.target.kind === "app" && <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">A paid Arise add-on with its own page. {apps && !apps[open.target.app] ? "Your plans page shows the free trial and prices." : "It's included for you."}</p>}
           <div className="flex flex-wrap gap-2 border-t border-[var(--s-line)] pt-5">
