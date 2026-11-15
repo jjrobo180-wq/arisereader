@@ -57,3 +57,16 @@ test("wired in: the lists are topped up before any screen, chapters and covers c
   assert.match(prune, /\[ "\$APP" = "eyegaze" \] \|\| rm -rf "\$OUT\/eyegaze\/wren"/);
   assert.match(read("client/src/pages/EyeGazeWren.tsx"), /isNativeApp\(\) && nativeFlavor\(\) !== "eyegaze"\n/);
 });
+
+test("reads kept on the phone are added to a list as it loads, without the first screen loading every read", async () => {
+  const { addKept, okClassic } = await import("../shared/liveCatalogKept");
+  (globalThis as any).__ariseLiveCatalog = { classics: [{ slug: "kept-classic", title: "Kept", author: "A", genre: "Classics", chapters: 3 }, { slug: "BAD" }] };
+  const list = [{ slug: "already", title: "x", author: "y", genre: "Classics", chapters: 1 }] as any[];
+  addKept(list, "classics", okClassic, (c: any) => c.slug);
+  assert.deepEqual(list.map((c) => c.slug), ["already", "kept-classic"]);
+  delete (globalThis as any).__ariseLiveCatalog;
+  const boot = read("client/src/lib/liveCatalog.ts");
+  assert.ok(!/^import .*@shared\/liveCatalog"/m.test(boot), "the startup file loads the lists only later, with import()");
+  assert.match(read("shared/readsCatalog.ts"), /addKept\(READABLE_BOOKS, "books", okBook, bookName\);/);
+  assert.match(read("script/build_reads.py"), /addKept\(READABLE_BOOKS/);
+});

@@ -8,12 +8,12 @@
 import { NEWS_ARTICLES, type NewsArticle } from "./ariseNews";
 import { READABLE_BOOKS, type ReadableBook } from "./readsCatalog";
 import { CLASSIC_BOOKS, type ClassicBook } from "./classicsCatalog";
+import { NAME, bookName, okBook, okClassic, okRead } from "./liveCatalogKept";
+export { NAME, bookName };
 
 export type CatalogIndex = { reads: string[]; books: string[]; classics: string[] };
 export type CatalogItems = { reads: NewsArticle[]; books: ReadableBook[]; classics: ClassicBook[] };
 
-/** A children's book's name in the catalog (its key, or its number when it has none). */
-export const bookName = (b: ReadableBook) => b.key ?? String(b.bookId);
 
 export const catalogIndex = (): CatalogIndex => ({
   reads: NEWS_ARTICLES.map((a) => a.slug),
@@ -34,7 +34,6 @@ export function missingFrom(index: unknown): CatalogIndex {
   };
 }
 
-export const NAME = /^[a-z0-9][a-z0-9-]{0,119}$/;
 export const MAX = 300;
 
 /** The full entries for the names asked for (the server's side). */
@@ -43,11 +42,6 @@ export function catalogItems(ask: Partial<CatalogIndex>): CatalogItems {
   return { reads: pick(NEWS_ARTICLES, (a) => a.slug, ask.reads), books: pick(READABLE_BOOKS, bookName, ask.books), classics: pick(CLASSIC_BOOKS, (c) => c.slug, ask.classics) };
 }
 
-const str = (v: unknown, max = 20_000) => typeof v === "string" && v.length > 0 && v.length <= max;
-const okRead = (a: any): a is NewsArticle => !!a && NAME.test(String(a.slug)) && str(a.title, 300) && str(a.section, 60) && str(a.dek, 1000) && str(a.publishedOn, 20)
-  && Array.isArray(a.body) && a.body.length > 0 && Array.isArray(a.questions) && Array.isArray(a.words);
-const okBook = (b: any): b is ReadableBook => !!b && Number.isInteger(b.bookId) && (b.key === null || (typeof b.key === "string" && NAME.test(b.key))) && str(b.title, 300) && str(b.author, 200) && Number.isInteger(b.chapters) && b.chapters > 0;
-const okClassic = (c: any): c is ClassicBook => !!c && NAME.test(String(c.slug)) && str(c.title, 300) && str(c.author, 200) && str(c.genre, 60) && Number.isInteger(c.chapters) && c.chapters > 0;
 
 /** Adds entries this copy doesn't have to its lists. Returns how many were added. */
 export function addToCatalog(items: unknown): number {
