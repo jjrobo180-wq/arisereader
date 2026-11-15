@@ -127,7 +127,7 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     await page.getByTestId("arise-ask-key").locator("summary").click(); await page.waitForTimeout(400);
     await shot("6b-answer-key");
     // A question: no to-do, the answer opens straight away and fills in.
-    await page.locator('[data-testid="task-view-all"]:visible').first().click().catch(() => {}); await page.waitForTimeout(600);
+    await page.locator('[data-testid="task-view-all"]:visible, [data-testid="task-nav-all"]:visible').first().click().catch(() => {}); await page.waitForTimeout(600);
     await box.fill("@arise what's the weather tomorrow?");
     await box.press("Enter");
     await page.waitForTimeout(1500);
@@ -137,7 +137,7 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     const inView = await page.getByTestId("arise-ask-open").evaluate((el) => { const r = el.getBoundingClientRect(); return r.top < window.innerHeight * 0.6 && r.bottom > 0; }).catch(() => false);
     note(`${label}: answer shown: ${await page.getByTestId("arise-ask-result").isVisible().catch(() => false)}; on screen: ${inView}; source: "${(await page.getByTestId("arise-ask-source").textContent().catch(() => "")) || "-"}"`);
     await shot("9-answer");
-    await page.locator('[data-testid="task-view-all"]:visible').first().click().catch(() => {}); await page.waitForTimeout(800);
+    await page.locator('[data-testid="task-view-all"]:visible, [data-testid="task-nav-all"]:visible').first().click().catch(() => {}); await page.waitForTimeout(800);
     note(`${label}: question added no to-do: ${await page.getByText("Arise: what's the weather", { exact: false }).count() === 0}`);
     // A notification's link opens the ask.
     const done = asks.find((a) => a.status === "done");
