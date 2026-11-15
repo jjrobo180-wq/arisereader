@@ -28,6 +28,8 @@ async function serve(ctx: BrowserContext, label: string) {
       if (p === "/api/me" || p === "/api/auth/me") return json(user);
       if (p === "/api/profile") return json({ ...user, quizResults: [] });
       if (p === "/api/news/books" || p === "/api/reads/books") return json({ books: {} });
+      // Already picked favorite topics, so the first-run "Pick Your Favorites" box doesn't cover the shelf.
+      if (p === "/api/student/favorites") return json({ topics: ["Soccer"], bookIds: [], onboarded: true });
       if (p === "/api/books/quiz-takers") return json({});
       if (p === "/api/public/stats") return json({ students: 0, quizzes: 0, books: 0 });
       if (p === "/api/announcement") return json(null);
