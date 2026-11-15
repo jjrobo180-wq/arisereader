@@ -2,7 +2,9 @@
 // The web app drives it (client/src/lib/appleStore.ts); the server checks every purchase Apple signs
 // (server/appleStore.ts) before it turns All Access on.
 //   storefront()                 -> { country }                the App Store country, e.g. "USA"
-//   product({ id })              -> { available, displayPrice, title, period }
+//   product({ id })              -> { available, displayPrice, title, period, trialDays, trialEligible }
+//                                   trialDays: the free trial set in App Store Connect (0 when none);
+//                                   trialEligible: this Apple ID hasn't had it yet
 //   purchase({ id, token })      -> { status: "purchased" | "pending" | "cancelled", jws? }
 //   entitlements()               -> { transactions: [jws] }    subscriptions running now
 //   restore()                    -> { transactions: [jws] }    asks the App Store to sync first
@@ -56,7 +58,15 @@ public class AriseStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 if let s = p.subscription?.subscriptionPeriod {
                     switch s.unit { case .day: period = "day"; case .week: period = "week"; case .month: period = "month"; case .year: period = "year"; @unknown default: period = "" }
                 }
-                call.resolve(["available": true, "displayPrice": p.displayPrice, "title": p.displayName, "period": period])
+                // The free trial (App Store Connect's introductory offer), and whether this Apple ID can still have it.
+                var trialDays = 0
+                if let offer = p.subscription?.introductoryOffer, offer.paymentMode == .freeTrial {
+                    let n = offer.period.value
+                    switch offer.period.unit { case .day: trialDays = n; case .week: trialDays = n * 7; case .month: trialDays = n * 30; case .year: trialDays = n * 365; @unknown default: trialDays = 0 }
+                }
+                var trialEligible = false
+                if trialDays > 0, let sub = p.subscription { trialEligible = await sub.isEligibleForIntroOffer }
+                call.resolve(["available": true, "displayPrice": p.displayPrice, "title": p.displayName, "period": period, "trialDays": trialDays, "trialEligible": trialEligible])
             } catch {
                 call.resolve(["available": false, "error": error.localizedDescription])
             }
