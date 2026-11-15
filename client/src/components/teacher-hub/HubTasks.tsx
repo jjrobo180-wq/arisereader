@@ -147,11 +147,13 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
     const id = makeId();
     const started = startTaskAsk(text, id, arise.people);
     if (!started) return false;
-    toast("Sending to Arise…");
+    toast(started.task ? "Sending to Arise…" : "Asking Arise…");
     started.sent.then((a) => {
       const t = started.task;
-      setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id, title: t.title, dueDate: t.due, ...(t.dueTime ? { dueTime: t.dueTime } : {}), recurring: "", done: false, notes: t.notes, ...(extra.priority ? { priority: "high" as const } : {}), ...(extra.listId ? { listId: extra.listId } : {}) }] }));
-      toast(a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.", [{ label: "See it", run: () => openAsk(a.id) }]);
+      // A question is answered in the Arise tab; it isn't a to-do.
+      if (!t) openAsk(a.id); // the answer opens right here, filling in when it's ready
+      else setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id, title: t.title, dueDate: t.due, ...(t.dueTime ? { dueTime: t.dueTime } : {}), recurring: "", done: false, notes: t.notes, ...(extra.priority ? { priority: "high" as const } : {}), ...(extra.listId ? { listId: extra.listId } : {}) }] }));
+      toast(!t ? "Arise is looking into it. The answer will be in the Arise tab in a moment." : a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.", [{ label: "See it", run: () => openAsk(a.id) }]);
     }).catch((err: Error) => toast(err.message || "Arise couldn't take that. Try again."));
     return true;
   }

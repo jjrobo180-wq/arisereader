@@ -4,7 +4,7 @@
 // pages/AriseTodo.tsx both send asks through startTaskAsk.
 import { useEffect, useSyncExternalStore } from "react";
 import { API_BASE } from "@/lib/queryClient";
-import { askTaskTitle, askTiming, parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
+import { askKind, askTaskTitle, askTiming, parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
 
 type State = { asks: AriseAsk[]; loaded: boolean; open: string | null; token: string | null };
 let state: State = { asks: [], loaded: false, open: null, token: null };
@@ -62,18 +62,23 @@ export type TaskFromAsk = { title: string; due: string; dueTime: string; notes: 
 
 /**
  * When a task's name starts with @arise: sends it to Arise and gives back the task to add (its name, due day
- * and a note), or null when it isn't an @arise task. `taskId` is the id the new task will have.
+ * and a note), or null when it isn't an @arise task. `taskId` is the id the new task will have. A question
+ * ("@arise what's the weather tomorrow") is just answered: `task` is null and no to-do is added.
  */
-export function startTaskAsk(text: string, taskId: string, people: string[] = []): { task: TaskFromAsk; sent: Promise<AriseAsk> } | null {
+export function startTaskAsk(text: string, taskId: string, people: string[] = []): { task: TaskFromAsk | null; sent: Promise<AriseAsk> } | null {
   const ask = parseTaskAsk(text);
   if (!ask) return null;
   const t = askTiming(ask);
-  const task: TaskFromAsk = {
+  const question = askKind(ask) === "answer";
+  // The phone's time zone: "the weather" means here unless the ask names a place.
+  let tz = "";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { /* none */ }
+  const task: TaskFromAsk | null = question ? null : {
     title: askTaskTitle(t.title),
     due: t.due, dueTime: t.dueTime,
     notes: t.mode === "later" ? `Arise will make this ${t.when.replace(/^Made /, "")}. You'll get a notification when it's ready.` : "Arise is making this now. You'll get a notification when it's ready.",
   };
-  const sent = api("", { method: "POST", body: JSON.stringify({ ask, taskId, runAt: t.runAt.toISOString(), due: t.due, when: t.when, people }) })
+  const sent = api("", { method: "POST", body: JSON.stringify({ ask, ...(question ? {} : { taskId }), runAt: t.runAt.toISOString(), due: t.due, when: t.when, people, tz }) })
     .then((d) => { const a = d.ask as AriseAsk; set({ asks: [a, ...state.asks.filter((x) => x.id !== a.id)] }); if (a.status === "working") setTimeout(() => void refreshAsks(), 12_000); return a; });
   return { task, sent };
 }

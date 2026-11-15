@@ -12,7 +12,8 @@
 import { smartDate } from "./smartDate";
 
 export type AskStatus = "scheduled" | "working" | "done" | "failed";
-export type AskKind = "worksheet" | "quiz" | "lesson" | "email" | "list" | "plan" | "story" | "recipe" | "summary" | "other";
+export type AskKind = "worksheet" | "quiz" | "lesson" | "email" | "list" | "plan" | "story" | "recipe" | "summary" | "answer" | "other";
+export const ASK_KINDS: AskKind[] = ["worksheet", "quiz", "lesson", "email", "list", "plan", "story", "recipe", "summary", "answer", "other"];
 
 export type AriseAsk = {
   id: string;
@@ -37,6 +38,10 @@ export type AriseAsk = {
   error?: string;
   /** The person has opened it since it finished. */
   seen?: boolean;
+  /** The phone's time zone (e.g. "America/Denver"): where "the weather" means when no place is named. */
+  tz?: string;
+  /** Where live facts came from for an answer (e.g. "Open-Meteo forecast for Denver, Colorado"). */
+  source?: string;
 };
 
 /** The request in a task name that starts with @arise (or "@ arise"), or null. */
@@ -69,6 +74,8 @@ export type AskTiming = {
 
 /** Reads when the person wants it, in their own time zone (the phone's clock). */
 export function askTiming(ask: string, now: Date = new Date()): AskTiming {
+  // A question is answered now: "what's the weather tomorrow" is about tomorrow, not due tomorrow.
+  if (askKind(ask) === "answer") return { mode: "now", runAt: now, due: "", dueTime: "", title: ask, when: "Answered now" };
   const found = timingWords(ask, now);
   if (!found) return { mode: "now", runAt: now, due: "", dueTime: "", title: ask, when: "Made now" };
   const said = found.matched.toLowerCase();
@@ -115,8 +122,18 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const cleanTitle = (s: string) => s.replace(/\s{2,}/g, " ").replace(/\s+([,.!?])/g, "$1").replace(/[\s,;:-]+$/g, "").trim();
 
 /** What kind of thing is asked for (a hint for Arise, and the icon in the Arise tab). */
+/** Asks that need facts from right now (the weather, news, scores, prices, what's on): Arise looks
+ *  them up before answering (server/askLookup.ts) instead of saying it can't know. */
+export const WEATHER_ASK = /\b(weather|forecast|temperature|temp|rain(ing|y)?|snow(ing|y)?|sunny|cloudy|windy|humid(ity)?|storm(s|y)?|degrees|umbrella|jacket|coat)\b/i;
+const LIVE_ASK = /\b(news|headlines?|latest|current(ly)?|right now|today'?s|tonight'?s|this (week|weekend)|score[sd]?|standings|who won|game (tonight|today)|stock|price[sd]?|cost(s)? now|exchange rate|traffic|open (now|today|on)|hours|events?|showtimes?|election|playing (at|near))\b/i;
+export const needsLookup = (ask: string) => WEATHER_ASK.test(ask) || LIVE_ASK.test(ask);
+const MAKE_WORDS = /^(please\s+)?(make|write|create|draft|plan|design|build|generate|prepare|put together|come up with|give me (a|an|some)\s+(worksheet|quiz|list|plan|lesson|story|email|recipe))\b/i;
+const QUESTION = /^(what|what'?s|whats|who|who'?s|when|where|why|how|is|are|was|were|does|do|did|can|could|will|would|should|which|tell me|look up|find out|check|any)\b|\?\s*$/i;
+
 export function askKind(ask: string): AskKind {
   const a = ask.toLowerCase();
+  // A question, or a look-up ("what's the weather tomorrow", "who won last night"), is answered, not made.
+  if (!MAKE_WORDS.test(a.trim()) && (QUESTION.test(a.trim()) || (needsLookup(a) && !/\b(worksheet|quiz|lesson|email|letter|plan|story|recipe|list)\b/.test(a)))) return "answer";
   if (/\bworksheets?\b|\bpractice (sheet|problems)\b|\bhomework\b/.test(a)) return "worksheet";
   if (/\bquiz(zes)?\b|\btest\b|\bflash ?cards?\b/.test(a)) return "quiz";
   if (/\blesson( plan)?\b|\bunit plan\b|\bteach\b/.test(a)) return "lesson";
@@ -134,6 +151,7 @@ export const askTaskTitle = (title: string) => `Arise: ${title}`.slice(0, 200);
 
 export const ASK_LIMITS = { perUser: 200, result: 24_000, ask: 600 };
 const ASK_ID = /^[a-z0-9]{6,24}$/;
+export const TZ = /^[A-Za-z]+(?:\/[A-Za-z0-9_+-]+){0,2}$/;
 export const isAskId = (v: unknown): v is string => typeof v === "string" && ASK_ID.test(v);
 export const newAskId = () => (Date.now().toString(36) + Math.random().toString(36).slice(2, 8)).slice(0, 16);
 
@@ -146,13 +164,14 @@ export function cleanAsks(raw: unknown): AriseAsk[] {
     const a = r as AriseAsk;
     out.push({
       id: a.id, ask: a.ask.slice(0, ASK_LIMITS.ask), ...(typeof a.taskId === "string" ? { taskId: a.taskId.slice(0, 80) } : {}),
-      kind: (["worksheet", "quiz", "lesson", "email", "list", "plan", "story", "recipe", "summary", "other"] as AskKind[]).includes(a.kind) ? a.kind : "other",
+      kind: ASK_KINDS.includes(a.kind) ? a.kind : "other",
       status: (["scheduled", "working", "done", "failed"] as AskStatus[]).includes(a.status) ? a.status : "failed",
       createdAt: String(a.createdAt || ""), runAt: String(a.runAt || a.createdAt || ""), due: /^\d{4}-\d\d-\d\d$/.test(a.due || "") ? a.due : "",
       when: String(a.when || "").slice(0, 120),
       ...(a.title ? { title: String(a.title).slice(0, 120) } : {}), ...(a.summary ? { summary: String(a.summary).slice(0, 300) } : {}),
       ...(a.result ? { result: String(a.result).slice(0, ASK_LIMITS.result) } : {}), ...(a.finishedAt ? { finishedAt: String(a.finishedAt) } : {}),
       ...(a.error ? { error: String(a.error).slice(0, 200) } : {}), ...(a.seen ? { seen: true } : {}),
+      ...(typeof a.tz === "string" && TZ.test(a.tz) ? { tz: a.tz } : {}), ...(a.source ? { source: String(a.source).slice(0, 200) } : {}),
     });
   }
   return out.sort((x, y) => y.createdAt.localeCompare(x.createdAt)).slice(0, ASK_LIMITS.perUser);
@@ -166,6 +185,8 @@ export function askSystemPrompt(today: string, people: string[]): string {
     "Worksheets: a title, short instructions, numbered questions with space to answer (use ____ blanks), and an answer key at the end under its own heading.",
     "Quizzes: numbered questions with lettered choices, then an answer key. Lesson plans: objective, materials, steps with times, and a quick check.",
     "Emails, letters and messages: ready to send, with a subject line for emails. Lists and plans: clear headings and checkboxes like - [ ].",
+    "Questions (kind \"answer\"): answer directly and briefly, the answer first, then a few helpful details. When live information is given below the request, use it and only it for anything current (weather, news, scores, prices), and say where it is for. Never say you can't look things up or tell the person to check another site when the information is given. If no live information is given for something current, say plainly that Arise couldn't get it right now.",
+    "Worksheets and quizzes: put the answer key last, under a heading that is exactly \"## Answer key\". Write blanks as ____ at the end of the line.",
     "When it is for a child, keep it age-appropriate, kind and encouraging. If the age or grade isn't given, pick a sensible level and say so in one short line at the top.",
     "Never include anything unsafe, hateful or adult. Do not make up private facts about real people.",
     `Today is ${today}.${people.length ? ` People in this family or class: ${people.join(", ")}. A name in the request is probably one of them.` : ""}`,

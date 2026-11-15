@@ -37,15 +37,17 @@ async function serve(ctx: BrowserContext, label: string) {
       }
       if (p === "/api/arise-todo/asks" && req.method() === "GET") {
         // An ask sent more than 4 seconds ago is finished, like the real server once the AI answers.
-        for (const a of asks) if (a.status === "working" && Date.now() - Date.parse(a.createdAt) > 4000) Object.assign(a, { status: "done", title: "Fractions Practice for Kha", summary: "Kha's fractions worksheet is ready.", result: WORKSHEET, finishedAt: new Date().toISOString(), seen: false });
+        for (const a of asks) if (a.status === "working" && Date.now() - Date.parse(a.createdAt) > 4000) Object.assign(a, a.kind === "answer"
+          ? { status: "done", title: "Tomorrow's weather in Denver", summary: "Light snow tomorrow.", result: "**Light snow tomorrow** in Denver, with a high of 38°F and a low of 25°F.\n\n- 70% chance of snow, about an inch\n- Wind up to 20 mph\n\nWear a warm coat.", source: "Open-Meteo forecast for Denver, Colorado", finishedAt: new Date().toISOString(), seen: false }
+          : { status: "done", title: "Fractions Practice for Kha", summary: "Kha's fractions worksheet is ready.", result: WORKSHEET, finishedAt: new Date().toISOString(), seen: false });
         return json({ asks });
       }
       if (p === "/api/arise-todo/asks" && req.method() === "POST") {
         const b: any = req.postDataJSON();
         const later = Date.parse(b.runAt) > Date.now() + 60_000;
-        const a: AriseAsk = { id: Math.random().toString(36).slice(2, 10), ask: b.ask, taskId: b.taskId, kind: askKind(b.ask), status: later ? "scheduled" : "working", createdAt: new Date().toISOString(), runAt: b.runAt, due: b.due || "", when: b.when || "" };
+        const a: AriseAsk = { id: Math.random().toString(36).slice(2, 10), ask: b.ask, ...(b.taskId ? { taskId: b.taskId } : {}), kind: askKind(b.ask), status: later ? "scheduled" : "working", createdAt: new Date().toISOString(), runAt: b.runAt, due: b.due || "", when: b.when || "", ...(b.tz ? { tz: b.tz } : {}) };
         asks.unshift(a);
-        note(`${label}: server got ask "${b.ask}" · runAt ${later ? "later" : "now"} · due ${b.due || "-"} · when "${b.when}" · people ${JSON.stringify(b.people)}`);
+        note(`${label}: server got ask "${b.ask}" · kind ${a.kind} · runAt ${later ? "later" : "now"} · due ${b.due || "-"} · when "${b.when}" · task ${b.taskId ? "yes" : "no"} · tz ${b.tz || "-"} · people ${JSON.stringify(b.people)}`);
         return json({ ask: a });
       }
       if (/^\/api\/arise-todo\/asks\/[a-z0-9]+\/seen$/.test(p)) { const a = asks.find((x) => p.includes(x.id)); if (a) a.seen = true; return json({ ask: a }); }
@@ -118,8 +120,23 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     await page.getByTestId("arise-ask-row").first().click();
     await page.waitForTimeout(1200);
     const result = page.getByTestId("arise-ask-result");
-    note(`${label}: worksheet shown: ${await result.isVisible().catch(() => false)}; has answer key: ${(await result.textContent().catch(() => "") || "").includes("Answer key")}`);
+    const text = (await result.textContent().catch(() => "")) || "";
+    note(`${label}: worksheet shown: ${await result.isVisible().catch(() => false)}; answer key kept apart: ${!/Answer key/i.test(text) && await page.getByTestId("arise-ask-key").isVisible().catch(() => false)}; print buttons: ${(await page.locator('[data-testid^="arise-ask-print"]').allTextContents()).join(" / ")}; blanks: ${await result.locator(".blank").count()}`);
     await shot("6-worksheet");
+    await page.getByTestId("arise-ask-key").locator("summary").click(); await page.waitForTimeout(400);
+    await shot("6b-answer-key");
+    // A question: no to-do, the answer opens straight away and fills in.
+    await page.getByTestId("task-view-all").first().click().catch(() => {}); await page.waitForTimeout(600);
+    await box.fill("@arise what's the weather tomorrow?");
+    await box.press("Enter");
+    await page.waitForTimeout(1500);
+    note(`${label}: question opened its answer: ${await page.getByTestId("arise-ask-open").isVisible().catch(() => false)}; waiting shown: ${await page.getByTestId("arise-ask-waiting").isVisible().catch(() => false)}`);
+    await shot("8-asking");
+    await page.waitForTimeout(17000);
+    note(`${label}: answer shown: ${await page.getByTestId("arise-ask-result").isVisible().catch(() => false)}; source: "${(await page.getByTestId("arise-ask-source").textContent().catch(() => "")) || "-"}"`);
+    await shot("9-answer");
+    await page.getByTestId("task-view-all").first().click().catch(() => {}); await page.waitForTimeout(800);
+    note(`${label}: question added no to-do: ${await page.getByText("Arise: what's the weather", { exact: false }).count() === 0}`);
     // A notification's link opens the ask.
     const done = asks.find((a) => a.status === "done");
     if (done) {

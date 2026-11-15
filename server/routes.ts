@@ -116,6 +116,8 @@ import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
 import { askOpenAiJson, registerTodoAsks } from "./todoAsks";
+import { makeLookup } from "./askLookup";
+import { perplexityChat } from "./aiProvider";
 import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
 import { approvePendingQuiz, registerReadyQuizRoutes, type ReadyQuizDeps } from "./readyQuizzes";
 import { legacyApprovedTitle, readyQuizNotificationType } from "../shared/readyQuizzes";
@@ -1938,6 +1940,8 @@ export async function registerRoutes(
     read: (key) => storage.getSetting(key), write: (key, value) => storage.upsertSetting(key, value),
     ai: askOpenAiJson, aiReady: () => !!process.env.OPENAI_API_KEY,
     notify: (userId, message) => notifyUser(userId, message, "todo"),
+    // The weather (Open-Meteo) and other live facts (the web, through Perplexity) for questions about now.
+    lookup: makeLookup({ search: (system, user) => perplexityChat(system, user, 30_000) }),
   });
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
