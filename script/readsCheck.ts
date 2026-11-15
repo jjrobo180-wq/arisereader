@@ -33,7 +33,8 @@ async function serve(ctx: BrowserContext, label: string) {
       if (p === "/api/announcement") return json(null);
       if (LISTS.test(p)) return json([]);
       if (req.method() !== "GET") return json({ ok: true });
-      return json({});
+      // Anything else isn't part of this check: answered "not found", which every page already handles.
+      return json({ message: "Not found" }, 404);
     }
     if (url.hostname !== HOST) return route.continue().catch(() => route.abort().catch(() => {}));
     let path = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
