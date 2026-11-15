@@ -87,6 +87,7 @@ import { ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTic
 import { ACCOUNTABILITY_SHARE } from "../shared/profileLinks";
 import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
+import { registerContentCatalog } from "./contentCatalog";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
 import { deletePodData } from "./podcastAccounts";
@@ -1686,6 +1687,7 @@ export async function registerRoutes(
   registerLifePlanRoutes(app, authMiddleware);
   // Live updates for the iPhone apps' web code (server/ota.ts).
   registerOtaRoutes(app);
+  registerContentCatalog(app);
   // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
   const acctDeps = {
     db: () => getAdminSupabase(),

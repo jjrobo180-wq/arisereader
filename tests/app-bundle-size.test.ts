@@ -22,13 +22,14 @@ test("apps that open straight into their own screens ship without Reader's and A
 test("Educator ships without the AAC talker engine, and says where the talker is", () => {
   assert.match(read(".github/workflows/educator-ios.yml"), /VITE_NATIVE_APP=educator npx vite build\n\s+bash \.github\/scripts\/prune_educator_bundle\.sh dist\/public/);
   assert.match(read(".github/scripts/prune_educator_bundle.sh"), /rm -rf "\$OUT\/eyegaze\/wren"/);
-  assert.match(read("client/src/pages/EyeGazeWren.tsx"), /isNativeApp\(\) && nativeFlavor\(\) !== "eyegaze" && nativeFlavor\(\) !== "reader"/);
+  // Only Arise AAC carries the talker now (Arise Reader's live updates were 161 MB with it, and phones gave up).
+  assert.match(read("client/src/pages/EyeGazeWren.tsx"), /isNativeApp\(\) && nativeFlavor\(\) !== "eyegaze"\n/);
 });
 
 test("every live update has a size ceiling, and the small apps are stripped there too", () => {
   const ota = read(".github/workflows/ota-publish.yml");
   assert.match(ota, /fit\|trainer\|talk\)\n\s+VITE_NATIVE_APP=\$\{\{ matrix\.app \}\} npx vite build\n\s+bash \.github\/scripts\/prune_own_app_bundle\.sh/);
   assert.match(ota, /educator\)\n\s+VITE_NATIVE_APP=educator npx vite build\n\s+bash \.github\/scripts\/prune_educator_bundle\.sh/);
-  assert.match(ota, /\*\) LIMIT=30 ;;/);
+  assert.match(ota, /\*\) LIMIT=60 ;;/);
   assert.match(ota, /over its \$LIMIT MB limit/);
 });

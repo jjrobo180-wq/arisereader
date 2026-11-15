@@ -1,3 +1,5 @@
+// First: reads and books added since this app copy was built (iPhone apps), before any screen uses the lists.
+import "./lib/liveCatalog";
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
 import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
@@ -183,8 +185,11 @@ if (isAriseTodoNative && (!window.location.hash || window.location.hash === "#/"
 }
 allowPopups();
 const nativeApiOrigin = nativeAppInfo().api;
+/** Books' chapters (/reads/<book>/, /classics/<book>/) and covers (/covers/) come from the server in the apps, not inside
+ *  them: the app and its live updates stay small, and a new book needs no app update. */
+const SERVER_FILES = /^\/(reads|classics|covers)\/[a-z0-9-]+\//;
 function resolveNativeApiUrl(url: string): string {
-  if (!isAriseTodoNative || !url.startsWith("/api/")) return url;
+  if (!isAriseTodoNative || !(url.startsWith("/api/") || SERVER_FILES.test(url))) return url;
   return nativeApiOrigin + url;
 }
 
@@ -193,9 +198,10 @@ function resolveNativeApiUrl(url: string): string {
 if (isAriseTodoNative) {
   const ATTRS = ["src", "poster"];
   const fix = (el: Element) => {
-    for (const a of ATTRS) { const v = el.getAttribute(a); if (v && v.startsWith("/api/")) el.setAttribute(a, nativeApiOrigin + v); }
+    for (const a of ATTRS) { const v = el.getAttribute(a); if (v && (v.startsWith("/api/") || SERVER_FILES.test(v))) el.setAttribute(a, nativeApiOrigin + v); }
   };
-  const sweep = (root: ParentNode) => root.querySelectorAll?.('img[src^="/api/"], video[src^="/api/"], audio[src^="/api/"], source[src^="/api/"], video[poster^="/api/"]').forEach(fix);
+  // Also the pictures inside a book's chapters (/reads/<book>/img/…), which come from the server.
+  const sweep = (root: ParentNode) => root.querySelectorAll?.('img[src^="/api/"], video[src^="/api/"], audio[src^="/api/"], source[src^="/api/"], video[poster^="/api/"], img[src^="/reads/"], img[src^="/classics/"], img[src^="/covers/"]').forEach(fix);
   new MutationObserver((list) => {
     for (const m of list) {
       if (m.type === "attributes") fix(m.target as Element);
