@@ -1,0 +1,48 @@
+name: Arise asks in To Duo check (in a browser)
+# "@arise" asks in To Duo's Tasks: the built app, signed in, sends asks, sees them finish, opens the Arise tab and
+# a notification's link, on an iPhone and a computer. Screenshots and results go to the arise-asks-check branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, 'claude/todo-arise-asks']
+    paths:
+      - 'shared/ariseAsks.ts'
+      - 'shared/askHtml.ts'
+      - 'client/src/lib/ariseAsks.ts'
+      - 'client/src/components/teacher-hub/AriseAsks.tsx'
+      - 'client/src/components/teacher-hub/HubTasks.tsx'
+      - 'client/src/pages/AriseTodo.tsx'
+      - 'script/ariseAsksCheck.ts'
+      - '.github/workflows/arise-asks-check.yml'
+permissions:
+  contents: write
+concurrency:
+  group: arise-asks-check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Install a browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+      - name: Send asks and open what Arise made
+        timeout-minutes: 15
+        run: npx tsx script/ariseAsksCheck.ts
+      - name: Save to the arise-asks-check branch
+        if: always()
+        working-directory: screens
+        run: |
+          git init -q -b arise-asks-check
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Super apps check ${GITHUB_SHA::7}" || exit 0
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" arise-asks-check

@@ -115,6 +115,7 @@ import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
+import { askOpenAiJson, registerTodoAsks } from "./todoAsks";
 import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
 import { approvePendingQuiz, registerReadyQuizRoutes, type ReadyQuizDeps } from "./readyQuizzes";
 import { legacyApprovedTitle, readyQuizNotificationType } from "../shared/readyQuizzes";
@@ -1932,6 +1933,12 @@ export async function registerRoutes(
     try { const data = JSON.parse(raw)?.data; return data && data.push === true ? data : null; } catch { return null; }
   });
   registerProAppsAI(app, authMiddleware, plans.aiMeter);
+  // "@arise" asks typed as To Duo tasks: made by Arise's AI now or at their time, then a notification says they're ready.
+  registerTodoAsks(app, authMiddleware, plans.aiMeter, {
+    read: (key) => storage.getSetting(key), write: (key, value) => storage.upsertSetting(key, value),
+    ai: askOpenAiJson, aiReady: () => !!process.env.OPENAI_API_KEY,
+    notify: (userId, message) => notifyUser(userId, message, "todo"),
+  });
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.

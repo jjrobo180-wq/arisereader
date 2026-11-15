@@ -1,7 +1,7 @@
 // WorkHub's Tasks screen: views and coloured lists down the side, numbers across the top, progress and what's
 // next beside the list. LifeHub uses this same screen (pages/AriseTodo.tsx) over its own to-dos (shared/hubSwap.ts).
 import { openHubEmail } from "@/components/teacher-hub/HubInbox";
-import { useMemo, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { Archive, ArchiveRestore, ListTodo, FolderPlus, Circle, Search, CalendarDays, CheckCircle2, Check, Clock3, Link2, Mail, Pencil, Plus, Save, Sparkles, Trash2, Flag, Sun, Repeat, X, MoreHorizontal } from "lucide-react";
 import { dueState, friendlyDate, type DueState } from "@shared/hubDates";
 import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskSort, type TaskView } from "@shared/hubTasks";
@@ -12,6 +12,9 @@ import { type ToastAction } from "@/components/teacher-hub/HubToast";
 import { Field, PrimaryButton, Select } from "@/components/teacher-hub/ui";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { PinButton } from "@/components/teacher-hub/HubPins";
+import { AriseAsks } from "@/components/teacher-hub/AriseAsks";
+import { openAsk, startTaskAsk } from "@/lib/ariseAsks";
+import { parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
 
 /** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
 function linkSummary(workspace: Workspace, links: HubLink[]): string {
@@ -27,7 +30,7 @@ type SectionProps = {
   remove: <K extends keyof Workspace>(key: K, rowId: string) => void;
 };
 
-export function TaskRow({ plain = false, task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive }: { plain?: boolean; task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void }) {
+export function TaskRow({ plain = false, task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive, ariseAsk }: { plain?: boolean; task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void; /** The "@arise" ask this to-do was made from (Arise To Duo). */ ariseAsk?: AriseAsk }) {
   const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
   return (
     <li className="group flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:gap-y-2 sm:p-4" data-testid="task-row">
@@ -56,6 +59,10 @@ export function TaskRow({ plain = false, task, today, workspace, setWorkspace, m
           <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
         </div>
       </button>
+      {ariseAsk && <button type="button" onClick={() => openAsk(ariseAsk.id)} data-testid="task-arise-chip"
+        className={`order-last ml-9 inline-flex min-h-9 basis-full items-center gap-1.5 rounded-xl px-3 text-xs font-bold sm:basis-auto ${ariseAsk.status === "done" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : ariseAsk.status === "failed" ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-violet-50 text-violet-700 hover:bg-violet-100"}`}>
+        <Sparkles className="h-3.5 w-3.5" />{ariseAsk.status === "done" ? `Arise made it · Open${ariseAsk.seen ? "" : " (new)"}` : ariseAsk.status === "failed" ? "Arise couldn't make it · Try again" : ariseAsk.status === "scheduled" ? `Arise · ${ariseAsk.when.replace(/^Made /, "")}` : "Arise is making it…"}
+      </button>}
       {/* On a phone these sit on their own line under the to-do, so the words get the full width. */}
       <div className={email ? "flex basis-full items-center gap-3 pl-9 sm:contents" : "contents"}>
         {email && (
@@ -85,12 +92,14 @@ function DueChip({ date, time, today }: { date: string; time?: string; today: st
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}{time ? ` · ${clock12(time)}` : ""}</span>;
 }
 
-export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls, plain = false }: SectionProps & {
+export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls, plain = false, arise }: SectionProps & {
   makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void;
   /** LifeHub keeps the view and list itself (Home and the calendar jump here), so it passes them in. */
   controls?: { view: TaskView; setView: (v: TaskView) => void; list: string; setList: (id: string) => void };
   /** LifeHub's to-dos have no emails or pins, so those are left out. */
   plain?: boolean;
+  /** Arise To Duo: "@arise" to-dos go to Arise's AI, and the Arise tab lists every ask (lib/ariseAsks.ts). */
+  arise?: { asks: AriseAsk[]; loaded: boolean; open: string | null; people: string[] };
 }) {
   // Laid out like LifeHub's to-do lists: views (All, Today, Upcoming, Completed, Archived) and the
   // teacher's own coloured lists down the side, numbers across the top, progress and what's next
@@ -126,10 +135,32 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
     archived: { title: "Archived", icon: <Archive className="h-4 w-4" /> },
   };
 
+  // The Arise tab (Arise To Duo): every "@arise" ask. A notification or a to-do's chip opens it on one ask.
+  const [aiTab, setAiTab] = useState(false);
+  // open is "" for the list itself, an ask id for one ask, and null when nothing asked for it.
+  useEffect(() => { if (arise && arise.open !== null) setAiTab(true); }, [arise?.open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const newAsks = arise ? arise.asks.filter((a) => a.status === "done" && !a.seen).length : 0;
+  const askByTask = useMemo(() => new Map((arise?.asks || []).filter((a) => a.taskId).map((a) => [a.taskId!, a])), [arise?.asks]);
+  /** Sends an "@arise" to-do to Arise and adds its to-do once Arise has it. False when it isn't one. */
+  function sendAsk(text: string, extra: { listId?: string; priority?: boolean } = {}): boolean {
+    if (!arise || !parseTaskAsk(text)) return false;
+    const id = makeId();
+    const started = startTaskAsk(text, id, arise.people);
+    if (!started) return false;
+    toast("Sending to Arise…");
+    started.sent.then((a) => {
+      const t = started.task;
+      setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id, title: t.title, dueDate: t.due, ...(t.dueTime ? { dueTime: t.dueTime } : {}), recurring: "", done: false, notes: t.notes, ...(extra.priority ? { priority: "high" as const } : {}), ...(extra.listId ? { listId: extra.listId } : {}) }] }));
+      toast(a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.", [{ label: "See it", run: () => openAsk(a.id) }]);
+    }).catch((err: Error) => toast(err.message || "Arise couldn't take that. Try again."));
+    return true;
+  }
+
   function quickAdd(e: FormEvent) {
     e.preventDefault();
     const title = quick.trim();
     if (!title) return;
+    if (sendAsk(title, listId !== "all" ? { listId } : {})) { setQuick(""); return; }
     setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title, dueDate: view === "today" ? today : "", recurring: "", done: false, ...(listId !== "all" ? { listId } : {}) }] }));
     setQuick("");
   }
@@ -168,16 +199,21 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
         <p className="hidden px-3 pb-2 pt-1 text-[11px] font-black uppercase tracking-[.16em] text-slate-500 lg:block">Tasks</p>
         {/* Phone: the five views as one even row of tiles. Computer: a column. */}
         <div className="grid grid-cols-5 gap-1 lg:hidden" data-testid="task-views-phone">
-          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} data-testid={`task-view-${v}`}
-            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-2 transition ${view === v ? "bg-[#6e5ae0] text-white shadow-[0_6px_16px_#6e5ae040]" : "text-slate-500 active:bg-slate-50"}`}>
+          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => { setView(v); setAiTab(false); openAsk(null); }} aria-pressed={!aiTab && view === v} data-testid={`task-view-${v}`}
+            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-2 transition ${!aiTab && view === v ? "bg-[#6e5ae0] text-white shadow-[0_6px_16px_#6e5ae040]" : "text-slate-500 active:bg-slate-50"}`}>
             <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{VIEW_INFO[v].icon}</span>
-            <span className={`text-[17px] font-black leading-none tabular-nums ${view === v ? "text-white" : "text-slate-800"}`}>{views[v]}</span>
+            <span className={`text-[17px] font-black leading-none tabular-nums ${!aiTab && view === v ? "text-white" : "text-slate-800"}`}>{views[v]}</span>
             <span className="w-full truncate text-center text-[10.5px] font-bold">{v === "all" ? "All" : v === "completed" ? "Done" : VIEW_INFO[v].title}</span>
           </button>)}
         </div>
         <div className="hidden lg:block lg:space-y-1">
-          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={navBtn(view === v)}>{VIEW_INFO[v].icon}<span>{VIEW_INFO[v].title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{views[v]}</span></button>)}
+          {TASK_VIEWS.map((v) => <button key={v} type="button" onClick={() => { setView(v); setAiTab(false); openAsk(null); }} aria-pressed={!aiTab && view === v} className={navBtn(!aiTab && view === v)}>{VIEW_INFO[v].icon}<span>{VIEW_INFO[v].title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{views[v]}</span></button>)}
         </div>
+        {arise && <button type="button" onClick={() => { setAiTab(true); openAsk(null); }} aria-pressed={aiTab} data-testid="task-view-arise"
+          className={`mt-1 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:px-4 sm:text-sm ${aiTab ? "bg-[#6e5ae0] text-white shadow-[0_6px_16px_#6e5ae040] lg:bg-[#eeeafe] lg:text-[#5f4dc8] lg:shadow-none" : "bg-violet-50 text-violet-700 hover:bg-violet-100 lg:bg-transparent lg:text-slate-500 lg:hover:bg-slate-50 lg:hover:text-slate-800"}`}>
+          <Sparkles className="h-4 w-4" /><span>Arise asks</span>
+          {newAsks > 0 ? <span className="ml-auto rounded-full bg-rose-500 px-2 text-xs font-black text-white">{newAsks} new</span> : <span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{arise.asks.length}</span>}
+        </button>}
         <div className="mt-1 flex items-center justify-between border-t border-slate-100 px-2 pb-1.5 pt-3 lg:mt-2 lg:border-0 lg:px-3 lg:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button type="button" onClick={() => setAddingList(true)} className="hidden lg:inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus className="h-[18px] w-[18px]" /></button></div>
         <div className="-mx-2 flex gap-1.5 overflow-x-auto px-2 py-1 [scrollbar-width:none] lg:mx-0 lg:block lg:space-y-0.5 lg:overflow-visible lg:px-0 lg:py-0">
           <button type="button" onClick={() => setListPick("all")} className={`flex min-h-9 shrink-0 items-center gap-3 rounded-full px-3.5 text-[13px] font-bold ring-1 lg:min-h-10 lg:w-full lg:rounded-xl lg:px-4 lg:text-sm lg:ring-0 ${listId === "all" ? "bg-[#f4f2ff] text-[#6c5cce] ring-[#d9d2fb]" : "text-slate-600 ring-slate-200 hover:bg-slate-50"}`}><Circle className="hidden h-3 w-3 lg:block" />Everything</button>
@@ -198,6 +234,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
+          {arise && aiTab ? <AriseAsks asks={arise.asks} loaded={arise.loaded} open={arise.open} say={(t) => toast(t)} /> :
           <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}</p><h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
@@ -205,17 +242,18 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
             </div>
             {view !== "completed" && view !== "archived" && (
               <form onSubmit={quickAdd} className="mt-5 flex gap-2">
-                <Field placeholder={`Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} />
+                <Field placeholder={arise ? `Add a to-do, or type @arise to ask AI, and press Enter` : `Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} data-testid="tasks-quick-add" />
 <button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="tasks-quick-more"><MoreHorizontal className="h-4 w-4" /> More</button>
-                <PrimaryButton type="submit" disabled={!quick.trim()}>Add</PrimaryButton>
+                <PrimaryButton type="submit" disabled={!quick.trim()}>{arise && parseTaskAsk(quick) ? "Ask Arise" : "Add"}</PrimaryButton>
               </form>
             )}
+            {arise && parseTaskAsk(quick) && <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="arise-hint"><Sparkles className="h-3.5 w-3.5" />Arise's AI will make this and send you a notification when it's ready. Add “by Monday” or “on Monday” to say when.</p>}
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
               <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><Field type="search" placeholder="Search tasks and notes" aria-label="Search to-dos" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
               <Select aria-label="Sort to-dos" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)}>{TASK_SORTS.map((o) => <option key={o.id} value={o.id}>Sort: {o.label}</option>)}</Select>
             </div>
             {shown.length ? <ul className="mt-5 space-y-2">{shown.map((task) => (
-              <TaskRow key={task.id} plain={plain} task={task} today={today} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onToggle={toggle} onEdit={(t) => setEditing({ id: t.id })} onDelete={(t) => remove("tasks", t.id)} list={lists.find((l) => l.id === task.listId)} onArchive={archive} />
+              <TaskRow key={task.id} plain={plain} task={task} today={today} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} onToggle={toggle} onEdit={(t) => setEditing({ id: t.id })} onDelete={(t) => remove("tasks", t.id)} list={lists.find((l) => l.id === task.listId)} onArchive={archive} ariseAsk={askByTask.get(task.id)} />
             ))}</ul> : (
               <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center">
                 <span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive className="h-[26px] w-[26px]" /> : <Sparkles className="h-[26px] w-[26px]" />}</span>
@@ -228,7 +266,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
             )}
             {(view === "all" || view === "today") && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
             {listId !== "all" && <button type="button" onClick={() => { const l = lists.find((x) => x.id === listId); if (l) deleteList(l); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 className="h-3.5 w-3.5" /> Delete this list</button>}
-          </section>
+          </section>}
 
           <aside className="space-y-5">
             <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f]">
@@ -246,7 +284,13 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
         </div>
       </div>
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today} lists={lists} startList={listId === "all" ? "" : listId}
-        onSave={(fields) => { setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, makeId) })); if (!editing.id) setQuick(""); }} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
+        onSave={(fields) => {
+          // A new "@arise" to-do from the pop-up: its due date, if one was picked, is the "by" day.
+          const [y, m, d] = (fields.dueDate || "").split("-").map(Number);
+          const text = fields.dueDate && !/\b(by|before|on|due)\b/i.test(fields.title) ? `${fields.title} by ${m}/${d}/${y}` : fields.title;
+          if (!editing.id && sendAsk(text, { listId: fields.listId, priority: fields.priority })) { setQuick(""); return; }
+          setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, makeId) })); if (!editing.id) setQuick("");
+        }} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
     </div>
   );
 }
