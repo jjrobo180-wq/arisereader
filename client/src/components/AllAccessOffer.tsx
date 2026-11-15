@@ -1,4 +1,6 @@
 // The Arise All Access offer in the iPhone apps (shared/allAccess.ts), on sign-up and upgrade screens.
+//  - With a free trial set in App Store Connect (3 days for To Duo) and not used yet by this Apple ID, the
+//    button starts the trial and says what it costs after.
 //  - App builds with Apple in-app purchase (lib/appleStore.ts): subscribe in the app at Apple's price.
 //  - US App Store: also the website price and a link to buy it on arisetodo.com.
 //  - Elsewhere, without in-app purchase: what's included, no price or link (App Review 3.1.1).
@@ -7,7 +9,7 @@ import { Check, ExternalLink, Loader2 } from "lucide-react";
 import { ALL_ACCESS, allAccessLink, type AllAccessApp, usRegion } from "@shared/allAccess";
 import { LEGAL, openOutside } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
-import { allAccessApplePrice, appStoreCountry, appleStoreReady, buyAllAccessWithApple, restoreApplePurchases } from "@/lib/appleStore";
+import { allAccessAppleOffer, appStoreCountry, appleStoreReady, buyAllAccessWithApple, restoreApplePurchases } from "@/lib/appleStore";
 
 export default function AllAccessOffer({ dark = false, className = "", note, authToken, onBought, app = "todo", handoff }: {
   dark?: boolean; className?: string; note?: string;
@@ -20,13 +22,15 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
 }) {
   const apple = appleStoreReady();
   const [applePrice, setApplePrice] = useState<string | null>(null);
+  // The free trial this Apple ID can still start (App Store Connect's introductory offer), in days; 0 = none.
+  const [trialDays, setTrialDays] = useState(0);
   // With the store plugin, only the App Store country decides; the phone's region is the guess for builds without it.
   const [us, setUs] = useState(() => (apple ? false : usRegion()));
   const [busy, setBusy] = useState<"" | "buy" | "restore">("");
   const [msg, setMsg] = useState("");
   useEffect(() => {
     if (!apple) return;
-    void allAccessApplePrice().then(setApplePrice);
+    void allAccessAppleOffer().then((o) => { setApplePrice(o?.price ?? null); setTrialDays(o?.trialDays ?? 0); });
     void appStoreCountry().then((c) => { if (c) setUs(c === "USA"); });
   }, [apple]);
   const buy = async () => {
@@ -74,13 +78,14 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
     <ul className="mt-3 space-y-2.5">{ALL_ACCESS.perks.map((p) => <li key={p.app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#5b4fe0]" aria-hidden /><span className="min-w-0"><span className={`block text-[14px] font-semibold leading-snug ${ink}`}>{p.app}</span><span className={`block text-[12px] leading-snug ${soft}`}>{p.detail}</span></span></li>)}</ul>
     {inApp && (authToken
       ? <>
-          <button type="button" onClick={() => void buy()} disabled={!!busy} data-testid="all-access-apple-buy" className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[#5b4fe0] text-[15px] font-semibold text-white active:opacity-80 disabled:opacity-60">{busy === "buy" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Subscribe · {applePrice} a month</button>
+          <button type="button" onClick={() => void buy()} disabled={!!busy} data-testid="all-access-apple-buy" className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[#5b4fe0] text-[15px] font-semibold text-white active:opacity-80 disabled:opacity-60">{busy === "buy" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{trialDays ? `Start ${trialDays}-day free trial` : `Subscribe · ${applePrice} a month`}</button>
+          {trialDays > 0 && <p className={`mt-1.5 text-center text-[12.5px] font-medium ${soft}`} data-testid="all-access-trial">Free for {trialDays} days, then {applePrice} a month</p>}
           <button type="button" onClick={() => void restore()} disabled={!!busy} className={`mt-1 h-9 w-full text-[13px] font-semibold ${dark ? "text-white/80" : "text-[#5b4fe0]"}`}>{busy === "restore" ? "Restoring…" : "Restore purchases"}</button>
         </>
       : <p className={`mt-3 text-[12.5px] ${soft}`}>Make your free account, then subscribe right in the app.</p>)}
     {us && <a href={allAccessLink(app)} target="_blank" rel="noreferrer" onClick={(e) => void openSite(e)} data-testid="all-access-offer-link" className={inApp ? `mt-1 flex h-10 w-full items-center justify-center gap-1.5 text-[13.5px] font-semibold ${dark ? "text-white/80" : "text-[#5b4fe0]"}` : "mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[#5b4fe0] text-[15px] font-semibold text-white active:opacity-80"}>{inApp ? `Or get it on arisetodo.com for ${ALL_ACCESS.price}` : "Get it on arisetodo.com"}<ExternalLink className="h-4 w-4" aria-hidden /></a>}
     {!inApp && !us && <p className={`mt-3 text-[12.5px] ${soft}`}>{note ?? "Already have it? It works here when you sign in."}</p>}
     {msg && <p role="status" className={`mt-2 text-[13px] ${ink}`}>{msg}</p>}
-    {inApp && <p className={`mt-2 text-[11px] leading-snug ${soft}`}>Renews monthly at {applePrice} until cancelled. Payment is charged to your Apple ID; cancel any time in Settings › Apple ID › Subscriptions at least 24 hours before it renews. <a href={LEGAL.terms} target="_blank" rel="noreferrer" className="underline">Terms of Use</a> · <a href={LEGAL.privacy} target="_blank" rel="noreferrer" className="underline">Privacy Policy</a></p>}
+    {inApp && <p className={`mt-2 text-[11px] leading-snug ${soft}`}>{trialDays > 0 ? `${trialDays}-day free trial, then ${applePrice} a month; cancel before the trial ends and you won't be charged. ` : ""}Renews monthly at {applePrice} until cancelled. Payment is charged to your Apple ID; cancel any time in Settings › Apple ID › Subscriptions at least 24 hours before it renews. <a href={LEGAL.terms} target="_blank" rel="noreferrer" className="underline">Terms of Use</a> · <a href={LEGAL.privacy} target="_blank" rel="noreferrer" className="underline">Privacy Policy</a></p>}
   </section>;
 }

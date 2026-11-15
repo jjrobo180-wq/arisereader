@@ -18,10 +18,21 @@ export async function appStoreCountry(): Promise<string> {
   try { return String((await call("storefront"))?.country || ""); } catch { return ""; }
 }
 
+export type AppleOffer = { price: string; trialDays: number };
+/** All Access in the App Store here: Apple's price ("$9.99") and the free trial this Apple ID can still
+ *  start (0 when there's none, or they've had it); null when the App Store doesn't offer it. */
+export async function allAccessAppleOffer(): Promise<AppleOffer | null> {
+  if (!appleStoreReady()) return null;
+  try {
+    const p = await call("product", { id: allAccessProductId() });
+    if (!p?.available) return null;
+    const days = Math.max(0, Math.floor(Number(p.trialDays) || 0));
+    return { price: String(p.displayPrice), trialDays: p.trialEligible === true ? days : 0 };
+  } catch { return null; }
+}
 /** The price Apple shows for All Access here ("$9.99"), or null when the App Store doesn't offer it. */
 export async function allAccessApplePrice(): Promise<string | null> {
-  if (!appleStoreReady()) return null;
-  try { const p = await call("product", { id: allAccessProductId() }); return p?.available ? String(p.displayPrice) : null; } catch { return null; }
+  return (await allAccessAppleOffer())?.price ?? null;
 }
 
 async function api(path: string, token: string, body?: unknown) {
