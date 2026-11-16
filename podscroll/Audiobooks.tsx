@@ -15,6 +15,7 @@ import { downloads, sizeLabel } from "./downloads";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 export type BookKind = "solo" | "group" | "dramatic";
+export type BookApi = Api;
 export type Book = { id: string; title: string; author: string; cover: string; downloads: number; rating: number; reviews: number; about: string; reader: string; kind: BookKind; added: string; why?: string };
 export type BookChapter = { n: number; title: string; sub: string; secs: number; audio: string; bytes: number };
 export type BookDetail = Book & { chapters: BookChapter[]; secs: number; link: string; gutenberg: number };
@@ -63,7 +64,7 @@ const SPOTS = "podscroll.books";
 export function bookSpots(): Record<string, Spot> {
   try { const v = JSON.parse(ls.get(SPOTS) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
 }
-function saveSpot(b: BookDetail, ch: number, t: number, finished = false) {
+export function saveSpot(b: BookDetail, ch: number, t: number, finished = false) {
   const all = bookSpots();
   const last = finished || (ch >= b.chapters.length - 1 && !!b.chapters[ch]?.secs && t > b.chapters[ch].secs - 20);
   if (last) delete all[b.id];
@@ -93,7 +94,7 @@ function useMarks(bookId: string): Mark[] {
 
 // ---- books, fetched once per visit ----
 const details = new Map<string, Promise<BookDetail>>();
-function loadBook(api: Api, id: string): Promise<BookDetail> {
+export function loadBook(api: Api, id: string): Promise<BookDetail> {
   let p = details.get(id);
   if (!p) {
     // A downloaded book opens from this device when the server can't be reached.

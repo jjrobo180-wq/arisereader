@@ -1,6 +1,7 @@
-// Podster inside Arise To Duo: Podster's own pages (its home page, the swipe feed, audiobooks, music, radio,
-// news, Study Podster, Social, the library…) as To Duo's row of pages instead of Podster's side menu and tab
-// bar, in To Duo's look. Signed in with the To Duo account: the server turns the To Duo sign-in into the same
+// Podcasts, Podster's podcasts inside Arise To Duo: its home page, the swipe feed, music, news, the library…
+// as To Duo's row of pages, under To Duo's own heading. Audiobooks, Radio, Study Podster and Podster Social
+// were pages here until Nov 15, 2026; each is its own plugin now (components/arise-audio/), and anything
+// here that leads to one of them (a news station on the home page, a shared post) opens that plugin. Signed in with the To Duo account: the server turns the To Duo sign-in into the same
 // Podster account the Podster app uses (server/earshot.ts, the podscroll gate), so there's no second sign-in.
 // What the person follows, likes and saves is kept with the rest of their To Duo (family.earshot).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,12 +25,18 @@ type PodMode = { id: string; index: number; shuffle?: boolean; order?: "in" | "s
 
 /** Pages that are a view of Podster's home page. */
 const HOME_VIEWS: Record<string, View> = {
-  home: { kind: "home" }, books: { kind: "books" }, music: { kind: "music" }, radio: { kind: "radio" }, now: { kind: "now" }, newsstations: { kind: "newsstations" },
-  standup: { kind: "standup" }, study: { kind: "study" }, meeting: { kind: "meeting" }, wiki: { kind: "wiki" }, live: { kind: "live" }, party: { kind: "party", id: "new" },
+  home: { kind: "home" }, music: { kind: "music" }, now: { kind: "now" },
+  standup: { kind: "standup" }, wiki: { kind: "wiki" }, live: { kind: "live" }, party: { kind: "party", id: "new" },
   liked: { kind: "liked" }, later: { kind: "later" }, import: { kind: "import" },
 };
 /** Pages that are the player (the swipe feed, or one of its own pages). */
-const PLAYER_PAGES: Record<string, PlayerTab | undefined> = { feed: undefined, social: "social", openmic: "openmic", library: "library" };
+const PLAYER_PAGES: Record<string, PlayerTab | undefined> = { feed: undefined, library: "library" };
+/** What used to be a page here, and the plugin (and its page) that has it now. */
+export type PodPlugin = "audiobooks" | "podradio" | "studypod" | "podsocial";
+const MOVED: Record<string, [PodPlugin, string]> = {
+  books: ["audiobooks", "browse"], book: ["audiobooks", "browse"], radio: ["podradio", "stations"], newsstations: ["podradio", "news"],
+  study: ["studypod", "study"], meeting: ["studypod", "meeting"], social: ["podsocial", "foryou"], openmic: ["podsocial", "foryou"],
+};
 const isPlayerPage = (id: string) => Object.prototype.hasOwnProperty.call(PLAYER_PAGES, id);
 /** Which page a home-page view belongs to (an audiobook is under Audiobooks, a search under Home). */
 export const podsterPageOf = (v: View): string => (v.kind === "book" ? "books" : HOME_VIEWS[v.kind] ? v.kind : "home");
@@ -37,8 +44,8 @@ const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "histo
 
 export type PodsterStart = { page?: string | null; s?: string | null; e?: string | null };
 
-export default function PodsterInDuo({ family, setFamily, say, night, start }: { family: Family; setFamily: (update: (f: Family) => Family) => void; say: (m: string) => void; night: boolean; start?: PodsterStart | null }) {
-  const app = superAppOf("podster")!;
+export default function PodsterInDuo({ family, setFamily, say, night, start, openApp }: { family: Family; setFamily: (update: (f: Family) => Family) => void; say: (m: string) => void; night: boolean; start?: PodsterStart | null; openApp: (app: PodPlugin, page: string) => void }) {
+  const app = superAppOf("podcasts")!;
   const { token, user } = useAuth();
   const { pages, save } = useSuperPages(app, family, setFamily);
   const [picking, setPicking] = useState(false);
@@ -148,6 +155,7 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const podCtl = useRef<PlayerControl | null>(null);
 
   const openFeed = useCallback((at?: FeedStart, tab?: PlayerTab, mode?: PodMode) => {
+    if (tab === "social" || tab === "openmic") { openApp("podsocial", "foryou"); return; }
     if ((at || tab || mode) && !esRef.current.setupDone) update((e) => (e.setupDone ? e : { ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
     const to = tab ?? "feed";
     window.scrollTo({ top: 0 });
@@ -155,13 +163,17 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
     if (!at && !mode && feedSeenRef.current) { setFeedTab(tab); setTabNonce((n) => n + 1); setPage(to); return; }
     if (mode?.id === "__newsradio" && feedSeenRef.current && nowPodRef.current?.live) { setFeedTab(undefined); setTabNonce((n) => n + 1); setPage("feed"); return; }
     setFeedStart(at ?? null); setFeedTab(tab); setFeedMode(mode ?? null); setFeedKey((k) => k + 1); setFeedSeen(true); setPage(to);
-  }, [update]);
+  }, [update, openApp]);
   const pick = (id: string) => {
     setEditing(false);
+    if (MOVED[id]) { openApp(...MOVED[id]); return; }
     if (isPlayerPage(id)) { openFeed(undefined, PLAYER_PAGES[id]); return; }
     setView(HOME_VIEWS[id] ?? { kind: "home" }); setPage(id); window.scrollTo({ top: 0 });
   };
-  const onView = useCallback((v: View) => { setView(v); setPage(podsterPageOf(v)); }, []);
+  const onView = useCallback((v: View) => {
+    if (MOVED[v.kind]) { openApp(...MOVED[v.kind]); return; }
+    setView(v); setPage(podsterPageOf(v));
+  }, [openApp]);
   // A new-episode alert tapped while Podster is already open (#/to-do?go=podster&s=…&e=…).
   const startKey = `${start?.page ?? ""}|${start?.s ?? ""}|${start?.e ?? ""}`;
   const firstStart = useRef(startKey);
@@ -176,7 +188,7 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const setup = editing || (onPlayer && !es.setupDone);
   const day = !night;
   return <div className={`pod-duo ${night ? "pod-duo-night" : ""}`} data-testid="super-app-podster">
-    <SuperHead app={app} onSettings={() => setPicking(true)} settingsLabel="Pick your Podster pages" />
+    <SuperHead app={app} onSettings={() => setPicking(true)} settingsLabel="Pick your Podcasts pages" />
     <PageStrip app={app} pages={strip} current={page} onPick={pick} />
     {setup && <div className={`overflow-hidden rounded-[1.5rem] px-3 py-6 ${day ? "ps-light bg-white ring-1 ring-[#e7e8f0]" : "bg-[#120e14]"}`} data-testid="podster-setup">
       {day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}

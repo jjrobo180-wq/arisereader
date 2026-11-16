@@ -1,3 +1,5 @@
+import { Apple as AppleNavA, Route as RouteNavA, Moon as MoonNavA, Users as UsersNavA, Mic as MicNavA, Sparkles as SparklesNavA } from "lucide-react";
+import { BookOpen as BookOpenNavA, Radio as RadioNavA, GraduationCap as GraduationCapNavA, MessagesSquare as MessagesSquareNavA } from "lucide-react";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import ShareNews from "@/components/family-hub/ShareNews";
@@ -137,7 +139,7 @@ import { Avatar, Modal } from "@/components/family-hub/ui";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
-import { isSuperApp, type SuperAppId } from "@shared/superApps";
+import { COOKED_PARTS, NOTES_PARTS, isSuperApp, superAppFor, type CookedPartId, type NotesPartId, type SuperAppId } from "@shared/superApps";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
 import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 // Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
@@ -145,6 +147,12 @@ const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
 const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
 const NotesInDuo = lazy(() => import("@/components/super-apps/NotesInDuo"));
 const PodsterInDuo = lazy(() => import("@/components/super-apps/PodsterInDuo"));
+// Podster's other parts, each its own plugin since Nov 15, 2026 (components/arise-audio/).
+const AudiobooksApp = lazy(() => import("@/components/arise-audio/AudiobooksApp"));
+const RadioApp = lazy(() => import("@/components/arise-audio/RadioApp"));
+const StudyPodApp = lazy(() => import("@/components/arise-audio/StudyPodApp"));
+const PodSocialApp = lazy(() => import("@/components/arise-audio/PodSocialApp"));
+const AudioDock = lazy(() => import("@/components/arise-audio/AudioDock"));
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
@@ -305,7 +313,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2, accountability: BadgeCheckNav4,
   healthlite: HeartPulseNav2, inspire: NotebookPen, kitchen: ChefHatNav, moneyhub: Wallet, homehub: WrenchNav, datehub: CakeNav, dailyhub: Newspaper, listhub: ListTodo, focushub: TimerNav,
-  cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3,
+  cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3, cookedfood: AppleNavA, cookedrun: RouteNavA, cookedrest: MoonNavA, cookedsocial: UsersNavA, notesrecord: MicNavA, notesask: SparklesNavA, podcasts: PodcastNav3, audiobooks: BookOpenNavA, podradio: RadioNavA, studypod: GraduationCapNavA, podsocial: MessagesSquareNavA,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
@@ -447,7 +455,9 @@ export default function AriseTodo() {
       const hash = window.location.hash, q = hash.indexOf("?");
       if (q < 0) return;
       const params = new URLSearchParams(hash.slice(q + 1));
-      const go = params.get("go");
+      // A link to Podster (before it was taken apart, Nov 15, 2026) opens its Podcasts plugin.
+      const asked = params.get("go");
+      const go = asked ? superAppFor(asked) ?? asked : null;
       if (!go) return;
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         dismissOverlays();
@@ -1155,6 +1165,13 @@ export default function AriseTodo() {
       {stripIds.map((id) => <button key={id} type="button" role="tab" aria-selected={id === shown} data-testid={`app-group-${id}`} onClick={() => { closeApps(); goSection(id); }}
         className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition ${id === shown ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>{SECTION_INFO[id].label}{badge(id) > 0 && <span className="rounded-full bg-white/25 px-1.5 text-xs">{badge(id)}</span>}</button>)}
     </div>) : null;
+  // One Podster plugin opening another (a news station on the Podcasts home page opens Radio), on that page.
+  const openPodApp = useCallback((app: SuperAppId, page: string) => {
+    setFamily((f) => (f.sections[app] ? f : { ...f, sections: { ...f.sections, [app]: true } }));
+    setSuperStart({ app, page, s: null, e: null, coach: null, at: Date.now() });
+    setSection(app as FamilySection);
+    window.scrollTo({ top: 0 });
+  }, [setFamily]); // eslint-disable-line react-hooks/exhaustive-deps
   const startFor = (app: SuperAppId) => (superStart?.app === app ? superStart : null);
   const superWaiting = <div className="grid grid-cols-1 min-h-[40vh] place-items-center" role="status" aria-label="Opening"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>;
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
@@ -1163,10 +1180,15 @@ export default function AriseTodo() {
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
     // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): their own screens, signed in with this account, in To Duo's look.
-    : shown === "cooked" ? <SuperBoundary key="cooked" name="Cooked"><Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense></SuperBoundary>
+    : shown === "cooked" ? <SuperBoundary key="cooked" name="Workouts"><Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} appId="cooked" say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense></SuperBoundary>
+    : COOKED_PARTS.includes(shown as CookedPartId) ? <SuperBoundary key={shown} name="Cooked"><Suspense fallback={superWaiting}><CookedInDuo key={`${shown}-${startFor(shown as CookedPartId)?.at ?? 0}`} appId={shown as CookedPartId} say={setMessage} night={night} start={startFor(shown as CookedPartId)?.page} /></Suspense></SuperBoundary>
     : shown === "cookedpt" ? <SuperBoundary key="cookedpt" name="Cooked PT"><Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense></SuperBoundary>
-    : shown === "arisenotes" ? <SuperBoundary key="arisenotes" name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense></SuperBoundary>
-    : shown === "podster" ? <SuperBoundary key="podster" name="Podster"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary>
+    : NOTES_PARTS.includes(shown as NotesPartId) ? <SuperBoundary key={shown} name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={`${shown}-${startFor(shown as NotesPartId)?.at ?? 0}`} appId={shown as NotesPartId} night={night} start={startFor(shown as NotesPartId)?.page} /></Suspense></SuperBoundary>
+    : shown === "podcasts" ? <SuperBoundary key="podcasts" name="Podcasts"><Suspense fallback={superWaiting}><PodsterInDuo key={startFor("podcasts")?.at ?? 0} family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podcasts")} openApp={openPodApp} /></Suspense></SuperBoundary>
+    : shown === "audiobooks" ? <SuperBoundary key="audiobooks" name="Audiobooks"><Suspense fallback={superWaiting}><AudiobooksApp key={startFor("audiobooks")?.at ?? 0} start={startFor("audiobooks")?.page} /></Suspense></SuperBoundary>
+    : shown === "podradio" ? <SuperBoundary key="podradio" name="Radio"><Suspense fallback={superWaiting}><RadioApp key={startFor("podradio")?.at ?? 0} start={startFor("podradio")?.page} /></Suspense></SuperBoundary>
+    : shown === "studypod" ? <SuperBoundary key="studypod" name="Study Podster"><Suspense fallback={superWaiting}><StudyPodApp key={startFor("studypod")?.at ?? 0} say={setMessage} start={startFor("studypod")?.page} onAddTask={(title, notes) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes })} /></Suspense></SuperBoundary>
+    : shown === "podsocial" ? <SuperBoundary key="podsocial" name="Podster Social"><Suspense fallback={superWaiting}><PodSocialApp key={startFor("podsocial")?.at ?? 0} say={setMessage} start={startFor("podsocial")?.page} /></Suspense></SuperBoundary>
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
@@ -1350,7 +1372,7 @@ export default function AriseTodo() {
         }
         setFamily((f) => setLifePlugin(f, p, on));
         // Podster taken out: its new-episode alerts stop on this iPhone too.
-        if (p.target.kind === "section" && p.target.section === "podster" && !on) forgetDuoPodPush(token);
+        if (p.target.kind === "section" && p.target.section === "podcasts" && !on) forgetDuoPodPush(token);
         if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
         if (p.target.kind === "dropApp" && !on) setDropOpen(false);
         // A widget (like the Widgets board) is a part of Home, not its own section: adding it
@@ -1634,6 +1656,8 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
+          {/* What's playing from Radio or Audiobooks, above every page so it stays in reach. */}
+          <Suspense fallback={null}><AudioDock current={shown} open={(app) => openPodApp(app, app === "podradio" ? "stations" : "browse")} /></Suspense>
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>

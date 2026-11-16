@@ -15,18 +15,20 @@ export function useSuperPages(app: SuperApp, family: Family, setFamily: (update:
   return { pages, save };
 }
 
-/** To Duo's heading for the app: its name, what it is, and its settings button. */
+/** To Duo's heading for the app, the same as every other To Duo page (ui.tsx PageHead): the family it's
+ *  from, its name and what it is, with its settings button. */
 export function SuperHead({ app, onSettings, settingsLabel, right }: { app: SuperApp; onSettings?: () => void; settingsLabel?: string; right?: ReactNode }) {
-  const Icon = superIcon(app.icon);
-  return <header className="mb-3 flex items-center gap-3" data-testid={`super-head-${app.id}`}>
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white shadow-sm" style={{ background: `linear-gradient(145deg, ${app.color}, ${app.color}cc)` }}><Icon size={24} /></span>
-    <div className="min-w-0 flex-1">
-      <h1 className="truncate text-2xl font-black tracking-tight text-[#232139] dark:text-white sm:text-3xl">{app.name}<span className="text-[#7866e1]">.</span></h1>
-      <p className="truncate text-sm font-medium text-slate-500">{app.tagline}</p>
+  return <header className="mb-4 flex items-start justify-between gap-3" data-testid={`super-head-${app.id}`}>
+    <div className="min-w-0">
+      <p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">{app.family ?? "Arise"}</p>
+      <h1 className="truncate text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">{app.name}<span className="text-[#7866e1]">.</span></h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{app.tagline}</p>
     </div>
-    {right}
-    {onSettings && <button type="button" onClick={onSettings} aria-label={settingsLabel ?? `${app.name} settings`} data-testid={`super-settings-${app.id}`}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"><Settings2 size={18} /></button>}
+    <div className="flex shrink-0 items-center gap-2">
+      {right}
+      {onSettings && <button type="button" onClick={onSettings} aria-label={settingsLabel ?? `${app.name} settings`} data-testid={`super-settings-${app.id}`}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"><Settings2 size={18} /></button>}
+    </div>
   </header>;
 }
 

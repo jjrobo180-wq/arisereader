@@ -158,7 +158,7 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
     </Panel>}
 
     {/* Cooked, Cooked PT, Arise Notes and Podster inside To Duo: their alerts come here and open them here. */}
-    {(["cooked", "cookedpt", "arisenotes", "podster"] as const).some((id) => isOn(id, family)) && <Panel eyebrow="Your plugins" title="From your apps">
+    {(["cooked", "cookedpt", "arisenotes", "podcasts"] as const).some((id) => isOn(id, family)) && <Panel eyebrow="Your plugins" title="From your apps">
       <ul className="divide-y divide-slate-100" data-testid="notify-super-apps">
         {isOn("cooked", family) && <Info icon={<Dumbbell size={18} />} tint="bg-orange-50 text-orange-600" title="Cooked" open="cooked"
           detail="Messages from your trainer, new workouts and reminders. Pick which ones in Cooked: settings, then Notifications." />}
@@ -166,7 +166,7 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
           detail="New client requests, messages, check-ins and session reminders. Pick which ones with the bell in Cooked PT." />}
         {isOn("arisenotes", family) && <Info icon={<NotebookPen size={18} />} tint="bg-violet-50 text-violet-600" title="Arise Notes" open="arisenotes"
           detail="When a recording is written up, and when your AI minutes run low." />}
-        {isOn("podster", family) && <Row icon={<Podcast size={18} />} tint="bg-pink-50 text-pink-600" title="Podster: new episodes"
+        {isOn("podcasts", family) && <Row icon={<Podcast size={18} />} tint="bg-pink-50 text-pink-600" title="Podster: new episodes"
           detail={isNativeApp() ? "From the shows you follow, at most 4 a day and never between 9 pm and 8 am. Tap one to listen in Podster here." : "On your iPhone: from the shows you follow in Podster here, at most 4 a day."}
           on={podAlerts} onChange={(on) => { setPodAlerts(on); setDuoPodAlerts(on, token, (family.earshot?.follows ?? []).map((f) => f.id)); say(on ? "Podster's new episodes will come here." : "No more Podster alerts on this phone."); }} />}
       </ul>

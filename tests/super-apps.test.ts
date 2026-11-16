@@ -14,7 +14,7 @@ import { ariseListener } from "../server/earshot";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 test("four apps, each a LifeHub section with known, ordered pages", () => {
-  assert.deepEqual([...SUPER_APP_IDS], ["cooked", "cookedpt", "arisenotes", "podster"]);
+  assert.deepEqual([...SUPER_APP_IDS], ["cooked", "cookedfood", "cookedrun", "cookedrest", "cookedsocial", "cookedpt", "arisenotes", "notesrecord", "notesask", "podcasts", "audiobooks", "podradio", "studypod", "podsocial"]);
   for (const a of SUPER_APPS) {
     assert.equal(a.section, a.id);
     assert.ok(FAMILY_SECTIONS.includes(a.id), `${a.id} is a section`);
@@ -27,24 +27,24 @@ test("four apps, each a LifeHub section with known, ordered pages", () => {
     assert.match(a.appStore, /^https:\/\/apps\.apple\.com\/app\/id\d+$/);
     assert.ok(a.features.length >= 3);
   }
-  assert.ok(isSuperApp("podster") && !isSuperApp("earshot") && !isSuperApp(7));
+  assert.ok(isSuperApp("podcasts") && !isSuperApp("podster") && !isSuperApp("earshot") && !isSuperApp(7));
 });
 
 test("the pages showing: fixed ones always, the pick or the defaults, in the app's own order", () => {
-  const pod = superAppOf("podster")!;
-  assert.deepEqual(superPagesFor(pod, undefined), ["home", "feed", "books", "music", "radio", "study", "social", "library"]);
+  const pod = superAppOf("podcasts")!;
+  assert.deepEqual(superPagesFor(pod, undefined), ["home", "feed", "now", "library"]);
   assert.deepEqual(superPagesFor(pod, ["library", "music", "nope", "music"]), ["home", "music", "library"], "home can't be taken off; order is the app's");
   assert.deepEqual(superPagesFor(pod, []), superPagesFor(pod, undefined), "nothing picked is the defaults");
   const notes = superAppOf("arisenotes")!;
-  assert.deepEqual(superPagesFor(notes, ["settings"]), ["pages", "settings"]);
-  assert.deepEqual(cleanSuperPages({ podster: ["music", "music", 4, "zzz"], bogus: ["x"], arisenotes: "record" }), { podster: ["music"] });
+  assert.deepEqual(superPagesFor(notes, ["settings"]), ["pages", "apps", "settings"], "every Arise Notes page is always there");
+  assert.deepEqual(cleanSuperPages({ podcasts: ["music", "music", 4, "zzz"], podster: ["music"], bogus: ["x"], arisenotes: "record" }), { podcasts: ["music"] });
   assert.deepEqual(cleanSuperPages(null), {});
 });
 
 test("a family keeps its picks, cleaned, and a new family starts with none", () => {
   assert.deepEqual(emptyFamily().superPages, {});
-  const f = cleanFamily({ ...emptyFamily(), superPages: { podster: ["books", "books", "x"] } });
-  assert.deepEqual(f.superPages, { podster: ["books"] });
+  const f = cleanFamily({ ...emptyFamily(), superPages: { podcasts: ["music", "music", "x"] } });
+  assert.deepEqual(f.superPages, { podcasts: ["music"] });
   assert.ok(isCurrentFamily(f));
   const old: any = { ...emptyFamily() }; delete old.superPages;
   assert.equal(isCurrentFamily(old), false, "an older family is cleaned first, so the field is always there");
@@ -102,7 +102,7 @@ test("their alerts and links open them inside To Duo", () => {
   assert.equal(duoLinkFor("https://arisetodo.com/#/fit?coach=1a-abcdefghij"), "/to-do?go=cooked&coach=1a-abcdefghij");
   assert.equal(duoLinkFor("#/trainer"), "/to-do?go=cookedpt");
   assert.equal(duoLinkFor("/notes/#/usage"), "/to-do?go=arisenotes");
-  assert.equal(duoLinkFor("?s=123456&e=987654"), "/to-do?go=podster&s=123456&e=987654");
+  assert.equal(duoLinkFor("?s=123456&e=987654"), "/to-do?go=podcasts&s=123456&e=987654");
   assert.equal(duoLinkFor("#/lifehub?go=tasks"), null, "everything else is left alone");
   assert.equal(duoLinkFor("#/fitness"), null);
   assert.equal(duoLinkFor(""), null);
@@ -118,7 +118,7 @@ test("their alerts and links open them inside To Duo", () => {
 const T = "cd".repeat(32);
 test("Podster's new-episode alerts reach To Duo's Podster on the To Duo iPhone app", async () => {
   assert.equal(podAlertUrl(T, "1", "2"), "?s=1&e=2");
-  assert.equal(podAlertUrl("todo:" + T, "1", "2"), "/#/to-do?go=podster&s=1&e=2");
+  assert.equal(podAlertUrl("todo:" + T, "1", "2"), "/#/to-do?go=podcasts&s=1&e=2");
   const rows: PodPushRow[] = [
     { token: T, follows: ["9"], seen: { 9: "a" }, time_zone: "UTC", sent_day: "", sent_count: 0 },
     { token: "todo:" + T, follows: ["9"], seen: { 9: "a" }, time_zone: "UTC", sent_day: "", sent_count: 0 },
@@ -128,7 +128,7 @@ test("Podster's new-episode alerts reach To Duo's Podster on the To Duo iPhone a
   const n = await runPodPush({ db, newest: async () => ({ show: "Show", episodeId: "b", title: "New" }), send: async (token, m, topic) => { sent.push({ token, url: m.url!, topic }); return { ok: true, gone: false }; } }, new Date("2026-11-13T18:00:00Z"));
   assert.equal(n, 2);
   assert.deepEqual(sent.find((x) => x.url.startsWith("?")), { token: T, url: "?s=9&e=b", topic: "com.arisereader.podplus" });
-  assert.deepEqual(sent.find((x) => x.url.startsWith("/#")), { token: T, url: "/#/to-do?go=podster&s=9&e=b", topic: undefined }, "To Duo's own topic, its bare token");
+  assert.deepEqual(sent.find((x) => x.url.startsWith("/#")), { token: T, url: "/#/to-do?go=podcasts&s=9&e=b", topic: undefined }, "To Duo's own topic, its bare token");
   const server = read("server/podPush.ts");
   assert.match(server, /const token = hex && req\.body\?\.app === "todo" \? TODO_PREFIX \+ hex : hex;/);
   // To Duo signs its token up with the shows followed there, and forgets it when Podster is taken out.
@@ -140,7 +140,7 @@ test("Podster's new-episode alerts reach To Duo's Podster on the To Duo iPhone a
   const settings = read("client/src/components/family-hub/NotificationSettings.tsx");
   assert.match(settings, /data-testid="notify-super-apps"/);
   assert.match(settings, /setDuoPodAlerts\(on, token, \(family\.earshot\?\.follows \?\? \[\]\)\.map\(\(f\) => f\.id\)\)/);
-  assert.match(read("client/src/pages/AriseTodo.tsx"), /p\.target\.section === "podster" && !on\) forgetDuoPodPush\(token\)/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /p\.target\.section === "podcasts" && !on\) forgetDuoPodPush\(token\)/);
 });
 
 test("one login: the To Duo sign-in is the Podster account with the same email", async () => {
@@ -167,11 +167,11 @@ test("one login: the To Duo sign-in is the Podster account with the same email",
 
 test("each app runs inside To Duo's frame: To Duo's heading and row of pages, its own screens below", () => {
   const todo = read("client/src/pages/AriseTodo.tsx");
-  for (const [section, comp] of [["cooked", "CookedInDuo"], ["cookedpt", "CookedPtInDuo"], ["arisenotes", "NotesInDuo"], ["podster", "PodsterInDuo"]]) {
+  for (const [section, comp] of [["cooked", "CookedInDuo"], ["cookedpt", "CookedPtInDuo"], ["podcasts", "PodsterInDuo"]]) {
     assert.match(todo, new RegExp(`const ${comp} = lazy\\(\\(\\) => import\\("@/components/super-apps/${comp}"\\)\\);`), `${comp} loads when opened`);
     assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperBoundary key="${section}" name="[^"]+"><Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Duo, and a crash in it stays in it`);
   }
-  assert.match(todo, /cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3,/);
+  assert.match(todo, /cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3, cookedfood: AppleNavA, cookedrun: RouteNavA, cookedrest: MoonNavA, cookedsocial: UsersNavA, notesrecord: MicNavA, notesask: SparklesNavA, podcasts: PodcastNav3,/);
   assert.doesNotMatch(todo, /arise-fam-|arise-from-duo/, "no shortcuts that leave To Duo");
   const app = read("client/src/App.tsx");
   assert.doesNotMatch(app, /FromDuoBack|PodsterEmbed/);
@@ -183,7 +183,7 @@ test("each app runs inside To Duo's frame: To Duo's heading and row of pages, it
   const fit = read("client/src/pages/fit/FitApp.tsx");
   assert.match(fit, /useDuoLook\(embed \? \(embed\.night \? "dark" : "light"\) : null\);/);
   assert.match(fit, /if \(embed\) return <PointsModeCtx\.Provider[^\n]*data-testid="fit-app" data-fit-embed="duo">/);
-  assert.match(fit, /const tabIds = \(embed \? apps\.added : apps\.tabs\)\.filter/, "every added Cooked plugin with a screen is a page in To Duo");
+  assert.match(fit, /const tabIds = \(only \? \(only\.filter\(\(id\) => id !== "today" && id !== "apps"\) as FitAppId\[\]\) : \(embed \? apps\.added : apps\.tabs\)\.filter/, "each Cooked plugin in To Duo shows its own pages");
   assert.match(fit, /\{!embed && <AllAccessPopup app="fit"/, "To Duo has its own All Access pop-up");
   const tr = read("client/src/pages/trainer/TrainerApp.tsx");
   assert.match(tr, /export default function TrainerApp\(\{ embed \}: \{ embed\?: TrainerEmbed \} = \{\}\)/);
@@ -212,4 +212,69 @@ test("the row of pages and the picker are To Duo's own (the same pills as Health
   assert.match(shell, /superPages: \{ \.\.\.\(f\.superPages \?\? \{\}\), \[app\.id\]: superPagesFor\(app, ids\) \}/);
   // Anyone who had added Arise Notes from the Office apps keeps it, moved to the plugin once.
   assert.match(read("client/src/pages/AriseTodo.tsx"), /sheetsInstalled: \(f\.sheetsInstalled \?\? \[\]\)\.filter\(\(id\) => id !== "life-arise-notes"\), sections: f\.sections\.arisenotes === undefined/);
+});
+
+test("Podster is five Premium plugins now (Nov 15, 2026), and anyone who had it gets all five", () => {
+  const parts = ["podcasts", "audiobooks", "podradio", "studypod", "podsocial"] as const;
+  for (const id of parts) assert.equal(superAppOf(id)!.family, "Podster");
+  const before: any = { ...emptyFamily(), sections: { podster: true, podradio: false } }; delete before.splitDone;
+  const had = cleanFamily(before);
+  assert.equal(isOn("podster", had), false, "the old combined Podster is gone from the menu");
+  for (const id of parts) assert.equal(isOn(id, had), id !== "podradio", `${id}${id === "podradio" ? " stays removed" : " is on"}`);
+  const never = cleanFamily(emptyFamily());
+  for (const id of parts) assert.equal(isOn(id, never), false, "nobody gets them without adding them");
+  const life = pluginsFor("life", { teacher: false });
+  assert.ok(!life.some((p) => p.id === "life-podster"));
+  for (const id of parts) {
+    const p = life.find((x) => x.id === `life-${id}`);
+    assert.ok(p, id); assert.equal(p!.tier, "premium"); assert.deepEqual(p!.target, { kind: "section", section: id });
+  }
+  // An old link to Podster opens Podcasts.
+  const todo = read("client/src/pages/AriseTodo.tsx");
+  assert.match(todo, /const go = asked \? superAppFor\(asked\) \?\? asked : null;/);
+});
+
+test("the Podster plugins are To Duo's own screens, with one player that keeps going across To Duo", () => {
+  const todo = read("client/src/pages/AriseTodo.tsx");
+  for (const [section, comp] of [["audiobooks", "AudiobooksApp"], ["podradio", "RadioApp"], ["studypod", "StudyPodApp"], ["podsocial", "PodSocialApp"]]) {
+    assert.match(todo, new RegExp(`const ${comp} = lazy\\(\\(\\) => import\\("@/components/arise-audio/${comp}"\\)\\);`));
+    assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperBoundary key="${section}"`));
+    const src = read(`client/src/components/arise-audio/${comp}.tsx`);
+    assert.match(src, /from "@\/components\/family-hub\/ui"/, `${comp} is built from To Duo's own parts`);
+    assert.match(src, /<SuperHead app=\{app\}/, `${comp} has To Duo's heading`);
+    assert.doesNotMatch(src, /#ff6a1f|#ff8a3d|ps-light|LIGHT_CSS/, `${comp} isn't Podster's look recolored`);
+  }
+  assert.match(todo, /<AudioDock current=\{shown\}/);
+  // Meeting Pod's action items become To Duo tasks.
+  assert.match(read("client/src/components/arise-audio/StudyPodApp.tsx"), /onAddTask\(a\.task,/);
+  // Podster Social keeps reporting and blocking (App Store 1.2).
+  const social = read("client/src/components/arise-audio/PodSocialApp.tsx");
+  assert.match(social, /\/report`/); assert.match(social, /\/api\/earshot\/social\/block/);
+  // Podcasts sends what moved to the plugin that has it now.
+  assert.match(read("client/src/components/super-apps/PodsterInDuo.tsx"), /if \(MOVED\[v\.kind\]\) \{ openApp\(\.\.\.MOVED\[v\.kind\]\); return; \}/);
+});
+
+test("Cooked and Arise Notes are plugins of their own too, given once to anyone who had them", () => {
+  const cooked = ["cooked", "cookedfood", "cookedrun", "cookedrest", "cookedsocial"] as const;
+  const notes = ["arisenotes", "notesrecord", "notesask"] as const;
+  for (const id of cooked) assert.equal(superAppOf(id)!.family, "Cooked");
+  for (const id of notes) assert.equal(superAppOf(id)!.family, "Arise Notes");
+  // Every Cooked screen that had a page is in exactly one of the parts.
+  const pages = cooked.flatMap((id) => superAppOf(id)!.pages.map((p) => p.id));
+  assert.equal(new Set(pages).size, pages.length);
+  for (const id of ["today", "train", "food", "run", "sleep", "water", "fast", "recovery", "progress", "steps", "yoga", "mind", "mobility", "hiit", "c25k", "meds", "period", "friends"]) assert.ok(pages.includes(id), id);
+  const old: any = { ...emptyFamily(), sections: { cooked: true, arisenotes: true, notesask: false } }; delete old.splitDone;
+  const f = cleanFamily(old);
+  for (const id of cooked) assert.equal(isOn(id, f), true, id);
+  assert.equal(isOn("notesrecord", f), true); assert.equal(isOn("notesask", f), false, "a part they had taken off stays off");
+  assert.equal(f.splitDone, true);
+  // Once: adding Workouts later doesn't bring the rest of Cooked with it.
+  const later = cleanFamily({ ...emptyFamily(), sections: { cooked: true } });
+  assert.equal(isOn("cookedfood", later), false);
+  const todo = read("client/src/pages/AriseTodo.tsx");
+  assert.match(todo, /COOKED_PARTS\.includes\(shown as CookedPartId\) \? <SuperBoundary/);
+  assert.match(todo, /NOTES_PARTS\.includes\(shown as NotesPartId\) \? <SuperBoundary/);
+  assert.match(read("client/src/components/super-apps/CookedInDuo.tsx"), /only: app\.pages\.map\(\(p\) => p\.id\)/);
+  const life = pluginsFor("life", { teacher: false });
+  for (const id of [...cooked, ...notes]) assert.equal(life.find((x) => x.target.kind === "section" && x.target.section === id)?.tier, "premium", id);
 });
