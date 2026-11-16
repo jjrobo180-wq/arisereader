@@ -105,6 +105,10 @@
 .ml-mk-actions button { min-height: 44px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 600; }
 .ml-mk-actions .ml-primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
 .ml-mk-frame { width: 100%; height: 70vh; min-height: 420px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.ml-mk-check { display: flex; align-items: flex-start; gap: 10px; font-weight: 600; font-size: 14px; margin: 6px 0 10px; }
+.ml-mk-check input { width: 22px; height: 22px; flex: none; margin-top: 1px; }
+.ml-mk-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; }
+.ml-mk-chips button { min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); font-weight: 600; }
 .ml-mk-mine { list-style: none; padding: 0; margin: 0; }
 .ml-mk-mine li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); margin: 0; }
 .ml-mk-mine li:first-child { border-top: 0; }

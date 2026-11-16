@@ -132,6 +132,7 @@ import { createSupabaseFiles, registerTtsBuddyRoutes } from "./ttsBuddy";
 import { createSupabaseKv } from "./fitKv";
 import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerSpedExemplarRoutes } from "./spedExemplar";
+import { registerKhaElaRoutes } from "./khaEla";
 import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerScholarRoutes } from "./scholar";
 import { registerClassGoalRoutes } from "./classGoals";
@@ -2233,6 +2234,8 @@ export async function registerRoutes(
   });
   // Math Lessons → "SPED Exemplar Maker": one lesson in, a teacher exemplar and a separate practice pack out. See server/spedExemplar.ts.
   registerSpedExemplarRoutes(app, authMiddleware, { kv: supabaseKV(getAdminSupabase) });
+  // Kha ELA Worksheet Maker (Math Lessons → "Kha ELA"): poems, 10 questions, a comic and a teacher key. See server/khaEla.ts.
+  registerKhaElaRoutes(app, authMiddleware, { kv: supabaseKV(getAdminSupabase) });
   // Class behavior (WorkHub's Behavior tab): points, hall passes, and what parents see. See server/classBehavior.ts.
   registerClassBehaviorRoutes(app, authMiddleware, {
     directory: {

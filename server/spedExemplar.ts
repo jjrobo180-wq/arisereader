@@ -41,7 +41,7 @@ export class SpedAiError extends Error {}
 const IMAGE_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const MODEL = () => process.env.SPED_EXEMPLAR_MODEL || process.env.MATH_PREP_MODEL || process.env.MATH_TUTOR_MODEL || "gpt-4.1";
 
-async function askOpenAI(ask: SpedAsk): Promise<string> {
+export async function askOpenAI(ask: SpedAsk): Promise<string> {
   const content: any[] = [{ type: "text", text: ask.text }];
   for (const url of ask.images) content.push({ type: "image_url", image_url: { url, detail: "high" } });
   let response: Response;
