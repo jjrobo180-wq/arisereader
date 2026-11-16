@@ -17,7 +17,7 @@ import {
   AI_MODES, PLAN_FIELDS, US_STATES, cleanFoundStandards, cleanIdeas, cleanPlanFields, cleanSlides, cleanUnit, cleanWorksheet, type AiMode,
 } from "@shared/lessonPlanner";
 import { supportWords } from "@shared/pushIn";
-import { findBackup } from "./aiProvider";
+import { BACKUPS, findBackup, perplexityKey } from "./aiProvider";
 import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
 import { UploadError, readUploads } from "./uploadText";
 
@@ -81,6 +81,46 @@ async function seePhotoWithGroq(dataUrl: string): Promise<string> {
     }
   }
   throw new LessonAiError(`I couldn't read that photo${lastStatus ? ` (the picture reader answered ${lastStatus})` : ""}. Type or paste the example problem instead.`);
+}
+
+/** One picture read by an OpenAI-style chat endpoint that takes images; tries each model in turn.
+ *  Returns "" when none of the models could read it. */
+async function seePhotoAt(url: string, key: string, models: string[], dataUrl: string, label: string): Promise<string> {
+  for (const model of models) {
+    let r: Response;
+    try {
+      r = await fetch(url, {
+        method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, temperature: 0, max_tokens: 3000, messages: [{ role: "user", content: [{ type: "text", text: PHOTO_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
+        signal: AbortSignal.timeout(60_000),
+      });
+    } catch { continue; }
+    if (!r.ok) { console.error(`[lesson-planner] ${label} photo read failed:`, model, r.status, (await r.text().catch(() => "")).slice(0, 200)); continue; }
+    const body: any = await r.json().catch(() => null);
+    const text = String(body?.choices?.[0]?.message?.content || "").replace(/\[\d+\](?:\[\d+\])*/g, "").trim();
+    if (text.length >= 10) return text;
+  }
+  return "";
+}
+
+/** A photo read into words: Groq first, then the site's other AI companies that can see pictures
+ *  (Perplexity, then Grok), so one service retiring its picture model doesn't break uploads. */
+async function seePhotoAnyAi(dataUrl: string): Promise<string> {
+  let first: unknown = null;
+  try { return await seePhotoWithGroq(dataUrl); } catch (e) { first = e; }
+  const pplx = await perplexityKey();
+  if (pplx) {
+    const models = [process.env.PERPLEXITY_VISION_MODEL, "sonar-pro", "sonar"].filter(Boolean) as string[];
+    const text = await seePhotoAt("https://api.perplexity.ai/chat/completions", pplx, models, dataUrl, "Perplexity");
+    if (text) return text;
+  }
+  const xai = BACKUPS.grok.keys.map((k) => process.env[k]?.trim()).find(Boolean) || (findBackup(process.env)?.kind === "grok" ? findBackup(process.env)!.key : "");
+  if (xai) {
+    const models = [process.env.XAI_VISION_MODEL, "grok-4", "grok-2-vision-1212"].filter(Boolean) as string[];
+    const text = await seePhotoAt(BACKUPS.grok.url, xai, models, dataUrl, "Grok");
+    if (text) return text;
+  }
+  throw first instanceof Error ? first : new LessonAiError("I couldn't read that photo. Type or paste the example problem instead.");
 }
 
 const limits = createAttemptLimiter({ max: 80, windowMs: 10 * 60_000 });
@@ -266,7 +306,7 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
         const all = [...up.attachments, ...photos].slice(0, 8);
         if (all.some((u) => u.startsWith("data:application/pdf"))) throw new UploadError("I can't read PDF pages yet. Take a screenshot or photo of the page and upload that, or save it as a Word file, or paste the problem.");
         // The site's chat AI can't see pictures, so each photo is read into words first.
-        const see = deps.seePhoto ?? seePhotoWithGroq;
+        const see = deps.seePhoto ?? seePhotoAnyAi;
         const read: string[] = [];
         for (const u of all) read.push(await see(u));
         attachments = [];

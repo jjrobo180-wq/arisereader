@@ -136,6 +136,8 @@ const PPLX_URL = "https://api.perplexity.ai/chat/completions";
 let pplxKey: () => Promise<string> = async () => process.env.PERPLEXITY_API_KEY || "";
 /** Where the Perplexity key comes from (the admin settings, then PERPLEXITY_API_KEY). */
 export function setPerplexityKey(get: () => Promise<string>) { pplxKey = get; }
+/** The site's Perplexity key ("" when there is none). */
+export const perplexityKey = () => pplxKey().catch(() => "");
 export function toPerplexity(init: RequestInit | undefined, model = process.env.PERPLEXITY_BACKUP_MODEL || "sonar"): string | null {
   let j: any;
   try { j = JSON.parse(String(init?.body ?? "")); } catch { return null; }
