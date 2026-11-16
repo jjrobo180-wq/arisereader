@@ -22,6 +22,7 @@ import { useSavedChoice } from "@/lib/useSavedChoice";
 import { HubModal } from "./HubModal";
 import HubLessonEditor from "./HubLessonEditor";
 import { WorksheetMaker } from "./HubWorksheet";
+import HubExemplarModal, { type ExemplarTool } from "./HubExemplarModal";
 import { COLOR, NO_CLASS, STATUS_STYLE, Segmented, Spinner, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
 
 type View = "week" | "day" | "month" | "year" | "list" | "students";
@@ -60,6 +61,8 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
   const [unitOpen, setUnitOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
   const [makerOpen, setMakerOpen] = useState(false);
+  /** The SPED Exemplar Maker or the Kha ELA Worksheet Maker, when one is open. */
+  const [exemplar, setExemplar] = useState<ExemplarTool | null>(null);
   const [search, setSearch] = useState("");
 
   const activeClass = classes.find((c) => c.id === classFilter);
@@ -123,6 +126,8 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
         <button type="button" onClick={() => newLesson()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><Plus className="h-4 w-4" /> New lesson</button>
         <button type="button" onClick={() => setUnitOpen(true)} className={aiBtn + " min-h-11"}><Sparkles className="h-4 w-4" /> Plan a unit with AI</button>
         <button type="button" onClick={() => setMakerOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><FileStack className="h-4 w-4" /> Worksheet maker</button>
+        <button type="button" onClick={() => setExemplar("sped")} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="open-sped-exemplar"><BookCheck className="h-4 w-4" /> SPED Exemplar Maker</button>
+        <button type="button" onClick={() => setExemplar("kha")} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="open-kha-ela"><Sparkles className="h-4 w-4" /> Kha ELA</button>
         <button type="button" onClick={() => setClassesOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><Settings2 className="h-4 w-4" /> Classes & periods</button>
         <button type="button" onClick={() => setShiftOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"} title="Snow day, assembly, ran long — push lessons back"><CloudSnow className="h-4 w-4" /> Shift lessons</button>
         <button type="button" onClick={() => setShareOpen((o) => !o)} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="lesson-share-open"><Link2 className="h-4 w-4" /> Share with school</button>
@@ -204,6 +209,7 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
           say={say}
         />
       )}
+      {exemplar && <HubExemplarModal which={exemplar} onClose={() => setExemplar(null)} />}
       {classesOpen && <ClassesManager classes={classes} setClasses={setClasses} caseload={caseload} blocks={blocks} makeId={makeId} lessons={lessons} onClose={() => setClassesOpen(false)} />}
       {unitOpen && <UnitPlanner token={token} classes={classes} lessons={lessons} state={state} onState={setState} defaultClass={activeClass?.id || classes[0]?.id || ""} today={today}
         onAdd={(made) => { setLessons((all) => [...made, ...all]); say(`${made.length} lessons added to your plan.`); setView("year"); }} onClose={() => setUnitOpen(false)} makeId={makeId} />}
