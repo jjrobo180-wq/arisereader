@@ -42,6 +42,8 @@ export type AriseAsk = {
   tz?: string;
   /** Where live facts came from for an answer (e.g. "Open-Meteo forecast for Denver, Colorado"). */
   source?: string;
+  /** "work" when it was asked from the Work Hub: its notification then opens the Work Hub, not To Duo. */
+  hub?: "work";
 };
 
 /** The request in a task name that starts with @arise (or "@ arise"), or null. */
@@ -172,6 +174,7 @@ export function cleanAsks(raw: unknown): AriseAsk[] {
       ...(a.result ? { result: String(a.result).slice(0, ASK_LIMITS.result) } : {}), ...(a.finishedAt ? { finishedAt: String(a.finishedAt) } : {}),
       ...(a.error ? { error: String(a.error).slice(0, 200) } : {}), ...(a.seen ? { seen: true } : {}),
       ...(typeof a.tz === "string" && TZ.test(a.tz) ? { tz: a.tz } : {}), ...(a.source ? { source: String(a.source).slice(0, 200) } : {}),
+      ...(a.hub === "work" ? { hub: "work" as const } : {}),
     });
   }
   return out.sort((x, y) => y.createdAt.localeCompare(x.createdAt)).slice(0, ASK_LIMITS.perUser);

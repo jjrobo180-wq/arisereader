@@ -108,7 +108,8 @@ export function createAsks(deps: AsksDeps) {
       ? { ...a, status: "done", title: made.title, summary: made.summary, result: made.markdown, finishedAt: new Date(now()).toISOString(), error: undefined, seen: false, ...(live ? { source: live.source } : {}) }
       : { ...a, status: "failed", error: "Arise couldn't make this one. Try again.", finishedAt: new Date(now()).toISOString() });
     if (finished) {
-      const url = `/#/to-do?go=asks&ask=${id}`;
+      // Asked from the Work Hub, it opens there; from To Duo, it opens in To Duo.
+      const url = finished.hub === "work" ? `/#/workhub?go=asks&ask=${id}` : `/#/to-do?go=asks&ask=${id}`;
       await deps.notify(userId, made
         ? { title: finished.kind === "answer" ? `Arise: ${finished.title}` : `Arise finished: ${finished.title}`, body: finished.summary || "It's ready in your Arise tab.", url, tag: `arise-ask-${id}` }
         : { title: "Arise couldn't finish", body: `"${finished.ask.slice(0, 80)}" didn't work. Tap to try again.`, url, tag: `arise-ask-${id}` }).catch(() => {});
@@ -131,6 +132,7 @@ export function createAsks(deps: AsksDeps) {
       when: String(body?.when || (later ? "Made later" : "Made now")).slice(0, 120),
       ...(typeof body?.taskId === "string" && body.taskId.length <= 80 ? { taskId: body.taskId } : {}),
       ...(typeof body?.tz === "string" && TZ.test(body.tz) ? { tz: body.tz } : {}),
+      ...(body?.hub === "work" ? { hub: "work" as const } : {}),
     };
     await serial(userId, async () => save(userId, [rec, ...(await list(userId))]));
     const people = Array.isArray(body?.people) ? body.people.map((p: unknown) => String(p || "").replace(/[^\p{L}\p{N} '.-]/gu, "").trim().slice(0, 30)).filter(Boolean).slice(0, 20) : [];

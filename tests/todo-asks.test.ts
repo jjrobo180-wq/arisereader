@@ -258,3 +258,38 @@ test("worksheets read cleanly: blanks stay on their line, the answer key is kept
   assert.match(read("client/src/components/teacher-hub/HubTasks.tsx"), /if \(!t\) openAsk\(a\.id\);/);
   assert.match(read("server/routes.ts"), /lookup: makeLookup\(\{ search: \(system, user\) => perplexityChat\(system, user, 30_000\) \}\)/);
 });
+
+test("an ask made from the Work Hub opens the Work Hub from its notification; one from To Duo still opens To Duo", async () => {
+  const f = fakeDeps(async () => GOOD);
+  const asks = createAsks(f.deps);
+  await asks.start(7, { ask: "make a worksheet for Kha", hub: "work" });
+  await asks.start(7, { ask: "make a worksheet for Kha too", hub: "somewhere-else" });
+  await wait();
+  const saved = await asks.list(7);
+  const work = saved.find((a) => a.ask === "make a worksheet for Kha")!;
+  const life = saved.find((a) => a.ask === "make a worksheet for Kha too")!;
+  assert.equal(work.hub, "work");
+  assert.equal(life.hub, undefined);
+  assert.ok(f.notes.some((n) => n.url === `/#/workhub?go=asks&ask=${work.id}`));
+  assert.ok(f.notes.some((n) => n.url === `/#/to-do?go=asks&ask=${life.id}`));
+  // It survives being saved and read back (cleanAsks).
+  assert.equal(cleanAsks(JSON.parse(JSON.stringify(saved))).find((a) => a.id === work.id)?.hub, "work");
+});
+
+test("@arise works in the Work Hub: Tasks, Home's quick add and pop-up, the notification link and the finished toast", () => {
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  assert.match(hub, /const ariseAsks = useAriseAsks\(user \? token : null\);/);
+  assert.match(hub, /<Tasks workspace=\{workspace\}[\s\S]{0,200}arise=\{\{ asks: ariseAsks\.asks, loaded: ariseAsks\.loaded, open: ariseAsks\.open, people: \[\], hub: "work" \}\} \/>/);
+  // Home: the quick add and the pop-up both try "@arise" first, before the to-do is added.
+  assert.match(hub, /if \(sendHomeAsk\(title\)\) return; const found = smartDate\(title\);/);
+  assert.match(hub, /const addHomeTask = \(fields: TaskFields\) => \{[\s\S]{0,400}if \(sendHomeAsk\(/);
+  assert.match(hub, /startTaskAsk\(text, nid, \[\], "work"\)/);
+  // The notification's link ("#/workhub?go=asks&ask=…") opens Tasks on the Arise tab; a finished ask says so.
+  assert.match(hub, /params\.get\("go"\) !== "asks"/);
+  assert.match(hub, /onAskFinished\(/);
+  // The Work Hub never sends student names to the AI.
+  assert.doesNotMatch(hub, /startTaskAsk\([^)]*students/);
+  const lib = read("client/src/lib/ariseAsks.ts");
+  assert.match(lib, /\.\.\.\(hub === "work" \? \{ hub \} : \{\}\)/);
+  assert.match(read("client/src/components/teacher-hub/HubTasks.tsx"), /startTaskAsk\(text, id, arise\.people, arise\.hub\)/);
+});

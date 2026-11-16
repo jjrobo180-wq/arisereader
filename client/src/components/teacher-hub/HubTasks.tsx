@@ -99,7 +99,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   /** LifeHub's to-dos have no emails or pins, so those are left out. */
   plain?: boolean;
   /** Arise To Duo: "@arise" to-dos go to Arise's AI, and the Arise tab lists every ask (lib/ariseAsks.ts). */
-  arise?: { asks: AriseAsk[]; loaded: boolean; open: string | null; people: string[] };
+  arise?: { asks: AriseAsk[]; loaded: boolean; open: string | null; people: string[]; hub?: "work" | "life" };
 }) {
   // Laid out like LifeHub's to-do lists: views (All, Today, Upcoming, Completed, Archived) and the
   // teacher's own coloured lists down the side, numbers across the top, progress and what's next
@@ -148,7 +148,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   function sendAsk(text: string, extra: { listId?: string; priority?: boolean } = {}): boolean {
     if (!arise || !parseTaskAsk(text)) return false;
     const id = makeId();
-    const started = startTaskAsk(text, id, arise.people);
+    const started = startTaskAsk(text, id, arise.people, arise.hub);
     if (!started) return false;
     toast(started.task ? "Sending to Arise…" : "Asking Arise…");
     started.sent.then((a) => {

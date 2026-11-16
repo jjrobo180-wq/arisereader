@@ -142,6 +142,8 @@ import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+import { onAskFinished, openAsk, startTaskAsk, useAriseAsks } from "@/lib/ariseAsks";
+import { isAskId, parseTaskAsk } from "@shared/ariseAsks";
 import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
@@ -629,6 +631,43 @@ function TeacherHubPage() {
   /** The to-do being changed from the To do card on Home. */
   const [homeTask, setHomeTask] = useStayOnRefresh<string | null>("work-home-task", null);
   const [homeQuick, setHomeQuick] = useState("");
+  // "@arise" asks (lib/ariseAsks.ts), the same as in To Duo: typing "@arise ..." in a to-do sends it to Arise's AI.
+  // The ones asked from here open here (the notification's link is "#/workhub?go=asks&ask=...").
+  const ariseAsks = useAriseAsks(user ? token : null);
+  useEffect(() => onAskFinished((a) => toasts.show(a.status === "done" ? `Arise finished: ${a.title || a.ask}. It's in Tasks › Arise asks.` : `Arise couldn't make "${a.ask.slice(0, 60)}". Open Tasks › Arise asks to try again.`, [{ label: a.status === "done" ? "See it" : "Try again", run: () => { setTab("tasks"); openAsk(a.id); } }])), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const open = () => {
+      const hash = window.location.hash, q = hash.indexOf("?");
+      if (q < 0) return;
+      const params = new URLSearchParams(hash.slice(q + 1));
+      if (params.get("go") !== "asks") return;
+      setTab("tasks");
+      const askId = params.get("ask");
+      openAsk(askId && isAskId(askId) ? askId : "");
+      params.delete("go"); params.delete("ask");
+      const rest = params.toString();
+      try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Sends an "@arise" to-do typed on Home to Arise; its to-do is added once Arise has it. False when it isn't one. */
+  const sendHomeAsk = (text: string, priority = false): boolean => {
+    if (!parseTaskAsk(text)) return false;
+    const nid = id();
+    const started = startTaskAsk(text, nid, [], "work");
+    if (!started) return false;
+    setHomeQuick(""); setHomeTask(null);
+    toasts.show(started.task ? "Sending to Arise…" : "Asking Arise…", []);
+    started.sent.then((a) => {
+      const t = started.task;
+      if (!t) openAsk(a.id); // a question: the answer opens in the Arise tab, filling in when it's ready
+      else setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: nid, title: t.title, dueDate: t.due, ...(t.dueTime ? { dueTime: t.dueTime } : {}), recurring: "", done: false, notes: t.notes, ...(priority ? { priority: "high" as const } : {}) }] }));
+      toasts.show(!t ? "Arise is looking into it. The answer will be in the Arise tab in a moment." : a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.", [{ label: "See it", run: () => { setTab("tasks"); openAsk(a.id); } }]);
+    }).catch((err: Error) => toasts.show(err.message || "Arise couldn't take that. Try again.", []));
+    return true;
+  };
   const openTasks = workspace.tasks.filter((t) => !t.done && !t.archived).length;
   /** The WorkHub apps this teacher added from the App Store, in the order they were added. They get their own place in the menu. */
   const myKits = ((workspace as any).kitInstalled as string[] | undefined ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d && d.hub === "work");
@@ -757,6 +796,9 @@ function TeacherHubPage() {
   /** Adds a to-do from Home (quick add or More) and says so. */
   const addHomeTask = (fields: TaskFields) => {
     if (!fields.title.trim()) return;
+    // A new "@arise" to-do from the pop-up: its due date, if one was picked, is the "by" day.
+    const [y, m, d] = (fields.dueDate || "").split("-").map(Number);
+    if (sendHomeAsk(fields.dueDate && !/\b(by|before|on|due)\b/i.test(fields.title) ? `${fields.title} by ${m}/${d}/${y}` : fields.title, fields.priority)) return;
     const nid = id();
     setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, fields, () => nid) }));
     setFreshTask(nid);
@@ -1775,7 +1817,7 @@ function TeacherHubPage() {
                   ),
                   todo: (
               <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
-                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; const found = smartDate(title); addHomeTask(found ? { title: found.title, dueDate: found.date, dueTime: found.time, recurring: "", priority: false } : { title, dueDate: "", recurring: "", priority: false }); }} className="mb-3 flex gap-2" data-testid="home-task-add">
+                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; if (sendHomeAsk(title)) return; const found = smartDate(title); addHomeTask(found ? { title: found.title, dueDate: found.date, dueTime: found.time, recurring: "", priority: false } : { title, dueDate: "", recurring: "", priority: false }); }} className="mb-3 flex gap-2" data-testid="home-task-add">
                   <Field placeholder="Add a to-do, like “Call Ms. Lee tomorrow 3pm”" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
 <button type="button" onClick={() => setHomeTask(NEW_TASK)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="home-task-more"><MoreHorizontal className="h-4 w-4" /> More</button>
                   <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
@@ -1859,7 +1901,7 @@ function TeacherHubPage() {
             goals={<><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}
             minutes={<MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
-          {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
+          {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: [], hub: "work" }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubLifeScreen key={notesKey} which="notes" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "journal" && <HubLifeScreen which="journal" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "admin" && user.isAdmin && adminSection === "updates" && <WhatsNew embedded />}
