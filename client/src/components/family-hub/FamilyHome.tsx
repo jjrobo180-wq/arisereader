@@ -21,6 +21,7 @@ import { goalProgress } from "./Goals";
 import { caloriesLeft, dayTotals, goalsFor, healthPeople } from "@shared/familyHealth";
 import type { CalendarTask } from "./FamilyCalendar";
 import WidgetBoard from "@/components/widgets/WidgetBoard";
+import { WidgetLinksProvider } from "@/components/widgets/linkWidgets";
 import { cleanWidgets } from "@shared/widgets";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
 
@@ -193,7 +194,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
     const shots = key === "drive-app" ? photos : undefined;
     return { ...t, faces: faces[key], photos: shots?.length ? shots : undefined };
   });
-  return <div className="space-y-4 sm:space-y-6">
+  return <WidgetLinksProvider page={family.linkPage} open={() => go("links")}><div className="space-y-4 sm:space-y-6">
     {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
       <span className="self-start rounded-2xl bg-white/10 p-3 text-[#bcb2ff] sm:self-auto"><UserPlus size={26} /></span>
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
@@ -202,5 +203,5 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
     <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
       leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined}
       partLive={tileMode ? { greeting: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] }, stats: { faces: faces.tasks }, agenda: { faces: faces.calendar }, chores: { faces: faces.chores }, bills: { faces: faces.money } } : undefined} />
-  </div>;
+  </div></WidgetLinksProvider>;
 }

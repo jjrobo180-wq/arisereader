@@ -8,6 +8,8 @@ import {
   type WidgetItem, type WidgetSize, type WidgetTheme,
 } from "@shared/widgets";
 
+import { LinksFace } from "./linkWidgets";
+
 export type FaceProps = { item: WidgetItem; theme: WidgetTheme; now: Date; size: WidgetSize; onChange?: (patch: Partial<WidgetItem>) => void };
 
 const FONTS: Record<WidgetTheme["font"], string> = {
@@ -566,6 +568,7 @@ export function WidgetFace(props: FaceProps) {
     case "timer": return <TimerFace t={t} item={item} size={size} />;
     case "note": return <NoteFace t={t} item={item} size={size} />;
     case "one-thing": return <OneThingFace {...props} t={t} />;
+    case "links-page": case "links-list": case "links-tiles": case "links-icons": return <LinksFace type={item.type} t={t} size={size} />;
     default: return null;
   }
 }

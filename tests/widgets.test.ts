@@ -10,8 +10,8 @@ import {
 const at = (h: number, m: number, s = 0) => new Date(2026, 9, 11, h, m, s);
 
 test("the catalog: 34 widgets in five groups, all with real themes", () => {
-  assert.equal(WIDGET_DEFS.length, 34);
-  assert.equal(new Set(WIDGET_DEFS.map((d) => d.id)).size, 34);
+  assert.equal(WIDGET_DEFS.length, 38);
+  assert.equal(new Set(WIDGET_DEFS.map((d) => d.id)).size, 38);
   assert.equal(WIDGET_THEMES.length, 11);
   for (const g of WIDGET_GROUPS) assert.ok(WIDGET_DEFS.some((d) => d.group === g), g);
   for (const d of WIDGET_DEFS) assert.ok(WIDGET_THEMES.some((t) => t.id === d.theme), d.id);

@@ -69,7 +69,7 @@ export const KIT_WORK_INDEX: readonly string[] = [
   "formative-checks", "differentiation", "udl-ideas", "co-teaching", "exec-function", "sensory-breaks",
   "visual-supports", "aac-tips", "iep-goal-frames", "parent-email-starters", "conference-questions",
   "teacher-self-care", "teacher-productivity", "free-rewards", "indoor-recess", "sponge-activities",
-  "bell-ringers", "debate-topics", "question-stems", "study-skills", "student-reflection",
+  "bell-ringers", "debate-topics", "question-stems", "study-skills", "student-reflection", "link-page",
 ];
 const HUB = new Map<string, "life" | "work">([...KIT_LIFE_INDEX.map((id) => [id, "life"] as const), ...KIT_WORK_INDEX.map((id) => [id, "work"] as const)]);
 /** The kit app's hub, or undefined when it isn't a kit app. */

@@ -78,6 +78,10 @@ import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugi
 import { cleanNotesApp } from "@shared/notesApp";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import { LinkPageEditor } from "@/components/family-hub/LinkPage";
+import { WidgetLinksProvider } from "@/components/widgets/linkWidgets";
+import { cleanLinkPage } from "@shared/familyHub";
+import { workLinkPage } from "@shared/workLinks";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { HubChat } from "@/components/HubChat";
 import WidgetBoard from "@/components/widgets/WidgetBoard";
@@ -674,6 +678,10 @@ function TeacherHubPage() {
   const kitRecords = cleanKit((workspace as any).kitRecords, 8000);
   const setKitRecords = (update: (all: KitRecord[]) => KitRecord[]) => setWorkspace((prev) => ({ ...prev, kitRecords: cleanKit(update(cleanKit((prev as any).kitRecords, 8000)), 8000) }));
   const openKit = (k: string | null) => { setKitOpen(k); if (k) window.scrollTo({ top: 0 }); };
+  // The WorkHub's own Link page (workspace.linkPage). It is separate from the LifeHub's: nothing is shared between them.
+  // Links saved by the first version of this plugin (a plain list) show up here until the page is first changed.
+  const workLinks = useMemo(() => workLinkPage((workspace as any).linkPage, kitRecords), [(workspace as any).linkPage, kitRecords]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setWorkLinks = (update: (page: ReturnType<typeof cleanLinkPage>) => ReturnType<typeof cleanLinkPage>) => setWorkspace((prev) => ({ ...prev, linkPage: cleanLinkPage(update(workLinkPage((prev as any).linkPage, cleanKit((prev as any).kitRecords, 8000)))) }));
   /** Notes-app plugins (LifeHub Notes, installed here from the Store) this teacher added, same idea as myKits. */
   const myNotesApps = ((workspace as any).notesInstalled as string[] | undefined ?? []).map((id) => notesAppPlugin("work", id)).filter((p): p is Plugin => !!p);
   const notesAppRecords = Object.fromEntries(Object.entries((workspace as any).notesApps ?? {}).map(([pid, list]) => [pid, cleanNotesApp(list)])) as Record<string, ReturnType<typeof cleanNotesApp>>;
@@ -1129,7 +1137,7 @@ function TeacherHubPage() {
     <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} addDriveFile={(f) => setWorkspace((w) => ({ ...w, drive: addDriveFile(cleanDriveFiles((w as any).drive), f) } as Workspace))} readDocument={(student) => {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
-    }}>
+    }}><WidgetLinksProvider page={workLinks} open={() => openKit("link-page")}>
     <div ref={hubRootRef} className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
       style={{ ...hubLook.style, "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
@@ -1573,7 +1581,9 @@ function TeacherHubPage() {
                 <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
                 <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> Plugin Gallery</button>
               </div>
-              <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />
+              {kitOpen === "link-page"
+                ? <LinkPageEditor page={workLinks} update={setWorkLinks} makeId={id} say={(m) => toasts.show(m, [])} where="work" />
+                : <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />}
             </div>
           )}
           {notesAppOpen && notesAppPlugin("work", notesAppOpen) && (
@@ -1983,7 +1993,7 @@ function TeacherHubPage() {
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <SnoozeBar />
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
-    </div></HubLinkProvider></PrivacyLockProvider>
+    </div></WidgetLinksProvider></HubLinkProvider></PrivacyLockProvider>
   );
 }
 

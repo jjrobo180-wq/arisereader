@@ -3,7 +3,7 @@
 // share it with a link anyone can open (no account needed). It's also a card on Home and an iPhone widget.
 import { useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, Check, FolderOpen, LayoutGrid, Link2, List, Trash2 } from "lucide-react";
-import type { LinkPageStyle, PageLink } from "@shared/familyHub";
+import type { LinkPage as LinkPageData, LinkPageStyle, PageLink } from "@shared/familyHub";
 import { LINK_THEMES, linkBrand, linkHost, type LinkPageTheme } from "@shared/linkPageLook";
 import { ShareButton } from "./ShareLink";
 import { LinkPageView } from "./LinkPageView";
@@ -15,19 +15,24 @@ const FOLDER_IDEAS = ["School", "Work", "Shopping", "Bills", "Health", "Social",
 const fixUrl = (u: string) => { const t = u.trim(); if (!t) return ""; if (/^(https?:\/\/|mailto:|tel:)/i.test(t)) return t; if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(t)) return `mailto:${t}`; return /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(t) ? `https://${t}` : ""; };
 const cleanFolder = (g: string) => g.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 30);
 
+/** The LifeHub's Link page: its own links, shareable with a public link. The WorkHub has its own (a different page,
+ *  workspace.linkPage) built from the same editor, so the two never share links. */
 export default function LinkPage({ family, setFamily, makeId, say }: SectionProps) {
-  const page = family.linkPage;
+  return <LinkPageEditor page={family.linkPage} update={(fn) => setFamily((f) => ({ ...f, linkPage: fn(f.linkPage) }))} makeId={makeId} say={say} where="life" />;
+}
+
+export function LinkPageEditor({ page, update, makeId, say, where }: { page: LinkPageData; update: (fn: (p: LinkPageData) => LinkPageData) => void; makeId: () => string; say: (message: string) => void; where: "life" | "work" }) {
   const style: LinkPageStyle = page.style === "directory" ? "directory" : "buttons";
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [emoji, setEmoji] = useState(EMOJI[0]);
   const [folder, setFolder] = useState("");
   const folders = [...new Set(page.links.map((l) => (l.group || "").trim()).filter(Boolean))];
-  const setPage = (patch: Partial<typeof page>) => setFamily((f) => ({ ...f, linkPage: { ...f.linkPage, ...patch } }));
-  const setLinks = (update: (l: PageLink[]) => PageLink[]) => setFamily((f) => ({ ...f, linkPage: { ...f.linkPage, links: update(f.linkPage.links) } }));
+  const setPage = (patch: Partial<typeof page>) => update((p) => ({ ...p, ...patch }));
+  const setLinks = (change: (l: PageLink[]) => PageLink[]) => update((p) => ({ ...p, links: change(p.links) }));
   const theme: LinkPageTheme = page.theme ?? "light";
-  const setTheme = (next: LinkPageTheme) => setFamily((f) => { const { theme: _old, ...rest } = f.linkPage; return { ...f, linkPage: next === "light" ? rest : { ...rest, theme: next } }; });
-  const setStyle = (next: LinkPageStyle) => setFamily((f) => { const { style: _old, ...rest } = f.linkPage; return { ...f, linkPage: next === "directory" ? { ...rest, style: "directory" } : rest }; });
+  const setTheme = (next: LinkPageTheme) => update((p) => { const { theme: _old, ...rest } = p; return next === "light" ? rest : { ...rest, theme: next }; });
+  const setStyle = (next: LinkPageStyle) => update((p) => { const { style: _old, ...rest } = p; return next === "directory" ? { ...rest, style: "directory" as const } : rest; });
 
   const add = (e: FormEvent) => {
     e.preventDefault();
@@ -43,7 +48,9 @@ export default function LinkPage({ family, setFamily, makeId, say }: SectionProp
     className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${style === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><Icon size={16} /> {label}</button>;
 
   return <div className="space-y-6">
-    <PageHead eyebrow="Link page" title="All your links, one clean page" blurb="Your socials, work, shop or favorite places on one simple page. Share it with a single link, keep it on Home, and add it to your iPhone's Home Screen as a widget with a QR code." action={<ShareButton target="links" title={page.title || "My links"} say={say} label="Share my page" />} />
+    <PageHead eyebrow={where === "work" ? "Work link page" : "Link page"} title={where === "work" ? "All your work links, one clean page" : "All your links, one clean page"}
+      blurb={where === "work" ? "Your class site, district portal, grade book and forms on one simple page. Pick how it looks, and add a Links widget to Home. These links are only in WorkHub; your LifeHub link page is separate." : "Your socials, work, shop or favorite places on one simple page. Share it with a single link, keep it on Home, and add it to your iPhone's Home Screen as a widget with a QR code. These links are only in LifeHub; your WorkHub link page is separate."}
+      action={where === "life" ? <ShareButton target="links" title={page.title || "My links"} say={say} label="Share my page" /> : undefined} />
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
         <Panel title="Your page">
@@ -95,7 +102,7 @@ export default function LinkPage({ family, setFamily, makeId, say }: SectionProp
             <button type="button" onClick={() => moveBy(i, 1)} disabled={i === page.links.length - 1} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-30" aria-label={`Move ${l.title} down`}><ArrowDown size={15} /></button>
             <button type="button" onClick={() => setLinks((x) => x.filter((y) => y.id !== l.id))} className={danger + " px-2"} aria-label={`Delete ${l.title}`}><Trash2 size={14} /></button>
           </li>)}</ul> : <Empty icon={<Link2 />} title="No links yet.">Add your first link above.</Empty>}
-          {page.links.length > 0 && <p className="mt-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-800"><LayoutGrid size={13} className="mr-1 inline" /> Your page is also a card on Home, so it's one tap to copy or share. Hide or move it from Home's Edit button. On iPhone, add the <span className="font-bold">Link page</span> widget to your Home Screen for a QR code people can scan.</p>}
+          {page.links.length > 0 && <p className="mt-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-800"><LayoutGrid size={13} className="mr-1 inline" /> {where === "work" ? <>Add a <span className="font-bold">Link page</span>, <span className="font-bold">Link list</span>, <span className="font-bold">Link tiles</span> or <span className="font-bold">Link icons</span> widget to Home from the Widgets board. They show these work links.</> : <>Your page is also a card on Home, so it's one tap to copy or share, and the Widgets board has Link widgets that show these links. Hide or move it from Home's Edit button. On iPhone, add the <span className="font-bold">Link page</span> widget to your Home Screen for a QR code people can scan.</>}</p>}
         </Panel>
       </div>
       <div className="lg:sticky lg:top-6 lg:self-start">

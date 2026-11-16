@@ -27,6 +27,7 @@ const GROUP_NOTE: Record<WidgetGroup, string> = {
   Countdowns: "What's coming, what's done, and how far through the day you are.",
   Fun: "Little things to tap and smile at.",
   Focus: "Timers, notes and the one thing that matters today.",
+  Links: "Your own links, one tap away. Each hub keeps its own: Work links stay in Work, Life links stay in Life.",
 };
 
 /** A widget's outside: its theme's background, text colour, border and typeface. */
