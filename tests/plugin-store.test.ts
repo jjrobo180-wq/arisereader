@@ -154,11 +154,11 @@ test("the gallery splits into Premium apps and Mini plugins, and every plugin si
     }
     const premium = new Set(all.filter((p) => p.tier === "premium").map((p) => p.name));
     for (const name of ["A.R.I.S.E. Docs", "A.R.I.S.E. Sheets", "A.R.I.S.E. Slides", "Drive", "Drop", "A.R.I.S.E. Standby"]) assert.ok(premium.has(name), `${hub}: ${name} is Premium`);
-    if (hub === "life") for (const name of ["Cooked", "Cooked PT", "Podcasts", "Audiobooks", "Radio", "Study Podster", "Podster Social", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
+    if (hub === "life") for (const name of ["Workouts", "Food & Fasting", "Run & Steps", "Sleep & Recovery", "Cooked Social", "Cooked PT", "Recorder", "Ask @arise", "Podcasts", "Audiobooks", "Radio", "Study Podster", "Podster Social", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
     const mini = new Set(all.filter((p) => p.tier === "mini").map((p) => p.name));
     for (const name of ["Final Grade Calculator", "AI Gift Ideas", "GPA Calculator", "Widgets"]) assert.ok(mini.has(name), `${hub}: ${name} is Mini`);
     if (hub === "life") assert.ok(mini.has("Gifts & Dates"));
-    assert.ok(premium.size < 25 && mini.size > 400, `${hub}: ${premium.size} premium, ${mini.size} mini`);
+    assert.ok(premium.size < 35 && mini.size > 400, `${hub}: ${premium.size} premium, ${mini.size} mini`);
   }
 });
 

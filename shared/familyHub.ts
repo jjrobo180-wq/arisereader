@@ -24,10 +24,10 @@ import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 /** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
 const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 
-export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedfood", "cookedrun", "cookedrest", "cookedsocial", "cookedpt", "arisenotes", "notesrecord", "notesask", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS];
+export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedfood", "cookedrun", "cookedrest", "cookedsocial", "cookedpt", "arisenotes", "notesrecord", "notesask", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS];
 /** Sections added from the Plugin Gallery: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
@@ -35,7 +35,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores",
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedfood", "cookedrun", "cookedrest", "cookedsocial", "cookedpt", "arisenotes", "notesrecord", "notesask", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -318,6 +318,9 @@ export type Family = {
   /** Cooked, Cooked PT, Arise Notes and Podster inside To Duo (shared/superApps.ts): the pages each one
    *  shows, picked with its settings button. Missing means the app's defaults. */
   superPages?: Partial<Record<SuperAppId, string[]>>;
+  /** Podster, Cooked and Arise Notes were taken apart into plugins of their own (Nov 15, 2026), and anyone
+   *  who had one was given all its parts, once. True once that's done (and for every new family). */
+  splitDone?: boolean;
   /** Kitchen > Plan: who eats what this week, product picks and prices (shared/kitchen.ts). */
   kitchen?: Kitchen;
 };
@@ -356,7 +359,7 @@ export const emptyFamily = (): Family => ({
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], sleepApp: emptySleepApp(), sleepFinder: emptySleepFinder(), earshot: emptyEarshot(), workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
   notesInstalled: [], notesApps: {}, lock: null,
-  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false, bundleSet: {}, superPages: {}, kitchen: emptyKitchen(),
+  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false, bundleSet: {}, superPages: {}, splitDone: true, kitchen: emptyKitchen(),
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -425,8 +428,9 @@ export function cleanFamily(input: unknown): Family {
   }
   // The Calorie counter comes added for everyone (Oct 30, 2026). Removing it is saved as false, so that sticks.
   if (sections.health === undefined) sections.health = true;
-  // Podster was taken apart into five plugins (Nov 15, 2026): anyone who had it gets them all.
-  Object.assign(sections, withSplitApps(sections));
+  // Podster, Cooked and Arise Notes were taken apart into plugins (Nov 15, 2026): anyone who had one gets
+  // all its parts, once (a part added or removed later stays as it was left).
+  if (raw.splitDone !== true) Object.assign(sections, withSplitApps(sections));
   const rawLayers = obj(raw.layers) || {};
   const layers: Layers = {
     tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false), hub: bool(rawLayers.hub, false),
@@ -744,6 +748,7 @@ export function cleanFamily(input: unknown): Family {
     kitchen: cleanKitchen(raw.kitchen),
     bundleSet: Object.fromEntries(Object.entries(obj(raw.bundleSet) || {}).filter(([k, v]) => BUNDLE_BY_SECTION.has(k) && v === true)),
     superPages: cleanSuperPages(raw.superPages),
+    splitDone: true,
     drive: cleanDriveFiles(raw.drive),
   };
 }

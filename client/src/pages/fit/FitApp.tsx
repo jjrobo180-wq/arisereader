@@ -337,6 +337,9 @@ export type FitEmbed = {
   start?: string | null;
   /** A trainer's invite code from a link (#/to-do?go=cooked&coach=…). */
   coach?: string | null;
+  /** Cooked taken apart (Nov 15, 2026): this plugin's own pages ("today" or Cooked plugin ids), in order.
+   *  Only these show in its row, whatever was added in the Cooked app; the rest open as a sheet. */
+  only?: readonly string[];
 };
 
 /** Cooked as a plugin inside Arise To Duo: the same screens and data, To Duo's look, To Duo's messages. */
@@ -356,7 +359,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   useDuoLook(embed ? (embed.night ? "dark" : "light") : null);
   const fetched = useLibrary(token);
   const list = fetched && fetched.length ? fetched : libraryFallback();
-  const [tab, setTab] = useState<Tab>(() => (embed?.start as Tab | undefined) || readTab());
+  const only = embed?.only?.length ? embed.only as readonly Tab[] : null;
+  const [tab, setTab] = useState<Tab>(() => (only ? (only.includes(embed?.start as Tab) ? embed!.start as Tab : only[0]) : (embed?.start as Tab | undefined) || readTab()));
   const [app, setApp] = useState<FitAppId | null>(null);
   const [active, setActive] = useState(readActive);
   const [setup, setSetup] = useState(false);
@@ -389,15 +393,15 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const apps = appsOf(data.apps);
   // Inside To Duo the row of pages has room for every added plugin with a screen of its own (the iPhone
   // app's tab bar holds three).
-  const tabIds = (embed ? apps.added : apps.tabs).filter((id) => FIT_APP_BY_ID.get(id)?.tab);
+  const tabIds = (only ? (only.filter((id) => id !== "today" && id !== "apps") as FitAppId[]) : (embed ? apps.added : apps.tabs).filter((id) => FIT_APP_BY_ID.get(id)?.tab));
   const sleepAuto = useSleepAuto(data, update, loaded, say);
   // Siri, Shortcuts and links: run once the data is here (a link can arrive before it loads).
   const [pending, setPending] = useState<SiriAction | null>(null);
   useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass) onPass(l.pass); if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
   // A tab that was taken off the tab bar (here or on another device) goes back to Today.
-  useEffect(() => { if (tab !== "today" && tab !== "apps" && !tabIds.includes(tab)) setTab("today"); }, [tab, tabIds.join()]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* not kept */ } }, [tab]);
+  useEffect(() => { if (only) { if (!only.includes(tab)) setTab(only[0]); return; } if (tab !== "today" && tab !== "apps" && !tabIds.includes(tab)) setTab("today"); }, [tab, tabIds.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (only) return; try { localStorage.setItem(TAB_KEY, tab); } catch { /* not kept */ } }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
   useEffect(() => { if (loaded) publishWidgets(fitWidgetSlots(data, latestKg(data))); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!loaded) return; return watchWidgetActions((taps) => update((d) => applyFitTaps(d, taps))); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -476,6 +480,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   }, [pending, loaded, plusLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
   const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ["apps", "Plugins", LayoutGrid]];
+  // One of Cooked's own plugins in To Duo: just its pages, Today first where it has it.
+  if (only) tabs.splice(0, tabs.length, ...(only.includes("today") ? [["today", "Today", Home] as [Tab, string, typeof Home]] : []), ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }));
   const startNow = (a: NonNullable<ReturnType<typeof readActive>>) => { setCoach(false); setActive(a); };
 
   /** One app's screen: as a tab (inline) or a sheet over everything. */

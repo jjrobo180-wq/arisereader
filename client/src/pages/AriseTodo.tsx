@@ -1,3 +1,4 @@
+import { Apple as AppleNavA, Route as RouteNavA, Moon as MoonNavA, Users as UsersNavA, Mic as MicNavA, Sparkles as SparklesNavA } from "lucide-react";
 import { BookOpen as BookOpenNavA, Radio as RadioNavA, GraduationCap as GraduationCapNavA, MessagesSquare as MessagesSquareNavA } from "lucide-react";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
 import AllAccessPopup from "@/components/AllAccessPopup";
@@ -138,7 +139,7 @@ import { Avatar, Modal } from "@/components/family-hub/ui";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
-import { isSuperApp, superAppFor, type SuperAppId } from "@shared/superApps";
+import { COOKED_PARTS, NOTES_PARTS, isSuperApp, superAppFor, type CookedPartId, type NotesPartId, type SuperAppId } from "@shared/superApps";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
 import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 // Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
@@ -312,7 +313,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, sleepfinder: ListMusicNav3, earshot: PodcastNav3, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2, browser: GlobeNav2, accountability: BadgeCheckNav4,
   healthlite: HeartPulseNav2, inspire: NotebookPen, kitchen: ChefHatNav, moneyhub: Wallet, homehub: WrenchNav, datehub: CakeNav, dailyhub: Newspaper, listhub: ListTodo, focushub: TimerNav,
-  cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3, podcasts: PodcastNav3, audiobooks: BookOpenNavA, podradio: RadioNavA, studypod: GraduationCapNavA, podsocial: MessagesSquareNavA,
+  cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3, cookedfood: AppleNavA, cookedrun: RouteNavA, cookedrest: MoonNavA, cookedsocial: UsersNavA, notesrecord: MicNavA, notesask: SparklesNavA, podcasts: PodcastNav3, audiobooks: BookOpenNavA, podradio: RadioNavA, studypod: GraduationCapNavA, podsocial: MessagesSquareNavA,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
@@ -1179,9 +1180,10 @@ export default function AriseTodo() {
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
     // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): their own screens, signed in with this account, in To Duo's look.
-    : shown === "cooked" ? <SuperBoundary key="cooked" name="Cooked"><Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense></SuperBoundary>
+    : shown === "cooked" ? <SuperBoundary key="cooked" name="Workouts"><Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} appId="cooked" say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense></SuperBoundary>
+    : COOKED_PARTS.includes(shown as CookedPartId) ? <SuperBoundary key={shown} name="Cooked"><Suspense fallback={superWaiting}><CookedInDuo key={`${shown}-${startFor(shown as CookedPartId)?.at ?? 0}`} appId={shown as CookedPartId} say={setMessage} night={night} start={startFor(shown as CookedPartId)?.page} /></Suspense></SuperBoundary>
     : shown === "cookedpt" ? <SuperBoundary key="cookedpt" name="Cooked PT"><Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense></SuperBoundary>
-    : shown === "arisenotes" ? <SuperBoundary key="arisenotes" name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense></SuperBoundary>
+    : NOTES_PARTS.includes(shown as NotesPartId) ? <SuperBoundary key={shown} name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={`${shown}-${startFor(shown as NotesPartId)?.at ?? 0}`} appId={shown as NotesPartId} night={night} start={startFor(shown as NotesPartId)?.page} /></Suspense></SuperBoundary>
     : shown === "podcasts" ? <SuperBoundary key="podcasts" name="Podcasts"><Suspense fallback={superWaiting}><PodsterInDuo key={startFor("podcasts")?.at ?? 0} family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podcasts")} openApp={openPodApp} /></Suspense></SuperBoundary>
     : shown === "audiobooks" ? <SuperBoundary key="audiobooks" name="Audiobooks"><Suspense fallback={superWaiting}><AudiobooksApp key={startFor("audiobooks")?.at ?? 0} start={startFor("audiobooks")?.page} /></Suspense></SuperBoundary>
     : shown === "podradio" ? <SuperBoundary key="podradio" name="Radio"><Suspense fallback={superWaiting}><RadioApp key={startFor("podradio")?.at ?? 0} start={startFor("podradio")?.page} /></Suspense></SuperBoundary>

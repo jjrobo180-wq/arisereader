@@ -6,6 +6,7 @@ import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
+import { Apple as AppleIcon5, Route as RouteIcon5, Moon as MoonIcon5, Users as UsersIcon5, Mic as MicIcon5, Sparkles as SparklesIcon5 } from "lucide-react";
 import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3, Radio as RadioTowerIcon, MessagesSquare as MessagesSquareIcon } from "lucide-react";
 import { Coins as CoinsIcon2, CreditCard as CreditCardIcon2, Dumbbell as DumbbellIcon2, Gauge as GaugeIcon2, Globe as GlobeIcon2, GraduationCap as GraduationCapIcon2, Hammer as HammerIcon2, HandCoins as HandCoinsIcon2, Handshake as HandshakeIcon2, Heart as HeartIcon2, HeartPulse as HeartPulseIcon2, Landmark as LandmarkIcon2, ListChecks as ListChecksIcon2, Moon as MoonIcon2, ShieldCheck as ShieldCheckIcon2, Sparkles as SparklesIcon2, Star as StarIcon2, Stethoscope as StethoscopeIcon2, Timer as TimerIcon2, Utensils as UtensilsIcon2 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as CakeIcon, Calculator as CalculatorIcon, Car as CarIcon, ChefHat as ChefHatIcon, CloudSun as CloudSunIcon, CreditCard as CreditCardIcon, Flower2 as Flower2Icon, Gift as GiftIcon, Heart as HeartIcon, Mountain as MountainIcon, PawPrint as PawPrintIcon, Phone as PhoneIcon, PiggyBank as PiggyBankIcon, Repeat as RepeatIcon, Timer as TimerIcon, Tv as TvIcon, UtensilsCrossed as UtensilsCrossedIcon, Wrench as WrenchIcon } from "lucide-react";
@@ -98,9 +99,16 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   listhub: { label: "Lists", detail: "Reading, watchlist, bucket list", icon: <BookOpenIcon size={17} /> },
   focushub: { label: "Focus & Routines", detail: "Focus timer, clocks, routines", icon: <Wallet size={17} /> },
   // Cooked, Cooked PT, Arise Notes and Podster, inside To Duo (shared/superApps.ts).
-  cooked: { label: "Cooked", detail: "Workouts, food, sleep and a coach", icon: <DumbbellIcon2 size={17} /> },
+  // Cooked, taken apart into its own plugins (Nov 15, 2026); Workouts keeps Cooked's id.
+  cooked: { label: "Workouts", detail: "Cooked: programs, live workouts and a coach", icon: <DumbbellIcon2 size={17} /> },
+  cookedfood: { label: "Food & Fasting", detail: "Cooked: food log, fasting and water", icon: <AppleIcon5 size={17} /> },
+  cookedrun: { label: "Run & Steps", detail: "Cooked: runs, walks and steps", icon: <RouteIcon5 size={17} /> },
+  cookedrest: { label: "Sleep & Recovery", detail: "Cooked: sleep, readiness and breathing", icon: <MoonIcon5 size={17} /> },
+  cookedsocial: { label: "Cooked Social", detail: "Cooked: friends, circle and a buddy", icon: <UsersIcon5 size={17} /> },
   cookedpt: { label: "Cooked PT", detail: "Coach your clients", icon: <HeartHandshake size={17} /> },
-  arisenotes: { label: "Arise Notes", detail: "AI notes: record, transcribe, summarize", icon: <NotebookPen size={17} /> },
+  arisenotes: { label: "Arise Notes", detail: "Typed and handwritten notes", icon: <NotebookPen size={17} /> },
+  notesrecord: { label: "Recorder", detail: "Record or upload, get the notes written", icon: <MicIcon5 size={17} /> },
+  notesask: { label: "Ask @arise", detail: "Ask the AI about anything, or your notes", icon: <SparklesIcon5 size={17} /> },
   podster: { label: "Podster", detail: "Now five plugins: Podcasts, Audiobooks, Radio, Study Podster, Social", icon: <PodcastIcon3 size={17} /> },
   // Podster, taken apart into its own plugins (Nov 15, 2026).
   podcasts: { label: "Podcasts", detail: "Shows picked for you and a swipe feed", icon: <PodcastIcon3 size={17} /> },
