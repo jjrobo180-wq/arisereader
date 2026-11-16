@@ -293,3 +293,29 @@ test("@arise works in the Work Hub: Tasks, Home's quick add and pop-up, the noti
   assert.match(lib, /\.\.\.\(hub === "work" \? \{ hub \} : \{\}\)/);
   assert.match(read("client/src/components/teacher-hub/HubTasks.tsx"), /startTaskAsk\(text, id, arise\.people, arise\.hub\)/);
 });
+
+test("@arise after a sentence in the name still counts, and the words before it stay part of the request", () => {
+  assert.equal(
+    parseTaskAsk("Kha fiction/non fiction worksheet. @arise create a worksheet for kha that gives examples of fiction and non fiction"),
+    "Kha fiction/non fiction worksheet. create a worksheet for kha that gives examples of fiction and non fiction",
+  );
+  assert.equal(parseTaskAsk("Plan:\n@arise what's the weather"), "Plan: what's the weather");
+  // Still not an ask: an @ in the middle of a sentence, an email address, nothing after it.
+  assert.equal(parseTaskAsk("email @arise team"), null);
+  assert.equal(parseTaskAsk("write to x@arise.com about it"), null);
+  assert.equal(parseTaskAsk("buy milk. @arise hi"), null);
+});
+
+test("@arise works when a to-do is edited too, in Work Hub Tasks and Home and in To Duo", () => {
+  const tasks = read("client/src/components/teacher-hub/HubTasks.tsx");
+  assert.match(tasks, /existingId\?: string/);
+  assert.match(tasks, /sendAsk\(text, \{ listId: fields\.listId, priority: fields\.priority, \.\.\.\(editing\.id \? \{ existingId: editing\.id \} : \{\}\) \}\)/);
+  assert.match(tasks, /else if \(extra\.existingId\) setWorkspace/);
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  assert.match(hub, /sendHomeAsk = \(text: string, priority = false, existingId\?: string\)/);
+  assert.match(hub, /fields\.priority, homeTask\)\) return; setWorkspace/);
+  const duo = read("client/src/pages/AriseTodo.tsx");
+  assert.match(duo, /const isNew = !data\.tasks\.some\(\(t\) => t\.id === editing\.id\);/);
+  assert.match(duo, /else if \(!isNew\) setData/);
+  assert.doesNotMatch(duo, /if \(!data\.tasks\.some\(\(t\) => t\.id === editing\.id\)\) \{\n      const typed/);
+});

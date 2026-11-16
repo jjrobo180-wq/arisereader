@@ -46,11 +46,22 @@ export type AriseAsk = {
   hub?: "work";
 };
 
-/** The request in a task name that starts with @arise (or "@ arise"), or null. */
+/**
+ * The request in a task name that starts with @arise (or "@ arise"), or null. "@arise" may also come after a
+ * sentence in the name ("Kha worksheet. @arise make one about fiction"): the words before it then stay as part of
+ * the request. "email @arise team" (an @ in the middle of a sentence) is not an ask.
+ */
 export function parseTaskAsk(text: string): string | null {
-  const m = /^\s*@\s?arise\b[\s,:;.-]*([\s\S]*)$/i.exec(String(text || "").replace(/ /g, " "));
-  const ask = m?.[1]?.trim() ?? "";
-  return ask.length >= 3 ? ask.slice(0, 600) : null;
+  const t = String(text || "").replace(/\u00a0/g, " ");
+  const start = /^\s*@\s?arise\b[\s,:;.-]*([\s\S]*)$/i.exec(t);
+  if (start) {
+    const ask = start[1].trim();
+    return ask.length >= 3 ? ask.slice(0, 600) : null;
+  }
+  const mid = /^([\s\S]*?[.!?:;\n\u2014\u2013])\s*@\s?arise(?!\.?\w)[\s,:;.-]*([\s\S]*)$/i.exec(t);
+  const after = mid?.[2]?.trim() ?? "";
+  if (!mid || after.length < 3) return null;
+  return `${mid[1].trim()} ${after}`.slice(0, 600);
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
