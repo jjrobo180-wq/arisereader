@@ -228,6 +228,13 @@ const CLASSROOM_APPS: readonly Plugin[] = [
     features: ["Pick the goal, the dates and the reward", "Add points by behavior, academics or your own categories", "Big, bright board for students, with a cheer when the goal is met", "Add points from your phone while the board shows on the screen", "Undo a mistake, keep past goals, and run more than one class"],
     target: { kind: "officeApp", id: "work-class-goal", href: "#/class-goal" },
   },
+  {
+    id: "work-math-lessons", hub: "work", name: "Math Lessons", tagline: "Grade 7 scale drawings, taught step by step, with every answer",
+    category: "Classroom", icon: "BookOpenCheck", color: "#0f766e", featured: true, teacherOnly: true,
+    description: "A guide for special education teachers to teach all 13 lessons of Grade 7 Unit 1, Scale Drawings, even with no math background. Each lesson explains the idea in plain words, shows how to run every activity step by step, and gives the correct answers. Every answer is marked as checked or as depending on your own printed sheet. Simplified, modified and extension supports are included, plus a scale calculator.",
+    features: ["Plain-English background for each lesson, for teachers who have never taught it", "Step-by-step how to for every activity, with the correct answers", "Simplified, modified and extension supports for each lesson", "Common mistakes, words to teach and an exit check", "A scale helper to check answers, and a print button"],
+    target: { kind: "officeApp", id: "work-math-lessons", href: "#/math-lessons" },
+  },
 ];
 
 export const PLUGINS: readonly Plugin[] = [
