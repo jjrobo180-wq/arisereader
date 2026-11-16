@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { LESSONS, answerCounts, lessonByNumber, lessonItems } from "../shared/spedMathLessons";
+import { LESSONS, UNIT1, EXTRA_LESSONS, answerCounts, lessonByNumber, lessonItems } from "../shared/spedMathLessons";
 import { areaFactor, CM_PER_INCH, fmt, INCHES_PER_MILE, scaleFactorOf, toActual, toDrawing, unitlessScale, UNIT } from "../shared/spedMathUnit";
 import { officeAppPlugin, isAddable, pluginsFor } from "../shared/pluginStore";
 import { countsAsApp } from "../shared/todoPlan";
@@ -11,8 +11,11 @@ const all = LESSONS.flatMap(lessonItems);
 const byId = (id: string) => { const it = all.find((i) => i.id === id); assert.ok(it, `item ${id} exists`); return it!; };
 const has = (id: string, ...needles: string[]) => { const t = byId(id).a; for (const n of needles) assert.ok(t.includes(n), `${id} should contain "${n}", got: ${t}`); };
 
-test("all 13 lessons, in order, each with the parts a teacher needs", () => {
-  assert.deepEqual(LESSONS.map((l) => l.n), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+test("all 13 Unit 1 lessons, in order, then the extra lessons, each with the parts a teacher needs", () => {
+  assert.deepEqual(UNIT1.map((l) => l.n), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+  assert.deepEqual(EXTRA_LESSONS.map((l) => l.n), [14]);
+  assert.deepEqual(LESSONS.map((l) => l.n), [...UNIT1, ...EXTRA_LESSONS].map((l) => l.n));
+  for (const l of EXTRA_LESSONS) assert.ok(l.extra && l.extra.chip && l.extra.teacherUrl.startsWith("https://im.kendallhunt.com/MS/teachers/") && l.extra.source.includes("CC BY 4.0"), `lesson ${l.n} names its source`);
   for (const l of LESSONS) {
     assert.ok(l.title && l.section && l.bigIdea, `lesson ${l.n} has a title, section and big idea`);
     assert.ok(l.primer.length >= 3, `lesson ${l.n} has a plain-English primer`);
@@ -22,7 +25,8 @@ test("all 13 lessons, in order, each with the parts a teacher needs", () => {
     assert.ok(lessonByNumber(l.n) === l);
     for (const a of l.activities) {
       assert.ok(a.steps.length >= 2 && a.items.length >= 1 && a.minutes > 0, `${a.id} has steps, answers and minutes`);
-      assert.ok(a.id.startsWith(`${l.n}.`), `${a.id} belongs to lesson ${l.n}`);
+      assert.ok(a.id.startsWith(l.extra?.idPrefix ?? `${l.n}.`), `${a.id} belongs to lesson ${l.n}`);
+      for (const it of a.items) assert.ok(it.id.startsWith(a.id), `${it.id} belongs to ${a.id}`);
     }
   }
 });
@@ -237,6 +241,52 @@ test("Lesson 13: choosing a scale that fits the paper", () => {
   has("13.3a", "24.9 by 18.6", "22.5 cm by 17.5 cm", "36.1", "37.6");
   assert.deepEqual([800 / 50, 600 / 50], [16, 12]); assert.ok(16 <= 28 && 12 <= 21);
   assert.deepEqual([800 / 25, 600 / 25], [32, 24]); assert.ok(32 > 28); has("13.x", "16 cm by 12 cm", "32 cm by 24 cm");
+});
+
+test("Unit 4 Lesson 8: percent increase and decrease, recomputed from the numbers in the lesson", () => {
+  const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} vs ${b}`);
+  near(100 * 1.06, 106); near(100 * 0.9, 90); near(90 / 0.9, 100); near(106 / 1.06, 100);
+  has("U4L8.1a", "1.06"); has("U4L8.1b", "0.90"); has("U4L8.1c", "0.90"); has("U4L8.1d", "1.06");
+  // 100% + 6% = 106%, 100% - 15% = 85%
+  near(1 + 6 / 100, 1.06); near(1 - 15 / 100, 0.85);
+  near(100 * 1.06, 106); near(50 * 1.06, 53); near(200 * 1.06, 212); near(125 * 1.06, 132.5); near(106 + 26.5, 132.5);
+  near(6 / 100 * 50, 3); near(6 / 100 * 200, 12); near(53 / 2, 26.5);
+  has("U4L8.2a", "$106"); has("U4L8.2b", "$53"); has("U4L8.2c", "$212"); has("U4L8.2d", "$132.50", "26.50");
+  has("U4L8.2e", "1.06x", "x + 0.06x", "(1 + 0.06)x");
+  near(1000 * 0.85, 850); near(5000 * 0.85, 4250); near(5020 * 0.85, 4267);
+  has("U4L8.2f", "$850"); has("U4L8.2g", "$4,250"); has("U4L8.2h", "$4,267"); has("U4L8.2i", "0.85x", "x − 0.15x", "(1 − 0.15)x");
+  // Matching: reservoir up 23%, snow down 77%
+  near(1 + 0.23, 1.23); near(1 - 0.77, 0.23);
+  assert.ok(Math.abs(52 / 1.23 - 42.2764) < 1e-3); assert.ok(Math.abs(52 / 0.23 - 226.087) < 1e-3);
+  has("U4L8.3a", "1.23x = 52", "42.3"); has("U4L8.3b", "0.23x = 52", "226.1"); has("U4L8.3c", "0.77x", "23%");
+  assert.deepEqual([1, 2, 3].map((n) => 10 * 2 ** n), [20, 40, 80]); has("U4L8.3d", "20, 40 and 80", "10 · 2ⁿ");
+  // Goo: n hours of x2 undone by h hours of x1/4 needs 2^n * (1/4)^h = 1, so h = n/2
+  for (const n of [2, 4, 6, 10]) near(2 ** n * (1 / 4) ** (n / 2), 1);
+  near(40 * 0.25, 10); has("U4L8.3e", "n/2", "40 grams", "10");
+  // Gas tanks and equations
+  near(12 + 0.5 * 12, 18); near(1.5 * 12, 18); has("U4L8.4a", "18 gallons", "1.5 · 12 = t");
+  near(0.8 * 15, 12); has("U4L8.4b", "0.8 · 15 = p", "12 cups");
+  near(12 / 0.75, 16); near(0.75 * 16, 12); has("U4L8.4c", "0.75 · t = 12", "$16");
+  near(6600 / 1.25, 5280); near(1.25 * 5280, 6600); has("U4L8.4d", "1.25 · p = 6,600", "5,280");
+  near(1080 / 1200, 0.9); near(1.75 / 1.5, 1.1666666666666667); has("U4L8.4e", "0.9", "1.17", "16");
+  near(61600 / 1.25, 49280); has("U4L8.4f", "49,280"); assert.match(byId("U4L8.4f").note ?? "", /6,600/);
+  // Cool-down: 1.04x = 156
+  near(156 / 1.04, 150); near(1.04 * 150, 156); has("U4L8.5a", "1.04x = 156", "$150");
+  // Practice problems
+  near(120 * 1.15, 138); has("U4L8.P1", "$138");
+  near(150 * (1 + 1.05), 307.5); has("U4L8.P2", "$307.50", "205%");
+  near(1 + 0.5, 1.5); has("U4L8.P3", "A, C and E");
+  near(1 - 0.3, 7 / 10); near(1 + 0.25, 5 / 4); has("U4L8.P4a", "10 equal pieces", "7 pieces"); has("U4L8.P4b", "4 equal pieces", "5 pieces");
+  near(29 / 40, 0.725); assert.ok(Math.abs(0.725 - 0.7) < Math.abs(0.725 - 0.8)); has("U4L8.P5", "C", "0.725");
+  assert.ok(Math.abs(7.2 * Math.PI - 22.62) < 0.01); assert.ok(7.2 * Math.PI !== 28); has("U4L8.P6", "No", "22.6");
+  // Our exit check
+  near(40 * 1.1, 44); near(45 / 0.9, 50); has("U4L8.x", "$44", "$50");
+  // The extension in the supports: 10% twice is 21%
+  near(1.1 * 1.1, 1.21);
+  const l = lessonByNumber(14)!;
+  assert.ok(l.supports.extension.some((x) => x.includes("1.21")));
+  assert.ok(l.activities.every((a) => a.say?.length || a.board?.length || a.id.endsWith(".P")), "each activity says what to say or shows a worked example");
+  assert.ok(all.filter((i) => i.id.startsWith("U4L8.")).every((i) => i.check === "ok"), "every answer in this lesson comes from numbers in the lesson");
 });
 
 test("the scale factor helper only calls it a copy when every ratio matches", () => {

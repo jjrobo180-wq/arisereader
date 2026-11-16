@@ -3,7 +3,7 @@
 // tests/sped-math-lessons.test.ts). Nothing here needs the server.
 import { useEffect, useMemo, useState } from "react";
 import { areaFactor, fmt, scaleFactorOf, START_HERE, TOOLBOX, toActual, toDrawing, UNIT, unitlessScale, type Activity, type Item, type Lesson, type LengthUnit } from "@shared/spedMathUnit";
-import { answerCounts, LESSONS } from "@shared/spedMathLessons";
+import { answerCounts, EXTRA_LESSONS, LESSONS, UNIT1 } from "@shared/spedMathLessons";
 import "./mathLessons.css";
 
 const KEY = "arise-math-lessons";
@@ -44,6 +44,8 @@ function ActivityCard({ a, show }: { a: Activity; show: boolean }) {
       <p className="ml-what">{a.what}</p>
       <h4>How to run it</h4>
       <ol className="ml-steps">{a.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
+      {a.say && a.say.length > 0 && (<><h4>Say it in kid words</h4><div className="ml-say">{a.say.map((s, i) => <p key={i}>{s}</p>)}</div></>)}
+      {a.board && a.board.length > 0 && (<><h4>Worked example to copy onto the board</h4><pre className="ml-board">{a.board.join("\n")}</pre></>)}
       <h4>Questions and answers</h4>
       <ul className="ml-items">{a.items.map((it) => <Answer key={it.id} item={it} show={show} />)}</ul>
       {a.watch && a.watch.length > 0 && (<><h4>Watch for</h4><ul className="ml-watch">{a.watch.map((w, i) => <li key={i}>{w}</li>)}</ul></>)}
@@ -78,7 +80,7 @@ function LessonView({ l, show }: { l: Lesson; show: boolean }) {
   return (
     <article className="ml-lesson">
       <header className="ml-lhead">
-        <p className="ml-kicker">Lesson {l.n} · {l.section}</p>
+        <p className="ml-kicker">{l.extra ? l.extra.heading : `Lesson ${l.n}`} · {l.section}</p>
         <h2>{l.title}</h2>
         <p className="ml-meta">About {mins} minutes of core activities. Optional activities and the cool-down are extra.</p>
       </header>
@@ -106,9 +108,10 @@ function LessonView({ l, show }: { l: Lesson; show: boolean }) {
       </section>
       <section className="ml-card"><h3>Common mistakes</h3><ul>{l.mistakes.map((m, i) => <li key={i}>{m}</li>)}</ul></section>
       <p className="ml-links">
-        <a href={UNIT.teacherUrl(l.n)} target="_blank" rel="noreferrer noopener">Publisher’s teacher page for lesson {l.n}</a>
+        <a href={l.extra ? l.extra.teacherUrl : UNIT.teacherUrl(l.n)} target="_blank" rel="noreferrer noopener">Publisher’s teacher page{l.extra ? "" : ` for lesson ${l.n}`}</a>
         {" · "}
-        <a href={UNIT.studentUrl(l.n)} target="_blank" rel="noreferrer noopener">Student page (printable tasks)</a>
+        <a href={l.extra ? l.extra.studentUrl : UNIT.studentUrl(l.n)} target="_blank" rel="noreferrer noopener">{l.extra ? "Student practice page" : "Student page (printable tasks)"}</a>
+        {l.extra && <><br /><span className="ml-note">{l.extra.source}.</span></>}
       </p>
     </article>
   );
@@ -120,8 +123,8 @@ function StartHere() {
     <div className="ml-lesson">
       <header className="ml-lhead">
         <p className="ml-kicker">{UNIT.title}</p>
-        <h2>Teach 7th grade scale drawings, even if you have never taught it</h2>
-        <p className="ml-meta">13 lessons. Every lesson has the plain-English background, how to run each activity, the answers, and supports for students who need them.</p>
+        <h2>Teach 7th grade math, even if you have never taught it</h2>
+        <p className="ml-meta">13 lessons on scale drawings (Unit 1), plus extra lessons written in elementary-student words ({EXTRA_LESSONS.map((l) => l.extra?.chip).join(", ")}). Every lesson has the plain-English background, how to run each activity, the answers, and supports for students who need them.</p>
       </header>
       <section className="ml-card ml-first"><h3>{START_HERE.title}</h3><ul>{START_HERE.points.map((p, i) => <li key={i}>{p}</li>)}</ul>
         <p className="ml-move"><strong>The one move to know:</strong> {START_HERE.move}</p></section>
@@ -211,8 +214,11 @@ export default function MathLessons() {
         </div>
         <nav className="ml-nav" aria-label="Lessons">
           <button type="button" aria-current={view === "start" ? "page" : undefined} className={view === "start" ? "is-on" : ""} onClick={() => setView("start")}>Start here</button>
-          {LESSONS.map((l) => (
+          {UNIT1.map((l) => (
             <button key={l.n} type="button" aria-label={`Lesson ${l.n}: ${l.title}`} title={l.title} aria-current={view === l.n ? "page" : undefined} className={view === l.n ? "is-on" : ""} onClick={() => setView(l.n)}>{l.n}</button>
+          ))}
+          {EXTRA_LESSONS.map((l) => (
+            <button key={l.n} type="button" aria-label={`${l.extra?.heading}: ${l.title}`} title={l.title} aria-current={view === l.n ? "page" : undefined} className={view === l.n ? "is-on" : ""} onClick={() => setView(l.n)}>{l.extra?.chip}</button>
           ))}
           <button type="button" aria-current={view === "helper" ? "page" : undefined} className={view === "helper" ? "is-on" : ""} onClick={() => setView("helper")}>Scale helper</button>
         </nav>
@@ -225,7 +231,7 @@ export default function MathLessons() {
           </div>
         )}
       </main>
-      <footer className="ml-foot">{UNIT.source}. <a href={UNIT.licenseUrl} target="_blank" rel="noreferrer noopener">CC BY 4.0</a>.</footer>
+      <footer className="ml-foot">{UNIT.source}{EXTRA_LESSONS.length > 0 ? ", and the extra lessons from the same series" : ""}. <a href={UNIT.licenseUrl} target="_blank" rel="noreferrer noopener">CC BY 4.0</a>.</footer>
     </div>
   );
 }

@@ -229,9 +229,9 @@ const CLASSROOM_APPS: readonly Plugin[] = [
     target: { kind: "officeApp", id: "work-class-goal", href: "#/class-goal" },
   },
   {
-    id: "work-math-lessons", hub: "work", name: "Math Lessons", tagline: "Grade 7 scale drawings, taught step by step, with every answer",
+    id: "work-math-lessons", hub: "work", name: "Math Lessons", tagline: "Grade 7 math, taught step by step in kid words, with every answer",
     category: "Classroom", icon: "BookOpenCheck", color: "#0f766e", featured: true, teacherOnly: true,
-    description: "A guide for special education teachers to teach all 13 lessons of Grade 7 Unit 1, Scale Drawings, even with no math background. Each lesson explains the idea in plain words, shows how to run every activity step by step, and gives the correct answers. Every answer is marked as checked or as depending on your own printed sheet. Simplified, modified and extension supports are included, plus a scale calculator.",
+    description: "A guide for special education teachers to teach Grade 7 math even with no math background: all 13 lessons of Unit 1, Scale Drawings, plus Unit 4 Lesson 8 on percent increase and decrease, explained in elementary-student words. Each lesson explains the idea in plain words, shows how to run every activity step by step, and gives the correct answers. Every answer is marked as checked or as depending on your own printed sheet. Simplified, modified and extension supports are included, plus a scale calculator.",
     features: ["Plain-English background for each lesson, for teachers who have never taught it", "Step-by-step how to for every activity, with the correct answers", "Simplified, modified and extension supports for each lesson", "Common mistakes, words to teach and an exit check", "A scale helper to check answers, and a print button"],
     target: { kind: "officeApp", id: "work-math-lessons", href: "#/math-lessons" },
   },
