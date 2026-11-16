@@ -73,7 +73,7 @@ import { SHEETS, legacySheets } from "@/components/office/officeKinds";
 import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
-import { cleanDriveFiles } from "@shared/driveApp";
+import { addDriveFile, cleanDriveFiles } from "@shared/driveApp";
 import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setKitInstalled, setWorkKit, setWorkNotesApp, setWorkPlugin, setWorkSheetsApp, sheetsAppPlugin, officeAppPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { cleanNotesApp } from "@shared/notesApp";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
@@ -1084,7 +1084,7 @@ function TeacherHubPage() {
               onSettings={() => setNotifyOpen(true)}
               triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />;
   return (
-    <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} readDocument={(student) => {
+    <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} addDriveFile={(f) => setWorkspace((w) => ({ ...w, drive: addDriveFile(cleanDriveFiles((w as any).drive), f) } as Workspace))} readDocument={(student) => {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}>

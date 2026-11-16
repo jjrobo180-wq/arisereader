@@ -3,7 +3,9 @@
 //   <ConnectedPanel> everything connected to an item or a student, grouped, one tap to open
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, CalendarDays, CheckSquare, ClipboardCheck, FileText, Link2, Plus, Search, StickyNote, Target, User, X } from "lucide-react";
+import { API_BASE } from "@/lib/queryClient";
+import { addDriveFile, cleanDriveFiles, driveBytesUsed, type DriveFile } from "@shared/driveApp";
+import { BookOpen, CalendarDays, CheckSquare, ClipboardCheck, FileText, Link2, Plus, Search, StickyNote, Target, Upload, User, X } from "lucide-react";
 import { KIND_LABEL, KIND_ONE, LINK_KINDS, connections, linkables, linksOf, resolveLink, setLinks, suggestLinks, type HubLink, type LinkKind, type Linkable } from "@shared/hubLinks";
 import { searchHub } from "@shared/hubSearch";
 import type { Workspace } from "@shared/teacherHub";
@@ -13,6 +15,8 @@ type LinkCtxValue = {
   workspace: Workspace; openLink: (l: HubLink) => void; token?: string | null;
   /** Opens "Add with AI" to read a document (upload or Drive) for a student; what it adds links to them. */
   readDocument?: (student?: string) => void;
+  /** Puts an uploaded file into the Hub's Drive list so it can be linked. */
+  addDriveFile?: (f: DriveFile) => void;
 };
 const LinkCtx = createContext<LinkCtxValue | null>(null);
 export const HubLinkProvider = ({ children, ...value }: LinkCtxValue & { children: ReactNode }) =>
@@ -47,22 +51,53 @@ function LinkPicker({ workspace, links, self, onAdd, onClose }: { workspace: Wor
   const pool = all.filter((x) => !have.has(`${x.kind}:${x.id}`) && (!only || x.kind === only));
   const found = q.trim() ? searchHub(pool.map((x) => ({ ...x, title: x.label, keywords: x.student })), q, 60) : pool.slice(0, 60);
   const kinds = LINK_KINDS.filter((k) => all.some((x) => x.kind === k));
-  return createPortal(<div className="fixed inset-0 kb-sheet z-[760] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  const ctx = useHubLinks();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+  /** Upload from this computer: stored in Drive, then linked right away. */
+  async function upload(list: FileList | null) {
+    if (!list?.length || !ctx?.addDriveFile) return;
+    let used = driveBytesUsed(cleanDriveFiles((workspace as any).drive));
+    setErr("");
+    for (const file of Array.from(list)) {
+      setBusy(`Uploading ${file.name}…`);
+      try {
+        const res = await fetch(`${API_BASE}/api/lifehub/drive/upload`, { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream", "x-drive-used-bytes": String(used), "x-drive-name": encodeURIComponent(file.name), ...(ctx.token ? { Authorization: `Bearer ${ctx.token}` } : {}) }, body: file });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.path) throw new Error(data.message || "That file could not be uploaded.");
+        used += Number(data.size) || 0;
+        const id = `up-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+        ctx.addDriveFile({ id, path: data.path, name: file.name, size: Number(data.size) || file.size, contentType: String(data.contentType || file.type || "application/octet-stream"), uploadedAt: new Date().toISOString() });
+        onAdd({ kind: "file", id });
+      } catch (e: any) { setErr(`${file.name}: ${e.message}`); }
+    }
+    setBusy("");
+    if (fileRef.current) fileRef.current.value = "";
+  }
+  return createPortal(<div className="fixed inset-0 kb-sheet z-[900] flex items-end justify-center bg-slate-950/70 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-label="Link something" className="flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-auto sm:max-h-[80vh] sm:max-w-xl sm:rounded-3xl" data-testid="link-picker">
       <div className="flex items-center gap-2 border-b border-slate-100 p-3">
         <Search className="ml-1 h-5 w-5 shrink-0 text-slate-400" />
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files, students, goals, meetings…" aria-label="Search what to link" className="min-h-12 min-w-0 flex-1 bg-transparent text-base outline-none" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files, students, goals, meetings…" aria-label="Search what to link" className="min-h-12 min-w-0 flex-1 bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-500" />
         <button type="button" onClick={onClose} className="min-h-11 rounded-xl bg-slate-900 px-4 text-sm font-bold text-white">Done</button>
       </div>
-      <div className="flex gap-1.5 overflow-x-auto border-b border-slate-100 px-3 py-2" role="group" aria-label="Only show">
-        {[["", "All"] as const, ...kinds.map((k) => [k, KIND_LABEL[k]] as const)].map(([k, label]) => <button key={k || "all"} type="button" aria-pressed={only === k} onClick={() => setOnly(k as LinkKind | "")}
-          className={`min-h-9 shrink-0 rounded-full px-3 text-xs font-bold ${only === k ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>{label}</button>)}
+      <div className="border-b border-slate-200 px-3 py-2">
+        {ctx?.addDriveFile && <>
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={!!busy} className="mb-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 text-base font-bold text-white disabled:opacity-60" data-testid="link-upload"><Upload className="h-5 w-5" /> {busy || "Upload from this computer"}</button>
+          <input ref={fileRef} type="file" multiple hidden onChange={(e) => void upload(e.target.files)} data-testid="link-upload-input" />
+          {err && <p role="alert" className="mb-2 text-sm font-semibold text-rose-700">{err}</p>}
+        </>}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Only show">
+          {[["", "All"] as const, ...kinds.map((k) => [k, KIND_LABEL[k]] as const)].map(([k, label]) => <button key={k || "all"} type="button" aria-pressed={only === k} onClick={() => setOnly(k as LinkKind | "")}
+            className={`min-h-10 rounded-full px-4 text-sm font-bold ${only === k ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-900"}`}>{label}</button>)}
+        </div>
       </div>
       <ul className="min-h-0 flex-1 overflow-y-auto p-2">
         {found.length ? found.map((x) => <li key={`${x.kind}:${x.id}`}>
           <button type="button" onClick={() => onAdd({ kind: x.kind, id: x.id })} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-50">
             <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${TONE[x.kind]}`}>{KIND_ICON[x.kind]}</span>
-            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-900">{x.label}</span><span className="block truncate text-xs text-slate-500">{KIND_ONE[x.kind]} · {x.sub}</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold text-slate-900">{x.label}</span><span className="block truncate text-sm text-slate-600">{KIND_ONE[x.kind]} · {x.sub}</span></span>
             <Plus className="h-4 w-4 shrink-0 text-slate-400" />
           </button>
         </li>) : <li className="px-3 py-10 text-center text-sm text-slate-500">{all.length ? "Nothing else to link matches that." : "Add students, goals, files or reminders first, then link them here."}</li>}
