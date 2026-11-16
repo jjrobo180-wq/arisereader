@@ -10,6 +10,7 @@ import { localDay } from "./HubImport";
 import type { ToastAction } from "./HubToast";
 import { Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
+import { WEEKDAY_NAMES, repeatDays, weekdayRepeat } from "@shared/hubTasks";
 import { LinkEditor, useHubLinks } from "./HubLinks";
 import { cleanLinks, type HubLink } from "@shared/hubLinks";
 
@@ -79,7 +80,12 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
             </div>
           </div>
         )}
-        <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
+        <Labeled label="Repeats"><Select value={repeatDays(draft.recurring).length ? "Days" : draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value === "Days" ? weekdayRepeat([1, 2, 3, 4, 5]) : e.target.value })} data-testid="task-repeat"><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option value="Days">On certain days of the week…</option></Select></Labeled>
+        {repeatDays(draft.recurring).length > 0 && <div role="group" aria-label="Repeat on these days" className="flex flex-wrap gap-1.5" data-testid="task-repeat-days">
+          {[1, 2, 3, 4, 5, 6, 0].map((d) => { const on = repeatDays(draft.recurring).includes(d); return <button key={d} type="button" aria-pressed={on}
+            onClick={() => { const cur = repeatDays(draft.recurring); const next = on ? cur.filter((x) => x !== d) : [...cur, d]; setDraft({ ...draft, recurring: weekdayRepeat(next.length ? next : cur) }); }}
+            className={`min-h-10 min-w-12 rounded-full px-3 text-sm font-bold ring-1 ${on ? "bg-slate-900 text-white ring-slate-900" : "bg-white text-slate-700 ring-slate-300"}`}>{WEEKDAY_NAMES[d]}</button>; })}
+        </div>}
         <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm font-semibold text-slate-900" data-testid="task-important-label"><input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /><span className="text-slate-900">Mark as important</span></label>
         {workspace && <div className="rounded-2xl border border-slate-200 p-3"><LinkEditor workspace={workspace} links={draft.links || []} onChange={(links) => setDraft({ ...draft, links })} text={`${draft.title} ${draft.notes || ""}`} self={task ? { kind: "task", id: task.id } : undefined} onOpen={onOpenLink} /></div>}
         <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>

@@ -4,7 +4,7 @@ import { openHubEmail } from "@/components/teacher-hub/HubInbox";
 import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { Archive, ArchiveRestore, ListTodo, FolderPlus, Circle, Search, CalendarDays, CheckCircle2, Check, Clock3, Link2, Mail, Pencil, Plus, Save, Sparkles, Trash2, Flag, Sun, Repeat, X, MoreHorizontal } from "lucide-react";
 import { dueState, friendlyDate, type DueState } from "@shared/hubDates";
-import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskSort, type TaskView } from "@shared/hubTasks";
+import { repeatLabel, renameTaskList, TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskSort, type TaskView } from "@shared/hubTasks";
 import { resolveLink, type HubLink } from "@shared/hubLinks";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { clock12, type Task, type Workspace } from "@shared/teacherHub";
@@ -52,7 +52,7 @@ export function TaskRow({ plain = false, task, today, workspace, setWorkspace, m
           {!task.done && <DueChip date={task.dueDate} time={task.dueTime} today={today} />}
           {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}{task.dueTime ? ` · ${clock12(task.dueTime)}` : ""}</span>}
           {!task.dueDate && !task.done && <span>No due date</span>}
-          {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
+          {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{repeatLabel(task.recurring)}</span>}
           {task.emailId && <span className="inline-flex items-center gap-1" data-testid="task-from-email"><Mail className="h-3.5 w-3.5" />From an email</span>}
           {(task.links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-1 text-teal-800" data-testid="task-links"><Link2 className="h-3.5 w-3.5" />{linkSummary(workspace, task.links!)}</span>}
           {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
@@ -118,6 +118,8 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const [quick, setQuick] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [newList, setNewList] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [renameTo, setRenameTo] = useState("");
   /** The to-do open in the pop-up: `id: null` is a new one. */
   const [editing, setEditing] = useState<{ id: string | null } | null>(null);
   const counts = taskCounts(workspace.tasks, today);
@@ -126,6 +128,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const kept = workspace.tasks.filter((t) => !t.archived);
   const done = kept.filter((t) => t.done).length;
   const upcoming = kept.filter((t) => !t.done && t.dueDate && t.dueDate > today).sort((a, b) => `${a.dueDate}${a.dueTime || ""}`.localeCompare(`${b.dueDate}${b.dueTime || ""}`));
+  useEffect(() => { setRenaming(false); }, [listPick]);
   const listName = listId === "all" ? "Everything" : lists.find((l) => l.id === listId)?.name || "Everything";
   const VIEW_INFO: Record<TaskView, { title: string; icon: ReactNode }> = {
     all: { title: "All tasks", icon: <ListTodo className="h-4 w-4" /> },
@@ -239,7 +242,13 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
           {arise && aiTab ? <AriseAsks asks={arise.asks} loaded={arise.loaded} open={arise.open} say={(t) => toast(t)} /> :
           <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}</p><h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
+              <div>{renaming && listId !== "all"
+                ? <form onSubmit={(e) => { e.preventDefault(); setWorkspace((p) => renameTaskList(p, listId, renameTo)); setRenaming(false); }} className="flex items-center gap-2" data-testid="list-rename-form">
+                    <input autoFocus value={renameTo} maxLength={60} onChange={(e) => setRenameTo(e.target.value)} aria-label="List name" className="min-h-10 min-w-0 rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-900" />
+                    <button type="submit" className="min-h-10 rounded-xl bg-slate-900 px-3 text-sm font-bold text-white">Save</button>
+                    <button type="button" onClick={() => setRenaming(false)} className="min-h-10 rounded-xl px-3 text-sm font-semibold text-slate-600">Cancel</button>
+                  </form>
+                : <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}{listId !== "all" && <button type="button" onClick={() => { setRenameTo(listName); setRenaming(true); }} className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-xs font-bold normal-case tracking-normal text-slate-600 hover:bg-slate-100" data-testid="list-rename"><Pencil className="h-3.5 w-3.5" /> Rename</button>}</p>}<h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
               <button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#6e5ae0] px-4 text-sm font-bold text-white hover:bg-[#5948c8]"><Plus className="h-[17px] w-[17px]" /> Add task</button>
             </div>
             {view !== "completed" && view !== "archived" && (

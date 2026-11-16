@@ -182,6 +182,7 @@ import "./ariseDuo.css";
 import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 import AccountPrivacy from "@/components/AccountPrivacy";
+import { nextDue } from "@shared/hubTasks";
 import { isNativeApp } from "@/lib/nativeApp";
 import { closeNativeTasks, nativeTasksAvailable, nativeTasksPluginThere, openNativeTasks, takeNativeTaskActions, tasksPayload, updateNativeTasks } from "@/lib/nativeTasks";
 import { isSampleMode } from "@/lib/sampleMode";
@@ -197,6 +198,8 @@ type Task = {
   done: boolean; createdAt: string; completedAt?: string;
   /** Tucked out of every list (including Completed) without being deleted. Can always be brought back. */
   archived?: boolean;
+  /** Repeats only on certain weekdays ("Days:1,3,5"); `repeat` is "weekly" then. */
+  repeatDays?: string;
 };
 // Version 2 adds the Family Hub beside the lists and tasks. Version 1 workspaces open as version 2.
 type Data = { version: 2; lists: List[]; tasks: Task[]; family: Family };
@@ -244,6 +247,7 @@ const validate = (value: unknown): Data => {
       createdAt: short(item.createdAt, 40) || new Date().toISOString(),
       completedAt: short(item.completedAt, 40) || undefined,
       archived: item.archived === true,
+      ...(typeof item.repeatDays === "string" && /^Days:[0-6](,[0-6]){0,6}$/.test(item.repeatDays) ? { repeatDays: item.repeatDays } : {}),
     })).filter(item => item.title);
   return { version: 2, lists: uniqueLists, tasks: [...new Map(tasks.map(item => [item.id, item])).values()], family: cleanFamily(raw.family) };
 };
@@ -701,7 +705,8 @@ export default function AriseTodo() {
         : row);
       if (finished && task.repeat !== "none" && task.due) {
         const next = nextDate(task.due, task.repeat);
-        if (next) tasks.push({ ...task, id: uid(), due: next, done: false, completedAt: undefined, createdAt: new Date().toISOString() });
+        const onDays = task.repeatDays ? nextDue(task.due, task.repeatDays, task.due) : next;
+        if (onDays) tasks.push({ ...task, id: uid(), due: onDays, done: false, completedAt: undefined, createdAt: new Date().toISOString() });
       }
       return { ...previous, tasks };
     });

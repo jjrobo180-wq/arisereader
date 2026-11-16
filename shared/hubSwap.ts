@@ -115,13 +115,15 @@ export function applyFamilyToWorkspace(w: Workspace & { extraCalendars?: FamilyC
 export type LifeTaskShape = {
   id: string; title: string; notes: string; listId: string; assignee: string; due: string; time: string;
   priority: "low" | "normal" | "high"; repeat: "none" | "daily" | "weekly" | "monthly"; done: boolean; createdAt: string; completedAt?: string; archived?: boolean;
+  /** Repeats only on these weekdays ("Days:1,3,5", see shared/hubTasks.ts); `repeat` is then "weekly". */
+  repeatDays?: string;
 };
 const RECUR_OUT: Record<LifeTaskShape["repeat"], string> = { none: "", daily: "Daily", weekly: "Weekly", monthly: "Monthly" };
 const RECUR_IN: Record<string, LifeTaskShape["repeat"]> = { Daily: "daily", Weekly: "weekly", Monthly: "monthly" };
 
 export function lifeTasksToWork(tasks: LifeTaskShape[]): Task[] {
   return tasks.map((t): Task => ({
-    id: t.id, title: t.title, dueDate: t.due || "", ...(t.time ? { dueTime: t.time } : {}), recurring: RECUR_OUT[t.repeat] ?? "", done: t.done,
+    id: t.id, title: t.title, dueDate: t.due || "", ...(t.time ? { dueTime: t.time } : {}), recurring: t.repeatDays || (RECUR_OUT[t.repeat] ?? ""), done: t.done,
     ...(t.priority === "high" ? { priority: "high" as const } : {}), ...(t.listId ? { listId: t.listId } : {}), ...(t.archived ? { archived: true } : {}),
     ...(t.notes ? { notes: t.notes } : {}), ...(t.done && t.completedAt ? { doneAt: t.completedAt } : {}),
   }));
@@ -132,11 +134,12 @@ export function lifeTasksFromWork(prev: LifeTaskShape[], next: Task[], firstList
   const old = new Map(prev.map((t) => [t.id, t]));
   return next.map((t): LifeTaskShape => {
     const was = old.get(t.id);
-    const repeat = RECUR_IN[t.recurring] ?? (t.recurring ? (was?.repeat && was.repeat !== "none" ? was.repeat : "monthly") : "none");
+    const onDays = t.recurring.startsWith("Days:") ? t.recurring : "";
+    const repeat = onDays ? "weekly" : RECUR_IN[t.recurring] ?? (t.recurring ? (was?.repeat && was.repeat !== "none" ? was.repeat : "monthly") : "none");
     const priority: LifeTaskShape["priority"] = t.priority === "high" ? "high" : was && was.priority === "low" ? "low" : "normal";
     return {
       id: t.id, title: t.title, notes: t.notes || "", listId: t.listId || was?.listId || firstList, assignee: was?.assignee ?? "", due: t.dueDate || "", time: t.dueTime || "",
-      priority, repeat, done: t.done, createdAt: was?.createdAt ?? now, ...(t.done ? { completedAt: t.doneAt || was?.completedAt || now } : {}), ...(t.archived ? { archived: true } : {}),
+      priority, repeat, ...(onDays ? { repeatDays: onDays } : {}), done: t.done, createdAt: was?.createdAt ?? now, ...(t.done ? { completedAt: t.doneAt || was?.completedAt || now } : {}), ...(t.archived ? { archived: true } : {}),
     };
   });
 }

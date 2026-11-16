@@ -39,8 +39,37 @@ export function taskCounts(tasks: Task[], today: string) {
   return { open: open.length, done: kept.length - open.length, overdue: open.filter((t) => dueState(t.dueDate, today) === "overdue").length, today: open.filter((t) => dueState(t.dueDate, today) === "today").length };
 }
 
+export const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const DAYS_PREFIX = "Days:";
+/** A "repeats on these weekdays" value for a task's `recurring` (0 = Sunday): "Days:1,3,5". */
+export const weekdayRepeat = (days: number[]): string => {
+  const set = [...new Set(days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+  return set.length ? `${DAYS_PREFIX}${set.join(",")}` : "";
+};
+/** The weekdays a `recurring` value repeats on; [] when it isn't a weekday repeat. */
+export const repeatDays = (recurring: string): number[] =>
+  recurring.startsWith(DAYS_PREFIX) ? [...new Set(recurring.slice(DAYS_PREFIX.length).split(",").map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b) : [];
+/** How a repeat reads to a person: "Daily", or "Mon, Wed, Fri". */
+export const repeatLabel = (recurring: string): string => {
+  const d = repeatDays(recurring);
+  if (!d.length) return recurring;
+  if (d.length === 7) return "Every day";
+  if (d.join() === "1,2,3,4,5") return "Weekdays";
+  return d.map((x) => WEEKDAY_NAMES[x]).join(", ");
+};
+
 /** The next due date for a repeating task: stays on its rhythm and lands after `today`. "" when it doesn't repeat. */
 export function nextDue(dueDate: string, recurring: string, today: string): string {
+  const days = repeatDays(recurring);
+  if (days.length) {
+    // On certain days of the week: the first of those days after both today and the current due date.
+    const from = dueDate && dueDate > today ? dueDate : today;
+    for (let n = 1; n <= 14; n++) {
+      const next = addDays(from, n);
+      if (next && days.includes(new Date(`${next}T12:00:00`).getDay())) return next;
+    }
+    return "";
+  }
   const step = { Daily: (d: string, n: number) => addDays(d, n), Weekly: (d: string, n: number) => addDays(d, 7 * n), Monthly: (d: string, n: number) => addMonths(d, n), Quarterly: (d: string, n: number) => addMonths(d, 3 * n) }[recurring as "Daily"];
   if (!step) return "";
   const base = dueDate || today;
@@ -200,4 +229,12 @@ export const archiveTask = (tasks: Task[], id: string, archived: boolean): Task[
 /** Removes a list; its to-dos stay, on no list. */
 export function removeTaskList<W extends { tasks: Task[]; taskLists?: TaskListRow[] }>(w: W, id: string): W {
   return { ...w, taskLists: (w.taskLists || []).filter((l) => l.id !== id), tasks: w.tasks.map((t) => { if (t.listId !== id) return t; const { listId: _l, ...rest } = t; return rest; }) };
+}
+
+/** Renames a list (60 letters at most). Nothing changes when the name is empty or another list already has it. */
+export function renameTaskList<W extends { taskLists?: TaskListRow[] }>(w: W, id: string, name: string): W {
+  const n = name.trim().slice(0, 60);
+  const lists = w.taskLists || [];
+  if (!n || lists.some((l) => l.id !== id && l.name.toLowerCase() === n.toLowerCase())) return w;
+  return { ...w, taskLists: lists.map((l) => (l.id === id ? { ...l, name: n } : l)) };
 }
