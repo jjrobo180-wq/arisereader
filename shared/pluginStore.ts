@@ -605,7 +605,8 @@ const CROSS_APPS: readonly Plugin[] = PLUGINS
   .filter((p) => p.hub === "life" && (p.target.kind === "driveApp" || p.target.kind === "dropApp" || p.target.kind === "sheetsApp"))
   .map((p) => ({ ...p, id: `work-${p.id.replace(/^life-/, "")}`, hub: "work" as const, recommendedFor: "life" as const }));
 
-const CROSS_PLUGINS: readonly Plugin[] = [...KIT_DEFS.map(crossKitPlugin), ...CROSS_APPS];
+// LifeHub already has its own full Link page, so the WorkHub one isn't mirrored back.
+const CROSS_PLUGINS: readonly Plugin[] = [...KIT_DEFS.filter((d) => d.id !== "link-page").map(crossKitPlugin), ...CROSS_APPS];
 
 /** Everything on offer anywhere: built-for-this-hub plus crossed-over. A function, not a const, so
  *  the lookups defined above can call it without depending on declaration order. */

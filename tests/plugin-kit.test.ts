@@ -9,11 +9,11 @@ import { PLUGINS, PLUGIN_CATEGORIES, isAddable, setWorkKit, workInstalled } from
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("400 kit plugins: 240 LifeHub sections and 160 WorkHub tools, all well-formed", () => {
-  assert.equal(KIT_DEFS.length, 400);
+  assert.equal(KIT_DEFS.length, 401);
   assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 400);
   const life = KIT_DEFS.filter((d) => d.hub === "life"), work = KIT_DEFS.filter((d) => d.hub === "work");
   assert.equal(life.length, 240);
-  assert.equal(work.length, 160);
+  assert.equal(work.length, 161);
   assert.deepEqual([...KIT_LIFE_IDS].sort(), life.map((d) => d.id).sort());
   for (const d of KIT_DEFS) {
     assert.ok(PLUGIN_CATEGORIES[d.hub].includes(d.category), `${d.id}: ${d.category}`);
@@ -41,7 +41,7 @@ test("LifeHub kit plugins are sections that start off; WorkHub ones are added to
     assert.ok(PLUGINS.some((p) => p.target.kind === "section" && p.target.section === id), `${id} in the store`);
   }
   const work = PLUGINS.filter((p) => p.target.kind === "kit");
-  assert.equal(work.length, 160);
+  assert.equal(work.length, 161);
   const p = work[0];
   assert.ok(isAddable(p));
   assert.equal(workInstalled(p, {}, []), false);
