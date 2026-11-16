@@ -661,7 +661,9 @@ export default function AriseTodo() {
     event.preventDefault();
     if (!editing?.title.trim()) return;
     // A new "@arise" task goes to Arise's AI (lib/ariseAsks.ts); its task is added once Arise has it.
-    if (!data.tasks.some((t) => t.id === editing.id)) {
+    // (A task being edited can hold one too: it then becomes what Arise is making.)
+    {
+      const isNew = !data.tasks.some((t) => t.id === editing.id);
       const typed = editing.title;
       const [y, m, d] = (editing.due || "").split("-").map(Number);
       const text = editing.due && !smartRef.current && !/\b(by|before|on|due)\b/i.test(typed) ? `${typed} by ${m}/${d}/${y}` : typed;
@@ -675,6 +677,7 @@ export default function AriseTodo() {
           const t = started.task;
           // A question is answered in the Arise tab; it isn't a to-do.
           if (!t) { setSection("tasks"); openAsk(a.id); } // the answer opens in the Arise tab, filling in when it's ready
+          else if (!isNew) setData((previous) => ({ ...previous, tasks: previous.tasks.map((x) => (x.id === base.id ? { ...x, title: t.title, due: t.due, time: t.dueTime || "", notes: t.notes } : x)) }));
           else setData((previous) => ({ ...previous, tasks: [...previous.tasks, { ...base, title: t.title, due: t.due, time: t.dueTime || "", notes: t.notes, repeat: "none" }] }));
           setMessage(!t ? "Arise is looking into it. The answer will be in the Arise tab in a moment." : a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.");
         }).catch((err: Error) => setMessage(err.message || "Arise couldn't take that. Try again."));

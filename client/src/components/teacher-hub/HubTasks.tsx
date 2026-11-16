@@ -145,9 +145,9 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const newAsks = arise ? arise.asks.filter((a) => a.status === "done" && !a.seen).length : 0;
   const askByTask = useMemo(() => new Map((arise?.asks || []).filter((a) => a.taskId).map((a) => [a.taskId!, a])), [arise?.asks]);
   /** Sends an "@arise" to-do to Arise and adds its to-do once Arise has it. False when it isn't one. */
-  function sendAsk(text: string, extra: { listId?: string; priority?: boolean } = {}): boolean {
+  function sendAsk(text: string, extra: { listId?: string; priority?: boolean; existingId?: string } = {}): boolean {
     if (!arise || !parseTaskAsk(text)) return false;
-    const id = makeId();
+    const id = extra.existingId || makeId();
     const started = startTaskAsk(text, id, arise.people, arise.hub);
     if (!started) return false;
     toast(started.task ? "Sending to Arise…" : "Asking Arise…");
@@ -155,6 +155,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
       const t = started.task;
       // A question is answered in the Arise tab; it isn't a to-do.
       if (!t) openAsk(a.id); // the answer opens right here, filling in when it's ready
+      else if (extra.existingId) setWorkspace((p) => ({ ...p, tasks: p.tasks.map((x) => (x.id === id ? { ...x, title: t.title, dueDate: t.due, dueTime: t.dueTime || undefined, notes: t.notes, ...(extra.priority ? { priority: "high" as const } : {}), ...(extra.listId ? { listId: extra.listId } : {}) } : x)) })); // editing a task: it becomes what Arise is making
       else setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id, title: t.title, dueDate: t.due, ...(t.dueTime ? { dueTime: t.dueTime } : {}), recurring: "", done: false, notes: t.notes, ...(extra.priority ? { priority: "high" as const } : {}), ...(extra.listId ? { listId: extra.listId } : {}) }] }));
       toast(!t ? "Arise is looking into it. The answer will be in the Arise tab in a moment." : a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.", [{ label: "See it", run: () => openAsk(a.id) }]);
     }).catch((err: Error) => toast(err.message || "Arise couldn't take that. Try again."));
@@ -296,10 +297,10 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
       </div>
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today} lists={lists} startList={listId === "all" ? "" : listId}
         onSave={(fields) => {
-          // A new "@arise" to-do from the pop-up: its due date, if one was picked, is the "by" day.
+          // An "@arise" to-do from the pop-up (new, or an existing to-do being edited): its due date, if one was picked, is the "by" day.
           const [y, m, d] = (fields.dueDate || "").split("-").map(Number);
           const text = fields.dueDate && !/\b(by|before|on|due)\b/i.test(fields.title) ? `${fields.title} by ${m}/${d}/${y}` : fields.title;
-          if (!editing.id && sendAsk(text, { listId: fields.listId, priority: fields.priority })) { setQuick(""); return; }
+          if (sendAsk(text, { listId: fields.listId, priority: fields.priority, ...(editing.id ? { existingId: editing.id } : {}) })) { if (!editing.id) setQuick(""); setEditing(null); return; }
           setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, makeId) })); if (!editing.id) setQuick("");
         }} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
     </div>

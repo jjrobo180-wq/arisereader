@@ -657,9 +657,9 @@ function TeacherHubPage() {
     return () => window.removeEventListener("hashchange", open);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** Sends an "@arise" to-do typed on Home to Arise; its to-do is added once Arise has it. False when it isn't one. */
-  const sendHomeAsk = (text: string, priority = false): boolean => {
+  const sendHomeAsk = (text: string, priority = false, existingId?: string): boolean => {
     if (!parseTaskAsk(text)) return false;
-    const nid = id();
+    const nid = existingId || id();
     const started = startTaskAsk(text, nid, [], "work");
     if (!started) return false;
     setHomeQuick(""); setHomeTask(null);
@@ -667,6 +667,7 @@ function TeacherHubPage() {
     started.sent.then((a) => {
       const t = started.task;
       if (!t) openAsk(a.id); // a question: the answer opens in the Arise tab, filling in when it's ready
+      else if (existingId) setWorkspace((p) => ({ ...p, tasks: p.tasks.map((x) => (x.id === nid ? { ...x, title: t.title, dueDate: t.due, dueTime: t.dueTime || undefined, notes: t.notes, ...(priority ? { priority: "high" as const } : {}) } : x)) })); // editing a to-do: it becomes what Arise is making
       else setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: nid, title: t.title, dueDate: t.due, ...(t.dueTime ? { dueTime: t.dueTime } : {}), recurring: "", done: false, notes: t.notes, ...(priority ? { priority: "high" as const } : {}) }] }));
       toasts.show(!t ? "Arise is looking into it. The answer will be in the Arise tab in a moment." : a.status === "scheduled" ? `Arise will make it ${a.when.replace(/^Made /, "")} and let you know.` : "Arise is on it. You'll get a notification when it's ready.", [{ label: "See it", run: () => { setTab("tasks"); openAsk(a.id); } }]);
     }).catch((err: Error) => toasts.show(err.message || "Arise couldn't take that. Try again.", []));
@@ -1988,7 +1989,7 @@ function TeacherHubPage() {
       {homeTask === NEW_TASK && <TaskModal task={null} startTitle={homeQuick} today={TODAY()} lists={cleanTaskLists(workspace.taskLists)}
         onSave={addHomeTask} onClose={() => setHomeTask(null)} />}
       {homeTask && workspace.tasks.some((t) => t.id === homeTask) && <TaskModal task={workspace.tasks.find((t) => t.id === homeTask) || null} today={TODAY()}
-        onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
+        onSave={(fields) => { const [y, m, d] = (fields.dueDate || "").split("-").map(Number); if (sendHomeAsk(fields.dueDate && !/\b(by|before|on|due)\b/i.test(fields.title) ? `${fields.title} by ${m}/${d}/${y}` : fields.title, fields.priority, homeTask)) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) })); }} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} preload={adding.preload} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <SnoozeBar />
