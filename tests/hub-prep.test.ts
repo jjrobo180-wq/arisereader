@@ -1,4 +1,4 @@
-// IEP → Prep: the planning-period checklist (shared/hubPrep.ts).
+// WorkHub → Prep: the planning-period checklist (shared/hubPrep.ts), a plugin of its own.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -43,8 +43,24 @@ test("bad saved data is cleaned, not trusted", () => {
   assert.deepEqual(job({ days: [] }).days, [1], "days I pick with none picked: the start's weekday");
 });
 
-test("the IEP folder has a Prep tile", () => {
-  const page = readFileSync("client/src/components/teacher-hub/HubIep.tsx", "utf8");
-  for (const t of ['| "prep"', 'key: "prep", label: "Prep"', "<PrepChecklist"]) assert.ok(page.includes(t), t);
+test("Prep is a WorkHub plugin of its own, not part of IEP", async () => {
+  const { WORK_ADD_ON_TABS, normalizeWorkspace, isTabOn } = await import("../shared/teacherHub");
+  const { HUB_GROUPS } = await import("../shared/hubTabGroups");
+  const { pluginsFor } = await import("../shared/pluginStore");
+  assert.ok(WORK_ADD_ON_TABS.includes("prep"));
+  assert.deepEqual(HUB_GROUPS.find((g) => g.id === "prep")?.tabs, ["prep"]);
+  assert.ok(!HUB_GROUPS.find((g) => g.id === "iep")!.tabs.includes("prep" as never));
+  const p = pluginsFor("work", { teacher: true }).find((x) => x.id === "work-prep");
+  assert.deepEqual(p?.target, { kind: "tab", tab: "prep" });
+  // Someone who already had Prep jobs (inside IEP) gets the Prep plugin, once.
+  const had = normalizeWorkspace({ prepChecks: [{ id: "a", title: "Make worksheets", start: "2026-11-02", repeat: "daily", kind: "make", days: [1], done: [] }] });
+  assert.equal(isTabOn("prep", had.visibleTabs), true);
+  assert.equal(had.prepOwn, true);
+  const removed = normalizeWorkspace({ ...had, visibleTabs: { ...had.visibleTabs, prep: false } });
+  assert.equal(isTabOn("prep", removed.visibleTabs), false, "removing it later sticks");
+  assert.equal(isTabOn("prep", normalizeWorkspace({}).visibleTabs), false, "nobody else gets it without adding it");
+  const iep = readFileSync("client/src/components/teacher-hub/HubIep.tsx", "utf8");
+  assert.ok(!iep.includes("PrepChecklist") && !iep.includes('key: "prep"'), "gone from IEP");
+  assert.match(readFileSync("client/src/pages/TeacherHub.tsx", "utf8"), /\{tab === "prep" && <PrepChecklist /);
   assert.match(readFileSync("shared/teacherHub.ts", "utf8"), /prepChecks\?: import\("\.\/hubPrep"\)\.PrepCheck\[\];/);
 });

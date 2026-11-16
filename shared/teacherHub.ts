@@ -192,7 +192,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "journal", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
+  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "lessons", "tasks", "notes", "journal", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
   "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
   "readerAdvisory", "readerCatalog",
 ] as const;
@@ -207,7 +207,7 @@ export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "cale
  *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
  *  not by the App Store. */
 export const WORK_ADD_ON_TABS: readonly HubTab[] = [
-  "caseload", "minutes", "iep", "lessons", "arise", "behavior", "attendance",
+  "caseload", "minutes", "iep", "prep", "lessons", "arise", "behavior", "attendance",
   "gradebook", "parents", "schedules", "email",
 ];
 
@@ -263,6 +263,8 @@ export type Workspace = {
   pmFiles?: import("./hubIep").PmFile[];
   /** The IEP Prep checklist: planning-period jobs that repeat, checked off day by day (shared/hubPrep.ts). */
   prepChecks?: import("./hubPrep").PrepCheck[];
+  /** Set once Prep has been made its own plugin for this workspace (see normalizeWorkspace). */
+  prepOwn?: boolean;
   /** The case manager lets the others at their school see their minutes, view only (see shared/hubMinutesDay.ts). */
   minutesShared?: boolean;
   /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
@@ -314,7 +316,7 @@ export function emptyWorkspace(): Workspace {
 const TAB_DATA: Partial<Record<HubTab, readonly string[]>> = {
   caseload: ["students"], minutes: ["services", "serviceLogs", "pushInNotes"], iep: ["meetings", "guides"], lessons: ["lessons", "lessonClasses"],
   arise: ["ariseRecords"], behavior: ["behavior"], attendance: ["attendance"], gradebook: ["assignments", "gradeScores"],
-  parents: ["parentLogs"], schedules: ["schedules"], email: ["emails"],
+  parents: ["parentLogs"], schedules: ["schedules"], email: ["emails"], prep: ["prepChecks"],
 };
 /** Screens with something saved in them, judged from a raw saved workspace. */
 export function usedTabs(raw: any): HubTab[] {
@@ -360,6 +362,9 @@ export function normalizeWorkspace(raw: any): Workspace {
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
   if (raw.goalsStd !== true) out.visibleTabs = { ...out.visibleTabs, goals: true };
+  // Prep left IEP to be a plugin of its own (Nov 15, 2026): anyone with Prep jobs saved gets it, once.
+  if (raw.prepOwn !== true && Array.isArray(raw.prepChecks) && raw.prepChecks.length) out.visibleTabs = { ...out.visibleTabs, prep: true };
+  out.prepOwn = true;
   // Getting started was replaced by the walkthrough that opens the first time the app is used
   // (components/AppWalkthrough.tsx), so the screen is gone for everyone.
   out.visibleTabs = { ...out.visibleTabs, start: false };
