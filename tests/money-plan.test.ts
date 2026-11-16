@@ -39,7 +39,10 @@ test("a split bill: half the rent on the 1st, half on the 15th, paid a bit at a 
   ({ plan: p, bills } = payBill(p, bills, "rent", "2026-11", 400, "2026-11-15", "p2"));
   st = billStatus(p, bills[0], "2026-11", "2026-11-20");
   assert.equal(st.left, 350); assert.equal(st.state, "late");
-  // December: the $350 still owed comes along with December's rent.
+  // Each month is its own: December doesn't take on November's $350 unless carrying over is turned on.
+  assert.equal(billStatus(p, bills[0], "2026-12", "2026-12-01").carried, 0);
+  assert.equal(billStatus(p, bills[0], "2026-12", "2026-12-01").owed, 1500);
+  p = { ...p, carryBills: true };
   const dec = billStatus(p, bills[0], "2026-12", "2026-12-01");
   assert.equal(dec.carried, 350); assert.equal(dec.owed, 1850); assert.equal(dec.nextAmount, 1100);
   // Paying it all marks the month paid (so alerts and widgets agree), and undo takes it back.

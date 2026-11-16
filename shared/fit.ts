@@ -11,7 +11,10 @@ export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: n
 export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string;
   /** The pre-workout check-in (shared/fitReadyMode.ts): readiness then, food, caffeine, warm-up, and whether Ready Mode adjusted it. */
   check?: { ready: number; food: "meal" | "snack" | "fasted"; stim: "none" | "coffee" | "preworkout"; stretched: boolean; adapted: boolean } };
-export type Routine = { id: string; name: string; exercises: { exId: string; name: string; sets: number; reps: string; rest: number }[] };
+/** A workout template they built (or saved from a workout) to start again in one tap. weight, when set, is
+ *  the weight to start each set at (their units); left out, Cooked fills in last time's or one from their max. */
+export type RoutineItem = { exId: string; name: string; sets: number; reps: string; rest: number; weight?: number; note?: string };
+export type Routine = { id: string; name: string; exercises: RoutineItem[]; note?: string; used?: string; uses?: number };
 export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string; note?: string };
 /** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
 export type SavedMeal = { id: string; name: string; items: Omit<FoodEntry, "id" | "date" | "meal">[] };
@@ -60,6 +63,8 @@ export type FitData = {
   prep?: { start: string; foods: FoodEntry[] };
   /** Items on the "Finish your day" checklist ticked by hand, by date (shared/fitChecklist.ts). */
   checks?: Record<string, string[]>;
+  /** Maxes they've entered, as a history (shared/fitMaxes.ts). */
+  maxes?: MaxEntry[];
   /** The grocery list (shared/fitMealPrep.ts). */
   grocery?: { made: string; from: string; items: { id: string; name: string; qty: string; aisle: string; done: boolean }[] };
 };
@@ -74,6 +79,7 @@ import { cleanTimers, type IntervalTimer } from "./fitTimers";
 import { cleanMeds, type Meds } from "./fitMeds";
 import { cleanCycle, type FitCycle } from "./fitCycle";
 import { cleanChecks } from "./fitChecklist";
+import { cleanMaxes, type MaxEntry } from "./fitMaxes";
 
 export const LIMITS = { workouts: 3000, foods: 20000, routines: 60, weights: 3000, recent: 60, bytes: 2_500_000 };
 
@@ -116,7 +122,9 @@ export function cleanFit(raw: any): FitData {
     ...(w.check && typeof w.check === "object" ? { check: { ready: num(w.check.ready, 0, 100), food: (["meal", "snack", "fasted"].includes(w.check.food) ? w.check.food : "snack"), stim: (["none", "coffee", "preworkout"].includes(w.check.stim) ? w.check.stim : "none"), stretched: !!w.check.stretched, adapted: !!w.check.adapted } } : {}),
   }));
   d.routines = (Array.isArray(raw.routines) ? raw.routines : []).slice(0, LIMITS.routines).map((r: any): Routine => ({ id: str(r?.id, 40), name: str(r?.name, 60) || "Routine",
-    exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any) => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90) })) }));
+    exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any): RoutineItem => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90),
+      ...(Number(e?.weight) > 0 ? { weight: num(e.weight, 0, 2000) } : {}), ...(e?.note ? { note: str(e.note, 120) } : {}) })),
+    ...(r?.note ? { note: str(r.note, 300) } : {}), ...(r?.used && day(String(r.used).slice(0, 10)) ? { used: String(r.used).slice(0, 10) } : {}), ...(Number(r?.uses) > 0 ? { uses: num(r.uses, 0, 100000) } : {}) }));
   if (raw.program?.id) d.program = { id: str(raw.program.id, 40), started: str(raw.program.started, 30), done: (Array.isArray(raw.program.done) ? raw.program.done : []).slice(-500).map((x: unknown) => str(x, 60)) };
   const food = (f: any) => ({ name: str(f?.name, 120) || "Food", kcal: num(f?.kcal, 0, 10000), p: num(f?.p, 0, 1000), c: num(f?.c, 0, 1500), f: num(f?.f, 0, 1000), servings: num(f?.servings, 0.05, 50, 1), ...(f?.serving ? { serving: str(f.serving, 60) } : {}), ...(f?.note ? { note: str(f.note, 300) } : {}) });
   d.foods = (Array.isArray(raw.foods) ? raw.foods : []).slice(-LIMITS.foods).filter((f: any) => f?.id && day(f?.date)).map((f: any) => ({ id: str(f.id, 40), date: day(f.date), meal: MEALS.includes(f.meal) ? f.meal : "snack", ...food(f) }));
@@ -151,6 +159,8 @@ export function cleanFit(raw: any): FitData {
   if (cycle) d.cycle = cycle;
   const checks = cleanChecks(raw.checks);
   if (checks) d.checks = checks;
+  const maxes = cleanMaxes(raw.maxes);
+  if (maxes.length) d.maxes = maxes;
   return d;
 }
 

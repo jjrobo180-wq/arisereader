@@ -2,6 +2,7 @@
 // Fit app library, and the apps that are new screens: Yoga, Breathe, Mobility, Intervals (with your own
 // interval timers), Couch to 5K, Water, Steps, Recovery and Friends. Strength, Food, Fasting, Run,
 // Sleep and the rest are the screens they always were (FitApp.tsx opens them).
+import { ClipboardList as ClipboardListApp, Trophy as TrophyApp } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Apple, BarChart3, Bed, CalendarHeart, Pill, Check, ChefHat, CircleDot, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, LayoutGrid, MapPin, Medal, Minus, Moon, Pencil,
@@ -28,7 +29,7 @@ import type { ArtKind } from "./fitArt";
 import type { Update } from "./fitStore";
 import { isNativeApp } from "@/lib/nativeApp";
 
-export const APP_ICONS: Record<string, LucideIcon> = { Apple, BarChart3, Bed, CalendarHeart, Pill, ChefHat, CircleDot, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, MapPin, Medal, Moon, PersonStanding, Plane, Route, ScanFace, ScanLine, Timer, UserCheck, Users, Utensils, Waves, Wind, Zap };
+export const APP_ICONS: Record<string, LucideIcon> = { Trophy: TrophyApp, ClipboardList: ClipboardListApp, Apple, BarChart3, Bed, CalendarHeart, Pill, ChefHat, CircleDot, Droplets, Dumbbell, Flower2, Footprints, HeartPulse, MapPin, Medal, Moon, PersonStanding, Plane, Route, ScanFace, ScanLine, Timer, UserCheck, Users, Utensils, Waves, Wind, Zap };
 
 /** An app's icon: a rounded square in its own colors, like the Home Screen. */
 export function AppTile({ app, size = 56 }: { app: FitApp; size?: number }) {

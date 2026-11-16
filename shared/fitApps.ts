@@ -5,7 +5,7 @@
 
 export type FitAppId =
   | "train" | "food" | "fast" | "run" | "sleep" | "yoga" | "mind" | "hiit" | "c25k" | "mobility" | "water" | "steps"
-  | "recovery" | "progress" | "coach" | "friends" | "gyms" | "recipes" | "eat" | "travel" | "form" | "scan" | "sounds" | "counter" | "pillow" | "meds" | "period";
+  | "recovery" | "progress" | "maxes" | "templates" | "coach" | "friends" | "gyms" | "recipes" | "eat" | "travel" | "form" | "scan" | "sounds" | "counter" | "pillow" | "meds" | "period";
 export type FitAppCategory = "train" | "mind" | "nutrition" | "health" | "out" | "social";
 export type FitApp = {
   id: FitAppId; name: string; blurb: string; category: FitAppCategory;
@@ -31,6 +31,8 @@ export const FIT_APPS: FitApp[] = [
   { id: "train", name: "Train", blurb: "Strength programs, routines, the exercise library and live workouts.", category: "train", icon: "Dumbbell", tile: ["#ff7a3d", "#c2410c"], tab: true },
   { id: "hiit", name: "Intervals", blurb: "HIIT treadmill sessions and a custom interval timer for any workout.", category: "train", icon: "Zap", tile: ["#fb7185", "#be123c"], tab: true },
   { id: "c25k", name: "Couch to 5K", blurb: "Nine weeks from zero to running 30 minutes, three short runs a week.", category: "train", icon: "Medal", tile: ["#fbbf24", "#d97706"], tab: true },
+  { id: "maxes", name: "My maxes", blurb: "Your max on every lift (weight and reps, or most reps, or longest hold), updated whenever you test it, with your history.", category: "train", icon: "Trophy", tile: ["#facc15", "#b45309"], tab: true },
+  { id: "templates", name: "Workout templates", blurb: "Build your own workouts with the sets, reps, weights and rest you want, and start them again in one tap.", category: "train", icon: "ClipboardList", tile: ["#fb923c", "#9a3412"], tab: true },
   { id: "form", name: "Form check", blurb: "The camera watches your squat, push-up or lunge and coaches each rep.", category: "train", icon: "ScanFace", tile: ["#a78bfa", "#6d28d9"], tab: false },
   { id: "scan", name: "Scan a machine", blurb: "Point the camera at gym equipment to learn how to use it.", category: "train", icon: "ScanLine", tile: ["#94a3b8", "#475569"], tab: false },
   { id: "yoga", name: "Yoga", blurb: "Guided flows for mornings, recovery, flexibility and bedtime, with a pose for every step.", category: "mind", icon: "Flower2", tile: ["#c084fc", "#7e22ce"], tab: true },
@@ -62,7 +64,7 @@ const IDS = new Set<string>(FIT_APPS.map((a) => a.id));
 export type FitApps = { added: FitAppId[]; tabs: FitAppId[] };
 export const TAB_MAX = 3;
 /** What a new person starts with: the main parts of Cooked, and Train, Food and Run on the tab bar. */
-export const defaultApps = (): FitApps => ({ added: ["train", "food", "run", "fast", "sleep", "recovery", "yoga", "mind", "water", "progress", "recipes", "friends"], tabs: ["train", "food", "run"] });
+export const defaultApps = (): FitApps => ({ added: ["train", "maxes", "templates", "food", "run", "fast", "sleep", "recovery", "yoga", "mind", "water", "progress", "recipes", "friends"], tabs: ["train", "food", "run"] });
 
 /** Known apps only, no repeats; tabs must be added and able to be tabs. */
 export function cleanApps(raw: any): FitApps | undefined {
