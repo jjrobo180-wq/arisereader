@@ -37,27 +37,50 @@ class LessonAiError extends Error {}
 
 const PHOTO_PROMPT = `This is a photo or screenshot of example problems from a worksheet, textbook or board. Copy out EVERY problem exactly as written: all words, numbers, symbols, answer choices and directions, numbered as on the page. Write maths plainly (for example 3/4, 2^3, sqrt(49)). For any picture, graph, number line, table or shape, describe it in words with every number and label, so a teacher could redraw it. If a worked solution or answer is shown, copy it after the problem and mark it "(shown answer)". Do not solve anything yourself and do not add comments.`;
 
+let visionModels: { at: number; ids: string[] } | null = null;
+/** Groq's picture-reading models that are live right now (it retires models), best first. */
+async function groqVisionModels(key: string): Promise<string[]> {
+  if (process.env.GROQ_VISION_MODEL) return [process.env.GROQ_VISION_MODEL];
+  if (visionModels && Date.now() - visionModels.at < 6 * 3600_000) return visionModels.ids;
+  let ids: string[] = [];
+  try {
+    const r = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) });
+    const body: any = r.ok ? await r.json().catch(() => null) : null;
+    ids = (Array.isArray(body?.data) ? body.data : []).map((m: any) => String(m?.id || "")).filter((id: string) => /llama-4|scout|maverick|vision|[-/]vl\b|qwen.*vl/i.test(id) && !/guard|whisper|tts/i.test(id));
+    const rank = (id: string) => (/maverick/i.test(id) ? 0 : /scout/i.test(id) ? 1 : 2);
+    ids.sort((x, y) => rank(x) - rank(y));
+  } catch { /* fall back to the known names */ }
+  if (!ids.length) ids = ["meta-llama/llama-4-maverick-17b-128e-instruct", "meta-llama/llama-4-scout-17b-16e-instruct"];
+  visionModels = { at: Date.now(), ids };
+  return ids;
+}
+
 /** A photo read into words by Groq's vision model, with a few retries when it is busy. */
 async function seePhotoWithGroq(dataUrl: string): Promise<string> {
   const found = findBackup(process.env);
   const key = process.env.GROQ_API_KEY || (found?.kind === "groq" ? found.key : "");
   if (!key) throw new LessonAiError("Photos can't be read on this site right now. Type or paste the example problem instead.");
-  for (let attempt = 0; ; attempt++) {
-    let r: Response;
-    try {
-      r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct", temperature: 0, max_tokens: 3000, messages: [{ role: "user", content: [{ type: "text", text: PHOTO_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
-        signal: AbortSignal.timeout(60_000),
-      });
-    } catch { throw new LessonAiError("Reading the photo took too long. Try a smaller picture, or type the example."); }
-    if ((r.status === 429 || r.status >= 500) && attempt < 3) { await new Promise((ok) => setTimeout(ok, 2000 * 2 ** attempt)); continue; }
-    if (!r.ok) { console.error("[lesson-planner] photo read failed:", r.status, (await r.text().catch(() => "")).slice(0, 200)); throw new LessonAiError("I couldn't read that photo. Try a clearer picture, or type the example."); }
-    const body: any = await r.json().catch(() => null);
-    const text = String(body?.choices?.[0]?.message?.content || "").trim();
-    if (text.length < 10) throw new LessonAiError("I couldn't find any problems in that photo. Try a clearer picture, or type the example.");
-    return text;
+  let lastStatus = 0;
+  for (const model of await groqVisionModels(key)) {
+    for (let attempt = 0; ; attempt++) {
+      let r: Response;
+      try {
+        r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model, temperature: 0, max_tokens: 3000, messages: [{ role: "user", content: [{ type: "text", text: PHOTO_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch { throw new LessonAiError("Reading the photo took too long. Try a smaller picture, or type the example."); }
+      lastStatus = r.status;
+      if ((r.status === 429 || r.status >= 500) && attempt < 3) { await new Promise((ok) => setTimeout(ok, 2000 * 2 ** attempt)); continue; }
+      if (!r.ok) { console.error("[lesson-planner] photo read failed:", model, r.status, (await r.text().catch(() => "")).slice(0, 200)); if (r.status === 404 || r.status === 400) { visionModels = null; break; } throw new LessonAiError("I couldn't read that photo. Try a clearer picture, or type the example."); }
+      const body: any = await r.json().catch(() => null);
+      const text = String(body?.choices?.[0]?.message?.content || "").trim();
+      if (text.length < 10) throw new LessonAiError("I couldn't find any problems in that photo. Try a clearer picture, or type the example.");
+      return text;
+    }
   }
+  throw new LessonAiError(`I couldn't read that photo${lastStatus ? ` (the picture reader answered ${lastStatus})` : ""}. Type or paste the example problem instead.`);
 }
 
 const limits = createAttemptLimiter({ max: 80, windowMs: 10 * 60_000 });
