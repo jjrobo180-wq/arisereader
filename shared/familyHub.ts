@@ -405,6 +405,22 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
 
 export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 200, habits: 40, gratitude: 3000, focusLog: 6000, recipes: 500, meals: 2000, care: 300, birthdays: 300, contacts: 200, subscriptions: 100, jars: 40, collections: 3000, sleep: 3000, workouts: 8000, routines: 20, milestones: 1000, ious: 1000, allowance: 5000, giftCards: 200, warranties: 500, mileage: 5000, clocks: 12, medical: 20 };
 
+/** A link page made safe: the page name and line, the look (theme and list or grid) and the links. Used for the
+ *  LifeHub's page (family.linkPage) and, separately, the WorkHub's own page (workspace.linkPage). */
+export function cleanLinkPage(input: unknown): LinkPage {
+  const lp = obj(input) || {};
+  return {
+    title: str(lp.title, 80), bio: str(lp.bio, 300),
+    ...(lp.style === "directory" ? { style: "directory" as const } : {}),
+    ...(isLinkTheme(lp.theme) && lp.theme !== "light" ? { theme: lp.theme } : {}),
+    links: rows(lp.links, LIMITS.links, (r) => {
+      const title = typedEnd(str(r.title, 80)), url = typedEnd(str(r.url, 1000));
+      const group = str(r.group, 30).replace(/[\u0000-\u001f]/g, " ").trim();
+      return title && /^(https?:\/\/|mailto:|tel:)/i.test(url) ? { id: id(r.id), title, url, emoji: str(r.emoji, 8), ...(group ? { group } : {}) } : null;
+    }),
+  };
+}
+
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
   if (!raw) return emptyFamily();
@@ -622,19 +638,7 @@ export function cleanFamily(input: unknown): Family {
       return { id: id(r.id), url, title: typedEnd(str(r.title, BROWSER_LIMITS.title)) || hostOf(url) };
     }),
     ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
-    linkPage: (() => {
-      const lp = obj(raw.linkPage) || {};
-      return {
-        title: str(lp.title, 80), bio: str(lp.bio, 300),
-        ...(lp.style === "directory" ? { style: "directory" as const } : {}),
-        ...(isLinkTheme(lp.theme) && lp.theme !== "light" ? { theme: lp.theme } : {}),
-        links: rows(lp.links, LIMITS.links, (r) => {
-          const title = typedEnd(str(r.title, 80)), url = typedEnd(str(r.url, 1000));
-          const group = str(r.group, 30).replace(/[\u0000-\u001f]/g, " ").trim();
-          return title && /^(https?:\/\/|mailto:|tel:)/i.test(url) ? { id: id(r.id), title, url, emoji: str(r.emoji, 8), ...(group ? { group } : {}) } : null;
-        }),
-      };
-    })(),
+    linkPage: cleanLinkPage(raw.linkPage),
     habits: rows(raw.habits, LIMITS.habits, (r) => {
       const name = typedEnd(str(r.name, 60));
       const days = Array.isArray(r.days) ? [...new Set(r.days.filter(isDay))].sort().slice(-500) as string[] : [];

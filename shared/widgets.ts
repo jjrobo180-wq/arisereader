@@ -34,8 +34,8 @@ export const themeOf = (id: string | undefined): WidgetTheme => WIDGET_THEMES.fi
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
-export type WidgetGroup = "Clocks" | "Calendars" | "Countdowns" | "Fun" | "Focus";
-export const WIDGET_GROUPS: readonly WidgetGroup[] = ["Clocks", "Calendars", "Countdowns", "Fun", "Focus"];
+export type WidgetGroup = "Clocks" | "Calendars" | "Countdowns" | "Fun" | "Focus" | "Links";
+export const WIDGET_GROUPS: readonly WidgetGroup[] = ["Clocks", "Calendars", "Countdowns", "Fun", "Focus", "Links"];
 export type WidgetSize = "small" | "wide" | "large";
 export const WIDGET_SIZES: { id: WidgetSize; label: string }[] = [{ id: "small", label: "Small" }, { id: "wide", label: "Wide" }, { id: "large", label: "Large" }];
 
@@ -91,6 +91,11 @@ export const WIDGET_DEFS: readonly WidgetDef[] = [
   { id: "timer", name: "Timer", group: "Focus", blurb: "A countdown timer with a chime.", size: "small", theme: "midnight", options: ["minutes"], mood: "serious" },
   { id: "note", name: "Note", group: "Focus", blurb: "A short note pinned to Home.", size: "small", theme: "paper", options: ["text"], mood: "both" },
   { id: "one-thing", name: "Today's one thing", group: "Focus", blurb: "The one thing that matters most today. Tick it off.", size: "wide", theme: "bold", options: ["text"], mood: "serious" },
+  // Links: they show this hub's own Link page. Work and Life each keep their own links.
+  { id: "links-page", name: "Link page", group: "Links", blurb: "Your link page as you styled it: its theme, and a list or a grid.", size: "wide", theme: "classic", options: [], mood: "both" },
+  { id: "links-list", name: "Link list", group: "Links", blurb: "Your links as a clean list. Tap one to open it.", size: "wide", theme: "classic", options: [], mood: "both" },
+  { id: "links-tiles", name: "Link tiles", group: "Links", blurb: "Your links as big tiles, two across.", size: "large", theme: "pastel", options: [], mood: "both" },
+  { id: "links-icons", name: "Link icons", group: "Links", blurb: "A row of round icons, one for each of your links.", size: "wide", theme: "midnight", options: [], mood: "both" },
 ];
 export const widgetDef = (id: string) => WIDGET_DEFS.find((d) => d.id === id);
 
