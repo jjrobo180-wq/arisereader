@@ -65,7 +65,7 @@ export type TaskFromAsk = { title: string; due: string; dueTime: string; notes: 
  * and a note), or null when it isn't an @arise task. `taskId` is the id the new task will have. A question
  * ("@arise what's the weather tomorrow") is just answered: `task` is null and no to-do is added.
  */
-export function startTaskAsk(text: string, taskId: string, people: string[] = []): { task: TaskFromAsk | null; sent: Promise<AriseAsk> } | null {
+export function startTaskAsk(text: string, taskId: string, people: string[] = [], hub: "work" | "life" = "life"): { task: TaskFromAsk | null; sent: Promise<AriseAsk> } | null {
   const ask = parseTaskAsk(text);
   if (!ask) return null;
   const t = askTiming(ask);
@@ -78,7 +78,7 @@ export function startTaskAsk(text: string, taskId: string, people: string[] = []
     due: t.due, dueTime: t.dueTime,
     notes: t.mode === "later" ? `Arise will make this ${t.when.replace(/^Made /, "")}. You'll get a notification when it's ready.` : "Arise is making this now. You'll get a notification when it's ready.",
   };
-  const sent = api("", { method: "POST", body: JSON.stringify({ ask, ...(question ? {} : { taskId }), runAt: t.runAt.toISOString(), due: t.due, when: t.when, people, tz }) })
+  const sent = api("", { method: "POST", body: JSON.stringify({ ask, ...(question ? {} : { taskId }), runAt: t.runAt.toISOString(), due: t.due, when: t.when, people, tz, ...(hub === "work" ? { hub } : {}) }) })
     .then((d) => { const a = d.ask as AriseAsk; set({ asks: [a, ...state.asks.filter((x) => x.id !== a.id)] }); if (a.status === "working") setTimeout(() => void refreshAsks(), 12_000); return a; });
   return { task, sent };
 }
