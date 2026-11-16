@@ -19,7 +19,7 @@ const MAX_REDIRECTS = 5;
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 AriseToDuo/1.0";
 
 /** dns.lookup that refuses private addresses, used for the actual connection. */
-const safeLookup: LookupFunction = (hostname, options, callback) => {
+export const safeLookup: LookupFunction = (hostname, options, callback) => {
   dns.lookup(hostname, { ...(options as object), all: true }, (err, addresses) => {
     if (err) return (callback as any)(err);
     const list = (addresses as unknown as dns.LookupAddress[]) || [];
@@ -49,7 +49,7 @@ function peek(url: URL): Promise<Peek> {
   });
 }
 
-function allowedUrl(raw: string): URL | null {
+export function allowedUrl(raw: string): URL | null {
   try {
     const u = new URL(raw);
     if (u.protocol !== "https:" && u.protocol !== "http:") return null;
