@@ -17,6 +17,7 @@ import {
   AI_MODES, PLAN_FIELDS, US_STATES, cleanFoundStandards, cleanIdeas, cleanPlanFields, cleanSlides, cleanUnit, cleanWorksheet, type AiMode,
 } from "@shared/lessonPlanner";
 import { supportWords } from "@shared/pushIn";
+import { findBackup } from "./aiProvider";
 import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
 import { UploadError, readUploads } from "./uploadText";
 
@@ -28,9 +29,36 @@ export type LessonPlannerDeps = {
   gate(req: any, res: any): Promise<unknown | null>;
   ask?: LessonAsk;
   aiConfigured?: () => boolean;
+  /** Reads a photo of example problems into words. Default: Groq's vision model (the site's chat AI cannot see pictures). */
+  seePhoto?: (dataUrl: string) => Promise<string>;
 };
 
 class LessonAiError extends Error {}
+
+const PHOTO_PROMPT = `This is a photo or screenshot of example problems from a worksheet, textbook or board. Copy out EVERY problem exactly as written: all words, numbers, symbols, answer choices and directions, numbered as on the page. Write maths plainly (for example 3/4, 2^3, sqrt(49)). For any picture, graph, number line, table or shape, describe it in words with every number and label, so a teacher could redraw it. If a worked solution or answer is shown, copy it after the problem and mark it "(shown answer)". Do not solve anything yourself and do not add comments.`;
+
+/** A photo read into words by Groq's vision model, with a few retries when it is busy. */
+async function seePhotoWithGroq(dataUrl: string): Promise<string> {
+  const found = findBackup(process.env);
+  const key = process.env.GROQ_API_KEY || (found?.kind === "groq" ? found.key : "");
+  if (!key) throw new LessonAiError("Photos can't be read on this site right now. Type or paste the example problem instead.");
+  for (let attempt = 0; ; attempt++) {
+    let r: Response;
+    try {
+      r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct", temperature: 0, max_tokens: 3000, messages: [{ role: "user", content: [{ type: "text", text: PHOTO_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] }),
+        signal: AbortSignal.timeout(60_000),
+      });
+    } catch { throw new LessonAiError("Reading the photo took too long. Try a smaller picture, or type the example."); }
+    if ((r.status === 429 || r.status >= 500) && attempt < 3) { await new Promise((ok) => setTimeout(ok, 2000 * 2 ** attempt)); continue; }
+    if (!r.ok) { console.error("[lesson-planner] photo read failed:", r.status, (await r.text().catch(() => "")).slice(0, 200)); throw new LessonAiError("I couldn't read that photo. Try a clearer picture, or type the example."); }
+    const body: any = await r.json().catch(() => null);
+    const text = String(body?.choices?.[0]?.message?.content || "").trim();
+    if (text.length < 10) throw new LessonAiError("I couldn't find any problems in that photo. Try a clearer picture, or type the example.");
+    return text;
+  }
+}
 
 const limits = createAttemptLimiter({ max: 80, windowMs: 10 * 60_000 });
 
@@ -136,7 +164,7 @@ const WORKSHEET_RULES = `Worksheet rules:
 const WORKSHEET_SHAPE = `{"title": string, "instructions": string, "large": boolean (true for grades K-2), "sections": [{"heading": string, "directions": string, "columns": number, "passage": string (optional), "wordBank": string[] (optional), "items": [{"kind": string, "prompt": string, "choices": string[] (optional), "answer": string, "lines": number (optional), "space": string (optional), "visual": object (optional), "keyVisual": object (optional), "matches": string[] (optional)}]}]}`;
 
 /** When the teacher gives an example to copy (text, pages, photos, a PDF or a link). */
-const EXAMPLE_RULES = `The teacher gave you EXAMPLE problems (below, and in any attached pages or photos). Write practice that are exact models of them:
+const EXAMPLE_RULES = `The teacher gave you EXAMPLE problems (below). Write practice that are exact models of them:
 - Find every kind of problem in the example. For each kind, write new problems with the SAME skill, structure, wording style, number of steps, difficulty and layout (same kind of picture, table or graph, same question type).
 - Change the numbers, names, objects and context so no question repeats the example. Never copy an example problem word for word, and do not put the example's own answers in.
 - Spread the questions across the kinds of problem in the example. Keep the example's directions style. The worked answers must be correct: solve each new problem carefully.`;
@@ -212,17 +240,24 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
         const links = linksFrom(req.body?.links);
         const up = readUploads(req.body?.files, 24_000);
         const photos: string[] = (Array.isArray(req.body?.images) ? req.body.images : []).filter((u: unknown) => typeof u === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(u) && u.length <= 4_000_000).slice(0, 6);
-        attachments = [...up.attachments, ...photos].slice(0, 8);
+        const all = [...up.attachments, ...photos].slice(0, 8);
+        if (all.some((u) => u.startsWith("data:application/pdf"))) throw new UploadError("I can't read PDF pages yet. Take a screenshot or photo of the page and upload that, or save it as a Word file, or paste the problem.");
+        // The site's chat AI can't see pictures, so each photo is read into words first.
+        const see = deps.seePhoto ?? seePhotoWithGroq;
+        const read: string[] = [];
+        for (const u of all) read.push(await see(u));
+        attachments = [];
         const pages = [];
         for (const l of links) pages.push(await fetchPageText(l));
         example = [
           exampleText && `EXAMPLE problems the teacher typed or pasted:\n${exampleText}`,
           up.text && `EXAMPLE from the teacher's files:\n${up.text}`,
           pages.length && `EXAMPLE from a web page:\n${pagesText(pages, 12_000)}`,
-          attachments.length && `The teacher also attached ${attachments.length} page(s) or photo(s) of example problems: read every problem on them.`,
+          read.length && `EXAMPLE problems read from ${read.length} photo(s) the teacher uploaded:\n${read.map((t, i) => `Photo ${i + 1}:\n${t}`).join("\n\n")}`,
         ].filter(Boolean).join("\n\n").slice(0, 40_000);
       } catch (e: any) {
         if (e instanceof UploadError || e instanceof PageError) return res.status(400).json({ message: e.message });
+        if (e instanceof LessonAiError) return res.status(502).json({ message: e.message });
         throw e;
       }
     }

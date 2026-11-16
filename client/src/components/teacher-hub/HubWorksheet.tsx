@@ -235,10 +235,10 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
           </label>
           <div>
             <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-bold text-white">
-              <Upload className="h-4 w-4" /> Upload from this computer: PDF, photo, Word, Excel, PowerPoint…
-              <input type="file" multiple hidden accept={UPLOAD_ACCEPT} onChange={(e) => { void addExample(e.target.files); e.target.value = ""; }} data-testid="ws-example-upload" />
+              <Upload className="h-4 w-4" /> Upload from this computer: photo, screenshot, Word, Excel…
+              <input type="file" multiple hidden accept={UPLOAD_ACCEPT.replace(".pdf,", "")} onChange={(e) => { void addExample(e.target.files); e.target.value = ""; }} data-testid="ws-example-upload" />
             </label>
-            <p className="mt-1 text-xs text-slate-600">Pages, worksheets or pictures of a book or board. Up to {UPLOAD_LIMITS.files} files and 6 photos.</p>
+            <p className="mt-1 text-xs text-slate-600">Pictures or screenshots of a page, book or board, or a Word, Excel, PowerPoint or text file. Up to {UPLOAD_LIMITS.files} files and 6 photos. (For a PDF, take a screenshot of the page.)</p>
             {(exFiles.length > 0 || exPhotos.length > 0) && <ul className="mt-2 flex flex-wrap gap-2">
               {exFiles.map((x, i) => <li key={`f${i}`} className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-300"><FileText className="h-3.5 w-3.5" />{x.name}<button type="button" aria-label={`Remove ${x.name}`} onClick={() => setExFiles(exFiles.filter((_, k) => k !== i))} className="ml-1 text-slate-500 hover:text-rose-600">×</button></li>)}
               {exPhotos.map((x, i) => <li key={`p${i}`} className="flex items-center gap-1 rounded-full bg-white py-1 pl-1 pr-3 text-xs font-semibold text-slate-800 ring-1 ring-slate-300"><img src={x.data} alt="" className="h-6 w-6 rounded object-cover" />{x.name}<button type="button" aria-label={`Remove ${x.name}`} onClick={() => setExPhotos(exPhotos.filter((_, k) => k !== i))} className="ml-1 text-slate-500 hover:text-rose-600">×</button></li>)}

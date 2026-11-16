@@ -209,6 +209,7 @@ test("worksheet from an example: typed problems, a photo and a file go to the AI
   registerLessonPlannerRoutes(app, (() => {}) as any, {
     gate: async () => ({ access: true }),
     aiConfigured: () => true,
+    seePhoto: async () => "1. Solve 3/4 + 1/8 (read from the photo)",
     ask: async (_s: string, user: string, _m: number, attachments?: string[]) => { seen = { user, attachments }; return JSON.stringify({ title: "Percent off", instructions: "Solve.", sections: [{ heading: "Practice", items: [{ kind: "short", prompt: "A coat costs $40 and is 10% off. Sale price?", answer: "$36" }] }] }); },
   });
   const call = async (body: any) => {
@@ -228,7 +229,11 @@ test("worksheet from an example: typed problems, a photo and a file go to the AI
   assert.match(seen!.user, /find 10% of 80/);
   assert.match(seen!.user, /exact models/);
   assert.match(seen!.user, /about 5 questions/);
-  assert.deepEqual(seen!.attachments, [photo], "only the real image is attached");
+  assert.match(seen!.user, /read from the photo/);
+  assert.deepEqual(seen!.attachments, [], "the photo is read into words first; the chat AI never gets a picture");
+  const pdf = await call({ mode: "worksheet", files: [{ name: "a.pdf", data: Buffer.from("%PDF-1.4 x").toString("base64") }] });
+  assert.equal(pdf.status, 400);
+  assert.match(pdf.json.message, /PDF/);
   // a bad file name type is explained, not a crash
   const bad = await call({ mode: "worksheet", files: [{ name: "x.exe", data: "AAAA" }] });
   assert.equal(bad.status, 400);
