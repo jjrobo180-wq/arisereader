@@ -53,6 +53,7 @@ export const SUPER_APPS: readonly SuperApp[] = [
     pages: [
       { id: "today", label: "Today", icon: "Home", detail: "Your day at a glance" },
       { id: "train", label: "Train", icon: "Dumbbell" }, { id: "food", label: "Food", icon: "Apple" }, { id: "run", label: "Run", icon: "Route" },
+      { id: "maxes", label: "My maxes", icon: "Trophy" }, { id: "templates", label: "Templates", icon: "ClipboardList" },
       { id: "sleep", label: "Sleep", icon: "Moon" }, { id: "water", label: "Water", icon: "Droplets" }, { id: "fast", label: "Fasting", icon: "Timer" },
       { id: "recovery", label: "Recovery", icon: "HeartPulse" }, { id: "progress", label: "Progress", icon: "BarChart3" }, { id: "steps", label: "Steps", icon: "Footprints" },
       { id: "yoga", label: "Yoga", icon: "Flower2" }, { id: "mind", label: "Breathe", icon: "Wind" }, { id: "mobility", label: "Mobility", icon: "PersonStanding" },

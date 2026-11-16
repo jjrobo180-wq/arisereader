@@ -1,12 +1,14 @@
 // Cooked training: the exercise library, the live workout (sets, rest timer, records, what to lift
 // next time), programs, routines and history.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftRight, Check, ChevronRight, Clock3, Dumbbell, Flame, History, MapPin, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronRight, ClipboardList, Clock3, Dumbbell, Flame, History, MapPin, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
   CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, dayKey, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
 } from "@shared/fit";
 import { videoFor } from "@shared/fitVideos";
+import { enteredOneRm, workingWeight } from "@shared/fitMaxes";
+import { TemplateEditor, startTemplate, templateFrom } from "./FitMaxes";
 import { SESSION_BY_ID, nextC25K, sessionMins, sessionsIn, type Session, type SessionCategory } from "@shared/fitSessions";
 import { BodyMap } from "./FitBody";
 import { SmartWorkoutCard } from "./FitSmart";
@@ -127,22 +129,25 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
 
 /** `pausedMs`: time spent paused so far; `pausedAt`: when the current pause began (unset while going).
  *  Both are saved with the workout, so a pause survives closing the app. */
-type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null;
+export type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null;
   /** The pre-workout check-in, once answered or skipped (FitReady.tsx). */ checked?: boolean; check?: Workout["check"] };
 /** Seconds of actual workout: from the start, leaving out any time paused. */
 export const workoutSecs = (a: Pick<Active, "started" | "pausedMs" | "pausedAt">, now: number) => Math.max(0, ((a.pausedAt ?? now) - a.started - (a.pausedMs ?? 0)) / 1000);
 export const readActive = (): Active | null => { try { return JSON.parse(localStorage.getItem(ACTIVE) || "null"); } catch { return null; } };
 const saveActive = (a: Active | null) => { try { if (a) localStorage.setItem(ACTIVE, JSON.stringify(a)); else localStorage.removeItem(ACTIVE); } catch { /* kept in memory */ } };
 
-/** A new workout's exercises, with last time's weights filled in (and the suggested weight). */
-export function planned(data: FitData, items: { exId: string; name?: string; sets: number; reps: string; rest: number }[], list: LibraryExercise[]): FitExercise[] {
+/** A new workout's exercises, with the weight to start at filled in: the template's own weight if it
+ *  has one, else what to lift after last time, else a working weight from their max (shared/fitMaxes.ts). */
+export function planned(data: FitData, items: { exId: string; name?: string; sets: number; reps: string; rest: number; weight?: number; note?: string }[], list: LibraryExercise[]): FitExercise[] {
   return items.map((it) => {
     const ex = list.find((e) => e.id === it.exId) ?? CATALOG_BY_ID.get(it.exId);
     const last = lastTime(data.workouts, it.exId);
     const sug = nextTime(last, it.reps, data.profile.units, !!ex?.lower);
     const { hi, secs } = repRange(it.reps);
-    return { exId: it.exId, name: it.name || ex?.name || it.exId, rest: it.rest, target: it.reps,
-      sets: Array.from({ length: it.sets }, () => ({ reps: secs ? secs : hi === 99 ? 0 : hi, weight: sug?.weight ?? 0, done: false })) };
+    const fromMax = workingWeight(enteredOneRm(data.maxes ?? [], it.exId, data.profile.units), hi === 99 ? 8 : hi, data.profile.units);
+    const weight = it.weight && it.weight > 0 ? it.weight : sug?.weight ?? fromMax;
+    return { exId: it.exId, name: it.name || ex?.name || it.exId, rest: it.rest, target: it.reps, ...(it.note ? { note: it.note } : {}),
+      sets: Array.from({ length: it.sets }, () => ({ reps: secs ? secs : hi === 99 ? 0 : hi, weight, done: false })) };
   });
 }
 
@@ -494,7 +499,7 @@ const FORM_GROUPS = [
   { id: "mobility", label: "Mobility", ids: ["worlds-greatest", "hip-flexor-stretch", "hamstring-stretch", "cat-cow", "childs-pose"] },
 ] as const;
 
-export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void; onCoach?: () => void; onGyms?: () => void }) {
+export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms, onMaxes, onTemplates }: { data: FitData; update: Update; list: LibraryExercise[]; onStart: (a: Active) => void; say: (m: string) => void; onCoach?: () => void; onGyms?: () => void; onMaxes?: () => void; onTemplates?: () => void }) {
   const [lib, setLib] = useState(false);
   const [prog, setProg] = useState<Program | null>(null);
   const [routine, setRoutine] = useState<Routine | null>(null);
@@ -524,6 +529,13 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
       {onGyms && <button type="button" onClick={onGyms} className="fit-in col-span-2 flex min-h-[48px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-gyms">
         <MapPin className="h-5 w-5 shrink-0" style={{ color: C.lime }} /><span className="flex-1 text-[16px] leading-none" style={display}>Gyms near me<PlusTag /></span><span className="text-[12px]" style={{ color: C.dim }}>Prices · busy times</span></button>}
     </div>
+    {/* Their maxes and their own workout templates (FitMaxes.tsx). */}
+    {(onMaxes || onTemplates) && <div className="mb-3 grid grid-cols-2 gap-2">
+      {onMaxes && <button type="button" onClick={onMaxes} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-maxes">
+        <Trophy className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My maxes</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.maxes?.length ? `${new Set(data.maxes.map((m) => m.exId)).size} lifts` : "Add and update"}</span></span></button>}
+      {onTemplates && <button type="button" onClick={onTemplates} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-templates">
+        <ClipboardList className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My templates</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.routines.length ? `${data.routines.length} saved` : "Build your own"}</span></span></button>}
+    </div>}
     <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-train-smart" />
     {active && next && <Title>Your program</Title>}
     {active && next ? <CoverCard art={programArt(active)} className="!p-5" testId="fit-next-program">
@@ -559,11 +571,11 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
       <span className="mt-2 block truncate px-0.5 text-[14px] font-semibold">{find(id)!.name}</span>
       <span className="block truncate px-0.5 text-[12px] capitalize" style={{ color: C.dim }}>{find(id)!.muscle} · {find(id)!.equipment}</span>
     </button>)}</div>
-    <Title right={<button type="button" onClick={() => setRoutine({ id: uid(), name: "", exercises: [] })} className="text-[14px] font-semibold" style={{ color: C.lime }} data-testid="fit-new-routine">New</button>}>My routines</Title>
+    <Title right={<button type="button" onClick={() => setRoutine({ id: uid(), name: "", exercises: [] })} className="text-[14px] font-semibold" style={{ color: C.lime }} data-testid="fit-new-routine">New</button>}>My templates</Title>
     {data.routines.length ? <div className="space-y-2">{data.routines.map((r) => <Card key={r.id} className="flex items-center gap-3 !p-3">
       <button type="button" onClick={() => setRoutine(r)} className="min-w-0 flex-1 text-left"><p className="truncate font-semibold">{r.name}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{r.exercises.map((e) => e.name).join(", ")}</p></button>
-      <Btn className="!min-h-10" onClick={() => onStart(startWorkout({ name: r.name, exercises: planned(data, r.exercises, list) }))}><Play className="h-4 w-4" /></Btn>
-    </Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Save the workouts you do often, and start them in one tap.</p>}
+      <Btn className="!min-h-10" onClick={() => onStart(startTemplate(r, data, list, update))}><Play className="h-4 w-4" /></Btn>
+    </Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Build your own workouts (or save one you did) and start them in one tap.</p>}
     <OverallStats data={data} />
     <Title>History</Title>
     {data.workouts.length ? <div className="space-y-2">{data.workouts.slice(-20).reverse().map((w) => <Card key={w.id} onClick={() => (w.dayId && SESSION_BY_ID.has(w.dayId) && !w.exercises.length ? setPlaying(SESSION_BY_ID.get(w.dayId)!) : setPast(w))} className="!p-3">
@@ -581,8 +593,8 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
     {cat && <SessionList cat={cat} data={data} onClose={() => setCat(null)} onPlay={setPlaying} />}
     {playing && <SessionPlayer session={playing} onClose={() => setPlaying(null)} onDone={(secs) => saveSession(playing, secs)} />}
     {prog && <ProgramDetail p={prog} data={data} update={update} list={list} onClose={() => setProg(null)} onStartDay={startDay} />}
-    {routine && <RoutineEditor routine={routine} list={list} data={data} onClose={() => setRoutine(null)}
-      onSave={(r) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setRoutine(null); say("Routine saved."); }}
+    {routine && <TemplateEditor routine={routine} list={list} data={data} onClose={() => setRoutine(null)}
+      onSave={(r) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setRoutine(null); say("Template saved."); }}
       onDelete={data.routines.some((x) => x.id === routine.id) ? () => { update((d) => ({ ...d, routines: d.routines.filter((x) => x.id !== routine.id) })); setRoutine(null); } : undefined} />}
     {report && <WorkoutReport w={report} prs={newRecords(data.workouts.filter((x) => Date.parse(x.date) < Date.parse(report.date)), report)} data={data} update={update} onClose={() => setReport(null)} />}
     {past && <Sheet title={past.name} onClose={() => setPast(null)}>
@@ -592,6 +604,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms }: 
         <p className="mt-1 text-[14px]" style={{ color: C.dim }}>{e.sets.map((s) => `${fmtNum(s.weight)} ${data.profile.units} × ${s.reps}`).join("  ·  ")}</p></Card>)}</div>
       {past.exercises.length > 0 && <Btn className="mt-4 w-full" onClick={() => { setReport(past); setPast(null); }} testId="fit-past-report"><Trophy className="h-5 w-5" />See the workout report</Btn>}
       <Btn kind="soft" className="mt-4 w-full" onClick={() => { onStart(startWorkout({ name: past.name, exercises: past.exercises.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s, done: false })) })) })); setPast(null); }}><Flame className="h-5 w-5" />Do this workout again</Btn>
+      {past.exercises.length > 0 && <Btn kind="soft" className="mt-2 w-full" onClick={() => { setRoutine(templateFrom(past)); setPast(null); }} testId="fit-past-template"><ClipboardList className="h-5 w-5" />Save as a template</Btn>}
       <button type="button" onClick={() => { if (window.confirm("Delete this workout from your history?")) { update((d) => ({ ...d, workouts: d.workouts.filter((x) => x.id !== past.id) })); setPast(null); } }} className="mt-4 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Delete workout</button>
     </Sheet>}
   </div>;

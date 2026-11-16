@@ -25,6 +25,7 @@ import { SoundsScreen, PillowTracker } from "./FitSleepLab";
 import { CounterScreen } from "./FitMindExtras";
 import { SleepCheckIn, SleepSheet, sleepLine, useSleepAuto, type SleepGuess } from "./FitSleep";
 import { MedsApp, PeriodApp } from "./FitTrackers";
+import { MaxesApp, TemplatesApp } from "./FitMaxes";
 import { AppsTab, APP_ICONS, FriendsApp, GuidedApp, RecoveryApp, StepsApp, WaterApp, YourAppsRow } from "./FitApps";
 import { FormCheck } from "./FitForm";
 import { FIT_APP_BY_ID, appsOf, type FitAppId } from "@shared/fitApps";
@@ -481,7 +482,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   /** One app's screen: as a tab (inline) or a sheet over everything. */
   const screen = (id: FitAppId, inline: boolean, close: () => void) => {
     switch (id) {
-      case "train": return <Sheet inline={inline} title="Train" onClose={close} testId="fit-app-train"><TrainTab data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} say={say} onCoach={() => setCoach(true)} onGyms={() => setOver("gyms")} /></Sheet>;
+      case "train": return <Sheet inline={inline} title="Train" onClose={close} testId="fit-app-train"><TrainTab data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} say={say} onCoach={() => setCoach(true)} onMaxes={() => openApp("maxes")} onTemplates={() => openApp("templates")} onGyms={() => setOver("gyms")} /></Sheet>;
       case "food": return <Sheet inline={inline} title="Food" onClose={close} testId="fit-app-food"><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></Sheet>;
       case "fast": return <FastingSheet inline={inline} data={data} update={update} onClose={close} />;
       case "run": return <OutdoorHub inline={inline} data={data} update={update} say={say} onClose={close} />;
@@ -493,6 +494,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
       case "period": return <PeriodApp inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "steps": return <StepsApp inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "recovery": return <RecoveryApp inline={inline} data={data} onClose={close} onBodyMap={() => setBody(true)} onSleep={() => openApp("sleep")} onYoga={() => openApp("yoga")} />;
+      case "maxes": return <MaxesApp inline={inline} data={data} update={update} list={list} say={say} onClose={close} />;
+      case "templates": return <TemplatesApp inline={inline} data={data} update={update} list={list} say={say} onStart={(a) => { close(); setActive(a); }} onClose={close} />;
       case "progress": return <ProgressSheet inline={inline} data={data} update={update} list={list} onClose={close} onSettings={() => setSettings(true)} />;
       case "friends": return <FriendsApp inline={inline} token={token} onClose={close} onCircle={() => setOverRaw("circle")} onBuddy={() => setOverRaw("buddy")} />;
       default: return null;
@@ -554,7 +557,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
 }
 
 /** Short tab bar names where an app's name is long. */
-const TAB_LABEL: Partial<Record<FitAppId, string>> = { c25k: "5K", hiit: "HIIT", progress: "Stats", recovery: "Ready", meds: "Meds", period: "Period" };
+const TAB_LABEL: Partial<Record<FitAppId, string>> = { maxes: "Maxes", templates: "Templates", c25k: "5K", hiit: "HIIT", progress: "Stats", recovery: "Ready", meds: "Meds", period: "Period" };
 const TAB_KEY = "arise-fit-tab";
 /** The tab you were on (Today when the app's been away a while). */
 function readTab(): Tab { try { const t = localStorage.getItem(TAB_KEY); return (t as Tab) || "today"; } catch { return "today"; } }

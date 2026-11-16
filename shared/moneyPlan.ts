@@ -22,7 +22,10 @@ export type IncomeSource = {
 };
 export type IncomeEntry = { id: string; sourceId: string; date: string; amount: number; kind: "pay" | "tips" | "bonus" | "other"; note: string };
 /** Money you already have on hand (cash, checking, a jar): counted in what's left to spend. */
-export type OnHand = { id: string; name: string; amount: number };
+export type OnHand = { id: string; name: string; amount: number;
+  /** The month it's money in for ("2026-11"). Each month is its own: money in for one month never counts in
+   *  another unless it's copied over (copyMonth). Older entries without one count in the current month only. */
+  month?: string };
 export type BillPayment = { id: string; billId: string; month: string; amount: number; date: string };
 export type GoalKind = "save" | "debt";
 export type Goal = { id: string; name: string; kind: GoalKind; target: number; start: number; due: string; monthly: number; color: string };
@@ -33,6 +36,9 @@ export type MoneyPlan = {
   sources: IncomeSource[]; onHand: OnHand[]; incomeLog: IncomeEntry[]; payments: BillPayment[]; goals: Goal[]; goalMoves: GoalMove[];
   /** Kept aside each month before anything else, so a slow month doesn't break the plan. */
   cushion: number;
+  /** Whether what's left unpaid on a bill is added to next month's. Off unless they turn it on: each month
+   *  is its own month (Nov 15, 2026). */
+  carryBills?: boolean;
   /** A month that has been changed has its own copy of the bills, income and spending limits, so editing one month
    *  never touches another. A month with no copy shows the plan as it was set up. See viewMonth / editMonth. */
   months?: Record<string, MonthLayer>;
@@ -44,7 +50,7 @@ export type BillPart = { day: number; amount: number };
 export type PlanBill = Bill & { parts?: BillPart[] };
 
 export const MONTH_LAYERS_KEPT = 36;
-export const MONEY_LIMITS = { sources: 12, onHand: 12, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
+export const MONEY_LIMITS = { sources: 12, onHand: 400, incomeLog: 4000, payments: 6000, goals: 30, goalMoves: 4000 };
 export const emptyMoney = (): MoneyPlan => ({ setUp: false, who: "me", style: "monthly", sources: [], onHand: [], incomeLog: [], payments: [], goals: [], goalMoves: [], cushion: 0 });
 
 // ─── small helpers (own copies, so familyHub.ts can import this file) ───
@@ -108,11 +114,12 @@ export function cleanMoney(raw: unknown): MoneyPlan {
     who: oneOf(r.who, ["me", "two", "family"] as const, "me"),
     style: oneOf(r.style, ["paycheck", "monthly"] as const, "monthly"),
     cushion: num(r.cushion, 0, 10_000_000),
+    ...(r.carryBills === true ? { carryBills: true } : {}),
     ...(cleanMonths(r.months) ? { months: cleanMonths(r.months) } : {}),
     sources: rows(r.sources, MONEY_LIMITS.sources, cleanSource),
     onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
       const name = typedEnd(str(o.name, 60));
-      return name && num(o.amount, 0, 100_000_000) > 0 ? { id: str(o.id, 100), name, amount: cents(num(o.amount, 0, 100_000_000)) } : null;
+      return name && num(o.amount, 0, 100_000_000) > 0 ? { id: str(o.id, 100), name, amount: cents(num(o.amount, 0, 100_000_000)), ...(isMonth(o.month) ? { month: o.month } : {}) } : null;
     }),
     incomeLog: rows(r.incomeLog, MONEY_LIMITS.incomeLog, (e) => isDay(e.date) && num(e.amount, 0, 10_000_000) > 0
       ? { id: str(e.id, 100), sourceId: str(e.sourceId, 100), date: e.date, amount: cents(num(e.amount, 0, 10_000_000)), kind: oneOf(e.kind, ["pay", "tips", "bonus", "other"] as const, "pay"), note: str(e.note, 120) } : null),
@@ -158,6 +165,76 @@ export function editMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: Budg
   const keep = Object.keys(months).sort().slice(-MONTH_LAYERS_KEPT);
   return { money: { ...f.money, setUp, months: Object.fromEntries(keep.map((k) => [k, months[k]])) } };
 }
+
+/** What can be copied from one month to another (the Money app's Copy months): bills, income sources, money
+ *  logged as received (a bonus, tips), and spending limits. */
+export type MonthCopyPick = { bills: string[]; sources: string[]; logged: string[]; limits: boolean; held?: string[] };
+export type MonthCopyItem = { kind: "bill" | "source" | "logged" | "held"; id: string; name: string; amount: number; detail: string; there: "new" | "same" | "changes" };
+
+/** The same day in another month ("2026-03-31" into April → "2026-04-30"). */
+export const sameDayIn = (date: string, month: string) => onDay(month, Number(date.slice(8, 10)));
+
+/** What's in `from` that could be copied into `to`, and whether `to` already has it (the same, or different). */
+export function monthCopyItems(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, from: string, to: string, now = from): { items: MonthCopyItem[]; limitsDiffer: boolean } {
+  const a = viewMonth(f.money, f.bills, f.budget, from), b = viewMonth(f.money, f.bills, f.budget, to);
+  const items: MonthCopyItem[] = [];
+  const billKey = (x: PlanBill) => JSON.stringify([x.name, x.amount, x.dueDay, x.category, x.autopay, x.parts ?? []]);
+  for (const bill of a.bills) {
+    const t = b.bills.find((x) => x.id === bill.id);
+    items.push({ kind: "bill", id: bill.id, name: bill.name, amount: bill.amount, detail: `Due the ${ordinal(bill.dueDay)}${bill.autopay ? " · autopay" : ""}`, there: !t ? "new" : billKey(t) === billKey(bill) ? "same" : "changes" });
+  }
+  const srcKey = (x: IncomeSource) => JSON.stringify([x.name, x.kind, x.frequency, x.amount, x.days, x.anchor]);
+  for (const src of a.plan.sources) {
+    const t = b.plan.sources.find((x) => x.id === src.id);
+    items.push({ kind: "source", id: src.id, name: src.name, amount: src.amount, detail: FREQ_LABEL[src.frequency], there: !t ? "new" : srcKey(t) === srcKey(src) ? "same" : "changes" });
+  }
+  for (const e of f.money.incomeLog.filter((x) => x.date.startsWith(from))) {
+    const day = sameDayIn(e.date, to);
+    const dup = f.money.incomeLog.some((x) => x.date === day && x.amount === e.amount && x.kind === e.kind && x.sourceId === e.sourceId);
+    items.push({ kind: "logged", id: e.id, name: e.note || ({ pay: "Paycheck", tips: "Tips", bonus: "Bonus", other: "Other income" } as const)[e.kind], amount: e.amount, detail: `Received ${e.date.slice(5).replace("-", "/")} → ${day.slice(5).replace("-", "/")}`, there: dup ? "same" : "new" });
+  }
+  for (const o of onHandIn(f.money, from, now)) {
+    const t = onHandIn(f.money, to, now).find((x) => x.name === o.name);
+    items.push({ kind: "held", id: o.id, name: o.name, amount: o.amount, detail: "Money in", there: !t ? "new" : t.amount === o.amount ? "same" : "changes" });
+  }
+  const lim = (l: BudgetCategory[]) => JSON.stringify(l.map((c) => [c.id, c.name, c.limit]));
+  return { items, limitsDiffer: lim(a.budget) !== lim(b.budget) };
+}
+
+/** Copies what was picked from one month into another. Bills and income sources already in the other month
+ *  are updated to match (what was paid there stays as it is); new ones are added. Money logged as received
+ *  is logged again on the same day of the other month. Only the other month changes. */
+export function copyMonth(f: { money: MoneyPlan; bills: PlanBill[]; budget: BudgetCategory[] }, from: string, to: string, pick: MonthCopyPick, makeId: () => string, now = from): { money: MoneyPlan } {
+  if (from === to) return { money: f.money };
+  const a = viewMonth(f.money, f.bills, f.budget, from);
+  const bills = a.bills.filter((b) => pick.bills.includes(b.id));
+  const sources = a.plan.sources.filter((s) => pick.sources.includes(s.id));
+  const merge = <T extends { id: string }>(list: T[], add: T[], keep?: (old: T, nu: T) => T) => {
+    const out = list.map((x) => { const n = add.find((y) => y.id === x.id); return n ? (keep ? keep(x, n) : n) : x; });
+    return [...out, ...add.filter((y) => !list.some((x) => x.id === y.id))];
+  };
+  const r = editMonth(f, to, (v) => ({
+    bills: merge(v.bills, bills.map((b) => ({ ...b, paid: [] })), (old, nu) => ({ ...nu, paid: old.paid })).slice(0, 200),
+    sources: merge(v.sources, sources).slice(0, MONEY_LIMITS.sources),
+    budget: pick.limits ? merge(v.budget, a.budget) : v.budget,
+  }));
+  const logged = f.money.incomeLog.filter((e) => e.date.startsWith(from) && pick.logged.includes(e.id))
+    .map((e) => ({ ...e, id: makeId(), date: sameDayIn(e.date, to) }))
+    .filter((e) => !f.money.incomeLog.some((x) => x.date === e.date && x.amount === e.amount && x.kind === e.kind && x.sourceId === e.sourceId));
+  let money = logged.length ? { ...r.money, incomeLog: [...r.money.incomeLog, ...logged].slice(-MONEY_LIMITS.incomeLog) } : r.money;
+  const held = onHandIn(f.money, from, now).filter((o) => pick.held?.includes(o.id));
+  if (held.length) {
+    // Same name in the other month: its amount is updated; otherwise it's added for that month.
+    const there = onHandIn(money, to, now);
+    const onHand = money.onHand.map((o) => { const n = (o.month ?? now) === to && held.find((h) => h.name === o.name); return n ? { ...o, amount: n.amount } : o; });
+    for (const h of held) if (!there.some((o) => o.name === h.name)) onHand.push({ id: makeId(), name: h.name, amount: h.amount, month: to });
+    money = { ...money, onHand: onHand.slice(-MONEY_LIMITS.onHand) };
+  }
+  return { money };
+}
+/** The money in for a month. Older entries without a month count in `current` (this month) only. */
+export const onHandIn = (plan: MoneyPlan, month: string, current: string) => plan.onHand.filter((o) => (o.month ?? current) === month);
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 
 /** Writes a result computed on a month's view (payBill / unpayBill) back: `paid` goes to the plan's bills, and to the
  *  month's copy for a bill that only exists there. */
@@ -228,6 +305,7 @@ export const partsOf = (b: PlanBill): BillPart[] => (b.parts && b.parts.length >
 export const paidToward = (plan: MoneyPlan, billId: string, month: string) => cents(plan.payments.filter((p) => p.billId === billId && p.month === month).reduce((t, p) => t + p.amount, 0));
 /** Still owed from last month: only when some of it was paid then (a bill never touched isn't counted as debt). */
 export function carriedIn(plan: MoneyPlan, b: PlanBill, month: string): number {
+  if (!plan.carryBills) return 0;
   const prev = shiftMonth(month, -1);
   if (b.paid.includes(prev)) return 0;
   const paid = paidToward(plan, b.id, prev);

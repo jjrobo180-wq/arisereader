@@ -8,16 +8,17 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertCircle, ArrowDownRight, ArrowUpRight, Wallet, Check, ChevronLeft, ChevronRight, CircleDollarSign, Download,
-  HandCoins, Pencil, PiggyBank, Plus, Receipt, Repeat2, RotateCcw, Settings2, Target, Trash2, Undo2,
+  CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Receipt, Repeat2, RotateCcw, Settings2, Target, Trash2, Undo2,
 } from "lucide-react";
 import { fromDay, money, toDay, type Expense } from "@shared/familyHub";
 import {
-  billStatus, byCategory, cents, editMonth, payBillInMonth, unpayBillInMonth, viewMonth, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payPeriods,
+  billStatus, byCategory, cents, editMonth, onHandIn, sameDayIn, payBillInMonth, unpayBillInMonth, viewMonth, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payPeriods,
   paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, type Goal, type IncomeEntry, type IncomeSource, type OnHand, type PayFrequency, type PlanBill, type PlanStyle,
 } from "@shared/moneyPlan";
 import { Bar, Empty, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
 import BudgetSetup, { type SetupResult } from "./BudgetSetup";
+import MonthCopy from "./MonthCopy";
 
 type Tab = "overview" | "paychecks" | "bills" | "spending" | "income" | "goals" | "insights";
 const STATE_STYLE = { paid: "bg-emerald-50 text-emerald-700", partial: "bg-sky-50 text-sky-700", late: "bg-rose-50 text-rose-600", soon: "bg-amber-50 text-amber-700", later: "bg-slate-100 text-slate-600" };
@@ -43,8 +44,14 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   // Each month has its own bills, income and spending limits once it has been changed (shared/moneyPlan.ts viewMonth),
   // so editing one month never touches another.
   const view = useMemo(() => viewMonth(family.money, family.bills as PlanBill[], family.budget, month), [family.money, family.bills, family.budget, month]);
-  const plan = useMemo(() => view.plan.sources.length || !(family.income > 0) ? view.plan
-    : { ...view.plan, sources: [{ id: "legacy-income", name: "Monthly income", kind: "other" as const, frequency: "irregular" as const, amount: family.income, days: [], anchor: "" }] }, [view.plan, family.income]);
+  // Each month is its own month: only this month's money in counts (shared/moneyPlan.ts onHandIn).
+  const plan = useMemo(() => {
+    const p = { ...view.plan, onHand: onHandIn(view.plan, month, today.slice(0, 7)) };
+    return p.sources.length || !(family.income > 0) ? p
+      : { ...p, sources: [{ id: "legacy-income", name: "Monthly income", kind: "other" as const, frequency: "irregular" as const, amount: family.income, days: [], anchor: "" }] };
+  }, [view.plan, family.income, month, today]);
+  /** A day in the month being looked at, for anything new: today in this month, else the same day of that month. */
+  const inMonth = month === today.slice(0, 7) ? today : sameDayIn(today, month);
   const bills = view.bills;
   const budget = view.budget;
   /** Changes this month's bills, income or limits only. */
@@ -61,6 +68,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const [held, setHeld] = useState<OnHand | null>(null);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [settings, setSettings] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [notYet, setNotYet] = useState<string[]>([]);
   const [goal, setGoal] = useState<Goal | null>(null);
   const [moving, setMoving] = useState<{ goal: Goal; out: boolean } | null>(null);
@@ -79,8 +87,11 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const daysLeft = isNow ? Math.max(1, Number(`${month}-${new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate()}`.slice(8)) - Number(today.slice(8)) + 1) : 0;
 
   const shift = (n: number) => setMonth(shiftMonth(month, n));
+  // New spending goes in the month being looked at.
+  const [shownFor, setShownFor] = useState(month);
+  if (shownFor !== month) { setShownFor(month); setExpense((x) => ({ ...x, date: month === today.slice(0, 7) ? today : sameDayIn(today, month) })); }
   const setMoney = (f: (m: typeof plan) => typeof plan) => setFamily((fam) => ({ ...fam, money: f(fam.money) }));
-  const pay = (b: PlanBill, amount: number, date = today) => {
+  const pay = (b: PlanBill, amount: number, date = inMonth) => {
     setFamily((f) => ({ ...f, ...payBillInMonth({ money: f.money, bills: f.bills as PlanBill[], budget: f.budget }, month, b.id, amount, date, makeId()) }));
     say(`${money(amount)} paid toward ${b.name}`);
   };
@@ -120,6 +131,8 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
         <button type="button" onClick={() => shift(-1)} aria-label="Previous month" className="grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-50"><ChevronLeft size={18} /></button>
         <button type="button" onClick={() => setMonth(today.slice(0, 7))} title={isNow ? undefined : "Back to this month"} className="min-w-[8.5rem] rounded-lg px-2 text-center text-sm font-semibold tabular-nums text-slate-900">{label}</button>
         <button type="button" onClick={() => shift(1)} aria-label="Next month" className="grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-50"><ChevronRight size={18} /></button>
+        <span className="mx-0.5 h-6 w-px bg-slate-200" aria-hidden />
+        <button type="button" onClick={() => setCopying(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50" data-testid="budget-copy-months"><CopyPlus size={16} />Copy</button>
       </div>
     </div>
     <div className="mt-5 grid grid-cols-2 border-t border-slate-100 lg:grid-cols-4">
@@ -299,7 +312,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const incomeTab = <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <div className="space-y-5">
       {checkIn}
-      <Panel title={`Income for ${label}`} right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: today })} className={primary}><Plus size={16} /> Log income</button>}>
+      <Panel title={`Income for ${label}`} right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: inMonth })} className={primary}><Plus size={16} /> Log income</button>}>
         <div className="mb-3 grid grid-cols-2 border-y border-slate-100">
           <Figure i={0} label="Received" value={money(receivedIn(plan, month))} tone="text-emerald-700" />
           <Figure i={1} label="Expected" value={money(expectedIncome(plan, month))} />
@@ -320,7 +333,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
           <span className="flex h-28 w-full items-end"><span className={`block w-full rounded-t-md ${i === tw.weeks.length - 1 ? "bg-[#6e5ae0]" : "bg-violet-200"}`} style={{ height: `${Math.max(3, (w.total / maxTip) * 100)}%` }} /></span>
           <span className="text-[10px] text-slate-500">{day(w.start)}</span>
         </div>)}</div>
-        <button type="button" onClick={() => setIncome({ kind: "tips", date: today })} className={soft + " mt-4 w-full"}><Plus size={16} /> Log tonight's tips</button>
+        <button type="button" onClick={() => setIncome({ kind: "tips", date: inMonth })} className={soft + " mt-4 w-full"}><Plus size={16} /> Log tonight's tips</button>
       </Panel>}
       <Panel title="Income sources" right={<button type="button" onClick={() => setSource({ id: makeId(), name: "", kind: "paycheck", frequency: "biweekly", amount: 0, days: [], anchor: today })} className={soft} data-testid="budget-source-add"><Plus size={15} /> Add</button>}>
         {view.plan.sources.length ? <ul className="divide-y divide-slate-100">{view.plan.sources.map((s) => <li key={s.id} className="flex items-center gap-3 py-3 text-sm" data-testid="budget-source">
@@ -398,9 +411,10 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   </div>;
 
   return <div className="space-y-5" data-testid="budget-app">
+    {copying && <MonthCopy family={family} setFamily={setFamily} month={month} now={today.slice(0, 7)} makeId={makeId} say={say} onClose={() => setCopying(false)} onDone={(to) => { setCopying(false); setMonth(to); }} />}
     <PageHead eyebrow="Budget & bills" title="Your money" blurb={plan.setUp ? (plan.style === "paycheck" ? "Planned paycheck by paycheck: each check covers the bills due before the next one." : "Planned month by month: what's left after bills, spending limits and goals.") : "Bills, spending, income and goals in one place."}
       action={<div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setIncome({ kind: plan.sources.some((s) => s.kind === "tips") ? "tips" : "pay", date: today })} className={soft}><HandCoins size={16} /> Log income</button>
+        <button type="button" onClick={() => setIncome({ kind: plan.sources.some((s) => s.kind === "tips") ? "tips" : "pay", date: inMonth })} className={soft}><HandCoins size={16} /> Log income</button>
         {plan.setUp ? <button type="button" onClick={() => setSettings(true)} className={plain} data-testid="budget-settings"><Settings2 size={16} /> Settings</button>
           : <button type="button" onClick={() => setSetup(true)} className={plain} data-testid="budget-redo"><Settings2 size={16} /> Set up</button>}
       </div>} />
@@ -440,7 +454,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     {editBill && <BillEditor bill={editBill} isNew={!bills.some((b) => b.id === editBill.id)} onClose={() => setEditBill(null)}
       onSave={(b) => { editThisMonth((v) => ({ ...v, bills: v.bills.some((x) => x.id === b.id) ? v.bills.map((x) => (x.id === b.id ? b : x)) : [...v.bills, b] })); setEditBill(null); say(`Bill saved for ${label}`); }}
       onDelete={(b) => { if (confirmed(`Remove the bill "${b.name}" from ${label}? Other months keep it.`)) { editThisMonth((v) => ({ ...v, bills: v.bills.filter((x) => x.id !== b.id) })); setEditBill(null); say(`Bill removed from ${label}`); } }} />}
-    {paying && <PayDialog bill={paying.bill} status={billStatus(plan, paying.bill, month, ref)} month={label} today={today} onClose={() => setPaying(null)}
+    {paying && <PayDialog bill={paying.bill} status={billStatus(plan, paying.bill, month, ref)} month={label} today={inMonth} onClose={() => setPaying(null)}
       onPay={(amount, date) => { pay(paying.bill, amount, date); setPaying(null); }} onUndo={() => { unpay(paying.bill); setPaying(null); }} />}
     {income && <IncomeDialog start={income} sources={view.plan.sources} goals={plan.goals} today={today} onClose={() => setIncome(null)}
       onDelete={income.id ? () => { setMoney((m) => ({ ...m, incomeLog: m.incomeLog.filter((x) => x.id !== income.id) })); setIncome(null); say("Removed"); } : undefined}
@@ -451,21 +465,21 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
         setIncome(null); say(`${money(e.amount)} ${income.id ? "saved" : "logged"}${toGoal ? `, ${money(toGoal.amount)} to ${plan.goals.find((g) => g.id === toGoal.goalId)?.name}` : ""}`);
       }} />}
     {held && <OnHandDialog start={held} onClose={() => setHeld(null)}
-      onSave={(o) => { setMoney((m) => ({ ...m, onHand: (m.onHand.some((x) => x.id === o.id) ? m.onHand.map((x) => (x.id === o.id ? o : x)) : [...m.onHand, o]).slice(0, 12) })); setHeld(null); say(`${o.name} saved`); }} />}
+      onSave={(o) => { const mine = { ...o, month: o.month ?? month }; setMoney((m) => ({ ...m, onHand: (m.onHand.some((x) => x.id === o.id) ? m.onHand.map((x) => (x.id === o.id ? mine : x)) : [...m.onHand, mine]).slice(-400) })); setHeld(null); say(`${o.name} saved`); }} />}
     {source && <SourceEditor start={source} isNew={!view.plan.sources.some((x) => x.id === source.id)} month={month} onClose={() => setSource(null)}
       onSave={(s2) => { editThisMonth((v) => ({ ...v, sources: v.sources.some((x) => x.id === s2.id) ? v.sources.map((x) => (x.id === s2.id ? s2 : x)) : [...v.sources, s2] }), true); setSource(null); say(`${s2.name} saved`); }}
       onDelete={(s2) => { if (confirmed(`Remove "${s2.name}" from your income? Money already logged from it stays.`)) { editThisMonth((v) => ({ ...v, sources: v.sources.filter((x) => x.id !== s2.id) })); setSource(null); } }} />}
     {editExpense && <ExpenseEditor start={editExpense} categories={budget} onClose={() => setEditExpense(null)}
       onSave={(x) => { setFamily((f) => ({ ...f, expenses: f.expenses.map((e) => (e.id === x.id ? x : e)) })); setEditExpense(null); say("Saved"); }}
       onDelete={(x) => { setFamily((f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== x.id) })); setEditExpense(null); say("Removed"); }} />}
-    {settings && <SettingsDialog style={plan.style} cushion={plan.cushion} onClose={() => setSettings(false)} onRedo={() => { setSettings(false); setSetup(true); }}
-      onSave={(style, cushion) => { setMoney((m) => ({ ...m, style, cushion })); setSettings(false); say("Settings saved"); }} />}
+    {settings && <SettingsDialog style={plan.style} cushion={plan.cushion} carry={!!plan.carryBills} onClose={() => setSettings(false)} onRedo={() => { setSettings(false); setSetup(true); }}
+      onSave={(style, cushion, carry) => { setMoney((m) => ({ ...m, style, cushion, carryBills: carry || undefined })); setSettings(false); say("Settings saved"); }} />}
     {goal && <GoalEditor goal={goal} isNew={!plan.goals.some((g) => g.id === goal.id)} onClose={() => setGoal(null)}
       onSave={(g) => { setMoney((m) => ({ ...m, goals: m.goals.some((x) => x.id === g.id) ? m.goals.map((x) => (x.id === g.id ? g : x)) : [...m.goals, g] })); setGoal(null); say("Goal saved"); }}
       onDelete={(g) => { if (confirmed(`Delete the goal "${g.name}"?`)) { setMoney((m) => ({ ...m, goals: m.goals.filter((x) => x.id !== g.id), goalMoves: m.goalMoves.filter((x) => x.goalId !== g.id) })); setGoal(null); } }} />}
     {moving && <AmountDialog title={moving.out ? `${moving.goal.kind === "debt" ? "Undo a payment on" : "Take money out of"} ${moving.goal.name}` : `${moving.goal.kind === "debt" ? "Pay toward" : "Add to"} ${moving.goal.name}`}
       start={moving.out ? 0 : moving.goal.monthly} onClose={() => setMoving(null)}
-      onSave={(amount) => { setMoney((m) => ({ ...m, goalMoves: [...m.goalMoves, { id: makeId(), goalId: moving.goal.id, amount: cents(moving.out ? -amount : amount), date: today }] })); setMoving(null); say("Goal updated"); }} />}
+      onSave={(amount) => { setMoney((m) => ({ ...m, goalMoves: [...m.goalMoves, { id: makeId(), goalId: moving.goal.id, amount: cents(moving.out ? -amount : amount), date: inMonth }] })); setMoving(null); say("Goal updated"); }} />}
   </div>;
 }
 
@@ -631,16 +645,21 @@ function ExpenseEditor({ start, categories, onSave, onDelete, onClose }: { start
   </Modal>;
 }
 
-function SettingsDialog({ style, cushion, onSave, onRedo, onClose }: { style: PlanStyle; cushion: number; onSave: (style: PlanStyle, cushion: number) => void; onRedo: () => void; onClose: () => void }) {
+function SettingsDialog({ style, cushion, carry, onSave, onRedo, onClose }: { style: PlanStyle; cushion: number; carry: boolean; onSave: (style: PlanStyle, cushion: number, carry: boolean) => void; onRedo: () => void; onClose: () => void }) {
   const [st, setSt] = useState(style);
+  const [cb, setCb] = useState(carry);
   const [c, setC] = useState(cushion ? String(cushion) : "");
   return <Modal title="Budget settings" eyebrow="Budget" onClose={onClose}>
-    <form onSubmit={(e) => { e.preventDefault(); onSave(st, Math.max(0, Number(c) || 0)); }} className="space-y-4" data-testid="budget-settings-dialog">
+    <form onSubmit={(e) => { e.preventDefault(); onSave(st, Math.max(0, Number(c) || 0), cb); }} className="space-y-4" data-testid="budget-settings-dialog">
       <Label text="Plan">
         <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1">{(["paycheck", "monthly"] as PlanStyle[]).map((k) => <button key={k} type="button" aria-pressed={st === k} onClick={() => setSt(k)} className={`min-h-10 rounded-xl text-sm font-bold ${st === k ? "bg-white text-slate-900 shadow" : "text-slate-600"}`}>{k === "paycheck" ? "By paycheck" : "By month"}</button>)}</div>
       </Label>
       <p className="-mt-2 text-xs leading-5 text-slate-500">{st === "paycheck" ? "Each check pays the bills due before the next one, and the top shows what's safe to spend until payday." : "One plan for the month: what's left to spend after bills, limits and goals."}</p>
       <Label text="Cushion each month (kept aside for surprises)"><input type="number" min={0} step="0.01" value={c} onChange={(e) => setC(e.target.value)} className={inputClass} placeholder="$0" /></Label>
+      <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3 text-sm" data-testid="budget-carry-bills">
+        <input type="checkbox" checked={cb} onChange={(e) => setCb(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#6e5ae0]" />
+        <span><span className="block font-semibold text-slate-900">Carry unpaid bills into next month</span><span className="block text-xs leading-5 text-slate-500">Off: each month is its own. On: what's left on a part-paid bill is added to next month's. To bring things over yourself, use Copy next to the month.</span></span>
+      </label>
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <button type="submit" className={primary + " flex-1"}><Check size={17} /> Save</button>
         <button type="button" onClick={onRedo} className={plain}><RotateCcw size={15} /> Redo setup questions</button>
