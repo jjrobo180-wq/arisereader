@@ -21,9 +21,13 @@ export type Activity = {
   steps: string[];         // how to run it, in order
   items: Item[];           // the questions with correct answers
   watch?: string[];        // what to look for while they work
+  say?: string[];          // what to say to students, in kid words
+  board?: string[];        // a worked exemplar to copy onto the board, one line per step
 };
 export type Lesson = {
   n: number; title: string; section: string;
+  /** Lessons outside Unit 1: the chip text, the heading above the title, the item id prefix and the publisher's pages. */
+  extra?: { chip: string; heading: string; idPrefix: string; teacherUrl: string; studentUrl: string; source: string };
   targets: string[];       // "I can" statements
   bigIdea: string;
   primer: string[];        // for a teacher with no math background: read this first
@@ -38,6 +42,7 @@ export type Lesson = {
 
 export const UNIT = {
   title: "Grade 7, Unit 1: Scale Drawings",
+  extraTitle: "More lessons",
   source: "Illustrative Mathematics Grade 7 (Kendall Hunt), CC BY 4.0",
   licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
   teacherUrl: (n: number) => `https://im.kendallhunt.com/MS/teachers/2/1/${n}/index.html`,
@@ -47,7 +52,7 @@ export const UNIT = {
 };
 
 export const START_HERE = {
-  title: "If you have never taught this: the whole unit in two minutes",
+  title: "If you have never taught this: Unit 1 (Scale Drawings) in two minutes",
   points: [
     "A scaled copy is the same picture made bigger or smaller evenly: every length is multiplied by the same number. Think of zooming on a photo without stretching it.",
     "That number is the scale factor. 2 makes every length 2 times as long, 1/2 makes every length half as long, 1 keeps the same size.",
