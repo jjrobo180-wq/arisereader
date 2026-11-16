@@ -19,6 +19,7 @@
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { PageError, fetchPageText, linksFrom, pagesText, type PageText } from "./pageText";
 import type { KV } from "./podcastDirectory";
 import { SOLVE_PROMPT, judge, solveText, type SolveItem } from "../shared/ariseMathVerify";
 import {
@@ -35,6 +36,8 @@ export type SpedDeps = {
   /** Tests only: leaves out the second solver. */
   skipCheck?: boolean;
   now?: () => number;
+  /** Reads a lesson page for "paste a link" (tests pass their own). */
+  fetchPage?: (url: string) => Promise<PageText>;
 };
 
 export class SpedAiError extends Error {}
@@ -233,7 +236,10 @@ export function registerSpedExemplarRoutes(app: Express, auth: RequestHandler, d
     const images = (Array.isArray(body.images) ? body.images : []).filter((x: unknown) => typeof x === "string" && x);
     if (images.length > SPED_LIMITS.images) return res.status(400).json({ message: `Add up to ${SPED_LIMITS.images} photos at a time.` });
     if (images.some((x: string) => x.length > SPED_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the photos couldn’t be read. Try a JPG or PNG photo or screenshot." });
-    if (!images.length && text.length < 20) return res.status(400).json({ message: "Paste the lesson (at least a few lines), or add photos of it." });
+    // A link to the lesson page: its words are read for the build (see server/pageText.ts).
+    const links = linksFrom(body.links);
+    if (String(Array.isArray(body.links) ? body.links.join("") : body.links ?? "").trim() && !links.length) return res.status(400).json({ message: "That doesn’t look like a web address. Paste the full link, starting with https://" });
+    if (!images.length && !links.length && text.length < 20) return res.status(400).json({ message: "Paste the lesson (at least a few lines), add a link to it, or add photos of it." });
     const wait = builds.retryAfter(String(u.id));
     if (wait) return res.status(429).json({ message: `That’s a lot of exemplars today! You can make another in ${waitWords(wait)}.` });
     builds.fail(String(u.id));
@@ -247,12 +253,19 @@ export function registerSpedExemplarRoutes(app: Express, auth: RequestHandler, d
     // The build carries on after the answer is sent; the page polls GET /api/sped-exemplar/:id.
     void (async () => {
       try {
-        const built = await buildPack({ title, grade, text }, images, askAI, { skipCheck: deps.skipCheck, setStage: async (stage) => { job.stage = stage; await putJob(job); } });
+        let lessonText = text;
+        if (links.length) {
+          job.stage = "Reading the lesson page"; await putJob(job);
+          const pages: PageText[] = [];
+          for (const l of links) pages.push(await (deps.fetchPage ?? fetchPageText)(l));
+          lessonText = [text, pagesText(pages, SPED_LIMITS.text)].filter(Boolean).join("\n\n").slice(0, SPED_LIMITS.text);
+        }
+        const built = await buildPack({ title, grade, text: lessonText }, images, askAI, { skipCheck: deps.skipCheck, setStage: async (stage) => { job.stage = stage; await putJob(job); } });
         const pack: SpedPack = { id, title: title || built.exemplar.title, grade: grade || built.exemplar.grade, createdAt: new Date(now()).toISOString(), ownerId: u.id, exemplar: built.exemplar, practice: built.practice, check: built.check };
         await putJob({ ...job, status: "done", stage: "Done", pack });
       } catch (e: any) {
         console.error("[sped-exemplar] build failed:", e?.message || e);
-        await putJob({ ...job, status: "failed", stage: "Stopped", error: e instanceof SpedAiError ? e.message : "The build didn’t finish. Tap Build again." }).catch(() => {});
+        await putJob({ ...job, status: "failed", stage: "Stopped", error: e instanceof SpedAiError || e instanceof PageError ? e.message : "The build didn’t finish. Tap Build again." }).catch(() => {});
       }
     })();
   });

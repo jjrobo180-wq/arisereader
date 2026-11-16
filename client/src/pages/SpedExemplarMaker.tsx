@@ -55,6 +55,7 @@ export default function SpedExemplarMaker() {
   const [title, setTitle] = useState("");
   const [grade, setGrade] = useState("");
   const [text, setText] = useState("");
+  const [links, setLinks] = useState("");
   const [images, setImages] = useState<{ name: string; data: string }[]>([]);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -110,10 +111,10 @@ export default function SpedExemplarMaker() {
 
   const build = async () => {
     setError(""); setJob(null);
-    if (!images.length && text.trim().length < 20) { setError("Paste the lesson (at least a few lines), or add photos of it."); return; }
+    if (!images.length && !links.trim() && text.trim().length < 20) { setError("Paste a link to the lesson, paste the lesson (at least a few lines), or add photos of it."); return; }
     setBusy(true);
     try {
-      const { id } = await (await apiRequest("POST", "/api/sped-exemplar", { title, grade, text, images: images.map((i) => i.data) })).json();
+      const { id } = await (await apiRequest("POST", "/api/sped-exemplar", { title, grade, text, links, images: images.map((i) => i.data) })).json();
       try { localStorage.setItem(JOB_KEY, id); } catch { /* fine */ }
       poll(id);
     } catch (e) { setBusy(false); setError(messageOf(e)); }
@@ -155,7 +156,11 @@ export default function SpedExemplarMaker() {
           <label>Lesson name (optional)<input value={title} maxLength={SPED_LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Grade 7 · Unit 4 · Lesson 8" /></label>
           <label>Grade (optional)<select value={grade} onChange={(e) => setGrade(e.target.value)}><option value="">Let it figure it out</option>{["K", ...Array.from({ length: 12 }, (_, i) => String(i + 1))].map((g) => <option key={g} value={g}>{g === "K" ? "Kindergarten" : `Grade ${g}`}</option>)}</select></label>
         </div>
-        <label className="ml-mk-label">Paste the lesson: the warm-up, the activities, the problems and the cool-down
+        <label className="ml-mk-label">Paste a link to the lesson (a web page, up to 3 links)
+          <input value={links} maxLength={600} inputMode="url" autoComplete="off" onChange={(e) => setLinks(e.target.value)} placeholder="https://…  (the page must open without signing in)" data-testid="sped-links" />
+        </label>
+        <p className="ml-note">I read the page for you. If it needs a sign-in or won’t open, I’ll say so, and you can paste the text or add photos instead.</p>
+        <label className="ml-mk-label">Or paste the lesson: the warm-up, the activities, the problems and the cool-down
           <textarea value={text} maxLength={SPED_LIMITS.text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste the lesson text here. Include every problem you want solved, and the lesson’s own practice problems if it has them." />
         </label>
         <div className="ml-mk-photos">

@@ -18,6 +18,7 @@
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { PageError, fetchPageText, linksFrom, pagesText, type PageText } from "./pageText";
 import { SpedAiError, askClean, askOpenAI, type SpedAsk, type SpedDeps } from "./spedExemplar";
 import {
   CHECK_SYSTEM, KHA_LIMITS, REPAIR_SYSTEM, checkText, cleanKhaSheet, cleanQuestionForRepair, cleanSettings, judgeSheet, khaPrompt, khaText, parseJsonLoose, poemsForReader, refineText,
@@ -129,7 +130,10 @@ export function registerKhaElaRoutes(app: Express, auth: RequestHandler, deps: K
     const images = (Array.isArray(body.images) ? body.images : []).filter((x: unknown) => typeof x === "string" && x);
     if (images.length > KHA_LIMITS.images) return res.status(400).json({ message: `Add up to ${KHA_LIMITS.images} photos at a time.` });
     if (images.some((x: string) => x.length > KHA_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the photos couldn’t be read. Try a JPG or PNG photo or screenshot." });
-    if (settings.source === "asis" && body.refineFrom === undefined && !text && !images.length) return res.status(400).json({ message: "Paste the poems or worksheet to use (or add photos), or switch to “Write new poems.”" });
+    // A link to a worksheet or poems to follow: its words are read for the build (server/pageText.ts).
+    const links = linksFrom(body.links);
+    if (String(Array.isArray(body.links) ? body.links.join("") : body.links ?? "").trim() && !links.length) return res.status(400).json({ message: "That doesn’t look like a web address. Paste the full link, starting with https://" });
+    if (settings.source === "asis" && body.refineFrom === undefined && !text && !images.length && !links.length) return res.status(400).json({ message: "Paste the poems or worksheet to use (or add a link or photos), or switch to “Write new poems.”" });
     // A change to a worksheet already made: the previous worksheet goes back to the AI with what to change.
     let previous: KhaSheet | undefined;
     const change = String(body.change ?? "").replace(/\s+/g, " ").trim().slice(0, KHA_LIMITS.change);
@@ -152,12 +156,19 @@ export function registerKhaElaRoutes(app: Express, auth: RequestHandler, deps: K
     // The build carries on after the answer is sent; the page polls GET /api/kha-ela/:id.
     void (async () => {
       try {
-        const built = await buildSheet(settings, text, images, askAI, { previous, change, skipCheck: deps.skipCheck, setStage: async (stage) => { job.stage = stage; await putJob(job); } });
+        let fullText = text;
+        if (links.length && !previous) {
+          job.stage = "Reading the page"; await putJob(job);
+          const pages: PageText[] = [];
+          for (const l of links) pages.push(await (deps.fetchPage ?? fetchPageText)(l));
+          fullText = [text, pagesText(pages, KHA_LIMITS.text)].filter(Boolean).join("\n\n").slice(0, KHA_LIMITS.text);
+        }
+        const built = await buildSheet(settings, fullText, images, askAI, { previous, change, skipCheck: deps.skipCheck, setStage: async (stage) => { job.stage = stage; await putJob(job); } });
         const pack: KhaPack = { id, title: built.sheet.title, createdAt: new Date(now()).toISOString(), ownerId: u.id, settings, sheet: built.sheet, check: built.check };
         await putJob({ ...job, status: "done", stage: "Done", pack });
       } catch (e: any) {
         console.error("[kha-ela] build failed:", e?.message || e);
-        await putJob({ ...job, status: "failed", stage: "Stopped", error: e instanceof SpedAiError ? e.message : "The build didn’t finish. Tap Make it again." }).catch(() => {});
+        await putJob({ ...job, status: "failed", stage: "Stopped", error: e instanceof SpedAiError || e instanceof PageError ? e.message : "The build didn’t finish. Tap Make it again." }).catch(() => {});
       }
     })();
   });

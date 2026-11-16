@@ -66,6 +66,7 @@ function Doc({ html, name, title }: { html: string; name: string; title: string 
 export default function KhaElaMaker() {
   const [s, setS] = useState<KhaSettings>(readSettings);
   const [text, setText] = useState("");
+  const [links, setLinks] = useState("");
   const [images, setImages] = useState<{ name: string; data: string }[]>([]);
   const [change, setChange] = useState("");
   const [job, setJob] = useState<Job | null>(null);
@@ -134,8 +135,8 @@ export default function KhaElaMaker() {
 
   const build = async () => {
     setError(""); setJob(null);
-    if (s.source === "asis" && !text.trim() && !images.length) { setError("Paste the poems or worksheet to use (or add photos), or switch to “Write new poems.”"); return; }
-    await send({ settings: s, text, images: images.map((i) => i.data) });
+    if (s.source === "asis" && !text.trim() && !links.trim() && !images.length) { setError("Paste the poems or worksheet to use (or add a link or photos), or switch to “Write new poems.”"); return; }
+    await send({ settings: s, text, links, images: images.map((i) => i.data) });
   };
   const applyChange = async () => {
     if (!job?.pack) return;
@@ -194,6 +195,9 @@ export default function KhaElaMaker() {
         </label>
         <label className="ml-mk-label">{s.source === "asis" ? "Paste the poems or worksheet to use, word for word" : "Paste a worksheet or poems to follow (optional)"}
           <textarea value={text} maxLength={KHA_LIMITS.text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Paste text here. A worksheet you already like works well: the new one follows its style." />
+        </label>
+        <label className="ml-mk-label">Or paste a link to a worksheet or poems to follow (optional)
+          <input value={links} maxLength={600} inputMode="url" autoComplete="off" onChange={(e) => setLinks(e.target.value)} placeholder="https://…  (the page must open without signing in)" data-testid="kha-links" />
         </label>
         <div className="ml-mk-photos">
           <label className="ml-mk-photo">Add photos or screenshots of a worksheet or poem (up to {KHA_LIMITS.images})
