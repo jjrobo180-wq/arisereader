@@ -1,4 +1,4 @@
-// Arise WorkHub, IEP → Prep: the planning-period checklist. Today's jobs to check off, anything missed
+// Arise WorkHub → Prep, a plugin of its own (it was inside IEP until Nov 15, 2026): the planning-period checklist. Today's jobs to check off, anything missed
 // this week, what's next, and every job with how it repeats. The rules are in shared/hubPrep.ts.
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Pause, Pencil, Play, Plus, Printer, Trash2 } from "lucide-react";
@@ -18,7 +18,7 @@ const h3 = "text-[11px] font-semibold uppercase tracking-[.08em] text-slate-500"
 const pill = (on: boolean) => `inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold ${on ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`;
 const KIND_TINT: Record<PrepKind, string> = { collect: "bg-sky-50 text-sky-800", modify: "bg-violet-50 text-violet-800", make: "bg-emerald-50 text-emerald-800", input: "bg-amber-50 text-amber-800", other: "bg-slate-100 text-slate-700" };
 
-/** How many jobs are left today, for the IEP folder tile. */
+/** How many jobs are left today (Prep's page heading and Home). */
 export function prepLeftToday(workspace: Workspace, today: string): number {
   return prepForDay(cleanPrepChecks(workspace.prepChecks), today).filter((i) => !i.done).length;
 }

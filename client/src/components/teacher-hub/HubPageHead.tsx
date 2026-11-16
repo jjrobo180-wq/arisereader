@@ -18,6 +18,7 @@ function countFor(tab: HubTab, w: Workspace): number | null {
     case "parents": return w.parentLogs.length;
     case "schedules": return w.schedules.length;
     case "email": return w.emails.length;
+    case "prep": return (w.prepChecks ?? []).filter((c) => !c.paused).length;
     default: return null;
   }
 }
