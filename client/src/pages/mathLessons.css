@@ -107,6 +107,9 @@
 .ml-mk-frame { width: 100%; height: 70vh; min-height: 420px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .ml-mk-check { display: flex; align-items: flex-start; gap: 10px; font-weight: 600; font-size: 14px; margin: 6px 0 10px; }
 .ml-mk-check input { width: 22px; height: 22px; flex: none; margin-top: 1px; }
+.ml-mk-files { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.ml-mk-files li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--card); font-size: 14px; overflow-wrap: anywhere; }
+.ml-mk-files button { min-width: 40px; min-height: 40px; border: 0; background: transparent; font-size: 20px; }
 .ml-mk-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; }
 .ml-mk-chips button { min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); font-weight: 600; }
 .ml-mk-mine { list-style: none; padding: 0; margin: 0; }

@@ -325,7 +325,7 @@ ${KHA_SHAPE}`;
 
 /** What is sent with the instructions: the teacher's pasted worksheet / poems, and a note about photos. */
 export const khaText = (ask: KhaSettings, text: string, images: number) =>
-  [`Student first name: ${ask.student}`, text.trim() && `The teacher's worksheet / poems (typed or pasted):\n${text.trim()}`, images ? `${images} photo${images === 1 ? "" : "s"} of the teacher's worksheet or poems follow. Read every one closely, even if it is tilted or cut off.` : "", !text.trim() && !images && ask.source === "new" ? "No file was given: write everything new from the settings above." : ""].filter(Boolean).join("\n\n");
+  [`Student first name: ${ask.student}`, text.trim() && `The teacher's worksheet / poems (typed or pasted):\n${text.trim()}`, images ? `${images} attachment${images === 1 ? "" : "s"} (photos, or a PDF) of the teacher's worksheet or poems follow. Read every one closely, even if it is tilted or cut off.` : "", !text.trim() && !images && ask.source === "new" ? "No file was given: write everything new from the settings above." : ""].filter(Boolean).join("\n\n");
 
 /** A change the teacher typed after seeing a worksheet: it goes back with the whole previous worksheet. */
 export const refineText = (prev: KhaSheet, change: string) =>

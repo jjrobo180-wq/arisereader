@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { SPED_LIMITS, SPED_REQUIREMENTS, exemplarHtml, practiceHtml, type SpedPack } from "@shared/spedExemplar";
+import UploadPicker from "@/components/UploadPicker";
+import type { UploadedFile } from "@shared/uploads";
 
 type Mine = { id: string; title: string; status: string; createdAt: string };
 type Job = { id: string; status: "working" | "done" | "failed"; stage: string; error?: string; pack?: SpedPack };
@@ -56,6 +58,7 @@ export default function SpedExemplarMaker() {
   const [grade, setGrade] = useState("");
   const [text, setText] = useState("");
   const [links, setLinks] = useState("");
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [images, setImages] = useState<{ name: string; data: string }[]>([]);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -111,10 +114,10 @@ export default function SpedExemplarMaker() {
 
   const build = async () => {
     setError(""); setJob(null);
-    if (!images.length && !links.trim() && text.trim().length < 20) { setError("Paste a link to the lesson, paste the lesson (at least a few lines), or add photos of it."); return; }
+    if (!images.length && !files.length && !links.trim() && text.trim().length < 20) { setError("Paste a link to the lesson, paste the lesson (at least a few lines), add a file, or add photos of it."); return; }
     setBusy(true);
     try {
-      const { id } = await (await apiRequest("POST", "/api/sped-exemplar", { title, grade, text, links, images: images.map((i) => i.data) })).json();
+      const { id } = await (await apiRequest("POST", "/api/sped-exemplar", { title, grade, text, links, files, images: images.map((i) => i.data) })).json();
       try { localStorage.setItem(JOB_KEY, id); } catch { /* fine */ }
       poll(id);
     } catch (e) { setBusy(false); setError(messageOf(e)); }
@@ -163,6 +166,7 @@ export default function SpedExemplarMaker() {
         <label className="ml-mk-label">Or paste the lesson: the warm-up, the activities, the problems and the cool-down
           <textarea value={text} maxLength={SPED_LIMITS.text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste the lesson text here. Include every problem you want solved, and the lesson’s own practice problems if it has them." />
         </label>
+        <UploadPicker files={files} setFiles={setFiles} onError={setError} testId="sped-files" />
         <div className="ml-mk-photos">
           <label className="ml-mk-photo">Add photos or screenshots instead (up to {SPED_LIMITS.images})
             <input type="file" accept="image/*" multiple onChange={(e) => { void addPhotos(e.target.files); e.target.value = ""; }} />

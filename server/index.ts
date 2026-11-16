@@ -284,6 +284,10 @@ app.use(/^\/api\/buddy\/teacher\/worksheets\/[^/]+\/pages\/[^/]+$/, express.json
 app.use(/^\/api\/buddy\/teacher\/worksheets\/[^/]+\/pages$/, express.json({ limit: "6mb" }));
 app.use(/^\/api\/buddy\/laptop\/[^/]+\/hear$/, express.json({ limit: "6mb" }));
 // Arise Math "Test Prep": up to 6 photos of practice sheets in one request (each shrunk on the device first).
+// SPED Exemplar Maker and Kha ELA: photos and files (PDF, Word, Excel...) arrive in the request. Without this the 100 KB default of the
+// parser below turns any photo or file away. Signed in people only, and only POST carries a body.
+app.use(/^\/api\/(sped-exemplar|kha-ela)$/, (req, res, next) => { if (req.method !== "POST") return next(); authMiddleware(req, res, next).catch(next); }, express.json({ limit: "50mb" }));
+
 app.use(/^\/api\/math\/prep$/, (req, res, next) => { if (req.method !== "POST") return next(); authMiddleware(req, res, next).catch(next); }, express.json({ limit: "26mb" }));
 
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
