@@ -4,7 +4,8 @@
 //
 // Also the Worksheet Maker: make a worksheet on any topic, without a lesson first.
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Download, FileText, Pencil, Plus, Printer, Sparkles, Trash2 } from "lucide-react";
+import { UPLOAD_ACCEPT, UPLOAD_LIMITS, type UploadedFile } from "@shared/uploads";
+import { ArrowDown, ArrowUp, Copy, Download, FileText, Pencil, Plus, Printer, Sparkles, Trash2, Upload } from "lucide-react";
 import { cleanWorksheet, GRADES, LESSON_SUBJECTS, type GenWorksheet, type WorksheetItem } from "@shared/lessonPlanner";
 import { answerKeyText, downloadWorksheetDoc, printHtml, worksheetHtml } from "@/lib/lessonExport";
 import { HubModal } from "./HubModal";
@@ -39,7 +40,8 @@ export function WorksheetStudio({ ws, startView = "student", className, onChange
           <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white" onClick={() => print(false, view === "key")}><Printer className="h-4 w-4" /> Print {view === "key" ? "answer key" : "worksheet"}</button>
           <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => print(true)} title="The worksheet, then the answer key on its own page"><Printer className="h-4 w-4" /> Print both</button>
           <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => print(false, view === "key")} title="In the print window, choose Save as PDF"><Download className="h-4 w-4" /> PDF</button>
-          <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => downloadWorksheetDoc(ws, view === "key", className)}><FileText className="h-4 w-4" /> Word</button>
+          <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => downloadWorksheetDoc(ws, false, className)} title="The student worksheet as its own Word file, no answers" data-testid="ws-word-student"><FileText className="h-4 w-4" /> Worksheet file</button>
+          <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => downloadWorksheetDoc(ws, true, className)} title="The answer sheet as its own separate Word file" data-testid="ws-word-key"><FileText className="h-4 w-4" /> Answer sheet file</button>
           <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => { void navigator.clipboard?.writeText(answerKeyText(ws)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}><Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy answers"}</button>
           {extraFooter}
         </>}
@@ -144,6 +146,25 @@ function VisualNumbers({ v, onChange }: { v: NonNullable<WorksheetItem["visual"]
   );
 }
 
+const fileBase64 = (file: File): Promise<string> => new Promise((ok, no) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, ""));
+  r.onerror = () => no(new Error("read failed"));
+  r.readAsDataURL(file);
+});
+/** A photo shrunk to 1600 px so a phone picture uploads quickly. */
+async function shrinkPhoto(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img: HTMLImageElement = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("bad image")); i.src = url; });
+    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.85);
+  } finally { URL.revokeObjectURL(url); }
+}
+const IS_PHOTO = /\.(png|jpe?g|webp)$/i;
+
 /** Make a worksheet on any topic, without making a lesson first. It can then be saved to a lesson. */
 export function WorksheetMaker({ token, state, className, lessons, onSave, onClose, start }: {
   token: string | null;
@@ -161,11 +182,33 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
   const [error, setError] = useState("");
   const [ws, setWs] = useState<GenWorksheet | null>(null);
   const [target, setTarget] = useState("");
+  // An example to copy: typed or pasted problems, links, files (PDF, Word, ...) and photos.
+  const [exText, setExText] = useState("");
+  const [exLinks, setExLinks] = useState("");
+  const [exFiles, setExFiles] = useState<UploadedFile[]>([]);
+  const [exPhotos, setExPhotos] = useState<{ name: string; data: string }[]>([]);
+  const hasExample = !!(exText.trim() || exLinks.trim() || exFiles.length || exPhotos.length);
+  async function addExample(picked: FileList | null) {
+    if (!picked?.length) return;
+    setError("");
+    const files = [...exFiles], photos = [...exPhotos];
+    for (const file of [...picked]) {
+      if (IS_PHOTO.test(file.name) || file.type.startsWith("image/")) {
+        if (photos.length >= 6) { setError("Up to 6 photos."); continue; }
+        try { photos.push({ name: file.name, data: await shrinkPhoto(file) }); } catch { setError(`“${file.name}” couldn’t be read. Try another picture.`); }
+      } else {
+        if (files.length >= UPLOAD_LIMITS.files) { setError(`Up to ${UPLOAD_LIMITS.files} files at a time.`); continue; }
+        if (file.size > UPLOAD_LIMITS.fileBytes) { setError(`“${file.name}” is too big. The most for one file is ${Math.round(UPLOAD_LIMITS.fileBytes / 1_000_000)} MB.`); continue; }
+        try { files.push({ name: file.name, data: await fileBase64(file) }); } catch { setError(`“${file.name}” couldn’t be read. Try adding it again.`); }
+      }
+    }
+    setExFiles(files); setExPhotos(photos);
+  }
   async function make() {
-    if (!f.topic.trim()) { setError("Type what the worksheet is about."); return; }
+    if (!f.topic.trim() && !hasExample) { setError("Type what the worksheet is about, or add an example to copy."); return; }
     setBusy(true); setError("");
     try {
-      const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade: f.grade, subject: f.subject, state, kind: f.kind, count: f.count, level: f.level, notes: f.notes });
+      const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade: f.grade, subject: f.subject, state, kind: f.kind, count: f.count, level: f.level, notes: f.notes, ...(hasExample ? { exampleText: exText, links: exLinks, files: exFiles, images: exPhotos.map((p) => p.data) } : {}) });
       setWs({ ...data.worksheet, grade: f.grade || undefined, subject: f.subject || undefined });
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   }
@@ -179,12 +222,33 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
   return (
     <HubModal title="Worksheet maker" onClose={onClose} size="lg">
       <div className="space-y-3 text-slate-900">
-        <p className="text-sm text-slate-600">Printable worksheets with real maths, graphs, number lines, fraction pictures, reading passages and an answer key. Change anything before you print.</p>
-        <label className="block text-xs font-semibold text-slate-500">Topic or skill<input value={f.topic} onChange={(e) => setF({ ...f, topic: e.target.value })} placeholder="e.g. adding fractions with unlike denominators; plotting points in all four quadrants; main idea of a nonfiction passage" className={field + " px-3"} autoFocus /></label>
+        <p className="text-sm text-slate-600">Printable worksheets with real maths, graphs, number lines, fraction pictures, reading passages and an answer sheet. The student worksheet and the answer sheet are separate files. Change anything before you print.</p>
+        <label className="block text-xs font-semibold text-slate-500">Topic or skill <span className="font-normal">{hasExample ? "(optional when you add an example)" : ""}</span><input value={f.topic} onChange={(e) => setF({ ...f, topic: e.target.value })} placeholder="e.g. adding fractions with unlike denominators; plotting points in all four quadrants; main idea of a nonfiction passage" className={field + " px-3"} autoFocus /></label>
+        <fieldset className="space-y-2 rounded-2xl border border-violet-200 bg-violet-50/50 p-3" data-testid="ws-example">
+          <legend className="px-1 text-sm font-bold text-violet-900">Copy an example <span className="font-normal text-violet-700">(optional)</span></legend>
+          <p className="text-sm text-slate-700">Give the AI a problem or a page you like. It writes new practice that are exact models of it (same kind of problem, same steps, new numbers and wording), so students get a different one than the one you show.</p>
+          <label className="block text-xs font-semibold text-slate-600">Paste or type an example problem
+            <textarea value={exText} onChange={(e) => setExText(e.target.value)} rows={3} maxLength={12000} placeholder="e.g. A shirt costs $24 and is 25% off. What is the sale price?" className={field + " py-2"} data-testid="ws-example-text" />
+          </label>
+          <label className="block text-xs font-semibold text-slate-600">Link to a page with the example (up to 3, the page must open without signing in)
+            <input value={exLinks} onChange={(e) => setExLinks(e.target.value)} inputMode="url" autoComplete="off" maxLength={600} placeholder="https://…" className={field} data-testid="ws-example-links" />
+          </label>
+          <div>
+            <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-bold text-white">
+              <Upload className="h-4 w-4" /> Upload from this computer: PDF, photo, Word, Excel, PowerPoint…
+              <input type="file" multiple hidden accept={UPLOAD_ACCEPT} onChange={(e) => { void addExample(e.target.files); e.target.value = ""; }} data-testid="ws-example-upload" />
+            </label>
+            <p className="mt-1 text-xs text-slate-600">Pages, worksheets or pictures of a book or board. Up to {UPLOAD_LIMITS.files} files and 6 photos.</p>
+            {(exFiles.length > 0 || exPhotos.length > 0) && <ul className="mt-2 flex flex-wrap gap-2">
+              {exFiles.map((x, i) => <li key={`f${i}`} className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-300"><FileText className="h-3.5 w-3.5" />{x.name}<button type="button" aria-label={`Remove ${x.name}`} onClick={() => setExFiles(exFiles.filter((_, k) => k !== i))} className="ml-1 text-slate-500 hover:text-rose-600">×</button></li>)}
+              {exPhotos.map((x, i) => <li key={`p${i}`} className="flex items-center gap-1 rounded-full bg-white py-1 pl-1 pr-3 text-xs font-semibold text-slate-800 ring-1 ring-slate-300"><img src={x.data} alt="" className="h-6 w-6 rounded object-cover" />{x.name}<button type="button" aria-label={`Remove ${x.name}`} onClick={() => setExPhotos(exPhotos.filter((_, k) => k !== i))} className="ml-1 text-slate-500 hover:text-rose-600">×</button></li>)}
+            </ul>}
+          </div>
+        </fieldset>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <label className="text-xs font-semibold text-slate-500">Grade<select value={f.grade} onChange={(e) => setF({ ...f, grade: e.target.value })} className={field}><option value="">Any</option>{GRADES.map((g) => <option key={g} value={g}>Grade {g}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">Subject<select value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} className={field}>{LESSON_SUBJECTS.map((s) => <option key={s}>{s}</option>)}</select></label>
-          <label className="text-xs font-semibold text-slate-500">Questions<input type="number" min={3} max={30} value={f.count} onChange={(e) => setF({ ...f, count: Number(e.target.value) || 12 })} className={field} /></label>
+          <label className="text-xs font-semibold text-slate-500">How many questions<input type="number" min={1} max={30} value={f.count} onChange={(e) => setF({ ...f, count: Number(e.target.value) || 12 })} className={field} /></label>
           <label className="text-xs font-semibold text-slate-500">Kind<select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} className={field}>{["practice worksheet", "quiz", "unit test", "exit ticket", "homework", "warm-up", "graphing practice", "word problems", "reading comprehension with a passage", "vocabulary practice", "test review"].map((k) => <option key={k}>{k}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Level<select value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} className={field}>{["on grade level", "below grade level (scaffolded, with examples and a word bank)", "above grade level (challenge)", "modified for students with IEPs (simplified language, fewer choices, bigger spaces)"].map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
         </div>

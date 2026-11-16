@@ -201,3 +201,37 @@ test("a student's note, a written material and every other lesson box keep a typ
   assert.equal(l.files?.[0].text, "Read the ");
   assert.equal(cleanLessons([{ id: "a", title: "T", date: "2026-11-10", marks: { Dexter: { note: "   " } } }])[0].marks?.Dexter, undefined, "only spaces is still nothing");
 });
+
+test("worksheet from an example: typed problems, a photo and a file go to the AI; the prompt asks for exact models with new numbers", async () => {
+  const routes: Record<string, Function> = {};
+  const app: any = { post: (path: string, ..._h: Function[]) => { routes[path] = _h[_h.length - 1]; } };
+  let seen: { user: string; attachments?: string[] } | null = null;
+  registerLessonPlannerRoutes(app, (() => {}) as any, {
+    gate: async () => ({ access: true }),
+    aiConfigured: () => true,
+    ask: async (_s: string, user: string, _m: number, attachments?: string[]) => { seen = { user, attachments }; return JSON.stringify({ title: "Percent off", instructions: "Solve.", sections: [{ heading: "Practice", items: [{ kind: "short", prompt: "A coat costs $40 and is 10% off. Sale price?", answer: "$36" }] }] }); },
+  });
+  const call = async (body: any) => {
+    let status = 200, json: any;
+    const res: any = { status(c: number) { status = c; return res; }, json(j: any) { json = j; return res; }, set() { return res; } };
+    await routes["/api/teacher-hub/lessons/ai"]({ body, user: { id: 9 } }, res);
+    return { status, json };
+  };
+  // no topic and no example is still refused
+  assert.equal((await call({ mode: "worksheet" })).status, 400);
+  const photo = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+  const ok = await call({ mode: "worksheet", count: 5, exampleText: "A shirt costs $24 and is 25% off. Sale price?", images: [photo, "data:text/html;base64,AAAA"], files: [{ name: "page.txt", data: Buffer.from("Example 2: find 10% of 80.").toString("base64") }] });
+  assert.equal(ok.status, 200);
+  assert.ok(ok.json.worksheet.sections[0].items.length === 1);
+  assert.match(seen!.user, /EXAMPLE problems the teacher typed/);
+  assert.match(seen!.user, /25% off/);
+  assert.match(seen!.user, /find 10% of 80/);
+  assert.match(seen!.user, /exact models/);
+  assert.match(seen!.user, /about 5 questions/);
+  assert.deepEqual(seen!.attachments, [photo], "only the real image is attached");
+  // a bad file name type is explained, not a crash
+  const bad = await call({ mode: "worksheet", files: [{ name: "x.exe", data: "AAAA" }] });
+  assert.equal(bad.status, 400);
+  // other modes ignore examples
+  assert.equal((await call({ mode: "ideas", exampleText: "x" })).status, 400);
+});

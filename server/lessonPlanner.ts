@@ -17,8 +17,11 @@ import {
   AI_MODES, PLAN_FIELDS, US_STATES, cleanFoundStandards, cleanIdeas, cleanPlanFields, cleanSlides, cleanUnit, cleanWorksheet, type AiMode,
 } from "@shared/lessonPlanner";
 import { supportWords } from "@shared/pushIn";
+import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
+import { UploadError, readUploads } from "./uploadText";
 
-export type LessonAsk = (system: string, user: string, maxTokens: number) => Promise<string>;
+/** `attachments` are PDFs and photos (data URLs) the AI reads itself, e.g. an example problem page. */
+export type LessonAsk = (system: string, user: string, maxTokens: number, attachments?: string[]) => Promise<string>;
 
 export type LessonPlannerDeps = {
   /** Arise WorkHub's plan check (server/teacherHub.ts's createHubGate). */
@@ -31,7 +34,7 @@ class LessonAiError extends Error {}
 
 const limits = createAttemptLimiter({ max: 80, windowMs: 10 * 60_000 });
 
-const askOpenAI: LessonAsk = async (system, user, maxTokens) => {
+const askOpenAI: LessonAsk = async (system, user, maxTokens, attachments = []) => {
   let res: Response;
   try {
     res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -42,7 +45,9 @@ const askOpenAI: LessonAsk = async (system, user, maxTokens) => {
         temperature: 0.6,
         max_tokens: maxTokens,
         response_format: { type: "json_object" },
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        messages: [{ role: "system", content: system }, { role: "user", content: attachments.length
+          ? [{ type: "text", text: user }, ...attachments.map((url, i) => url.startsWith("data:application/pdf") ? { type: "file", file: { filename: `example-${i + 1}.pdf`, file_data: url } } : { type: "image_url", image_url: { url, detail: "high" } })]
+          : user }],
       }),
       signal: AbortSignal.timeout(90_000),
     });
@@ -130,6 +135,12 @@ const WORKSHEET_RULES = `Worksheet rules:
 - Age-appropriate wording, accurate maths, no trick questions.`;
 const WORKSHEET_SHAPE = `{"title": string, "instructions": string, "large": boolean (true for grades K-2), "sections": [{"heading": string, "directions": string, "columns": number, "passage": string (optional), "wordBank": string[] (optional), "items": [{"kind": string, "prompt": string, "choices": string[] (optional), "answer": string, "lines": number (optional), "space": string (optional), "visual": object (optional), "keyVisual": object (optional), "matches": string[] (optional)}]}]}`;
 
+/** When the teacher gives an example to copy (text, pages, photos, a PDF or a link). */
+const EXAMPLE_RULES = `The teacher gave you EXAMPLE problems (below, and in any attached pages or photos). Write practice that are exact models of them:
+- Find every kind of problem in the example. For each kind, write new problems with the SAME skill, structure, wording style, number of steps, difficulty and layout (same kind of picture, table or graph, same question type).
+- Change the numbers, names, objects and context so no question repeats the example. Never copy an example problem word for word, and do not put the example's own answers in.
+- Spread the questions across the kinds of problem in the example. Keep the example's directions style. The worked answers must be correct: solve each new problem carefully.`;
+
 const SCAFFOLD_RULES = `Scaffolding rules:
 - A scaffold lowers the barriers, never the thinking. Keep the same skill and the same standard as the lesson; make the way in easier.
 - Use the lesson text the teacher gave you for the vocabulary, the examples and the method, so the work matches what was taught in class.
@@ -138,7 +149,7 @@ const SCAFFOLD_RULES = `Scaffolding rules:
 - Write for a student who is capable but needs a way in: respectful wording, never babyish.`;
 
 /** The system and user messages for each job, and how long the answer may be. */
-export function lessonPrompt(a: CleanAsk): { system: string; user: string; maxTokens: number } {
+export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user: string; maxTokens: number } {
   const ctx = context(a);
   const planShape = `{"title": string, "objective": string (start "Students will be able to…"), "standards": string[], "minutes": number, "hook": string, "iDo": string, "weDo": string, "youDo": string, "closure": string, "vocabulary": string, "differentiation": string, "assessment": string, "homework": string, "materials": string}`;
   switch (a.mode) {
@@ -152,7 +163,7 @@ export function lessonPrompt(a: CleanAsk): { system: string; user: string; maxTo
       return { maxTokens: 1600, system: `${BASE}\n${standardsRule(a.state)}`, user: `${ctx}\n\nList up to 10 ${a.state || "Common Core / national"} standards that best match this${a.grade ? ` for grade ${a.grade}` : ""}${a.subject ? ` in ${a.subject}` : ""}, best match first. Return {"standards": [{"code": string, "text": string}]}.` };
     case "worksheet": {
       const kind = a.kind || "practice worksheet";
-      return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? `, ${a.level} level` : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.\nReturn ${WORKSHEET_SHAPE}.` };
+      return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? `, ${a.level} level` : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.${example ? `\n\n${EXAMPLE_RULES}\n\n${example}` : ""}\nReturn ${WORKSHEET_SHAPE}.` };
     }
     case "scaffold": {
       const kind = a.kind || "practice worksheet";
@@ -192,14 +203,37 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
     if (!configured()) return res.status(503).json({ message: "The AI helper isn't set up on this site yet." });
     const a = cleanAsk(req.body);
     if (!a.mode) return res.status(400).json({ message: "Pick something for the AI to do." });
-    if (!a.topic && !Object.keys(a.lesson).length && !a.standards.length) return res.status(400).json({ message: "Type a topic or skill first, so the AI knows what the lesson is about." });
+    // An example to copy (worksheet only): typed text, links, files (PDF, Word, ...) and photos.
+    let example = "";
+    let attachments: string[] = [];
+    if (a.mode === "worksheet") {
+      try {
+        const exampleText = s(req.body?.exampleText, 12_000);
+        const links = linksFrom(req.body?.links);
+        const up = readUploads(req.body?.files, 24_000);
+        const photos: string[] = (Array.isArray(req.body?.images) ? req.body.images : []).filter((u: unknown) => typeof u === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(u) && u.length <= 4_000_000).slice(0, 6);
+        attachments = [...up.attachments, ...photos].slice(0, 8);
+        const pages = [];
+        for (const l of links) pages.push(await fetchPageText(l));
+        example = [
+          exampleText && `EXAMPLE problems the teacher typed or pasted:\n${exampleText}`,
+          up.text && `EXAMPLE from the teacher's files:\n${up.text}`,
+          pages.length && `EXAMPLE from a web page:\n${pagesText(pages, 12_000)}`,
+          attachments.length && `The teacher also attached ${attachments.length} page(s) or photo(s) of example problems: read every problem on them.`,
+        ].filter(Boolean).join("\n\n").slice(0, 40_000);
+      } catch (e: any) {
+        if (e instanceof UploadError || e instanceof PageError) return res.status(400).json({ message: e.message });
+        throw e;
+      }
+    }
+    if (!a.topic && !example && !Object.keys(a.lesson).length && !a.standards.length) return res.status(400).json({ message: "Type a topic or skill first, or add an example, so the AI knows what the worksheet is about." });
     const who = `u${req.user?.id}`;
     const wait = limits.retryAfter(who);
     if (wait > 0) { res.set("Retry-After", String(Math.ceil(wait / 1000))); return res.status(429).json({ message: `That's a lot of AI help in a short time. Try again in ${waitWords(wait)}.` }); }
     limits.fail(who);
     try {
-      const prompt = lessonPrompt(a);
-      const text = await ask(prompt.system, prompt.user, prompt.maxTokens);
+      const prompt = lessonPrompt(a, example);
+      const text = await ask(prompt.system, prompt.user, prompt.maxTokens, attachments);
       res.json(readAnswer(a.mode, text));
     } catch (error: any) {
       if (error instanceof LessonAiError) return res.status(502).json({ message: error.message });
