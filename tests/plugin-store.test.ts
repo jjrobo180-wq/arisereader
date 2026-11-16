@@ -154,7 +154,7 @@ test("the gallery splits into Premium apps and Mini plugins, and every plugin si
     }
     const premium = new Set(all.filter((p) => p.tier === "premium").map((p) => p.name));
     for (const name of ["A.R.I.S.E. Docs", "A.R.I.S.E. Sheets", "A.R.I.S.E. Slides", "Drive", "Drop", "A.R.I.S.E. Standby"]) assert.ok(premium.has(name), `${hub}: ${name} is Premium`);
-    if (hub === "life") for (const name of ["Cooked", "Cooked PT", "Podster", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
+    if (hub === "life") for (const name of ["Cooked", "Cooked PT", "Podcasts", "Audiobooks", "Radio", "Study Podster", "Podster Social", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
     const mini = new Set(all.filter((p) => p.tier === "mini").map((p) => p.name));
     for (const name of ["Final Grade Calculator", "AI Gift Ideas", "GPA Calculator", "Widgets"]) assert.ok(mini.has(name), `${hub}: ${name} is Mini`);
     if (hub === "life") assert.ok(mini.has("Gifts & Dates"));
@@ -191,7 +191,8 @@ test("search finds things by what people call them, best match first", () => {
   assert.equal(top("gift dates"), "Gifts & Dates");
   assert.equal(top("gifts & dates"), "Gifts & Dates");
   assert.equal(top("docs"), "A.R.I.S.E. Docs");
-  assert.equal(top("podcast"), "Podster");
+  assert.equal(top("podcast"), "Podcasts");
+  assert.equal(top("audiobooks"), "Audiobooks");
   assert.equal(top("spreadsheet")?.endsWith("Sheets"), true);
   assert.equal(top("calorie"), "Calorie counter");
   assert.equal(top("resume"), "Résumé Builder");

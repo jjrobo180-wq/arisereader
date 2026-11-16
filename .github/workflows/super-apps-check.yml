@@ -5,9 +5,10 @@ name: Super apps in To Duo check (in a browser)
 on:
   workflow_dispatch:
   push:
-    branches: [master, 'claude/duo-super-apps']
+    branches: [master, 'claude/duo-super-apps', 'claude/podster-split']
     paths:
       - 'client/src/components/super-apps/**'
+      - 'client/src/components/arise-audio/**'
       - 'client/src/pages/AriseTodo.tsx'
       - 'client/src/pages/fit/**'
       - 'client/src/pages/trainer/**'

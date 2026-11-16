@@ -2,13 +2,13 @@
 import {
   Apple, ArrowDownToLine, AudioLines, BarChart3, BookOpen, Briefcase, CalendarDays, CalendarHeart, Clock, Droplets, Dumbbell, Flower2, Footprints,
   GalleryVertical, GraduationCap, HeartHandshake, HeartPulse, Home, Inbox, LayoutGrid, Library, Medal, MessageCircle, Mic, Mic2, Moon, Music,
-  NotebookPen, PersonStanding, Pill, Podcast, Radio, Route, Settings, Sparkles, ThumbsUp, Timer, Upload, Users, Wind, Zap, Circle, type LucideIcon,
+  NotebookPen, PersonStanding, Pill, Podcast, Radio, Route, Settings, Sparkles, ThumbsUp, Timer, Upload, Users, Wind, Zap, Circle, Headphones, Heart, Search, type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
   Apple, ArrowDownToLine, AudioLines, BarChart3, BookOpen, Briefcase, CalendarDays, CalendarHeart, Clock, Droplets, Dumbbell, Flower2, Footprints,
   GalleryVertical, GraduationCap, HeartHandshake, HeartPulse, Home, Inbox, LayoutGrid, Library, Medal, MessageCircle, Mic, Mic2, Moon, Music,
-  NotebookPen, PersonStanding, Pill, Podcast, Radio, Route, Settings, Sparkles, ThumbsUp, Timer, Upload, Users, Wind, Zap,
+  NotebookPen, PersonStanding, Pill, Podcast, Radio, Route, Settings, Sparkles, ThumbsUp, Timer, Upload, Users, Wind, Zap, Headphones, Heart, Search,
 };
 
 export const superIcon = (name: string): LucideIcon => ICONS[name] ?? Circle;

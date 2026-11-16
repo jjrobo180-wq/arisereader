@@ -132,13 +132,13 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
         else { const box = page.locator('input[type="search"]').first(); if (await box.isVisible().catch(() => false)) { await box.fill("super"); } }
         await page.waitForTimeout(1500);
         await page.screenshot({ path: `screens/${tag}-0-gallery.png` });
-        const found = await Promise.all(["life-cooked", "life-cookedpt", "life-arise-notes", "life-podster"].map(async (id) => (await page.getByTestId(`plugin-${id}`).count()) + (await page.getByTestId(`plugin-rail-${id}`).count())));
-        note(`${tag}: gallery shows ${found.filter((n) => n > 0).length}/4 of the apps (${found.join(",")})`);
+        const found = await Promise.all(SUPER_APPS.map((a) => (a.id === "arisenotes" ? "life-arise-notes" : `life-${a.id}`)).map(async (id) => (await page.getByTestId(`plugin-${id}`).count()) + (await page.getByTestId(`plugin-rail-${id}`).count())));
+        note(`${tag}: gallery shows ${found.filter((n) => n > 0).length}/${SUPER_APPS.length} of the apps (${found.join(",")})`);
       }
       for (const app of SUPER_APPS) {
         const before = errors.length;
         await page.goto(`https://arisetodo.com/app#/to-do?go=${app.id}`, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await page.waitForTimeout(app.id === "podster" ? 7000 : 4500); await closePopups(page);
+        await page.waitForTimeout(app.id === "podcasts" ? 7000 : 4500); await closePopups(page);
         const head = await page.getByTestId(`super-head-${app.id}`).isVisible().catch(() => false);
         const strip = page.getByTestId(`super-strip-${app.id}`);
         const pills = await strip.locator('[role="tab"]').allTextContents().catch(() => [] as string[]);
@@ -162,6 +162,18 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
           await page.keyboard.press("Escape").catch(() => {});
         }
         if (errors.length > before) note(`${tag}: ${app.name}: page errors: ${Array.from(new Set(errors.slice(before))).slice(0, 5).join(" | ")}`);
+      }
+      // To Duo's player: a Radio station keeps playing, in the bar above the page, after moving to another page.
+      if (!night) {
+        await page.goto("https://arisetodo.com/app#/to-do?go=podradio", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(6000); await closePopups(page);
+        const first = page.getByTestId("radio-station").first().locator("button").first();
+        if (await first.isVisible().catch(() => false)) {
+          await first.click().catch(() => {}); await page.waitForTimeout(3000);
+          await page.screenshot({ path: `screens/${tag}-dock-1-radio.png` });
+          await page.goto("https://arisetodo.com/app#/to-do?go=audiobooks", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(5000); await closePopups(page);
+          note(`${tag}: player bar on another page: ${(await page.getByTestId("duo-audio-dock").isVisible().catch(() => false)) ? "shown" : "MISSING"}`);
+          await page.screenshot({ path: `screens/${tag}-dock-2-audiobooks.png` });
+        } else note(`${tag}: Radio: no stations showed`);
       }
       // Where each one sits in To Duo's menu.
       if (!night) {

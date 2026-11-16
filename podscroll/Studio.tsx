@@ -7,16 +7,16 @@ import { BookOpen, Briefcase, Check, ChevronDown, ChevronLeft, Camera, Copy, Fil
 import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type Line = { speaker: "A" | "B"; text: string };
+export type Line = { speaker: "A" | "B"; text: string };
 export type StudioKind = "study" | "meeting";
 type Study = { kind: "study"; title: string; summary: string; keyPoints: string[]; lines: Line[]; quiz: { q: string; a: string }[] };
 type Meeting = { kind: "meeting"; title: string; summary: string; decisions: string[]; actions: { task: string; owner: string; due: string }[]; questions: string[]; lines: Line[] };
-type Made = (Study | Meeting) & { id: string; at: number; solo: boolean };
+export type Made = (Study | Meeting) & { id: string; at: number; solo: boolean };
 
 const KEY = "podplus.studio";
-const HOSTS = { A: "Maya", B: "Leo" };
-const load = (): Made[] => { try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && x.id && Array.isArray(x.lines)) : []; } catch { return []; } };
-const save = (list: Made[]) => { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, 40))); } catch { /* full or private */ } };
+export const HOSTS = { A: "Maya", B: "Leo" };
+export const load = (): Made[] => { try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && x.id && Array.isArray(x.lines)) : []; } catch { return []; } };
+export const save = (list: Made[]) => { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, 40))); } catch { /* full or private */ } };
 const when = (t: number) => new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 const COPY = {
@@ -37,7 +37,7 @@ const COPY = {
 } as const;
 
 /** The pod as plain text, for copying or sharing. */
-function asText(m: Made): string {
+export function asText(m: Made): string {
   if (m.kind === "study") return [m.title, "", m.summary, "", "Key points:", ...m.keyPoints.map((k) => `• ${k}`), "", "Quiz:", ...m.quiz.map((x, i) => `${i + 1}. ${x.q}\n   ${x.a}`)].join("\n");
   return [m.title, "", m.summary, ...(m.decisions.length ? ["", "Decisions:", ...m.decisions.map((d) => `• ${d}`)] : []),
     ...(m.actions.length ? ["", "Action items:", ...m.actions.map((a) => `• ${a.task}${a.owner ? ` (${a.owner}` : ""}${a.owner && a.due ? `, ${a.due})` : a.owner ? ")" : a.due ? ` (${a.due})` : ""}`)] : []),
@@ -58,7 +58,7 @@ function silentClip(): string {
 }
 
 /** A photo made smaller (at most 1600 pixels across, JPEG), so it uploads fast and the AI can read it. */
-async function shrinkPhoto(f: File): Promise<string> {
+export async function shrinkPhoto(f: File): Promise<string> {
   const url = URL.createObjectURL(f);
   try {
     const img = await new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("That photo couldn't be opened. Try another.")); i.src = url; });
@@ -69,7 +69,7 @@ async function shrinkPhoto(f: File): Promise<string> {
     return canvas.toDataURL("image/jpeg", 0.85);
   } finally { URL.revokeObjectURL(url); }
 }
-const toBase64 = async (f: File) => {
+export const toBase64 = async (f: File) => {
   const bytes = new Uint8Array(await f.arrayBuffer());
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -80,7 +80,7 @@ const toBase64 = async (f: File) => {
  *  mostly written down by the time it's stopped. Each piece is kept until the server has written it
  *  down (a busy moment is tried again). */
 const PIECE_MS = 4 * 60_000;
-function useRecorder(api: Api, add: (text: string) => void) {
+export function useRecorder(api: Api, add: (text: string) => void) {
   const [state, setState] = useState<"off" | "recording" | "finishing">("off");
   const [secs, setSecs] = useState(0);
   const [note, setNote] = useState("");
@@ -151,7 +151,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2,
  *  as the first line is ready and carries on line by line while the rest is made. If the next line
  *  isn't ready yet it just waits for it (a busy voice service is a short pause, never an error). */
 type VoiceStatus = { id: string; whole?: boolean; parts: number; made: boolean[]; secs: number[]; done: boolean; failed?: boolean };
-function usePodPlayer(api: Api, apiBase: string) {
+export function usePodPlayer(api: Api, apiBase: string) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<{ id: string; status: "loading" | "playing" | "paused" } | null>(null);
   const [pos, setPos] = useState({ t: 0, d: 0 });

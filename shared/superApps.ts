@@ -7,8 +7,14 @@
 // The screens are the apps' own, drawn in To Duo's colors and type (client/src/components/super-apps/).
 // No imports from familyHub here (it imports this file), so this stays a leaf.
 
-export type SuperAppId = "cooked" | "cookedpt" | "arisenotes" | "podster";
-export const SUPER_APP_IDS: readonly SuperAppId[] = ["cooked", "cookedpt", "arisenotes", "podster"];
+export type SuperAppId = "cooked" | "cookedpt" | "arisenotes" | PodPartId;
+/** Podster, taken apart (Nov 15, 2026): five Premium plugins of their own, each drawn in To Duo's look. */
+export type PodPartId = "podcasts" | "audiobooks" | "podradio" | "studypod" | "podsocial";
+export const POD_PARTS: readonly PodPartId[] = ["podcasts", "audiobooks", "podradio", "studypod", "podsocial"];
+export const SUPER_APP_IDS: readonly SuperAppId[] = ["cooked", "cookedpt", "arisenotes", ...POD_PARTS];
+/** The combined apps that were taken apart, and the plugins that replace them. Anyone who had one gets
+ *  all of its parts (shared/familyHub.ts cleanFamily), and links to the old one open the first part. */
+export const SPLIT_APPS: Readonly<Record<string, readonly SuperAppId[]>> = { podster: POD_PARTS };
 
 export type SuperPage = {
   id: string;
@@ -38,6 +44,8 @@ export type SuperApp = {
   fixed: string[];
   /** What a new person starts with (fixed ones included). */
   defaults: string[];
+  /** The family it belongs to, shown above its name (To Duo's eyebrow), e.g. "Podster". */
+  family?: string;
   /** Whether "Pick your pages" is offered. Cooked keeps its own Plugins page instead (its add-ons), and
    *  Cooked PT's five pages are the whole app. */
   pickable: boolean;
@@ -92,39 +100,94 @@ export const SUPER_APPS: readonly SuperApp[] = [
     fixed: ["pages"], defaults: ["pages", "record", "upload", "ask", "apps", "settings"], pickable: true,
   },
   {
-    id: "podster", section: "podster", name: "Podster", icon: "Podcast", color: "#db2777",
+    id: "podcasts", section: "podcasts", family: "Podster", name: "Podcasts", icon: "Podcast", color: "#db2777",
     appStore: "https://apps.apple.com/app/id6828271468",
-    tagline: "Podcasts, audiobooks, radio and music",
-    description: "Podster inside To Duo: a home page of podcasts picked for you and a swipe feed, plus free audiobooks, music, live radio and news. Turn your own notes into a study episode, post on Podster Social, and keep your library on every device with your To Duo account.",
-    features: ["Podcasts picked for you, and a swipe feed", "Audiobooks, music, radio and live news", "Study Podster turns your notes into an episode", "New-episode alerts for the shows you follow"],
+    tagline: "Shows picked for you, a swipe feed and your library",
+    description: "Podster's podcasts inside To Duo: a home page of shows picked for what you like, a swipe feed that plays one episode after another, up to the minute news, stand-up and Wikipedia read aloud, and your library of follows, likes and downloads, kept with your To Duo account.",
+    features: ["Podcasts picked for you, and a swipe feed", "Up to the minute news and stand-up", "Your follows, likes and downloads on every device", "New-episode alerts for the shows you follow"],
     pages: [
       { id: "home", label: "Home", icon: "Home", detail: "Podcasts picked for you" },
       { id: "feed", label: "Swipe feed", icon: "GalleryVertical", detail: "One episode at a time, swipe for the next" },
-      { id: "books", label: "Audiobooks", icon: "BookOpen", detail: "Free classic audiobooks" },
       { id: "music", label: "Music", icon: "Music", detail: "Free public domain recordings" },
-      { id: "radio", label: "Radio", icon: "Radio", detail: "Live radio stations" },
       { id: "now", label: "News", icon: "Zap", detail: "Up to the minute news" },
-      { id: "newsstations", label: "News stations", icon: "Radio", detail: "Live news radio" },
       { id: "standup", label: "Stand-up", icon: "Mic2", detail: "Comedy sets" },
-      { id: "study", label: "Study Podster", icon: "GraduationCap", detail: "Your notes, turned into an episode" },
-      { id: "meeting", label: "Meeting Pod", icon: "Briefcase", detail: "A meeting, turned into a summary episode" },
       { id: "wiki", label: "Wiki podcasts", icon: "Library", detail: "Any Wikipedia article, read aloud" },
       { id: "live", label: "Live", icon: "Mic", detail: "Audio rooms happening now" },
       { id: "party", label: "Listen together", icon: "Users", detail: "Listen in step with friends" },
-      { id: "social", label: "Social", icon: "MessageCircle", detail: "Posts and clips from listeners" },
-      { id: "openmic", label: "Open Mic", icon: "Mic2", detail: "Short takes from listeners" },
       { id: "library", label: "Library", icon: "Library", detail: "Shows you follow and downloads" },
       { id: "liked", label: "Liked", icon: "ThumbsUp", detail: "Episodes you liked" },
       { id: "later", label: "Listen later", icon: "Clock", detail: "Saved for later" },
       { id: "import", label: "Bring your shows", icon: "ArrowDownToLine", detail: "Move your shows from another app" },
     ],
-    fixed: ["home"], defaults: ["home", "feed", "books", "music", "radio", "study", "social", "library"], pickable: true,
+    fixed: ["home"], defaults: ["home", "feed", "now", "library"], pickable: true,
+  },
+  {
+    id: "audiobooks", section: "audiobooks", family: "Podster", name: "Audiobooks", icon: "BookOpen", color: "#7c3aed",
+    appStore: "https://apps.apple.com/app/id6828271468",
+    tagline: "Thousands of classic books, read aloud",
+    description: "Free classic audiobooks from LibriVox, in To Duo: browse shelves or search by title and author, pick up where you left off, and listen with To Duo's player while you use the rest of the app, with speed and a sleep timer.",
+    features: ["Thousands of classic books, free with no ads", "Continue where you left off", "Speed, skip and a sleep timer", "Keeps playing while you use the rest of To Duo"],
+    pages: [
+      { id: "browse", label: "Browse", icon: "BookOpen", detail: "Shelves of classic books" },
+      { id: "listening", label: "Listening", icon: "Headphones", detail: "Books you've started" },
+    ],
+    fixed: ["browse", "listening"], defaults: ["browse", "listening"], pickable: false,
+  },
+  {
+    id: "podradio", section: "podradio", family: "Podster", name: "Radio", icon: "Radio", color: "#0891b2",
+    appStore: "https://apps.apple.com/app/id6828271468",
+    tagline: "Live FM, AM and online stations",
+    description: "Live radio in To Duo: stations near you, FM, talk, sports and every kind of music, and stations that are news all day, played straight from each station's own stream. It keeps playing while you use the rest of To Duo.",
+    features: ["Stations near you and around the world", "Music, talk, sports and news stations", "Save your favorite stations", "Keeps playing while you use the rest of To Duo"],
+    pages: [
+      { id: "stations", label: "Stations", icon: "Radio", detail: "Live stations by kind" },
+      { id: "news", label: "News stations", icon: "Zap", detail: "News all day" },
+      { id: "saved", label: "Saved", icon: "Heart", detail: "Your favorite stations" },
+    ],
+    fixed: ["stations", "news", "saved"], defaults: ["stations", "news", "saved"], pickable: false,
+  },
+  {
+    id: "studypod", section: "studypod", family: "Podster", name: "Study Podster", icon: "GraduationCap", color: "#2563eb",
+    appStore: "https://apps.apple.com/app/id6828271468",
+    tagline: "Your notes, turned into an episode",
+    description: "Paste notes, add a PDF or photos of a page, or record a class, and Study Podster makes a short episode two hosts talk through, with a summary, key points and a quiz. Meeting Pod does the same for a meeting: decisions, action items and open questions.",
+    features: ["Notes, PDFs, photos or a recording", "Two AI hosts talk it through", "Summary, key points and a quiz", "Meeting Pod: decisions and action items"],
+    pages: [
+      { id: "study", label: "Study", icon: "GraduationCap", detail: "Notes into a study episode" },
+      { id: "meeting", label: "Meeting Pod", icon: "Briefcase", detail: "A meeting into a summary episode" },
+      { id: "made", label: "Made", icon: "Library", detail: "Everything you've made" },
+    ],
+    fixed: ["study", "meeting", "made"], defaults: ["study", "meeting", "made"], pickable: false,
+  },
+  {
+    id: "podsocial", section: "podsocial", family: "Podster", name: "Podster Social", icon: "MessageCircle", color: "#e11d48",
+    appStore: "https://apps.apple.com/app/id6828271468",
+    tagline: "Posts and clips from listeners",
+    description: "What listeners are saying: posts, shared episodes and clips from the people you follow and everyone else, with likes, comments and people to find. Post your own take, signed in with your To Duo account.",
+    features: ["For you and Following feeds", "Post your take, like and comment", "Find people and follow them", "Signed in with your To Duo account"],
+    pages: [
+      { id: "foryou", label: "For you", icon: "Sparkles", detail: "Posts from everyone" },
+      { id: "following", label: "Following", icon: "Users", detail: "People you follow" },
+      { id: "people", label: "People", icon: "Search", detail: "Find people" },
+    ],
+    fixed: ["foryou", "following", "people"], defaults: ["foryou", "following", "people"], pickable: false,
   },
 ];
 
 export const SUPER_APP_BY_ID = new Map<string, SuperApp>(SUPER_APPS.map((a) => [a.id, a]));
 export const isSuperApp = (id: unknown): id is SuperAppId => typeof id === "string" && SUPER_APP_BY_ID.has(id);
 export const superAppOf = (id: string): SuperApp | undefined => SUPER_APP_BY_ID.get(id);
+/** Where a link to an app opens: itself, or the first part of an app that was taken apart. */
+export const superAppFor = (id: string): SuperAppId | null => (isSuperApp(id) ? id : SPLIT_APPS[id]?.[0] ?? null);
+/** Someone who had a combined app gets each of its parts, unless they removed that part. */
+export function withSplitApps<T extends Record<string, boolean | undefined>>(sections: T): T {
+  let out = sections;
+  for (const [old, parts] of Object.entries(SPLIT_APPS)) {
+    if (sections[old] !== true) continue;
+    for (const part of parts) if (out[part] === undefined) out = { ...out, [part]: true };
+  }
+  return out;
+}
 
 /** The pages showing for an app: the fixed ones, then the picked ones (or the defaults, never chosen),
  *  in the app's own order. Unknown or duplicate ids are dropped. */
@@ -172,6 +235,6 @@ export function duoLinkFor(url: string): string | null {
   if (/^\/notes\//.test(u) || /^\/arise-notes(?:[/?]|$)/.test(route)) return duoAppHash("arisenotes");
   // Podster's own alerts open an episode: ?s=<show>&e=<episode> (server/podPush.ts).
   const pod = /[?&]s=(\d{3,15})&e=(\d{1,20})/.exec(u);
-  if (pod && (/^\?/.test(u) || /podster/i.test(u))) return duoAppHash("podster", { s: pod[1], e: pod[2] });
+  if (pod && (/^\?/.test(u) || /podster/i.test(u))) return duoAppHash("podcasts", { s: pod[1], e: pod[2] });
   return null;
 }

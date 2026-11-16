@@ -16,7 +16,7 @@ export const PODPLUS_TOPIC = "com.arisereader.podplus";
 export const TODO_PREFIX = "todo:";
 const todoToken = (saved: string) => (saved.startsWith(TODO_PREFIX) ? saved.slice(TODO_PREFIX.length) : null);
 /** The address a new-episode alert opens: the episode in Podster, or in To Duo's Podster. */
-export const podAlertUrl = (saved: string, showId: string, episodeId: string) => (todoToken(saved) !== null ? `/#/to-do?go=podster&s=${showId}&e=${episodeId}` : `?s=${showId}&e=${episodeId}`);
+export const podAlertUrl = (saved: string, showId: string, episodeId: string) => (todoToken(saved) !== null ? `/#/to-do?go=podcasts&s=${showId}&e=${episodeId}` : `?s=${showId}&e=${episodeId}`);
 const MAX_FOLLOWS = 300;
 const PER_DAY = 4;
 const SHOW_ID = /^\d{3,15}$/;

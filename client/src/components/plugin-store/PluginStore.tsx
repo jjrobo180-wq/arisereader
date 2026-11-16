@@ -6,6 +6,7 @@
 // pushing the page sideways), the list scrolls on its own without dragging the page behind it, and
 // buttons keep their width when Add turns into Added, so tapping one never moves anything else.
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
+import { Radio as RadioTile } from "lucide-react";
 import { isNativeApp } from "@/lib/nativeApp";
 import { inAppBack } from "@/lib/inAppBack";
 import "./pluginStore.css";
@@ -37,7 +38,7 @@ import {
 const nativeBlurb = (text: string) => text.replace(/\s*The full browser, with every site, comes with the Arise To Duo iPhone app, coming soon to the App Store\./, "");
 
 export const ICONS: Record<string, LucideIcon> = {
-  AudioLines: AudioLinesTile, Podcast: PodcastTile3, Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
+  AudioLines: AudioLinesTile, Podcast: PodcastTile3, Radio: RadioTile, Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
   Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun, Trophy,
   ArrowLeftRight: ArrowLeftRightTile, BookOpen: BookOpenTile, Cake: CakeTile, Car: CarTile, ChefHat: ChefHatTile, CloudSun: CloudSunTile, CreditCard: CreditCardTile, Flower2: Flower2Tile, Gift: GiftTile, Heart: HeartTile, Mountain: MountainTile, PawPrint: PawPrintTile, Phone: PhoneTile, PiggyBank: PiggyBankTile, Repeat: RepeatTile, Tv: TvTile, UtensilsCrossed: UtensilsCrossedTile, Wrench: WrenchTile,

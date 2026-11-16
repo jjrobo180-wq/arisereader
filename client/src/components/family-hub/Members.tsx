@@ -6,7 +6,7 @@ import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
-import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3 } from "lucide-react";
+import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3, Radio as RadioTowerIcon, MessagesSquare as MessagesSquareIcon } from "lucide-react";
 import { Coins as CoinsIcon2, CreditCard as CreditCardIcon2, Dumbbell as DumbbellIcon2, Gauge as GaugeIcon2, Globe as GlobeIcon2, GraduationCap as GraduationCapIcon2, Hammer as HammerIcon2, HandCoins as HandCoinsIcon2, Handshake as HandshakeIcon2, Heart as HeartIcon2, HeartPulse as HeartPulseIcon2, Landmark as LandmarkIcon2, ListChecks as ListChecksIcon2, Moon as MoonIcon2, ShieldCheck as ShieldCheckIcon2, Sparkles as SparklesIcon2, Star as StarIcon2, Stethoscope as StethoscopeIcon2, Timer as TimerIcon2, Utensils as UtensilsIcon2 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as CakeIcon, Calculator as CalculatorIcon, Car as CarIcon, ChefHat as ChefHatIcon, CloudSun as CloudSunIcon, CreditCard as CreditCardIcon, Flower2 as Flower2Icon, Gift as GiftIcon, Heart as HeartIcon, Mountain as MountainIcon, PawPrint as PawPrintIcon, Phone as PhoneIcon, PiggyBank as PiggyBankIcon, Repeat as RepeatIcon, Timer as TimerIcon, Tv as TvIcon, UtensilsCrossed as UtensilsCrossedIcon, Wrench as WrenchIcon } from "lucide-react";
 
@@ -101,7 +101,13 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   cooked: { label: "Cooked", detail: "Workouts, food, sleep and a coach", icon: <DumbbellIcon2 size={17} /> },
   cookedpt: { label: "Cooked PT", detail: "Coach your clients", icon: <HeartHandshake size={17} /> },
   arisenotes: { label: "Arise Notes", detail: "AI notes: record, transcribe, summarize", icon: <NotebookPen size={17} /> },
-  podster: { label: "Podster", detail: "Podcasts, audiobooks, radio and music", icon: <PodcastIcon3 size={17} /> },
+  podster: { label: "Podster", detail: "Now five plugins: Podcasts, Audiobooks, Radio, Study Podster, Social", icon: <PodcastIcon3 size={17} /> },
+  // Podster, taken apart into its own plugins (Nov 15, 2026).
+  podcasts: { label: "Podcasts", detail: "Shows picked for you and a swipe feed", icon: <PodcastIcon3 size={17} /> },
+  audiobooks: { label: "Audiobooks", detail: "Classic books, read aloud", icon: <BookOpenIcon size={17} /> },
+  podradio: { label: "Radio", detail: "Live FM, AM and online stations", icon: <RadioTowerIcon size={17} /> },
+  studypod: { label: "Study Podster", detail: "Your notes, turned into an episode", icon: <GraduationCapIcon2 size={17} /> },
+  podsocial: { label: "Podster Social", detail: "Posts and clips from listeners", icon: <MessagesSquareIcon size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };

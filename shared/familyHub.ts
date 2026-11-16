@@ -13,7 +13,7 @@ import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 import { BUNDLE_BY_SECTION, bundleMembers } from "./appBundles";
-import { cleanSuperPages, type SuperAppId } from "./superApps";
+import { cleanSuperPages, withSplitApps, type SuperAppId } from "./superApps";
 import { BROWSER_LIMITS, hostOf, type BrowserMark } from "./browserApp";
 import { cleanNoteHtml } from "./richNote";
 import { cleanLock, type PrivacyLock } from "./privacyLock";
@@ -24,10 +24,10 @@ import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 /** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
 const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 
-export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS];
+export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS];
 /** Sections added from the Plugin Gallery: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
@@ -35,7 +35,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores",
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", "podcasts", "audiobooks", "podradio", "studypod", "podsocial", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -65,7 +65,7 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 /** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
  *  stays in the family's data. Earshot lives on as its own app, Podster. Health Lite (Nov 15, 2026): its
  *  tools are separate plugins again, and the ones someone picked inside it stay on, now in the menu. */
-export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot", "healthlite"];
+export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot", "healthlite", "podster"];
 export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
@@ -425,6 +425,8 @@ export function cleanFamily(input: unknown): Family {
   }
   // The Calorie counter comes added for everyone (Oct 30, 2026). Removing it is saved as false, so that sticks.
   if (sections.health === undefined) sections.health = true;
+  // Podster was taken apart into five plugins (Nov 15, 2026): anyone who had it gets them all.
+  Object.assign(sections, withSplitApps(sections));
   const rawLayers = obj(raw.layers) || {};
   const layers: Layers = {
     tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false), hub: bool(rawLayers.hub, false),
