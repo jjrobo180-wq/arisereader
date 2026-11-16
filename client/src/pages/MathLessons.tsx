@@ -5,14 +5,15 @@ import { useEffect, useMemo, useState } from "react";
 import { areaFactor, fmt, scaleFactorOf, START_HERE, TOOLBOX, toActual, toDrawing, UNIT, unitlessScale, type Activity, type Item, type Lesson, type LengthUnit } from "@shared/spedMathUnit";
 import { answerCounts, EXTRA_LESSONS, LESSONS, UNIT1 } from "@shared/spedMathLessons";
 import SpedExemplarMaker from "./SpedExemplarMaker";
+import KhaElaMaker from "./KhaElaMaker";
 import "./mathLessons.css";
 
 const KEY = "arise-math-lessons";
-type View = "start" | "helper" | "maker" | number;
+type View = "start" | "helper" | "maker" | "kha" | number;
 const readView = (): View => {
   try {
     const v = localStorage.getItem(KEY);
-    if (v === "start" || v === "helper" || v === "maker") return v;
+    if (v === "start" || v === "helper" || v === "maker" || v === "kha") return v;
     const n = Number(v);
     if (LESSONS.some((l) => l.n === n)) return n;
   } catch { /* fine */ }
@@ -201,7 +202,7 @@ export default function MathLessons() {
   useEffect(() => { try { localStorage.setItem(`${KEY}-answers`, show ? "on" : "off"); } catch { /* fine */ } }, [show]);
   const lesson = typeof view === "number" ? LESSONS.find((l) => l.n === view) : undefined;
   const idx = lesson ? LESSONS.indexOf(lesson) : -1;
-  const body = useMemo(() => view === "start" ? <StartHere /> : view === "helper" ? <Helper /> : view === "maker" ? <SpedExemplarMaker /> : lesson ? <LessonView l={lesson} show={show} /> : <StartHere />, [view, lesson, show]);
+  const body = useMemo(() => view === "start" ? <StartHere /> : view === "helper" ? <Helper /> : view === "maker" ? <SpedExemplarMaker /> : view === "kha" ? <KhaElaMaker /> : lesson ? <LessonView l={lesson} show={show} /> : <StartHere />, [view, lesson, show]);
   return (
     <div className="ml-root">
       <header className="ml-top">
@@ -210,8 +211,9 @@ export default function MathLessons() {
           <h1>Math Lessons</h1>
           <div className="ml-tools">
             <button type="button" className="ml-maker-btn" aria-pressed={view === "maker"} onClick={() => setView("maker")}>SPED Exemplar Maker</button>
-            {view !== "maker" && <button type="button" aria-pressed={show} onClick={() => setShow(!show)}>{show ? "Hide answers" : "Show answers"}</button>}
-            {view !== "maker" && <button type="button" onClick={() => window.print()}>Print</button>}
+            <button type="button" className="ml-maker-btn" aria-pressed={view === "kha"} onClick={() => setView("kha")}>Kha ELA</button>
+            {view !== "maker" && view !== "kha" && <button type="button" aria-pressed={show} onClick={() => setShow(!show)}>{show ? "Hide answers" : "Show answers"}</button>}
+            {view !== "maker" && view !== "kha" && <button type="button" onClick={() => window.print()}>Print</button>}
           </div>
         </div>
         <nav className="ml-nav" aria-label="Lessons">
