@@ -23,6 +23,8 @@
 .ml-tools { display: flex; gap: 8px; }
 .ml-tools button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 8px 14px; min-height: 40px; font-weight: 600; font-size: 14px; }
 .ml-tools button[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--brand); }
+.ml-tools .ml-maker-btn { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.ml-tools .ml-maker-btn[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); box-shadow: 0 0 0 3px var(--brand-soft); }
 .ml-nav { display: flex; gap: 6px; overflow-x: auto; max-width: 920px; margin: 8px auto 0; padding-bottom: 4px; scrollbar-width: thin; }
 .ml-nav button { flex: 0 0 auto; min-width: 40px; min-height: 40px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 600; }
 .ml-nav button.is-on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
@@ -80,6 +82,34 @@
 .ml-form input, .ml-form select { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); font-weight: 500; font-size: 17px; }
 .ml-out { font-size: 18px; background: var(--brand-soft); border-radius: 10px; padding: 10px 12px; margin: 0; }
 .ml-foot { text-align: center; color: var(--ink-2); font-size: 13px; padding: 14px 16px 28px; }
+
+/* SPED Exemplar Maker */
+.ml-primary { background: var(--brand); color: var(--brand-ink); border: 1px solid var(--brand); border-radius: 10px; padding: 10px 16px; min-height: 44px; font-weight: 700; }
+.ml-primary:disabled { opacity: .5; cursor: default; }
+.ml-mk-req { margin: 0; padding-left: 22px; }
+.ml-mk-label { display: grid; gap: 4px; font-weight: 600; font-size: 14px; margin: 6px 0 10px; }
+.ml-mk-label textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper); font: 500 16px/1.5 var(--body); resize: vertical; min-height: 160px; }
+.ml-mk-photos { margin: 0 0 12px; }
+.ml-mk-photo { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+.ml-mk-photo input { font-size: 15px; }
+.ml-mk-thumbs { list-style: none; display: flex; gap: 8px; flex-wrap: wrap; padding: 0; margin: 8px 0 0; }
+.ml-mk-thumbs li { position: relative; margin: 0; }
+.ml-mk-thumbs img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.ml-mk-thumbs button { position: absolute; top: -6px; right: -6px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); font-weight: 700; line-height: 1; }
+.ml-mk-go { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ml-mk-stage { background: var(--brand-soft); border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; font-weight: 600; }
+.ml-mk-warn { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; font-weight: 600; }
+.ml-mk-docbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.ml-mk-docbar h3 { margin: 0; }
+.ml-mk-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ml-mk-actions button { min-height: 44px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 600; }
+.ml-mk-actions .ml-primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.ml-mk-frame { width: 100%; height: 70vh; min-height: 420px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.ml-mk-mine { list-style: none; padding: 0; margin: 0; }
+.ml-mk-mine li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); margin: 0; }
+.ml-mk-mine li:first-child { border-top: 0; }
+.ml-mk-mine small { color: var(--ink-2); }
+.ml-mk-mine button { min-height: 40px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 600; }
 
 @media (max-width: 520px) {
   .ml-root { font-size: 16px; }
