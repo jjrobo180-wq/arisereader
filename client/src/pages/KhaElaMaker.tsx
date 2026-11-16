@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { KHA_DEFAULTS, KHA_LIMITS, KHA_REQUIREMENTS, comicHtml, keyHtml, worksheetHtml, type KhaPack, type KhaSettings } from "@shared/khaEla";
+import UploadPicker from "@/components/UploadPicker";
+import type { UploadedFile } from "@shared/uploads";
 
 type Mine = { id: string; title: string; status: string; createdAt: string };
 type Job = { id: string; status: "working" | "done" | "failed"; stage: string; error?: string; pack?: KhaPack };
@@ -67,6 +69,7 @@ export default function KhaElaMaker() {
   const [s, setS] = useState<KhaSettings>(readSettings);
   const [text, setText] = useState("");
   const [links, setLinks] = useState("");
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [images, setImages] = useState<{ name: string; data: string }[]>([]);
   const [change, setChange] = useState("");
   const [job, setJob] = useState<Job | null>(null);
@@ -135,8 +138,8 @@ export default function KhaElaMaker() {
 
   const build = async () => {
     setError(""); setJob(null);
-    if (s.source === "asis" && !text.trim() && !links.trim() && !images.length) { setError("Paste the poems or worksheet to use (or add a link or photos), or switch to “Write new poems.”"); return; }
-    await send({ settings: s, text, links, images: images.map((i) => i.data) });
+    if (s.source === "asis" && !text.trim() && !links.trim() && !files.length && !images.length) { setError("Paste the poems or worksheet to use (or add a link, a file or photos), or switch to “Write new poems.”"); return; }
+    await send({ settings: s, text, links, files, images: images.map((i) => i.data) });
   };
   const applyChange = async () => {
     if (!job?.pack) return;
@@ -199,6 +202,7 @@ export default function KhaElaMaker() {
         <label className="ml-mk-label">Or paste a link to a worksheet or poems to follow (optional)
           <input value={links} maxLength={600} inputMode="url" autoComplete="off" onChange={(e) => setLinks(e.target.value)} placeholder="https://…  (the page must open without signing in)" data-testid="kha-links" />
         </label>
+        <UploadPicker files={files} setFiles={setFiles} onError={setError} testId="kha-files" />
         <div className="ml-mk-photos">
           <label className="ml-mk-photo">Add photos or screenshots of a worksheet or poem (up to {KHA_LIMITS.images})
             <input type="file" accept="image/*" multiple onChange={(e) => { void addPhotos(e.target.files); e.target.value = ""; }} />

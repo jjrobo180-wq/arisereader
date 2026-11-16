@@ -20,6 +20,7 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { PageError, fetchPageText, linksFrom, pagesText, type PageText } from "./pageText";
+import { UploadError, readUploads } from "./uploadText";
 import type { KV } from "./podcastDirectory";
 import { SOLVE_PROMPT, judge, solveText, type SolveItem } from "../shared/ariseMathVerify";
 import {
@@ -46,7 +47,8 @@ const MODEL = () => process.env.SPED_EXEMPLAR_MODEL || process.env.MATH_PREP_MOD
 
 export async function askOpenAI(ask: SpedAsk): Promise<string> {
   const content: any[] = [{ type: "text", text: ask.text }];
-  for (const url of ask.images) content.push({ type: "image_url", image_url: { url, detail: "high" } });
+  // A PDF goes to the AI as a file (it reads the text and the pages); a photo as an image.
+  ask.images.forEach((url, i) => content.push(url.startsWith("data:application/pdf") ? { type: "file", file: { filename: `lesson-${i + 1}.pdf`, file_data: url } } : { type: "image_url", image_url: { url, detail: "high" } }));
   let response: Response;
   try {
     response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -61,7 +63,7 @@ export async function askOpenAI(ask: SpedAsk): Promise<string> {
   }
   if (!response.ok) {
     console.error("[sped-exemplar] AI request failed:", response.status);
-    throw new SpedAiError(response.status === 429 ? "The AI is busy. Try again in a minute." : ask.images.length ? "The AI couldn’t read those photos. Paste the lesson text instead, or try clearer photos." : "The AI couldn’t finish that. Try again in a moment.");
+    throw new SpedAiError(response.status === 429 ? "The AI is busy. Try again in a minute." : ask.images.length ? "The AI couldn’t read those photos or files. Paste the lesson text instead, or try clearer photos." : "The AI couldn’t finish that. Try again in a moment.");
   }
   const payload: any = await response.json().catch(() => null);
   return String(payload?.choices?.[0]?.message?.content || "");
@@ -230,12 +232,17 @@ export function registerSpedExemplarRoutes(app: Express, auth: RequestHandler, d
     const u = gate(req, res); if (!u) return;
     if (!aiConfigured()) return res.status(503).json({ message: "The SPED Exemplar Maker isn’t turned on for this site yet." });
     const body = req.body ?? {};
-    const text = String(body.text ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, SPED_LIMITS.text);
+    const typed = String(body.text ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, SPED_LIMITS.text);
     const title = String(body.title ?? "").replace(/\s+/g, " ").trim().slice(0, SPED_LIMITS.title);
     const grade = /^(K|[1-9]|1[0-2])$/.test(String(body.grade ?? "").trim()) ? String(body.grade).trim() : "";
-    const images = (Array.isArray(body.images) ? body.images : []).filter((x: unknown) => typeof x === "string" && x);
-    if (images.length > SPED_LIMITS.images) return res.status(400).json({ message: `Add up to ${SPED_LIMITS.images} photos at a time.` });
-    if (images.some((x: string) => x.length > SPED_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the photos couldn’t be read. Try a JPG or PNG photo or screenshot." });
+    const photos = (Array.isArray(body.images) ? body.images : []).filter((x: unknown) => typeof x === "string" && x);
+    if (photos.length > SPED_LIMITS.images) return res.status(400).json({ message: `Add up to ${SPED_LIMITS.images} photos at a time.` });
+    if (photos.some((x: string) => x.length > SPED_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the photos couldn’t be read. Try a JPG or PNG photo or screenshot." });
+    // Files: Word, Excel, PowerPoint, CSV and text become words; a PDF goes to the AI as it is (server/uploadText.ts).
+    let up: { text: string; attachments: string[] };
+    try { up = readUploads(body.files, SPED_LIMITS.text); } catch (e: any) { if (e instanceof UploadError) return res.status(400).json({ message: e.message }); throw e; }
+    const images = [...photos, ...up.attachments];
+    const text = [typed, up.text].filter(Boolean).join("\n\n").slice(0, SPED_LIMITS.text);
     // A link to the lesson page: its words are read for the build (see server/pageText.ts).
     const links = linksFrom(body.links);
     if (String(Array.isArray(body.links) ? body.links.join("") : body.links ?? "").trim() && !links.length) return res.status(400).json({ message: "That doesn’t look like a web address. Paste the full link, starting with https://" });

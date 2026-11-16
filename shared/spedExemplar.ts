@@ -302,7 +302,7 @@ ${VOICE}`;
 
 /** The text sent with the instructions: what the teacher gave us. */
 export const lessonText = (ask: { title: string; grade: string; text: string }, images: number) =>
-  [ask.title && `Lesson name: ${ask.title}`, ask.grade && `Grade: ${ask.grade}`, ask.text && `The lesson (typed or pasted):\n${ask.text}`, images ? `${images} photo${images === 1 ? "" : "s"} of the lesson follow. Read every one closely, even if it is tilted or partly cut off.` : ""].filter(Boolean).join("\n\n");
+  [ask.title && `Lesson name: ${ask.title}`, ask.grade && `Grade: ${ask.grade}`, ask.text && `The lesson (typed or pasted):\n${ask.text}`, images ? `${images} attachment${images === 1 ? "" : "s"} (photos, or a PDF) of the lesson follow. Read every one closely, even if it is tilted or partly cut off.` : ""].filter(Boolean).join("\n\n");
 
 /** What goes back to the AI when its reply was missing things: exactly what, nothing vague. */
 export const fixText = (errors: string[]) => `Your last reply could not be used. Fix exactly these problems, keep everything that was already right, and send the WHOLE JSON object again (nothing else):\n- ${errors.join("\n- ")}`;

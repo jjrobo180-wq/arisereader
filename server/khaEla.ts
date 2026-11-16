@@ -19,6 +19,7 @@ import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { PageError, fetchPageText, linksFrom, pagesText, type PageText } from "./pageText";
+import { UploadError, readUploads } from "./uploadText";
 import { SpedAiError, askClean, askOpenAI, type SpedAsk, type SpedDeps } from "./spedExemplar";
 import {
   CHECK_SYSTEM, KHA_LIMITS, REPAIR_SYSTEM, checkText, cleanKhaSheet, cleanQuestionForRepair, cleanSettings, judgeSheet, khaPrompt, khaText, parseJsonLoose, poemsForReader, refineText,
@@ -126,10 +127,15 @@ export function registerKhaElaRoutes(app: Express, auth: RequestHandler, deps: K
     if (!aiConfigured()) return res.status(503).json({ message: "The Kha ELA maker isn’t turned on for this site yet." });
     const body = req.body ?? {};
     const settings = cleanSettings(body.settings);
-    const text = String(body.text ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, KHA_LIMITS.text);
-    const images = (Array.isArray(body.images) ? body.images : []).filter((x: unknown) => typeof x === "string" && x);
-    if (images.length > KHA_LIMITS.images) return res.status(400).json({ message: `Add up to ${KHA_LIMITS.images} photos at a time.` });
-    if (images.some((x: string) => x.length > KHA_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the photos couldn’t be read. Try a JPG or PNG photo or screenshot." });
+    const typed = String(body.text ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, KHA_LIMITS.text);
+    const photos = (Array.isArray(body.images) ? body.images : []).filter((x: unknown) => typeof x === "string" && x);
+    if (photos.length > KHA_LIMITS.images) return res.status(400).json({ message: `Add up to ${KHA_LIMITS.images} photos at a time.` });
+    if (photos.some((x: string) => x.length > KHA_LIMITS.imageChars || !IMAGE_RE.test(x))) return res.status(400).json({ message: "One of the photos couldn’t be read. Try a JPG or PNG photo or screenshot." });
+    // Files: Word, Excel, PowerPoint, CSV and text become words; a PDF goes to the AI as it is (server/uploadText.ts).
+    let up: { text: string; attachments: string[] };
+    try { up = readUploads(body.files, KHA_LIMITS.text); } catch (e: any) { if (e instanceof UploadError) return res.status(400).json({ message: e.message }); throw e; }
+    const images = [...photos, ...up.attachments];
+    const text = [typed, up.text].filter(Boolean).join("\n\n").slice(0, KHA_LIMITS.text);
     // A link to a worksheet or poems to follow: its words are read for the build (server/pageText.ts).
     const links = linksFrom(body.links);
     if (String(Array.isArray(body.links) ? body.links.join("") : body.links ?? "").trim() && !links.length) return res.status(400).json({ message: "That doesn’t look like a web address. Paste the full link, starting with https://" });
