@@ -55,7 +55,7 @@ const askOpenAI: LessonAsk = async (system, user, maxTokens, attachments = []) =
     throw new LessonAiError(error?.name === "TimeoutError" ? "That took too long. Try asking for a bit less." : "The AI could not be reached. Try again in a moment.");
   }
   if (!res.ok) {
-    console.error("[lesson-planner] AI failed:", res.status);
+    console.error("[lesson-planner] AI failed:", res.status, attachments.length ? `(${attachments.length} attachment(s))` : "", (await res.text().catch(() => "")).slice(0, 300));
     throw new LessonAiError(res.status === 429 ? "The AI is busy right now. Try again in a minute." : "The AI could not help with that right now. Try again.");
   }
   const payload: any = await res.json().catch(() => null);
