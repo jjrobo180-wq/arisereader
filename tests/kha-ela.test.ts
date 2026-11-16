@@ -546,3 +546,13 @@ test("Math Lessons has a Kha ELA button and view, wired to the route, the docume
   assert.match(read("server/routes.ts"), /registerKhaElaRoutes\(app, authMiddleware/);
   assert.match(read("shared/pluginStore.ts"), /Kha ELA Worksheet Maker/);
 });
+
+test("the Work Hub Lessons tab has SPED Exemplar Maker and Kha ELA buttons next to Worksheet maker", () => {
+  const lessons = read("client/src/components/teacher-hub/HubLessons.tsx");
+  assert.match(lessons, /Worksheet maker<\/button>\s*<button type="button" onClick=\{\(\) => setExemplar\("sped"\)\}[\s\S]{0,200}SPED Exemplar Maker<\/button>\s*<button type="button" onClick=\{\(\) => setExemplar\("kha"\)\}[\s\S]{0,200}Kha ELA<\/button>/);
+  assert.match(lessons, /\{exemplar && <HubExemplarModal which=\{exemplar\} onClose=\{\(\) => setExemplar\(null\)\} \/>\}/);
+  const modal = read("client/src/components/teacher-hub/HubExemplarModal.tsx");
+  assert.match(modal, /lazy\(\(\) => import\("@\/pages\/SpedExemplarMaker"\)\)/, "loaded only when opened");
+  assert.match(modal, /lazy\(\(\) => import\("@\/pages\/KhaElaMaker"\)\)/);
+  assert.match(modal, /size="full"/);
+});
