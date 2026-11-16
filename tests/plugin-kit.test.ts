@@ -8,9 +8,9 @@ import { PLUGINS, PLUGIN_CATEGORIES, isAddable, setWorkKit, workInstalled } from
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("400 kit plugins: 240 LifeHub sections and 160 WorkHub tools, all well-formed", () => {
+test("401 kit plugins: 240 LifeHub sections and 161 WorkHub tools, all well-formed", () => {
   assert.equal(KIT_DEFS.length, 401);
-  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 400);
+  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 401);
   const life = KIT_DEFS.filter((d) => d.hub === "life"), work = KIT_DEFS.filter((d) => d.hub === "work");
   assert.equal(life.length, 240);
   assert.equal(work.length, 161);
