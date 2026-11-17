@@ -125,3 +125,20 @@ test("money in: what you already have is cleaned, totaled, and counts toward wha
   assert.deepEqual(cleanMoney(null).onHand, []);
   assert.deepEqual(cleanMoney({ setUp: true }).onHand, []);
 });
+
+test("count only money on hand: expected pay is left out, and being short for the bills still due shows", () => {
+  const bigRent: PlanBill = { id: "rent", name: "Rent", amount: 2120, dueDay: 1, category: "Housing", autopay: false, paid: [] };
+  const job = { id: "j", name: "Job", kind: "paycheck" as const, frequency: "monthly" as const, amount: 4298, days: [1], anchor: "" };
+  const onHand = [{ id: "c", name: "Checking", amount: 1981 }];
+  const counting = monthPicture(plan({ sources: [job], onHand }), [bigRent], [], [], "2026-11", "2026-11-16");
+  assert.ok(counting.leftover > 0, "with expected pay counted the month looks fine");
+  const p = plan({ sources: [job], onHand, onHandOnly: true });
+  const pic = monthPicture(p, [bigRent], [{ id: "e", categoryId: "", amount: 50, date: "2026-11-10", note: "" }], [], "2026-11", "2026-11-16");
+  assert.equal(pic.onHandOnly, true);
+  assert.equal(pic.leftover, -139, "1,981 on hand less 2,120 rent still due");
+  assert.equal(pic.unplanned, -139);
+  assert.equal(pic.late, 1, "rent is past due");
+  assert.equal(safeToSpend(p, [bigRent], [], "2026-11", "2026-11-16"), null, "no 'safe to spend' built on pay that hasn't come");
+  assert.equal(cleanMoney(p).onHandOnly, true, "the setting is kept");
+  assert.equal(cleanMoney(plan()).onHandOnly, undefined);
+});

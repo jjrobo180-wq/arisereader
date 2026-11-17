@@ -39,6 +39,9 @@ export type MoneyPlan = {
   /** Whether what's left unpaid on a bill is added to next month's. Off unless they turn it on: each month
    *  is its own month (Nov 15, 2026). */
   carryBills?: boolean;
+  /** "Count only money on hand": pay that's expected but hasn't come is left out. What's left is the money on hand
+   *  less the bills still to pay (Nov 16, 2026: expected pay made the month look far better than it was). */
+  onHandOnly?: boolean;
   /** A month that has been changed has its own copy of the bills, income and spending limits, so editing one month
    *  never touches another. A month with no copy shows the plan as it was set up. See viewMonth / editMonth. */
   months?: Record<string, MonthLayer>;
@@ -115,6 +118,7 @@ export function cleanMoney(raw: unknown): MoneyPlan {
     style: oneOf(r.style, ["paycheck", "monthly"] as const, "monthly"),
     cushion: num(r.cushion, 0, 10_000_000),
     ...(r.carryBills === true ? { carryBills: true } : {}),
+    ...(r.onHandOnly === true ? { onHandOnly: true } : {}),
     ...(cleanMonths(r.months) ? { months: cleanMonths(r.months) } : {}),
     sources: rows(r.sources, MONEY_LIMITS.sources, cleanSource),
     onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
@@ -398,8 +402,18 @@ export function monthPicture(plan: MoneyPlan, bills: PlanBill[], expenses: Expen
   const income = Math.max(expected, received);
   const planned = cents(billsOwed + budgeted + goals + plan.cushion);
   const onHand = onHandTotal(plan);
+  if (plan.onHandOnly) {
+    // Only money in hand: it already has this month's pay and spending in it, so take off only what's still owed.
+    const budgetLeft = cents(Math.max(0, budgeted - spent));
+    return {
+      expected, received, income: received, onHand, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned, onHandOnly: true as const,
+      unplanned: cents(onHand - billsLeft - budgetLeft - goals - plan.cushion),
+      leftover: cents(onHand - billsLeft),
+      late: statuses.filter((s) => s.state === "late").length,
+    };
+  }
   return {
-    expected, received, income, onHand, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned,
+    expected, received, income, onHand, billsOwed, billsPaid, billsLeft, spent, budgeted, goals, planned, onHandOnly: false as const,
     /** Not given a job yet: income minus bills, spending budgets, goals and the cushion. Negative means over-planned. */
     unplanned: cents(income + onHand - planned),
     /** What's actually left this month after bills and spending so far. */
@@ -409,6 +423,7 @@ export function monthPicture(plan: MoneyPlan, bills: PlanBill[], expenses: Expen
 }
 /** Safe to spend until the next payday: this check, less its bills still to pay, its goal share and what's been spent since it came. */
 export function safeToSpend(plan: MoneyPlan, bills: PlanBill[], expenses: Expense[], month: string, today: string) {
+  if (plan.onHandOnly) return null; // counted from money on hand only: monthPicture's leftover
   const { periods } = payPeriods(plan, bills, month, today);
   const now = [...periods].reverse().find((p) => p.start <= today) ?? null;
   if (!now) return null;
