@@ -4,11 +4,15 @@
 //   * a detailed one (small, medium and large) in one of five looks (Clean, Bold, Midnight, Sunset, Ocean).
 // Each widget has an icon, gradients, a glowing ring, live countdowns (iOS ticks them every second) and a
 // timeline that rotates a spotlight through the slot's lines, so the widget animates as it changes.
-// Plain widgets only (no App Intents), and display names are plain Strings: an interpolated display name
-// crashed the whole extension on load. Built by .github/scripts/add_widget.rb into an extension called
-// AriseWidgets, with the widget list below filled in for the app.
+// Display names are plain Strings: an interpolated display name crashed the whole extension on load (#485).
+// An id in the app's list ending in ".check" is a checklist widget whose circles check things off right on the
+// Home Screen (CheckOffIntent; the app saves them when it next opens), and one ending in ".live" is the focus
+// timer's Live Activity (the Lock Screen and the Dynamic Island). Built by .github/scripts/add_widget.rb into an
+// extension called AriseWidgets, with the widget list below filled in for the app.
 import SwiftUI
 import WidgetKit
+import AppIntents
+import ActivityKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
@@ -39,6 +43,13 @@ struct Slot: Codable {
     var unit: String?
     /// A web address to show as a QR code (the Link page widget).
     var qr: String?
+    /// Things to check off (the checklist widgets).
+    var items: [SlotItem]?
+}
+
+struct SlotItem: Codable {
+    var id: String = ""
+    var text: String = ""
 }
 
 private func group() -> String {
@@ -681,6 +692,279 @@ struct LinkPageWidget {
         .configurationDisplayName(name)
         .description("Your Link page, with a QR code anyone can scan to open it.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+// MARK: - Checklist widgets (tap to check off)
+// The app sends the slot's `items`. A tap on a circle runs CheckOffIntent here, in the widget: it takes the item
+// off the widget at once and leaves a note ("pending") that the app reads with takeActions and saves as done.
+
+struct CheckOffIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check off"
+    static var description = IntentDescription("Checks something off on an Arise widget.")
+    static var isDiscoverable: Bool = false
+
+    @Parameter(title: "Widget") var slot: String
+    @Parameter(title: "Item") var item: String
+
+    init() {}
+    init(slot: String, item: String) { self.slot = slot; self.item = item }
+
+    func perform() async throws -> some IntentResult {
+        guard let defaults = UserDefaults(suiteName: group()) else { return .result() }
+        var pending = (defaults.array(forKey: "pending") as? [[String: Any]]) ?? []
+        pending.append(["id": slot, "action": "check", "item": item, "amount": 0, "at": Date().timeIntervalSince1970 * 1000])
+        defaults.set(Array(pending.suffix(200)), forKey: "pending")
+        if let data = defaults.data(forKey: "slots"),
+           var all = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           var s = all[slot] as? [String: Any],
+           let items = s["items"] as? [[String: Any]] {
+            s["items"] = items.filter { ($0["id"] as? String) != item }
+            all[slot] = s
+            if let out = try? JSONSerialization.data(withJSONObject: all) { defaults.set(out, forKey: "slots") }
+        }
+        return .result()
+    }
+}
+
+struct ChecklistEntry: TimelineEntry {
+    let date: Date
+    let slot: Slot
+}
+
+struct ChecklistProvider: TimelineProvider {
+    let base: String
+    let name: String
+    func placeholder(in context: Context) -> ChecklistEntry {
+        ChecklistEntry(date: Date(), slot: Slot(id: base, title: name, value: "", items: [SlotItem(id: "a", text: "Something to do")]))
+    }
+    func getSnapshot(in context: Context, completion: @escaping (ChecklistEntry) -> Void) { completion(ChecklistEntry(date: Date(), slot: slotFor(base, name))) }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<ChecklistEntry>) -> Void) {
+        let now = Date()
+        completion(Timeline(entries: [ChecklistEntry(date: now, slot: slotFor(base, name))], policy: .after(now.addingTimeInterval(1800))))
+    }
+}
+
+struct ChecklistView: View {
+    @Environment(\.widgetFamily) private var envFamily
+    let entry: ChecklistEntry
+    var forced: WidgetFamily? = nil
+    private var family: WidgetFamily { forced ?? envFamily }
+
+    var body: some View {
+        let s = entry.slot
+        let t = Theme.vivid(s.tint)
+        let items = s.items ?? []
+        let room = family == .systemLarge ? 7 : (family == .systemMedium ? 3 : 2)
+        let large = family == .systemLarge
+        VStack(alignment: .leading, spacing: large ? 7 : 5) {
+            HStack(spacing: 7) {
+                IconBadge(symbol: symbolFor(s.id), theme: t, size: family == .systemSmall ? 22 : 26)
+                Text(verbatim: s.title).font(.system(size: 12, weight: .heavy, design: .rounded)).textCase(.uppercase).foregroundStyle(t.secondary).lineLimit(1)
+                Spacer(minLength: 0)
+                if !items.isEmpty && family != .systemSmall {
+                    Text(verbatim: String(items.count) + " left").font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(t.text)
+                        .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(t.chip))
+                }
+            }
+            if items.isEmpty {
+                Spacer(minLength: 0)
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill").font(.system(size: large ? 30 : 22, weight: .bold)).foregroundStyle(t.glow)
+                    Text(verbatim: s.value == "Open app" ? "Open the app" : "All done").font(.system(size: large ? 24 : 18, weight: .heavy, design: .rounded)).foregroundStyle(t.text)
+                }
+                Spacer(minLength: 0)
+            } else {
+                ForEach(Array(items.prefix(room).enumerated()), id: \.offset) { _, it in
+                    Button(intent: CheckOffIntent(slot: s.id, item: it.id)) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "circle").font(.system(size: family == .systemSmall ? 15 : 17, weight: .semibold)).foregroundStyle(t.accent)
+                            Text(verbatim: it.text).font(.system(size: family == .systemSmall ? 12 : 13, weight: .semibold, design: .rounded)).foregroundStyle(t.text).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, family == .systemSmall ? 7 : 10).padding(.vertical, large ? 7 : 5)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(t.chip))
+                    }
+                    .buttonStyle(.plain)
+                }
+                if items.count > room {
+                    Text(verbatim: "+ " + String(items.count - room) + " more").font(.system(size: 11, weight: .semibold)).foregroundStyle(t.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct ChecklistWidget {
+    let id: String
+    let name: String
+    var config: some WidgetConfiguration {
+        let base = id.hasSuffix(".check") ? String(id.dropLast(".check".count)) : id
+        return StaticConfiguration(kind: "Arise.\(id)", provider: ChecklistProvider(base: base, name: name)) { entry in
+            ChecklistView(entry: entry).containerBackground(for: .widget) { GradientBackground(theme: Theme.vivid(entry.slot.tint)) }
+        }
+        .configurationDisplayName(name)
+        .description("Tap a circle to check it off, without opening the app.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+// MARK: - Focus timer (Live Activity: Lock Screen and Dynamic Island)
+// The app starts it (AriseWidgetsPlugin.startFocus) with the task and when the time ends. The clock ticks by itself
+// (iOS draws timerInterval text), so it keeps counting with the app closed; at the end it says "Time's up".
+// Done and Stop open the app (arisetodo://focus/...), which checks the task off and ends the timer.
+// The same struct is in the plugin: iOS matches the two by name.
+
+struct DuoFocusAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        var endsAt: Date
+    }
+    var taskId: String
+    var title: String
+    var tint: String
+    var startedAt: Date
+}
+
+func focusLink(_ path: String) -> URL {
+    URL(string: "arisetodo://focus/" + path) ?? URL(string: "arisetodo://focus")!
+}
+
+func focusDoneLink(_ taskId: String) -> URL {
+    focusLink("done?id=" + (taskId.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""))
+}
+
+func focusRange(_ start: Date, _ end: Date) -> ClosedRange<Date> { start...max(end, start.addingTimeInterval(1)) }
+
+/// The time left, ticking by itself; "0:00" once it's over.
+struct FocusClock: View {
+    let range: ClosedRange<Date>
+    let stale: Bool
+    let size: CGFloat
+    let color: Color
+    var body: some View {
+        Group {
+            if stale || range.upperBound <= Date() { Text(verbatim: "0:00") } else { Text(timerInterval: range, countsDown: true) }
+        }
+        .font(.system(size: size, weight: .heavy, design: .rounded))
+        .monospacedDigit()
+        .foregroundStyle(color)
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+    }
+}
+
+struct FocusButton: View {
+    let label: String
+    let symbol: String
+    let url: URL
+    let filled: Bool
+    let theme: Theme
+    var body: some View {
+        Link(destination: url) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 13, weight: .bold))
+                Text(verbatim: label).font(.system(size: 14, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(filled ? Color.black.opacity(0.85) : theme.text)
+            .frame(maxWidth: .infinity, minHeight: 34)
+            .background(Capsule().fill(filled ? theme.glow : theme.chip))
+        }
+    }
+}
+
+/// The Lock Screen card (also the expanded Dynamic Island's bottom half, without the header).
+struct FocusCard: View {
+    let title: String
+    let taskId: String
+    let tint: String
+    let range: ClosedRange<Date>
+    let stale: Bool
+    var body: some View {
+        let t = Theme.vivid(tint)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                IconBadge(symbol: stale ? "checkmark.circle.fill" : "timer", theme: t, size: 32)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(verbatim: stale ? "TIME'S UP" : "FOCUS").font(.system(size: 11, weight: .heavy, design: .rounded)).foregroundStyle(t.secondary)
+                    Text(verbatim: title).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundStyle(t.text).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                FocusClock(range: range, stale: stale, size: 32, color: t.text).frame(maxWidth: 120, alignment: .trailing)
+            }
+            if !stale {
+                ProgressView(timerInterval: range, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .progressViewStyle(.linear).tint(t.glow)
+            }
+            HStack(spacing: 8) {
+                FocusButton(label: "Done", symbol: "checkmark", url: focusDoneLink(taskId), filled: true, theme: t)
+                FocusButton(label: stale ? "Close" : "Stop", symbol: "xmark", url: focusLink("stop"), filled: false, theme: t)
+            }
+        }
+    }
+}
+
+struct FocusLiveActivity {
+    var config: some WidgetConfiguration {
+        ActivityConfiguration(for: DuoFocusAttributes.self) { context in
+            FocusCard(title: context.attributes.title, taskId: context.attributes.taskId, tint: context.attributes.tint,
+                      range: focusRange(context.attributes.startedAt, context.state.endsAt), stale: context.isStale)
+                .padding(16)
+                .activityBackgroundTint(RGB(context.attributes.tint).mix(-0.6).color)
+                .activitySystemActionForegroundColor(.white)
+                .widgetURL(focusLink("open"))
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Label { Text(verbatim: context.isStale ? "Done?" : "Focus") } icon: { Image(systemName: "timer") }
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.vivid(context.attributes.tint).glow)
+                        .padding(.leading, 4)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    FocusClock(range: focusRange(context.attributes.startedAt, context.state.endsAt), stale: context.isStale, size: 24, color: .white)
+                        .frame(maxWidth: 96, alignment: .trailing).padding(.trailing, 4)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    Text(verbatim: context.attributes.title).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(.white).lineLimit(1)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    FocusIslandBottom(taskId: context.attributes.taskId, tint: context.attributes.tint,
+                                      range: focusRange(context.attributes.startedAt, context.state.endsAt), stale: context.isStale)
+                }
+            } compactLeading: {
+                Image(systemName: "timer").font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.vivid(context.attributes.tint).glow)
+            } compactTrailing: {
+                FocusClock(range: focusRange(context.attributes.startedAt, context.state.endsAt), stale: context.isStale, size: 14, color: .white)
+                    .frame(maxWidth: 46)
+            } minimal: {
+                Image(systemName: context.isStale ? "checkmark" : "timer").font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.vivid(context.attributes.tint).glow)
+            }
+            .widgetURL(focusLink("open"))
+            .keylineTint(Theme.vivid(context.attributes.tint).glow)
+        }
+    }
+}
+
+struct FocusIslandBottom: View {
+    let taskId: String
+    let tint: String
+    let range: ClosedRange<Date>
+    let stale: Bool
+    var body: some View {
+        let t = Theme.vivid(tint)
+        VStack(spacing: 8) {
+            if !stale {
+                ProgressView(timerInterval: range, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .progressViewStyle(.linear).tint(t.glow)
+            }
+            HStack(spacing: 8) {
+                FocusButton(label: "Done", symbol: "checkmark", url: focusDoneLink(taskId), filled: true, theme: t)
+                FocusButton(label: stale ? "Close" : "Stop", symbol: "xmark", url: focusLink("stop"), filled: false, theme: t)
+            }
+        }
+        .padding(.horizontal, 4)
     }
 }
 

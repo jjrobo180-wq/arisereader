@@ -27,8 +27,11 @@ export type WidgetSlot = {
   unit?: string;
   /** A web address the widget shows as a QR code (the Link page widget). */
   qr?: string;
+  /** Things to check off right on the widget (the ".check" checklist widgets); taps come back with `item`. */
+  items?: { id: string; text: string }[];
 };
-export type WidgetTap = { id: string; action: string; amount: number; at: number };
+/** A tap on a widget: a button (`action`, `amount`) or a checklist circle (`action` "check", `item` its id). */
+export type WidgetTap = { id: string; action: string; amount: number; at: number; item?: string };
 
 const PLUGIN = /arise.?widgets/i;
 const sent = new Map<string, string>();
@@ -51,6 +54,7 @@ export function cleanSlots(slots: WidgetSlot[]): WidgetSlot[] {
     ...(Number.isFinite(s.goal) ? { goal: s.goal } : {}),
     ...(s.unit ? { unit: text(s.unit, 8) } : {}),
     ...(typeof s.qr === "string" && /^https:\/\/[^\s]{4,300}$/.test(s.qr) ? { qr: s.qr } : {}),
+    ...(Array.isArray(s.items) ? { items: s.items.filter((i) => i && /^[\w.:@\-]{1,120}$/.test(String(i.id))).slice(0, 12).map((i) => ({ id: String(i.id), text: text(i.text, 60) })) } : {}),
   }));
 }
 
@@ -66,7 +70,11 @@ export async function takeWidgetActions(): Promise<WidgetTap[]> {
   if (!isNativeApp() || !hasNativePlugin(PLUGIN)) return [];
   try {
     const r = await nativeCall(PLUGIN, "AriseWidgets", "takeActions");
-    return Array.isArray(r?.actions) ? r.actions.filter((a: any) => a && typeof a.id === "string").map((a: any) => ({ id: a.id, action: String(a.action), amount: Number(a.amount) || 0, at: Number(a.at) || Date.now() })) : [];
+    const taps: WidgetTap[] = Array.isArray(r?.actions) ? r.actions.filter((a: any) => a && typeof a.id === "string").map((a: any) => ({ id: a.id, action: String(a.action), amount: Number(a.amount) || 0, at: Number(a.at) || Date.now(), ...(typeof a.item === "string" && a.item ? { item: a.item } : {}) })) : [];
+    // The widget already changed what it shows (a checked item is gone): send the slot again next time, even if
+    // the app's own copy of it looks the same.
+    for (const t of taps) sent.delete(t.id);
+    return taps;
   } catch { return []; }
 }
 

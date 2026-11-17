@@ -48,6 +48,18 @@
   "Accountability"
  ],
  [
+  "duo.todos.check",
+  "To-do checklist"
+ ],
+ [
+  "duo.chores.check",
+  "Chore checklist"
+ ],
+ [
+  "duo.focus.live",
+  "Focus timer"
+ ],
+ [
   "duo.linkpage",
   "Link page"
  ]

@@ -7,7 +7,8 @@ app can ask for needs a sentence saying why, or iOS stops the app the moment it 
   - Camera, photos and microphone (barcode scanner, photos in notes and posts, voice features)
   - Location (only the apps in the App Store that ask for it, like weather and mileage)
 It also says the app only uses the encryption built into iOS (HTTPS), so App Store Connect doesn't
-ask about export compliance on every upload.
+ask about export compliance on every upload, turns on Live Activities (the focus timer on the Lock Screen
+and in the Dynamic Island) and adds the arisetodo:// links that timer's Done and Stop buttons open.
 """
 import plistlib
 import sys
@@ -29,11 +30,15 @@ KEYS = {
     "NSMicrophoneUsageDescription": f"{NAME} uses the microphone for voice notes and speaking practice when you choose to record.",
     "NSLocationWhenInUseUsageDescription": f"{NAME} uses your location only in the apps that need it, like weather and mileage, while you use them.",
     "ITSAppUsesNonExemptEncryption": False,
+    "NSSupportsLiveActivities": True,
 }
 
 with open(PLIST, "rb") as f:
     plist = plistlib.load(f)
 plist.update(KEYS)
+types = [t for t in plist.get("CFBundleURLTypes", []) if "arisetodo" not in t.get("CFBundleURLSchemes", [])]
+types.append({"CFBundleURLName": "com.arisereader.arisetodo", "CFBundleURLSchemes": ["arisetodo"]})
+plist["CFBundleURLTypes"] = types
 with open(PLIST, "wb") as f:
     plistlib.dump(plist, f)
 print(f"Info.plist ready for {NAME}: {', '.join(sorted(KEYS))}")
