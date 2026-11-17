@@ -73,9 +73,56 @@ private struct Sheet: View {
                 }
                 }
             }
+            if slots.first?.id.hasPrefix("duo") == true { DuoExtras() }
         }
         .padding(24)
         .background(Color(red: 0.12, green: 0.13, blue: 0.18))
+    }
+}
+
+/// Arise To Duo: the checklist widgets, and the focus timer on the Lock Screen and in the Dynamic Island.
+private struct DuoExtras: View {
+    var body: some View {
+        let now = Date()
+        let todos = Slot(id: "duo.todos", title: "To-dos due", value: "4", tint: "#36b6a5",
+                         items: [SlotItem(id: "1", text: "Late · Pay rent"), SlotItem(id: "2", text: "9:00 AM · Call the vet"), SlotItem(id: "3", text: "Email Ms. Lee"), SlotItem(id: "4", text: "Pick up dry cleaning")])
+        let chores = Slot(id: "duo.chores", title: "Chores today", value: "0 left", tint: "#22c55e", items: [])
+        let range = focusRange(now.addingTimeInterval(-7 * 60), now.addingTimeInterval(18 * 60))
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 18) {
+                Tile(170, 170, bg: Theme.vivid(todos.tint)) { ChecklistView(entry: ChecklistEntry(date: now, slot: todos), forced: .systemSmall) }
+                Tile(364, 170, bg: Theme.vivid(todos.tint)) { ChecklistView(entry: ChecklistEntry(date: now, slot: todos), forced: .systemMedium) }
+                Tile(364, 382, bg: Theme.vivid(todos.tint)) { ChecklistView(entry: ChecklistEntry(date: now, slot: todos), forced: .systemLarge) }
+                Tile(170, 170, bg: Theme.vivid(chores.tint)) { ChecklistView(entry: ChecklistEntry(date: now, slot: chores), forced: .systemSmall) }
+            }
+            HStack(alignment: .top, spacing: 18) {
+                // The Lock Screen card, running and after the time is up.
+                FocusCard(title: "Grade the math quizzes", taskId: "t1", tint: "#7c6cf0", range: range, stale: false)
+                    .padding(16).frame(width: 364).background(RGB("#7c6cf0").mix(-0.6).color).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                FocusCard(title: "Grade the math quizzes", taskId: "t1", tint: "#7c6cf0", range: range, stale: true)
+                    .padding(16).frame(width: 364).background(RGB("#7c6cf0").mix(-0.6).color).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+            HStack(alignment: .top, spacing: 18) {
+                // The Dynamic Island: compact (around the camera) and expanded (a long press).
+                HStack {
+                    Image(systemName: "timer").font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.vivid("#7c6cf0").glow)
+                    Spacer()
+                    FocusClock(range: range, stale: false, size: 14, color: .white).frame(maxWidth: 46)
+                }
+                .padding(.horizontal, 14).frame(width: 250, height: 37).background(Capsule().fill(Color.black))
+                VStack(spacing: 10) {
+                    HStack {
+                        Label { Text(verbatim: "Focus") } icon: { Image(systemName: "timer") }
+                            .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(Theme.vivid("#7c6cf0").glow)
+                        Spacer()
+                        FocusClock(range: range, stale: false, size: 24, color: .white)
+                    }
+                    Text(verbatim: "Grade the math quizzes").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(.white)
+                    FocusIslandBottom(taskId: "t1", tint: "#7c6cf0", range: range, stale: false)
+                }
+                .padding(18).frame(width: 370).background(RoundedRectangle(cornerRadius: 40, style: .continuous).fill(Color.black))
+            }
+        }
     }
 }
 

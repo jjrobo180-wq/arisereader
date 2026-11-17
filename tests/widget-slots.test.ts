@@ -18,8 +18,12 @@ test("Fit: every widget in widgets.json has a slot, with short text", () => {
 });
 
 test("To Duo: each widget in widgets.json is sent by the app (one potty widget from the potty app, accountability from its page)", () => {
-  const ids = list("../arisetodo/ios-app/widgets.json").map((w) => w[0]);
+  // ".check" widgets (checklists) read the slot of the same name without ".check"; ".live" is the focus timer's Live Activity.
+  const all = list("../arisetodo/ios-app/widgets.json").map((w) => w[0]);
+  const ids = all.filter((id) => !id.endsWith(".check") && !id.endsWith(".live"));
   const here = duoWidgetSlots(emptyFamily(), [], "2026-11-02", null).map((s) => s.id);
+  for (const id of all.filter((x) => x.endsWith(".check"))) assert.ok(here.includes(id.slice(0, -".check".length)), id);
+  assert.deepEqual(all.filter((x) => x.endsWith(".live")), ["duo.focus.live"]);
   const elsewhere = ["duo.potty.next", "duo.accountability", "duo.linkpage"];
   assert.deepEqual([...here, ...elsewhere].sort(), [...ids].sort());
   const potty = readFileSync(new URL("../client/src/components/pro/potty/PottyApp.tsx", import.meta.url), "utf8");
@@ -55,7 +59,10 @@ test("slot text is trimmed and bad data dropped", () => {
 test("the widget extension, plugin and workflows are in place", () => {
   const ext = readFileSync(new URL("../native/widget-extension/AriseWidgets.swift", import.meta.url), "utf8");
   for (const word of ["StaticConfiguration", "__WIDGETS__", "__BUNDLE__", "systemLarge", ".detail", "Image(systemName:", "GlowRing", "timerInterval", "contentTransition"]) assert.ok(ext.includes(word), word);
-  for (const word of ["AppIntent", "import AppIntents", "Button(intent"]) assert.ok(!ext.includes(word), `no ${word}`);
+  // The checklists' circles are App Intent buttons; the intent stays out of Shortcuts and Siri.
+  for (const word of ["struct CheckOffIntent: AppIntent", "static var isDiscoverable: Bool = false", "Button(intent: CheckOffIntent", "ActivityConfiguration(for: DuoFocusAttributes.self)"]) assert.ok(ext.includes(word), word);
+  // Only plain StaticConfiguration gallery widgets: no configurable (intent) widgets.
+  assert.ok(!ext.includes("AppIntentConfiguration") && !ext.includes("WidgetConfigurationIntent"));
   // An interpolated display name ("\\(name) +") made the extension crash on load (seen on the iOS simulator), so iOS listed none.
   assert.ok(!/configurationDisplayName\("[^"]*\\\(/.test(ext), "no interpolated configurationDisplayName");
   assert.ok(readFileSync(new URL("../native/arise-widgets/ios/Sources/AriseWidgetsPlugin/AriseWidgetsPlugin.swift", import.meta.url), "utf8").includes("takeActions"));

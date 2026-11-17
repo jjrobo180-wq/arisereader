@@ -29,10 +29,18 @@ if own.empty?
   src = File.read(File.join(root, "native/widget-extension/AriseWidgets.swift"))
   # A Link page widget (an id ending in "linkpage") is one widget of its own with a QR code; every other id
   # is a simple widget and a detailed one.
+  # An id ending in ".check" is a checklist widget (tap to check off), and one ending in ".live" is the focus
+  # timer's Live Activity (Lock Screen and Dynamic Island; the app's Info.plist needs NSSupportsLiveActivities).
   link = ->(w) { w[0].to_s.end_with?("linkpage") }
+  check = ->(w) { w[0].to_s.end_with?(".check") }
+  live = ->(w) { w[0].to_s.end_with?(".live") }
   structs = widgets.each_with_index.map do |w, i|
     if link.(w)
       "struct AriseLink#{i}: Widget { var body: some WidgetConfiguration { LinkPageWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+    elsif check.(w)
+      "struct AriseCheck#{i}: Widget { var body: some WidgetConfiguration { ChecklistWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
+    elsif live.(w)
+      "struct AriseLive#{i}: Widget { var body: some WidgetConfiguration { FocusLiveActivity().config } }"
     else
       "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }
 " \
@@ -40,8 +48,14 @@ if own.empty?
     end
   end.join("
 ")
-  bundle = widgets.each_with_index.map { |w, i| link.(w) ? "        AriseLink#{i}()" : "        AriseSimple#{i}()
-        AriseDetail#{i}()" }.join("
+  bundle = widgets.each_with_index.map do |w, i|
+    if link.(w) then "        AriseLink#{i}()"
+    elsif check.(w) then "        AriseCheck#{i}()"
+    elsif live.(w) then "        AriseLive#{i}()"
+    else "        AriseSimple#{i}()
+        AriseDetail#{i}()"
+    end
+  end.join("
 ")
   src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)
 else

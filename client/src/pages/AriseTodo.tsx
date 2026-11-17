@@ -118,10 +118,11 @@ import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
-import { publishWidgets } from "@/lib/widgets";
+import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
-import { duoWidgetSlots } from "@/lib/duoWidgets";
+import { applyDuoWidgetTaps, duoWidgetSlots } from "@/lib/duoWidgets";
+import { FOCUS_MINUTES, focusSupported, listenForFocusLinks, readFocus, startFocus, stopFocus, type FocusNow } from "@/lib/duoFocus";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { collapseGroups, groupLabel, groupMembers, groupOf, leadOf } from "@shared/appGroups";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
@@ -698,7 +699,18 @@ export default function AriseTodo() {
     if (view === "completed" || (view === "today" && (!clean.due || clean.due > currentDay)) || (view === "upcoming" && (!clean.due || clean.due <= currentDay))) setView("all");
     setMessage("Task saved");
   };
+  // The focus timer on a task (iPhone app: Lock Screen and Dynamic Island; lib/duoFocus.ts).
+  const [focus, setFocus] = useState<FocusNow | null>(null);
+  const beginFocus = async (task: Task, minutes: number) => {
+    try {
+      setFocus(await startFocus(task, minutes));
+      setEditing(null);
+      setMessage(`Focus: ${minutes} minutes. It's on your Lock Screen and in the Dynamic Island.`);
+    } catch (e: any) { setMessage(e?.message || "The focus timer couldn't start."); }
+  };
+  const endFocus = () => { setFocus(null); void stopFocus(); };
   const toggleDone = (task: Task) => {
+    if (!task.done && focus?.id === task.id) endFocus();
     // A task from Apple Reminders is checked off (or back on) in the Reminders app too.
     if (task.id.startsWith("apple-")) void setAppleReminderDone(task.id.slice(6), !task.done);
     setData(previous => {
@@ -924,6 +936,24 @@ export default function AriseTodo() {
   const nativeTasksOpen = useRef(false);
   const latest = useRef({ data, toggleDone });
   latest.current = { data, toggleDone };
+  // The focus timer: what's running (read again whenever the app comes back), and its Done and Stop buttons.
+  useEffect(() => {
+    if (!focusSupported()) return;
+    const read = () => { void readFocus().then(setFocus); };
+    read();
+    const visible = () => { if (document.visibilityState === "visible") read(); };
+    document.addEventListener("visibilitychange", visible);
+    listenForFocusLinks((link) => {
+      if (link.kind === "open") return;
+      if (link.kind === "done") {
+        const t = latest.current.data.tasks.find((x) => x.id === link.id);
+        if (t && !t.done) latest.current.toggleDone(t);
+      }
+      setFocus(null);
+      void stopFocus();
+    });
+    return () => document.removeEventListener("visibilitychange", visible);
+  }, []);
   useEffect(() => {
     if (shown !== "tasks" || nativeTasksOpen.current || !nativeTasksAvailable()) return;
     nativeTasksOpen.current = true;
@@ -1122,6 +1152,14 @@ export default function AriseTodo() {
     }, 1500);
     return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
+  // Circles tapped on the To-do and Chore checklist widgets: saved as done when the app opens.
+  useEffect(() => watchWidgetActions((taps) => {
+    const tasks = latest.current.data.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done }));
+    const chores = taps.some((t) => t.id === "duo.chores");
+    const { done } = applyDuoWidgetTaps(taps, tasks, emptyFamily(), today(), makeId);
+    for (const id of done) { const t = latest.current.data.tasks.find((x) => x.id === id); if (t && !t.done) latest.current.toggleDone(t); }
+    if (chores) setFamily((f) => applyDuoWidgetTaps(taps, [], f, today(), makeId).family);
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Apple Watch (native/duo-watch): the Life side of the watch (tasks, calendar, chores, groceries, habits,
   // medicine, bills and money, meals, countdowns, notes); what's done there comes back here (shared/watchDuo.ts).
   useEffect(() => {
@@ -1677,6 +1715,13 @@ export default function AriseTodo() {
             <input className={inputClass + " mt-2"} maxLength={100} value={editing.assignee} onChange={event => setEditing({ ...editing, assignee: event.target.value })} placeholder={members.length ? "…or type any name" : "Me, partner, kid's name…"} aria-label="Assigned to" />
             <p className="mt-1.5 text-xs leading-5 text-slate-500">{members.length ? "Tap a family member, or type someone else's name." : "Add your family in “Family & settings” to pick them with one tap."}</p>
           </div>
+          {focusSupported() && !editing.done && data.tasks.some(item => item.id === editing.id) && <div className="rounded-2xl bg-violet-50 p-3 ring-1 ring-violet-100" data-testid="life-task-focus">
+            {focus?.id === editing.id
+              ? <div className="flex flex-wrap items-center gap-2"><TimerNav size={17} className="text-violet-700" /><p className="min-w-0 flex-1 text-sm font-bold text-violet-900">Focusing until {new Date(focus.endsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p><button type="button" onClick={endFocus} className="min-h-10 rounded-xl bg-white px-3 text-xs font-bold text-violet-700 ring-1 ring-violet-200">Stop</button></div>
+              : <><p className="flex items-center gap-1.5 text-xs font-bold text-violet-900"><TimerNav size={15} /> Focus on this task</p>
+                <p className="mt-0.5 text-xs text-violet-800/80">A timer on your Lock Screen and in the Dynamic Island. Tap Done there when you finish.</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">{FOCUS_MINUTES.map(m => <button key={m} type="button" onClick={() => { const saved = data.tasks.find(item => item.id === editing.id); if (saved) void beginFocus(saved, m); }} className="min-h-10 rounded-xl bg-white px-3 text-xs font-bold text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100" data-testid={`life-task-focus-${m}`}>{m} min</button>)}</div></>}
+          </div>}
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
             <button type="submit" className={buttonClass + " flex-1 bg-[#6e5ce1] px-5 text-white hover:bg-[#5a48cb]"}><Check size={17} /> Save task</button>
             <button type="button" onClick={() => setEditing(null)} className={buttonClass + " border border-slate-200 bg-white text-slate-600"}>Cancel</button>

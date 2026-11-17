@@ -1,9 +1,9 @@
 // What the Arise To Duo widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
 // widget for each slot. The potty ones are sent from the potty app itself (components/pro/potty/PottyApp.tsx),
 // accountability from its own page. Pure, so it's tested.
-import { addDays, billDue, billState, choreDoneOn, choreDueOn, daysBetween, eventsOn, isOn, money, type Family } from "@shared/familyHub";
+import { addDays, billDue, billState, choreDoneOn, choreDueOn, daysBetween, eventsOn, isOn, money, toggleChore, type Family } from "@shared/familyHub";
 import { weatherCode, type Forecast } from "@shared/lifePlugins";
-import type { WidgetSlot } from "./widgets";
+import type { WidgetSlot, WidgetTap } from "./widgets";
 
 // The widgets themselves (ids and names) are listed in widgets.json next to the app's iOS project; the build reads it.
 
@@ -22,7 +22,9 @@ export function duoWidgetSlots(family: Family, tasks: DuoTask[], today: string, 
     lines: events.slice(0, 8).map((e) => `${clock(e.time) || "All day"}  ${e.title}`) });
 
   const due = tasks.filter((t) => !t.done && t.due && t.due <= today && t.listName !== "Email").sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time));
-  slots.push({ id: "duo.todos", title: "To-dos due", value: String(due.length), detail: due[0] ? due[0].title : "All caught up", tint: "#36b6a5", lines: due.slice(0, 8).map((t) => `${t.due < today ? "Late  " : t.time ? `${clock(t.time)}  ` : ""}${t.title}`) });
+  slots.push({ id: "duo.todos", title: "To-dos due", value: String(due.length), detail: due[0] ? due[0].title : "All caught up", tint: "#36b6a5", lines: due.slice(0, 8).map((t) => `${t.due < today ? "Late  " : t.time ? `${clock(t.time)}  ` : ""}${t.title}`),
+    // The To-do checklist widget (duo.todos.check): tap a circle to check one off.
+    items: due.slice(0, 12).map((t) => ({ id: t.id, text: `${t.due < today ? "Late · " : t.time ? `${clock(t.time)} · ` : ""}${t.title}` })) });
 
   const month = today.slice(0, 7), next = addDays(`${month}-28`, 7).slice(0, 7);
   const bills = on("money") ? family.bills.flatMap((b) => [month, next].map((m) => ({ b, due: billDue(b, m), state: billState(b, m, today) }))).filter((x) => x.state !== "paid").sort((a, b) => a.due.localeCompare(b.due)) : [];
@@ -54,10 +56,28 @@ export function duoWidgetSlots(family: Family, tasks: DuoTask[], today: string, 
 
   const chores = on("chores") ? family.chores.filter((c) => choreDueOn(c, today)) : [], left = chores.filter((c) => !choreDoneOn(family, c.id, today));
   slots.push({ id: "duo.chores", title: "Chores today", value: chores.length ? `${left.length} left` : "None", detail: chores.length ? `${chores.length - left.length} of ${chores.length} done` : "No chores today", tint: "#22c55e", progress: chores.length ? (chores.length - left.length) / chores.length : 0,
-    lines: left.slice(0, 8).map((c) => c.title) });
+    lines: left.slice(0, 8).map((c) => c.title), items: left.slice(0, 12).map((c) => ({ id: c.id, text: c.title })) });
 
   const week: string[] = [];
   for (let i = 0; i < 7 && week.length < 8; i++) { const d = addDays(today, i); for (const e of on("calendar") ? eventsOn(family, d, true) : []) { if (week.length < 8) week.push(`${i === 0 ? "Today" : new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}  ${clock(e.time) || "All day"}  ${e.title}`); } }
   slots.push({ id: "duo.week", title: "This week", value: week.length ? `${week.length}+` : "Open", detail: week[0] ?? "Nothing planned", tint: "#f97316", lines: week });
   return slots;
+}
+
+/** What checklist taps on the widgets mean: the to-dos to check off (only ones not done yet, so a second tap
+ *  or a tap on something already done in the app never reopens it) and the family with those chores done today. */
+export function applyDuoWidgetTaps(taps: WidgetTap[], tasks: DuoTask[], family: Family, today: string, makeId: () => string): { done: string[]; family: Family } {
+  const done: string[] = [];
+  let next = family;
+  for (const t of taps) {
+    if (t.action !== "check" || !t.item) continue;
+    if (t.id === "duo.todos") {
+      const task = tasks.find((x) => x.id === t.item);
+      if (task && !task.done && !done.includes(task.id)) done.push(task.id);
+    } else if (t.id === "duo.chores") {
+      const chore = next.chores.find((c) => c.id === t.item);
+      if (chore && choreDueOn(chore, today) && !choreDoneOn(next, chore.id, today)) next = toggleChore(next, chore, today, makeId);
+    }
+  }
+  return { done, family: next };
 }
