@@ -1,12 +1,16 @@
 // Arise WorkHub: one student's whole picture. Everything the Hub holds under a student's name
 // (IEP dates, goals, service minutes, meetings, notes, parent contact, behavior, attendance,
-// grades, schedule, reading records) gathered in one place, newest first.
+// grades, schedule, reading records, Minutes class notes, lessons and their marks, worksheets and files,
+// IEP drafts, and the to-dos, calendar events and emails that name the student) gathered in one place, newest first.
 import { daysBetween } from "./hubDates";
+import { cleanClasses, cleanLessons, rosterOf, type LessonMaterial, type LessonPlan, type StudentMark } from "./lessonPlanner";
+import { cleanPushInNotes, type PushInNote, type PushInStudent } from "./pushIn";
+import type { IepDraft } from "./iepWriter";
 import { guideProgress } from "./hubGuide";
 import { countedPlan, goalProgress, optionalDays, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
 import { subjectMinutes, type SubjectMinutes } from "./hubSubjects";
 import type {
-  AriseRecord, Assignment, AttendanceEntry, BehaviorEntry, Goal, IepGuide, Meeting, NoteItem, ParentLog, ScheduleEntry, ServiceLog, ServicePlan, Student, Workspace,
+  AriseRecord, Assignment, AttendanceEntry, BehaviorEntry, EmailItem, Goal, HubEvent, IepGuide, Meeting, NoteItem, ParentLog, ScheduleEntry, ServiceLog, ServicePlan, Student, Task, Workspace,
 } from "./teacherHub";
 
 /** Names are matched the way the rest of the Hub matches them: capitals and extra spaces don't matter. */
@@ -35,6 +39,17 @@ export type StudentProfile = {
   grades: { rows: ProfileGrade[]; /** Percent over the scored work (missing and excused left out, as in the gradebook). */ average: number | null; missing: number };
   schedule: ScheduleEntry[];
   reading: AriseRecord[];
+  /** Push-in class notes from the Minutes page that have something for this student, newest first. */
+  classNotes: { note: PushInNote; entry: PushInStudent }[];
+  /** Lessons this student is in (marked, on the lesson's list, or in the lesson's class), newest first. */
+  lessons: { lesson: LessonPlan; mark: StudentMark | null; className: string }[];
+  /** Worksheets and files: those given to the student in a class note, and those on the student's lessons. */
+  files: { material: LessonMaterial; from: string; date: string; source: "class" | "lesson"; given: boolean }[];
+  iepDrafts: IepDraft[];
+  /** To-dos, calendar events and emails linked to the student or naming them. */
+  tasks: Task[];
+  events: HubEvent[];
+  emails: EmailItem[];
   /** How many records there are in all, outside the student's own card. */
   records: number;
 };
@@ -74,6 +89,39 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
   const parentLogs = newest(mine(workspace.parentLogs));
   const reading = newest(mine(workspace.ariseRecords));
 
+  // The Minutes page's class notes and the Lessons page.
+  const classNotes = cleanPushInNotes(workspace.pushInNotes)
+    .map((note) => ({ note, entry: note.students.find((x) => fold(x.student) === name) }))
+    .filter((x): x is { note: PushInNote; entry: PushInStudent } => !!x.entry)
+    .sort((a, b) => b.note.date.localeCompare(a.note.date));
+  const classes = cleanClasses((workspace as any).lessonClasses);
+  const lessons = cleanLessons(workspace.lessons)
+    .filter((l) => rosterOf(l, classes).some((n) => fold(n) === name) || Object.keys(l.marks || {}).some((n) => fold(n) === name))
+    .map((lesson) => {
+      const key = Object.keys(lesson.marks || {}).find((n) => fold(n) === name);
+      return { lesson, mark: key ? lesson.marks![key] : null, className: classes.find((c) => c.id === lesson.classId)?.name || lesson.group || "" };
+    })
+    .sort((a, b) => String(b.lesson.date || "").localeCompare(String(a.lesson.date || "")));
+  const files: StudentProfile["files"] = [];
+  const seenFile = new Set<string>();
+  for (const { note, entry } of classNotes) for (const id of entry.materialIds || []) {
+    const material = note.materials.find((m) => m.id === id);
+    if (material && !seenFile.has(material.id)) { seenFile.add(material.id); files.push({ material, from: note.title || "Class note", date: note.date, source: "class", given: true }); }
+  }
+  for (const { lesson } of lessons) for (const material of lesson.files || []) {
+    if (!seenFile.has(material.id)) { seenFile.add(material.id); files.push({ material, from: lesson.title || "Lesson", date: lesson.date || "", source: "lesson", given: false }); }
+  }
+  files.sort((a, b) => Number(b.given) - Number(a.given) || b.date.localeCompare(a.date));
+  const iepDrafts = [...(workspace.iepDrafts || [])].filter((d) => fold(d.student) === name).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+
+  // Anything that names the student by their full name, or is linked to them.
+  const full = student.name.trim().toLowerCase().replace(/\s+/g, " ");
+  const names = (text: unknown) => full.length > 2 && fold(text).includes(full);
+  const linked = (links: { kind: string; id: string }[] | undefined) => (links || []).some((l) => l.kind === "student" && l.id === student.id);
+  const tasks = (workspace.tasks || []).filter((t) => linked(t.links) || names(t.title) || names(t.notes)).sort((a, b) => Number(a.done) - Number(b.done) || String(a.dueDate || "9999").localeCompare(String(b.dueDate || "9999")));
+  const events = newest((workspace.events || []).filter((e) => (e.students || []).some((x) => fold(x) === name) || names(e.title) || names(e.notes)));
+  const emails = newest((workspace.emails || []).filter((e) => names(e.subject) || names(e.body)));
+
   return {
     student,
     iep: dated(student.iepDate, today),
@@ -88,8 +136,9 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     behavior: { total: behavior.reduce((sum, b) => sum + (Number(b.points) || 0), 0), entries: behavior },
     attendance: { counts, entries: attendance },
     grades: { rows, average: possible ? Math.round((earned / possible) * 100) : null, missing: rows.filter((r) => r.missing).length },
-    schedule, reading,
-    records: goals.length + services.length + serviceLogs.length + meetings.length + guides.length + notes.length + parentLogs.length + behavior.length + attendance.length + rows.length + schedule.length + reading.length,
+    schedule, reading, classNotes, lessons, files, iepDrafts, tasks, events, emails,
+    records: goals.length + services.length + serviceLogs.length + meetings.length + guides.length + notes.length + parentLogs.length + behavior.length + attendance.length + rows.length + schedule.length + reading.length
+      + classNotes.length + lessons.length + files.length + iepDrafts.length + tasks.length + events.length + emails.length,
   };
 }
 

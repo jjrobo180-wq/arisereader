@@ -2179,7 +2179,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
         ) : (
           <div key={s.id} className="border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setOpenId(openId === s.id ? null : s.id)} aria-expanded={openId === s.id}
+              <button type="button" onClick={() => setProfileId(s.id)} aria-label={`Open everything for ${s.name}`}
                 data-testid={`hub-student-row-${s.id}`}
                 className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-2 text-left">
                 <span aria-hidden="true" className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-bold"
@@ -2200,7 +2200,10 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
                     </span>
                   </span>
                 )}
-                <ChevronDown className={`h-4 w-4 flex-none text-slate-400 transition-transform ${openId === s.id ? "" : "-rotate-90"}`} />
+              </button>
+              <button type="button" onClick={() => setOpenId(openId === s.id ? null : s.id)} aria-expanded={openId === s.id} aria-label={`Quick details for ${s.name}`} title="Quick details"
+                className="grid h-11 w-11 flex-none place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700" data-testid={`hub-student-quick-${s.id}`}>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openId === s.id ? "" : "-rotate-90"}`} />
               </button>
             </div>
             {openId === s.id && (

@@ -14,6 +14,8 @@ import { sessionBlockName } from "@shared/hubMinutesWeek";
 import { cleanSubject, logSubject } from "@shared/hubSubjects";
 import { clock12, type HubTab, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, GhostButton, PrimaryButton, Select } from "./ui";
+import { BEHAVIOR_LABEL, CHECK_LABEL, MATERIAL_LABEL, PARTICIPATION_LABEL, type LessonCheck } from "@shared/lessonPlanner";
+import { printHtml, worksheetHtml } from "@/lib/lessonExport";
 import { NoteCard, NoteModal } from "./HubNotes";
 import { StudentTeamSummary } from "./HubStudentTeam";
 
@@ -50,6 +52,21 @@ function Rows<T>({ rows, empty, render }: { rows: T[]; empty: string; render: (r
 }
 
 const row = "rounded-xl bg-slate-50 px-3 py-2 text-sm";
+const CHECK_LOOK: Record<LessonCheck, string> = { mastered: "bg-emerald-100 text-emerald-800", good: "bg-sky-100 text-sky-800", reteach: "bg-amber-100 text-amber-900", absent: "bg-slate-200 text-slate-700" };
+const tag = "rounded-full px-2 py-0.5 text-[11px] font-semibold";
+
+/** How a student did, as small tags: the mark, participation, behavior and a score. */
+function MarkTags({ status, participation, behavior, score }: { status?: LessonCheck; participation?: keyof typeof PARTICIPATION_LABEL; behavior?: keyof typeof BEHAVIOR_LABEL; score?: string }) {
+  if (!status && !participation && !behavior && !score) return null;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {status && <span className={`${tag} ${CHECK_LOOK[status]}`}>{CHECK_LABEL[status]}</span>}
+      {score && <span className={`${tag} bg-white text-slate-700 ring-1 ring-slate-200`}>{score}</span>}
+      {participation && <span className={`${tag} bg-white text-slate-700 ring-1 ring-slate-200`}>Participation: {PARTICIPATION_LABEL[participation]}</span>}
+      {behavior && <span className={`${tag} bg-white text-slate-700 ring-1 ring-slate-200`}>Behavior: {BEHAVIOR_LABEL[behavior]}</span>}
+    </span>
+  );
+}
 
 function DateFact({ label, when, today }: { label: string; when: ProfileDate; today: string }) {
   const late = when.days !== null && when.days < 0, soon = when.days !== null && when.days >= 0 && when.days <= 30;
@@ -128,6 +145,44 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
       {links && <ConnectedPanel workspace={workspace} kind="student" id={s.id} onOpen={links.openLink} title={`Everything connected to ${s.name.split(" ")[0]}`} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Part title="Class notes (Minutes)" count={profile.classNotes.length} tab="minutes" tabLabel="Minutes" onOpenTab={onOpenTab}>
+          <Rows rows={profile.classNotes} empty="No class notes for this student yet." render={({ note, entry }) => (
+            <li key={note.id} className={row} data-testid="profile-class-note">
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words font-medium text-slate-900">{note.title || note.subject || "Class note"}</span><span className="text-xs font-semibold text-slate-700">{day(note.date)}{note.teacher ? ` · ${note.teacher}` : ""}</span></div>
+              <div className="mt-1"><MarkTags status={entry.status} participation={entry.participation} behavior={entry.behavior} /></div>
+              {entry.note && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-700">{entry.note}</p>}
+              {entry.support && <p className="mt-1 break-words text-xs text-slate-500">Help given: {entry.support}</p>}
+              {note.taught && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500">Taught: {note.taught}</p>}
+            </li>
+          )} />
+        </Part>
+
+        <Part title="Lessons" count={profile.lessons.length} tab="lessons" tabLabel="Lessons" onOpenTab={onOpenTab}>
+          <Rows rows={profile.lessons} empty="Not in any lessons yet." render={({ lesson, mark, className }) => (
+            <li key={lesson.id} className={row} data-testid="profile-lesson">
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words font-medium text-slate-900">{lesson.title || "Lesson"}</span><span className="text-xs font-semibold text-slate-700">{lesson.date ? day(lesson.date) : "No date"}{className ? ` · ${className}` : ""}</span></div>
+              {mark && <div className="mt-1"><MarkTags status={mark.status} participation={mark.participation} behavior={mark.behavior} score={mark.score} /></div>}
+              {mark?.note && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-700">{mark.note}</p>}
+              {lesson.objective && <p className="mt-1 line-clamp-2 break-words text-xs text-slate-500">{lesson.objective}</p>}
+            </li>
+          )} />
+        </Part>
+
+        <Part title="Worksheets & files" count={profile.files.length} tab="lessons" tabLabel="Lessons" onOpenTab={onOpenTab}>
+          <Rows rows={profile.files} empty="No worksheets or files yet." render={({ material: m, from, date, given }) => (
+            <li key={m.id} className={`${row} flex flex-wrap items-center justify-between gap-2`} data-testid="profile-file">
+              <span className="min-w-0 break-words">
+                <span className="font-medium text-slate-900">{m.name}</span>
+                <span className="block text-xs text-slate-500">{MATERIAL_LABEL[m.kind] || "File"} · {from}{date ? ` · ${day(date)}` : ""}{given ? ` · given to ${s.name.split(/\s+/)[0]}` : ""}</span>
+              </span>
+              <span className="flex shrink-0 gap-1.5">
+                {m.worksheet && <button type="button" onClick={() => printHtml(worksheetHtml(m.worksheet!, { answers: m.kind === "answerKey" }))} className="min-h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Print</button>}
+                {m.url && <a href={m.url} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open</a>}
+              </span>
+            </li>
+          )} />
+        </Part>
+
         <Part title="Goal quizzes" count={goalQuizzes(workspace).filter((q) => q.student.trim().toLowerCase() === s.name.trim().toLowerCase()).length} onOpenTab={onOpenTab}>
           <StudentQuizzes student={s.name} onMake={() => setQuizzing(true)} setWorkspace={(u) => setWorkspace((p) => u(p))} makeId={makeId} />
         </Part>
@@ -212,6 +267,22 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
 
         <Part title="Schedule" count={profile.schedule.length} tab="schedules" tabLabel="Schedules" onOpenTab={onOpenTab}>
           <Rows rows={profile.schedule} empty="No schedule entered." render={(c) => <li key={c.id} className={row}><span className="font-medium text-slate-900">{c.day}</span> · {c.start ? clock12(c.start) : ""}{c.end ? ` – ${clock12(c.end)}` : ""}{c.label ? <span className="text-slate-600"> · {c.label}</span> : null}</li>} />
+        </Part>
+
+        <Part title="IEP drafts" count={profile.iepDrafts.length} tab="iep" tabLabel="IEP & meetings" onOpenTab={onOpenTab}>
+          <Rows rows={profile.iepDrafts} empty="No IEP drafts yet." render={(d) => <li key={d.id} className={row}><span className="font-medium text-slate-900">IEP draft</span> · <span className="text-slate-600">updated {day(String(d.updatedAt || d.createdAt).slice(0, 10))}</span></li>} />
+        </Part>
+
+        <Part title="To-dos" count={profile.tasks.length} tab="tasks" tabLabel="Tasks" onOpenTab={onOpenTab}>
+          <Rows rows={profile.tasks} empty="No to-dos about this student." render={(t) => <li key={t.id} className={`${row} flex flex-wrap items-center justify-between gap-2`}><span className={`min-w-0 break-words font-medium ${t.done ? "text-slate-400 line-through" : "text-slate-900"}`}>{t.title}</span><span className="shrink-0 text-xs font-semibold text-slate-600">{t.done ? "Done" : t.dueDate ? `Due ${day(t.dueDate)}` : ""}</span></li>} />
+        </Part>
+
+        <Part title="Calendar" count={profile.events.length} tab="calendar" tabLabel="Calendar" onOpenTab={onOpenTab}>
+          <Rows rows={profile.events} empty="No calendar events about this student." render={(e) => <li key={e.id} className={row}><span className="font-medium text-slate-900">{e.title}</span> · <span className="text-slate-600">{day(e.date)}{e.start ? ` · ${clock12(e.start)}` : ""}</span></li>} />
+        </Part>
+
+        <Part title="Emails" count={profile.emails.length} tab="email" tabLabel="Email" onOpenTab={onOpenTab}>
+          <Rows rows={profile.emails} empty="No saved emails name this student." render={(e) => <li key={e.id} className={row}><div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words font-medium text-slate-900">{e.subject || "(no subject)"}</span><span className="text-xs font-semibold text-slate-700">{day(String(e.date).slice(0, 10))}</span></div>{e.from && <p className="mt-0.5 text-xs text-slate-500">From {e.from}</p>}</li>} />
         </Part>
 
         <Part title="A.R.I.S.E. reading" count={profile.reading.length} tab="arise" tabLabel="A.R.I.S.E." onOpenTab={onOpenTab}>
