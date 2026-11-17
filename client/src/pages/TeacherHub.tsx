@@ -144,6 +144,7 @@ import HubNotifySettings from "@/components/teacher-hub/HubNotifySettings";
 import { NotificationBell } from "@/components/NotificationBell";
 import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
+import HubParentUpdate from "@/components/teacher-hub/HubParentUpdate";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import { onAskFinished, openAsk, startTaskAsk, useAriseAsks } from "@/lib/ariseAsks";
@@ -2450,6 +2451,7 @@ function Parents({ workspace, setWorkspace, remove, studentOptions }: SectionPro
   }
   return (
     <>
+      <HubParentUpdate workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} />
       <AddCard title="Parent communication" label="Log contact">
         <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })}>{studentOptions()}</Select>

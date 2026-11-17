@@ -9,6 +9,7 @@ import {
   CHECKS, CHECK_LABEL, LESSON_STATUSES, PLAN_FIELDS, PLAN_LABEL, STATUS_LABEL, addDays, classOf, needsReteach, planFullness, rosterOf,
   type LessonCheck, type LessonClass, type LessonIdea, type LessonPlan, type PlanFields, type StudentMark,
 } from "@shared/lessonPlanner";
+import { MarkChips } from "./HubMarkChips";
 import { printHtml } from "@/lib/lessonExport";
 import { HubModal } from "./HubModal";
 import { COLOR, NO_CLASS, STATUS_STYLE, Segmented, Spinner, StandardsPicker, MaterialSlots, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
@@ -133,7 +134,7 @@ export default function HubLessonEditor({
   function mark(name: string, changes: Partial<StudentMark>) {
     const m = { ...(marks[name] || {}), ...changes };
     const next = { ...marks };
-    if (!m.status && !m.score && !m.note) delete next[name]; else next[name] = m;
+    if (!m.status && !m.score && !m.note && !m.participation && !m.behavior) delete next[name]; else next[name] = m;
     set({ marks: next });
   }
   const markedCount = roster.filter((n) => marks[n]?.status).length;
@@ -294,6 +295,7 @@ export default function HubLessonEditor({
                         ))}
                       </div>
                     </div>
+                    <MarkChips name={name} participation={m.participation} behavior={m.behavior} onChange={(c) => mark(name, c)} compact />
                     <div className="mt-2 flex gap-2">
                       <input value={m.score || ""} onChange={(e) => mark(name, { score: e.target.value })} placeholder="Score" aria-label={`${name} score`} className="min-h-9 w-20 rounded-lg border border-slate-200 bg-slate-50/60 px-2 text-sm focus:bg-white" />
                       <input value={m.note || ""} onChange={(e) => mark(name, { note: e.target.value })} placeholder="Note" aria-label={`${name} note`} className="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/60 px-2 text-sm focus:bg-white" />

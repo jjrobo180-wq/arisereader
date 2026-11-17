@@ -26,7 +26,21 @@ export const CHECKS = ["mastered", "good", "reteach", "absent"] as const;
 export type LessonCheck = (typeof CHECKS)[number];
 export const CHECK_LABEL: Record<LessonCheck, string> = { mastered: "Mastered", good: "Did good", reteach: "Needs reteach", absent: "Absent" };
 
-export type StudentMark = { status?: LessonCheck; /** A score as typed ("8/10", "85%"). */ score?: string; note?: string };
+/** How much a student joined in: answered, raised a hand, worked with others. Shared by lessons and push-in notes. */
+export const PARTICIPATION = ["great", "some", "little"] as const;
+export type Participation = (typeof PARTICIPATION)[number];
+export const PARTICIPATION_LABEL: Record<Participation, string> = { great: "Great", some: "Some", little: "Little" };
+
+/** How a student behaved. Shared by lessons and push-in notes. */
+export const BEHAVIOR_MARKS = ["great", "ok", "rough"] as const;
+export type BehaviorMark = (typeof BEHAVIOR_MARKS)[number];
+export const BEHAVIOR_LABEL: Record<BehaviorMark, string> = { great: "Great", ok: "OK", rough: "Needs work" };
+
+/** A participation or behavior mark made safe: a known one, or undefined. */
+export const cleanParticipation = (v: unknown): Participation | undefined => ((PARTICIPATION as readonly unknown[]).includes(v) ? (v as Participation) : undefined);
+export const cleanBehaviorMark = (v: unknown): BehaviorMark | undefined => ((BEHAVIOR_MARKS as readonly unknown[]).includes(v) ? (v as BehaviorMark) : undefined);
+
+export type StudentMark = { status?: LessonCheck; /** A score as typed ("8/10", "85%"). */ score?: string; note?: string; participation?: Participation; behavior?: BehaviorMark };
 
 export const MATERIAL_KINDS = ["worksheet", "slides", "answerKey", "other"] as const;
 export type MaterialKind = (typeof MATERIAL_KINDS)[number];
@@ -302,7 +316,10 @@ function cleanMarks(raw: unknown): Record<string, StudentMark> {
     if ((CHECKS as readonly string[]).includes(m.status)) mark.status = m.status;
     if (line(m.score, 20)) mark.score = line(m.score, 20);
     if (typedEnd(str(m.note, 500))) mark.note = typedEnd(str(m.note, 500));
-    if (!mark.status && !mark.score && !mark.note) continue;
+    const participation = cleanParticipation(m.participation), behavior = cleanBehaviorMark(m.behavior);
+    if (participation) mark.participation = participation;
+    if (behavior) mark.behavior = behavior;
+    if (!mark.status && !mark.score && !mark.note && !mark.participation && !mark.behavior) continue;
     out[who] = mark;
     if (++n >= LIMITS.rosterPerClass * 2) break;
   }

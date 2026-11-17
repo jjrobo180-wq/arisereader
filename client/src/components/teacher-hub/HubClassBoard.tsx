@@ -15,6 +15,7 @@ import type { ServiceLog, Workspace } from "@shared/teacherHub";
 import { Empty, TextArea } from "./ui";
 import { useClassGroups } from "./HubClassMinutes";
 import { NoteEditor } from "./HubPushInNotes";
+import { MarkChips } from "./HubMarkChips";
 
 type Setter = Dispatch<SetStateAction<Workspace>>;
 export type BoardProps = {
@@ -326,6 +327,7 @@ function ClassPage({ workspace, setWorkspace, makeId, today, group, day, onDay, 
                       className={`inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-bold transition ${on ? STATUS_ON[c] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{CHECK_LABEL[c]}</button>;
                   })}
                 </div>
+                <MarkChips name={s.student} participation={entry.participation} behavior={entry.behavior} onChange={(c) => setEntry(s.student, c)} />
                 <TextArea value={entry.note || ""} maxLength={PUSH_IN_LIMITS.note} onChange={(e) => setEntry(s.student, { note: e.target.value })} rows={2} aria-label={`Note about ${s.student}`} placeholder={`A note about ${s.student.split(" ")[0]}`} className="mt-2 !min-h-[3rem]" data-testid="class-student-note" />
               </li>
             );

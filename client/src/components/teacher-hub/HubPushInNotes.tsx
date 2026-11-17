@@ -10,12 +10,13 @@ import { friendlyDate } from "@shared/hubDates";
 import { MINUTE_SUBJECTS } from "@shared/hubSubjects";
 import type { ClassGroup } from "@shared/hubClassMinutes";
 import { cleanDriveFiles } from "@shared/driveApp";
-import { CHECKS, CHECK_LABEL, GRADES, addDays, schoolWeek, type LessonCheck, type LessonMaterial } from "@shared/lessonPlanner";
+import { BEHAVIOR_LABEL, CHECKS, CHECK_LABEL, GRADES, PARTICIPATION_LABEL, addDays, schoolWeek, type LessonCheck, type LessonMaterial } from "@shared/lessonPlanner";
 import {
   DEFAULT_SUPPORTS, SCAFFOLD_SUPPORTS, blankScaffold, classRoster, cleanPushInNotes, entryOf, fold, isBlank, moveNote, newNote, noteFacts, noteKey,
   noteMatches, noteRoster, notesBytes, notesForStudent, notesFull, orphanNotes, PUSH_IN_LIMITS, removeNote, scaffoldName, sortNotes, studentNames,
   upsertNote, withEntry, withMaterials, wordsFrom, type PushInNote, type ScaffoldSupport,
 } from "@shared/pushIn";
+import { MarkChips } from "./HubMarkChips";
 import type { Workspace } from "@shared/teacherHub";
 import { Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
@@ -328,6 +329,8 @@ function StudentList({ notes, student, blocks, today, onOpen }: { notes: PushInN
                     <StatusDot status={entry.status} />
                     <span className="text-base font-bold text-slate-950">{note.title || "Untitled lesson"}</span>
                     {entry.status && <span className="text-xs font-semibold text-slate-600">{CHECK_LABEL[entry.status]}</span>}
+                    {entry.participation && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Participation: {PARTICIPATION_LABEL[entry.participation]}</span>}
+                    {entry.behavior && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Behavior: {BEHAVIOR_LABEL[entry.behavior]}</span>}
                   </span>
                   <span className="block text-xs text-slate-500">{friendlyDate(note.date, today)} · {[blockName(blocks, note.block), note.teacher].filter(Boolean).join(" · ") || "No class"}</span>
                   {entry.note && <span className="mt-1.5 block text-sm text-slate-800">{entry.note}</span>}
@@ -505,6 +508,7 @@ function StudentRow({ name, minutes, entry, inClass, worksheets, onChange }: {
           })}
         </div>
       </div>
+      <MarkChips name={name} participation={entry.participation} behavior={entry.behavior} onChange={onChange} />
       <TextArea value={entry.note || ""} maxLength={PUSH_IN_LIMITS.note} onChange={(e) => onChange({ note: e.target.value })} rows={2} className="mt-2 !min-h-[3.25rem]" aria-label={`Note about ${name}`} placeholder={`What ${name} did, said or needed`} data-testid="pushin-student-note" />
       {showMore ? (
         <div className="mt-2 space-y-2">

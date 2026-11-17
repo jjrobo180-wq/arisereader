@@ -224,7 +224,7 @@ export const isTabOn = (tab: HubTab, visible: Partial<Record<HubTab, boolean>>, 
 
 export type Workspace = {
   version: number;
-  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** The one colour the Hub is tinted with (see shared/hubAccent.ts). */ accent?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
+  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** The teacher's position, for the weekly parent update ("math lab teacher"). */ role?: string; /** The one colour the Hub is tinted with (see shared/hubAccent.ts). */ accent?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
   /** Set once this workspace's tabs have been read under the App Store rules (see cleanWorkspace). */
   tabsV2?: boolean;

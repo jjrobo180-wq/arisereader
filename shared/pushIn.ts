@@ -9,7 +9,7 @@
 // the Hub's Drive storage, and a note holds only where they are. The page is client/src/components/teacher-hub/HubPushInNotes.tsx.
 import { cleanPart, cleanTeacher, groupText, partRank, type BlockPart, type SchoolBlock } from "./hubBlocks";
 import { cleanSubject } from "./hubSubjects";
-import { CHECKS, cleanMaterial, cleanWorksheet, type GenWorksheet, type LessonCheck, type LessonMaterial, type WorksheetItem, type WorksheetSection } from "./lessonPlanner";
+import { CHECKS, cleanBehaviorMark, cleanMaterial, cleanParticipation, cleanWorksheet, type BehaviorMark, type GenWorksheet, type LessonCheck, type LessonMaterial, type Participation, type WorksheetItem, type WorksheetSection } from "./lessonPlanner";
 import type { ClassGroup } from "./hubClassMinutes";
 
 export const PUSH_IN_LIMITS = {
@@ -29,6 +29,10 @@ export const PUSH_IN_LIMITS = {
 export type PushInStudent = {
   student: string;
   status?: LessonCheck;
+  /** How much they joined in. */
+  participation?: Participation;
+  /** How they behaved. */
+  behavior?: BehaviorMark;
   /** What the student did or said in this lesson. */
   note?: string;
   /** The help they were given: sentence frames, a re-read, a smaller job. */
@@ -74,9 +78,11 @@ function cleanStudent(raw: any, materialIds: Set<string>): PushInStudent | null 
   const note = str(raw.note, PUSH_IN_LIMITS.note).trim();
   const support = str(raw.support, PUSH_IN_LIMITS.support).trim();
   const ids = [...new Set((Array.isArray(raw.materialIds) ? raw.materialIds : []).filter((x: unknown): x is string => typeof x === "string" && materialIds.has(x)))] as string[];
+  const participation = cleanParticipation(raw.participation);
+  const behavior = cleanBehaviorMark(raw.behavior);
   // A student with nothing written is not kept: the note lists the class's students anyway.
-  if (!status && !note && !support && !ids.length) return null;
-  return { student, ...(status ? { status } : {}), ...(note ? { note } : {}), ...(support ? { support } : {}), ...(ids.length ? { materialIds: ids } : {}) };
+  if (!status && !participation && !behavior && !note && !support && !ids.length) return null;
+  return { student, ...(status ? { status } : {}), ...(participation ? { participation } : {}), ...(behavior ? { behavior } : {}), ...(note ? { note } : {}), ...(support ? { support } : {}), ...(ids.length ? { materialIds: ids } : {}) };
 }
 
 /** A saved note made safe to use, or null when it is not a note. */
@@ -195,7 +201,7 @@ export function withMaterials(note: PushInNote, materials: LessonMaterial[], now
   const ids = new Set(materials.map((m) => m.id));
   return {
     ...note, materials, updatedAt: now,
-    students: note.students.map((s) => (s.materialIds ? { ...s, materialIds: s.materialIds.filter((x) => ids.has(x)) } : s)).filter((s) => s.status || s.note || s.support || s.materialIds?.length),
+    students: note.students.map((s) => (s.materialIds ? { ...s, materialIds: s.materialIds.filter((x) => ids.has(x)) } : s)).filter((s) => s.status || s.participation || s.behavior || s.note || s.support || s.materialIds?.length),
   };
 }
 
