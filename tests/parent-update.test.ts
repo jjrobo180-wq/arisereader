@@ -101,3 +101,16 @@ test("rough weeks are worded kindly, and the student list comes from every page 
   assert.deepEqual(updateStudents({ students: [{ name: "Ava" }], pushInNotes, lessons, serviceLogs }), ["Ava", "Jorge Ramirez", "Kai"]);
   assert.equal(listWords(["a", "b", "a", "c"]), "a, b and c");
 });
+
+test("behavior points and attendance count toward the week and are written in", () => {
+  const f = gatherWeek("Nolan Framel", "2026-11-16", "2026-11-20", {
+    behavior: [{ id: "b1", student: "Nolan Framel", points: 2, reason: "Helping a classmate", date: "2026-11-17" }, { id: "b2", student: "Nolan Framel", points: 1, reason: "On task", date: "2026-11-18" }, { id: "b3", student: "Nolan Framel", points: 5, reason: "old", date: "2026-11-02" }],
+    attendance: [{ id: "a1", student: "nolan framel", date: "2026-11-19", status: "Tardy", className: "Math" }, { id: "a2", student: "Nolan Framel", date: "2026-11-18", status: "Present", className: "Math" }],
+  });
+  assert.equal(isEmptyWeek(f), false);
+  assert.equal(f.points.length, 2);
+  const { body } = writeUpdate(f, { format: "text", parts: DEFAULT_PARTS, teacher: "Mr. J" });
+  assert.match(body, /Nolan earned 3 behavior points this week for helping a classmate and on task\./);
+  assert.match(body, /Nolan was late once this week\./);
+  assert.doesNotMatch(body, /\[Add a highlight/);
+});

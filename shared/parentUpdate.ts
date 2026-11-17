@@ -8,7 +8,7 @@ import {
   type BehaviorMark, type LessonCheck, type Participation,
 } from "./lessonPlanner";
 import { cleanPushInNotes, fold } from "./pushIn";
-import type { ServiceLog } from "./teacherHub";
+import type { AttendanceEntry, BehaviorEntry, ServiceLog } from "./teacherHub";
 
 export type UpdateFormat = "email" | "text";
 
@@ -49,6 +49,9 @@ export type WeekFacts = {
   sessions: number;
   /** Notes typed on the logged minutes. */
   logNotes: { date: string; note: string }[];
+  /** Behavior points from the Behavior page, and attendance that was not "Present". */
+  points: { date: string; points: number; reason: string }[];
+  attendance: { date: string; status: AttendanceEntry["status"] }[];
 };
 
 const inWeek = (d: string, from: string, to: string) => !!d && d >= from && d <= to;
@@ -61,7 +64,7 @@ export function weekOf(day: string): { from: string; to: string } {
 }
 
 /** Everything saved about one student in one week, oldest first. */
-export function gatherWeek(student: string, from: string, to: string, src: { pushInNotes?: unknown; lessons?: unknown; serviceLogs?: ServiceLog[] }): WeekFacts {
+export function gatherWeek(student: string, from: string, to: string, src: { pushInNotes?: unknown; lessons?: unknown; serviceLogs?: ServiceLog[]; behavior?: BehaviorEntry[]; attendance?: AttendanceEntry[] }): WeekFacts {
   const who = fold(student);
   const entries: WeekEntry[] = [];
   for (const n of cleanPushInNotes(src.pushInNotes)) {
@@ -96,11 +99,18 @@ export function gatherWeek(student: string, from: string, to: string, src: { pus
     if (g.note?.trim()) logNotes.push({ date: g.date, note: g.note.trim() });
   }
   logNotes.sort((a, b) => a.date.localeCompare(b.date));
-  return { student, from, to, entries, minutes, sessions, logNotes };
+  const points = (src.behavior || []).filter((b) => fold(b.student) === who && inWeek(b.date, from, to))
+    .map((b) => ({ date: b.date, points: Number(b.points) || 0, reason: String(b.reason || "").trim() })).sort((a, b) => a.date.localeCompare(b.date));
+  const attendance = (src.attendance || []).filter((a) => fold(a.student) === who && inWeek(a.date, from, to) && a.status !== "Present")
+    .map((a) => ({ date: a.date, status: a.status })).sort((a, b) => a.date.localeCompare(b.date));
+  return { student, from, to, entries, minutes, sessions, logNotes, points, attendance };
 }
 
+/** How many things are saved for the week: class notes, lessons, logged sessions, behavior points and attendance. */
+export const weekCount = (f: WeekFacts) => f.entries.length + f.sessions + f.points.length + f.attendance.length;
+
 /** True when nothing at all was saved for the week. */
-export const isEmptyWeek = (f: WeekFacts) => !f.entries.length && !f.sessions && !f.logNotes.length;
+export const isEmptyWeek = (f: WeekFacts) => !f.entries.length && !f.sessions && !f.logNotes.length && !f.points.length && !f.attendance.length;
 
 // ─── Words ──────────────────────────────────────────────────────────────────
 
@@ -133,9 +143,31 @@ function participationLine(f: WeekFacts, name: string): string {
   return `${name} was on the quiet side in class this week. We're working on helping ${name} join in and share answers more.`;
 }
 
+function pointsLine(f: WeekFacts, name: string): string {
+  if (!f.points.length) return "";
+  const earned = f.points.filter((p) => p.points > 0), lost = f.points.filter((p) => p.points < 0);
+  const why = (xs: typeof f.points) => listWords(xs.map((p) => p.reason.toLowerCase()).filter(Boolean).slice(0, 4));
+  const out: string[] = [];
+  if (earned.length) { const n = earned.reduce((t, p) => t + p.points, 0); out.push(`${name} earned ${n} behavior ${n === 1 ? "point" : "points"} this week${why(earned) ? ` for ${why(earned)}` : ""}.`); }
+  if (lost.length) out.push(`${name} also had ${lost.length === 1 ? "a moment" : "a few moments"} we're working on${why(lost) ? ` (${why(lost)})` : ""}.`);
+  return out.join(" ");
+}
+
+function attendanceLine(f: WeekFacts, name: string): string {
+  const n = (s: string) => f.attendance.filter((a) => a.status === s).length;
+  const bits = [n("Absent") + n("Excused") ? `absent ${n("Absent") + n("Excused") === 1 ? "one day" : `${n("Absent") + n("Excused")} days`}` : "", n("Tardy") ? `late ${n("Tardy") === 1 ? "once" : `${n("Tardy")} times`}` : ""].filter(Boolean);
+  return bits.length ? `${name} was ${bits.join(" and ")} this week.` : "";
+}
+
 function behaviorLine(f: WeekFacts, name: string): string {
   const o = overall(f.entries.map((e) => e.behavior).filter((x): x is BehaviorMark => !!x), BEHAVIOR_MARKS);
-  if (!o) return "";
+  if (!o) return pointsLine(f, name);
+  const pts = pointsLine(f, name);
+  if (pts) return `${behaviorWords(o, name)} ${pts}`;
+  return behaviorWords(o, name);
+}
+
+function behaviorWords(o: { level: BehaviorMark; all: boolean }, name: string): string {
   if (o.level === "great") return `${name}'s behavior was great ${o.all ? "all week" : "on most days"}.`;
   if (o.level === "ok") return `${name}'s behavior was mostly good this week.`;
   return `${name} had some tough moments with behavior this week. We're working on it together, and your support at home helps a lot.`;
@@ -188,15 +220,16 @@ export function writeUpdate(f: WeekFacts, o: UpdateOptions): { subject: string; 
   const progress = o.parts.progress ? progressLines(f, name) : [];
   const participation = o.parts.participation ? participationLine(f, name) : "";
   const behavior = o.parts.behavior ? behaviorLine(f, name) : "";
+  const attendance = o.parts.progress ? attendanceLine(f, name) : "";
   const minutes = o.parts.minutes ? minutesLine(f, name) : "";
   const notes = o.parts.notes ? noteItems(f) : [];
-  const nothing = !(o.parts.lessons && lessons) && !progress.length && !participation && !behavior && !minutes && !notes.length;
+  const nothing = !(o.parts.lessons && lessons) && !progress.length && !attendance && !participation && !behavior && !minutes && !notes.length;
 
   if (o.format === "text") {
     const bits = [
       `${hi.replace(/,$/, "")}, this is ${teacher}${role ? `, ${name}'s ${role}` : ""}, with ${name}'s update for this week.`,
       o.parts.lessons && lessons ? `We worked on ${lessons}.` : "",
-      ...progress, participation, behavior, minutes,
+      ...progress, attendance, participation, behavior, minutes,
       ...notes.slice(0, 3).map((n) => sentence(n.note)),
       nothing ? "[Add a highlight from this week.]" : "",
       "Thank you for your support at home!",
@@ -204,7 +237,7 @@ export function writeUpdate(f: WeekFacts, o: UpdateOptions): { subject: string; 
     return { subject: "", body: bits.filter(Boolean).join(" ") };
   }
 
-  const how = [...progress, participation, behavior, minutes].filter(Boolean);
+  const how = [...progress, attendance, participation, behavior, minutes].filter(Boolean);
   const blocks = [
     hi,
     `This is ${teacher}${role ? `, ${name}'s ${role}` : ""}. Here's ${name}'s update for the week of ${week}.`,

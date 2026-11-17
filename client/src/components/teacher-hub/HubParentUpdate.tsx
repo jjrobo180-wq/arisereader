@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Check, ClipboardCopy, Mail, MessageSquareText, RotateCcw, Save } from "lucide-react";
 import { addDays } from "@shared/lessonPlanner";
-import { DEFAULT_PARTS, UPDATE_PARTS, gatherWeek, isEmptyWeek, updateStudents, weekOf, writeUpdate, type UpdateFormat, type UpdatePart } from "@shared/parentUpdate";
+import { DEFAULT_PARTS, UPDATE_PARTS, gatherWeek, isEmptyWeek, updateStudents, weekCount, weekOf, writeUpdate, type UpdateFormat, type UpdatePart } from "@shared/parentUpdate";
 import { fold } from "@shared/pushIn";
 import type { Workspace } from "@shared/teacherHub";
 import { Card, Field, Labeled, Select, TextArea } from "./ui";
@@ -43,8 +43,12 @@ export default function HubParentUpdate({ workspace, setWorkspace, today, makeId
   const setProfile = (change: Partial<Workspace["profile"]>) => setWorkspace((w) => ({ ...w, profile: { ...w.profile, ...change } }));
 
   const { from, to } = weekOf(day);
-  const facts = useMemo(() => (student ? gatherWeek(student, from, to, { pushInNotes: workspace.pushInNotes, lessons: workspace.lessons, serviceLogs: workspace.serviceLogs }) : null),
-    [student, from, to, workspace.pushInNotes, workspace.lessons, workspace.serviceLogs]);
+  const src = useMemo(() => ({ pushInNotes: workspace.pushInNotes, lessons: workspace.lessons, serviceLogs: workspace.serviceLogs, behavior: workspace.behavior, attendance: workspace.attendance }),
+    [workspace.pushInNotes, workspace.lessons, workspace.serviceLogs, workspace.behavior, workspace.attendance]);
+  const facts = useMemo(() => (student ? gatherWeek(student, from, to, src) : null), [student, from, to, src]);
+  // Who has something saved this week comes first in the list, so an empty pick is not a surprise.
+  const counts = useMemo(() => new Map(students.map((s) => [s, weekCount(gatherWeek(s, from, to, src))])), [students, from, to, src]);
+  const withNotes = students.filter((s) => (counts.get(s) || 0) > 0), without = students.filter((s) => !(counts.get(s) || 0));
   const written = useMemo(() => (facts ? writeUpdate(facts, { format, parts, teacher, role, guardian }) : null), [facts, format, parts, teacher, role, guardian]);
   const body = edited ?? written?.body ?? "";
 
@@ -77,7 +81,8 @@ export default function HubParentUpdate({ workspace, setWorkspace, today, makeId
         <Labeled label="Student">
           <Select value={student} onChange={(e) => setStudent(e.target.value)} data-testid="parent-update-student">
             <option value="">Choose a student</option>
-            {students.map((s) => <option key={s} value={s}>{s}</option>)}
+            {withNotes.length > 0 && <optgroup label="Has notes this week">{withNotes.map((s) => <option key={s} value={s}>{s} ({counts.get(s)})</option>)}</optgroup>}
+            {without.length > 0 && <optgroup label="Nothing saved this week yet">{without.map((s) => <option key={s} value={s}>{s}</option>)}</optgroup>}
           </Select>
         </Labeled>
         <Labeled label={`Week of ${monthDay(from)}–${monthDay(to)}`}>
@@ -121,10 +126,10 @@ export default function HubParentUpdate({ workspace, setWorkspace, today, makeId
       ) : (
         <div className="mt-4 space-y-3" data-testid="parent-update-result">
           {facts && isEmptyWeek(facts) && (
-            <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Nothing is saved for {student} this week yet. Mark them on the Minutes page or in a lesson's Students tab, or type a highlight below.</p>
+            <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{student} isn't in any class notes, lesson marks, logged minutes, behavior points or attendance for {monthDay(from)}–{monthDay(to)}. To fill this in, mark them in a class note on the Minutes page or a lesson's Students tab, try <button type="button" className="font-semibold underline" onClick={() => setDay(addDays(from, -7))}>last week</button>, or type a highlight in the message below.</p>
           )}
           {facts && !isEmptyWeek(facts) && (
-            <p className="text-xs text-slate-500">From {facts.entries.filter((e) => e.source === "class").length} class notes, {facts.entries.filter((e) => e.source === "lesson").length} lessons and {facts.sessions} logged sessions.</p>
+            <p className="text-xs text-slate-500">From {facts.entries.filter((e) => e.source === "class").length} class notes, {facts.entries.filter((e) => e.source === "lesson").length} lessons, {facts.sessions} logged sessions, {facts.points.length} behavior points and {facts.attendance.length} attendance marks.</p>
           )}
           {format === "email" && written?.subject && (
             <div className="flex items-center gap-2">
