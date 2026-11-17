@@ -115,7 +115,11 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   };
 
   // ───────── Summary ─────────
-  const headline = safe
+  const onlyHand = !!plan.onHandOnly;
+  const setOnlyHand = (on: boolean) => { setMoney((m) => ({ ...m, onHandOnly: on || undefined })); say(on ? "Counting only the money you have on hand" : "Counting expected pay again"); };
+  const headline = onlyHand
+    ? { label: "Left after the bills still due", value: pic.leftover, note: pic.leftover < 0 ? `You're ${money(-pic.leftover)} short for the bills still due` : `${money(pic.onHand)} on hand · ${money(pic.billsLeft)} in bills still due` }
+    : safe
     ? { label: `Safe to spend until ${day(safe.until)}`, value: safe.amount, note: `${safe.days} day${safe.days === 1 ? "" : "s"} · about ${money(Math.max(0, Math.floor(safe.amount / safe.days)))} a day` }
     : { label: isNow ? "Left to spend this month" : `Left in ${label}`, value: pic.leftover, note: isNow ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left · about ${money(Math.max(0, Math.floor(pic.leftover / Math.max(1, daysLeft))))} a day` : "" };
   // How much of the month's spending plan is used, for the thin bar under the headline.
@@ -136,14 +140,19 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       </div>
     </div>
     <div className="mt-5 grid grid-cols-2 border-t border-slate-100 lg:grid-cols-4">
-      <Figure i={0} label="Coming in" value={money(pic.income)} sub={pic.expected || pic.received ? `${money(pic.received)} received so far` : "Add how you get paid"} tone="text-emerald-700" />
+      {onlyHand ? <Figure i={0} label="On hand" value={money(pic.onHand)} sub={pic.onHand ? "expected pay not counted" : "Add it under Income → Money in"} tone="text-emerald-700" /> : <Figure i={0} label="Coming in" value={money(pic.income)} sub={pic.expected || pic.received ? `${money(pic.received)} received so far` : "Add how you get paid"} tone="text-emerald-700" />}
       <Figure i={1} label="Bills left" value={money(pic.billsLeft)} sub={`of ${money(pic.billsOwed)} this month`} />
       <Figure i={2} label="Spent" value={money(pic.spent)} sub={pic.budgeted ? <><span className="mb-1.5 mt-1 block max-w-[10rem]" role="img" aria-label={`${usedPct}% of planned spending used`}><Bar value={pic.spent} max={pic.budgeted} warn={pic.spent > pic.budgeted} /></span>{`of ${money(pic.budgeted)} planned`}</> : "this month"} tone={pic.budgeted && pic.spent > pic.budgeted ? "text-rose-600" : "text-[#232139]"} />
-      <Figure i={3} label={pic.unplanned >= 0 ? "Not planned yet" : "Over-planned"} value={money(Math.abs(pic.unplanned))} sub={pic.goals ? `after ${money(pic.goals)} to goals` : "after bills and spending"} tone={pic.unplanned < 0 ? "text-rose-600" : "text-[#232139]"} />
+      <Figure i={3} label={pic.unplanned >= 0 ? "Not planned yet" : onlyHand ? "Short" : "Over-planned"} value={money(Math.abs(pic.unplanned))} sub={pic.goals ? `after ${money(pic.goals)} to goals` : "after bills and spending"} tone={pic.unplanned < 0 ? "text-rose-600" : "text-[#232139]"} />
     </div>
+    <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-3 text-sm" data-testid="budget-count-expected">
+      <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-violet-600" checked={!onlyHand} onChange={(e) => setOnlyHand(!e.target.checked)} />
+      <span><span className="font-semibold text-slate-900">Count expected pay</span><span className="block text-xs text-slate-500">{onlyHand ? "Off: only the money you have on hand counts, less the bills still due. Keep it up to date under Income → Money in." : "Turn off if your pay has already come in and your money on hand is all you have."}</span></span>
+    </label>
   </section>;
 
   const alerts = [
+    ...(onlyHand && pic.leftover < 0 ? [<span key="short">You're {money(-pic.leftover)} short: {money(pic.onHand)} on hand, {money(pic.billsLeft)} in bills still due{pic.late ? " (some are past due)" : ""}.</span>] : []),
     ...(pic.late ? [<span key="late">{pic.late === 1 ? "1 bill is" : `${pic.late} bills are`} past due. <button type="button" className="underline" onClick={() => go("bills")}>See bills</button></span>] : []),
     ...(over.length ? [<span key="over">Over the limit: {over.map((c) => c.name).join(", ")}.</span>] : []),
   ];
@@ -315,7 +324,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
       <Panel title={`Income for ${label}`} right={<button type="button" onClick={() => setIncome({ kind: hasTips ? "tips" : "pay", date: inMonth })} className={primary}><Plus size={16} /> Log income</button>}>
         <div className="mb-3 grid grid-cols-2 border-y border-slate-100">
           <Figure i={0} label="Received" value={money(receivedIn(plan, month))} tone="text-emerald-700" />
-          <Figure i={1} label="Expected" value={money(expectedIncome(plan, month))} />
+          <Figure i={1} label="Expected" value={money(expectedIncome(plan, month))} sub={onlyHand ? "not counted" : undefined} />
         </div>
         {monthIncome.length ? <ul className="divide-y divide-slate-100">{monthIncome.map((e) => <li key={e.id} className="flex items-center gap-3 py-2.5 text-sm" data-testid="budget-income-row">
           <button type="button" onClick={() => setIncome({ ...e })} aria-label="Edit this income" className="flex min-w-0 flex-1 items-center gap-3 text-left">
