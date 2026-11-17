@@ -235,14 +235,14 @@ function LessonCard({ l, classes, onOpen, compact }: { l: LessonPlan; classes: L
   const reteach = Object.values(l.marks || {}).filter((m) => m.status === "reteach").length;
   const marked = Object.values(l.marks || {}).filter((m) => m.status).length;
   return (
-    <button type="button" onClick={() => onOpen(l.id)} className={`group w-full rounded-xl border border-slate-200 border-l-4 ${color.bar} bg-white p-2.5 text-left shadow-sm transition hover:-translate-y-px hover:shadow-md`} data-testid="lesson-card">
+    <button type="button" onClick={() => onOpen(l.id)} className={`group w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 border-l-4 ${color.bar} bg-white p-2.5 text-left shadow-sm transition hover:-translate-y-px hover:shadow-md`} data-testid="lesson-card">
       <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-900">{l.reteachOf && <RotateCcw className="mr-1 inline h-3.5 w-3.5 text-rose-600" />}{l.title}</div>
+        <div className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere]">{l.reteachOf && <RotateCcw className="mr-1 inline h-3.5 w-3.5 text-rose-600" />}{l.title}</div>
         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase ${STATUS_STYLE[l.status || "draft"]}`}>{l.status === "ready" ? "Ready" : STATUS_LABEL[l.status || "draft"]}</span>
       </div>
       {!compact && l.objective && <p className="mt-1 line-clamp-2 text-xs text-slate-600">{l.objective}</p>}
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
-        {(l.standards || []).slice(0, compact ? 1 : 3).map((s) => <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">{standardCode(s)}</span>)}
+        {(l.standards || []).slice(0, compact ? 1 : 3).map((s) => <span key={s} title={s} className="max-w-full truncate rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">{standardCode(s)}</span>)}
         {!!l.files?.length && <span className="inline-flex items-center gap-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600"><FileStack className="h-3 w-3" />{l.files.length}</span>}
         {marked > 0 && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">✓ {marked}</span>}
         {reteach > 0 && <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">{reteach} reteach</span>}
@@ -376,7 +376,7 @@ function DayLesson({ l, lessons, onOpen }: { l: LessonPlan; lessons: LessonPlan[
       {l.objective && <p className="mt-1 text-sm text-slate-600">{l.objective}</p>}
       {l.hook && <p className="mt-1 line-clamp-2 text-xs text-slate-500"><b>Warm-up:</b> {l.hook}</p>}
       <div className="mt-2 flex flex-wrap gap-1">
-        {(l.standards || []).map((s) => <span key={s} className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-slate-200">{standardCode(s)}</span>)}
+        {(l.standards || []).map((s) => <span key={s} title={s} className="max-w-full truncate rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-slate-200">{standardCode(s)}</span>)}
         {(l.files || []).map((f) => <span key={f.id} className="rounded bg-white px-1.5 py-0.5 text-[10px] text-slate-600 ring-1 ring-slate-200">📎 {f.name}</span>)}
       </div>
       {reteach.length > 0 && <p className="mt-2 text-xs font-semibold text-rose-700">Needs reteach: {reteach.join(", ")}</p>}
@@ -734,7 +734,7 @@ function UnitPlanner({ token, classes, lessons, state, onState, defaultClass, to
                   <div className="flex flex-wrap items-baseline gap-x-2"><span className="text-xs font-semibold text-slate-400">{i + 1}.</span><span className="font-semibold text-slate-900">{u.title}</span><span className="text-xs text-teal-700">{nice(dates[i])}</span></div>
                   <p className="text-sm text-slate-600">{u.objective}</p>
                   {u.summary && <p className="mt-0.5 text-xs text-slate-500">{u.summary}</p>}
-                  {u.standards.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{u.standards.map((s) => <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600" title={s}><BookCheck className="mr-0.5 inline h-3 w-3" />{standardCode(s)}</span>)}</div>}
+                  {u.standards.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{u.standards.map((s) => <span key={s} className="max-w-full truncate rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600" title={s}><BookCheck className="mr-0.5 inline h-3 w-3" />{standardCode(s)}</span>)}</div>}
                 </div>
               </li>
             ))}

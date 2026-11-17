@@ -619,4 +619,8 @@ export function cleanUnit(raw: any): { unit: string; lessons: UnitLesson[] } {
 /** How a standard is shown and saved: "CODE — text", or just what was typed. */
 export const standardLine = (s: FoundStandard): string => `${s.code} — ${s.text}`;
 /** The code part of a saved standard ("RL.5.2"), for a chip. */
-export const standardCode = (s: string): string => (s.includes(" — ") ? s.split(" — ")[0] : s.length > 18 ? `${s.slice(0, 16)}…` : s);
+export const standardCode = (s: string): string => {
+  // "CCSS.Math.Content.7.NS.A.1 — Apply…" → "7.NS.A.1": the part a teacher reads, short enough for a card.
+  const code = (s.includes(" — ") ? s.split(" — ")[0] : s).trim().replace(/^CCSS\.(Math\.Content|ELA-Literacy|Math\.Practice)\./i, "");
+  return code.length > 18 ? `${code.slice(0, 16)}…` : code;
+};
