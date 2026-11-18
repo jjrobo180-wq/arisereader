@@ -18,6 +18,7 @@ import { BEHAVIOR_LABEL, CHECK_LABEL, MATERIAL_LABEL, PARTICIPATION_LABEL, type 
 import { printHtml, worksheetHtml } from "@/lib/lessonExport";
 import { CHECK_RESULT_LABEL, STATUS_LABEL, nextCheckDay, planWords } from "@shared/hubIncidents";
 import { FEELING_FACE } from "@shared/hubOneOnOne";
+import { MAKEUP_STATUS_LABEL } from "@shared/hubMakeups";
 import { NoteCard, NoteModal } from "./HubNotes";
 import { StudentTeamSummary } from "./HubStudentTeam";
 
@@ -150,6 +151,16 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
       {links && <ConnectedPanel workspace={workspace} kind="student" id={s.id} onOpen={links.openLink} title={`Everything connected to ${s.name.split(" ")[0]}`} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Part title="Makeup tests" count={profile.makeups.length} tab="makeups" tabLabel="Makeup tests" onOpenTab={onOpenTab}>
+          <Rows rows={profile.makeups} empty="No makeup tests." render={(m) => (
+            <li key={m.id} className={row} data-testid="profile-makeup">
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words font-medium text-slate-900">{m.test}{m.subject ? ` · ${m.subject}` : ""}</span><span className="text-xs font-semibold text-slate-700">{m.date ? day(m.date) : "No day yet"} · {MAKEUP_STATUS_LABEL[m.status]}</span></div>
+              {(() => { const k = Object.keys(m.scores).find((n) => n.trim().toLowerCase() === s.name.trim().toLowerCase()); return k ? <p className="mt-1 text-xs text-slate-700">Score: {m.scores[k]}</p> : null; })()}
+              {m.notes && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-600">{m.notes}</p>}
+            </li>
+          )} />
+        </Part>
+
         <Part title="1-on-1 meetings" count={profile.oneOnOnes.length} tab="oneonone" tabLabel="1-on-1 meetings" onOpenTab={onOpenTab}>
           <Rows rows={profile.oneOnOnes} empty="No 1-on-1 meetings yet." render={(m) => (
             <li key={m.id} className={row} data-testid="profile-oneonone">

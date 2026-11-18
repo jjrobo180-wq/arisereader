@@ -56,6 +56,7 @@ import {
   Timer,
   ShieldAlert,
   MessagesSquare,
+  FileCheck,
   Moon,
   Sun,
   Repeat,
@@ -152,6 +153,7 @@ import HubSchedulePhoto from "@/components/teacher-hub/HubSchedulePhoto";
 import HubIncidents from "@/components/teacher-hub/HubIncidents";
 import HubOneOnOne from "@/components/teacher-hub/HubOneOnOne";
 import HubProfiles from "@/components/teacher-hub/HubProfiles";
+import HubMakeups from "@/components/teacher-hub/HubMakeups";
 import { addSupplementary, studentsWithoutProfiles } from "@shared/hubSupplementary";
 import { FocusTimer } from "@/components/family-hub/Focus";
 import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
@@ -262,13 +264,14 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "incidents", label: "Incident reports", icon: <ShieldAlert className="h-4 w-4" /> },
   { id: "oneonone", label: "1-on-1 meetings", icon: <MessagesSquare className="h-4 w-4" /> },
   { id: "profiles", label: "Student profiles", icon: <Users className="h-4 w-4" /> },
+  { id: "makeups", label: "Makeup tests", icon: <FileCheck className="h-4 w-4" /> },
   { id: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
 ];
 
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
-  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />, incidents: <ShieldAlert className="h-4 w-4" />, oneonone: <MessagesSquare className="h-4 w-4" />, profiles: <Users className="h-4 w-4" />,
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />, incidents: <ShieldAlert className="h-4 w-4" />, oneonone: <MessagesSquare className="h-4 w-4" />, profiles: <Users className="h-4 w-4" />, makeups: <FileCheck className="h-4 w-4" />,
   notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
@@ -2021,6 +2024,8 @@ function TeacherHubPage() {
           {tab === "prep" && <PrepChecklist workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />}
           {tab === "oneonone" && <HubOneOnOne workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
             students={[...workspace.students.map((s) => s.name)].sort((a, b) => a.localeCompare(b))}
+            openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
+          {tab === "makeups" && <HubMakeups workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
           {tab === "profiles" && <HubProfiles workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} onOpenTab={goTab} onEdit={() => goTab("caseload")} />}
           {tab === "incidents" && <HubIncidents workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}

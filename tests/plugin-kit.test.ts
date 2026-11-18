@@ -41,7 +41,8 @@ test("LifeHub kit plugins are sections that start off; WorkHub ones are added to
     assert.ok(PLUGINS.some((p) => p.target.kind === "section" && p.target.section === id), `${id} in the store`);
   }
   const work = PLUGINS.filter((p) => p.target.kind === "kit");
-  assert.equal(work.length, 161);
+  // 161 WorkHub kit tools, less the Makeup tests list (replaced by its own plugin, work-makeups).
+  assert.equal(work.length, 160);
   const p = work[0];
   assert.ok(isAddable(p));
   assert.equal(workInstalled(p, {}, []), false);

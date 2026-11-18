@@ -272,6 +272,9 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-profiles", hub: "work", name: "Student profiles", tagline: "Every student's whole profile, one tap away", category: "Students & IEPs", icon: "Users", color: "#0e7490", target: tab("profiles"),
     description: "A shortcut to every student's full profile, caseload and supplementary alike: find a student, pin the ones you open most, see who you opened lately, and open their whole picture (notes, minutes, lessons, behavior, grades, incident reports, 1-on-1s and more) right there.",
     features: ["Find any student", "Pin your most-opened students", "Opened lately", "The whole profile in one tap"] },
+  { id: "work-makeups", hub: "work", name: "Makeup tests", tagline: "Who still needs to test, and everything about it", category: "Students & IEPs", icon: "FileCheck", color: "#7c3aed", target: tab("makeups"),
+    description: "Track makeup tests and quizzes for one student or several: when it was missed and why, the makeup day, time, room and proctor, accommodations filled in from each student's profile, and each score. Each makeup goes on your calendar and your to-dos, its notes save to Notes (with the AI note tools), and you can attach photos and PDFs. Every makeup shows on the student's profile, past-due ones are flagged, and it prints.",
+    features: ["Several students at once, or a new one", "On your calendar and to-dos", "Notes saved to Notes, photos and PDFs attached", "Accommodations and scores; on each profile"] },
   { id: "work-focus", hub: "work", name: "Focus", tagline: "Focus blocks, right in the Dynamic Island", category: "Planning", icon: "Timer", color: "#6e5ae0", target: tab("focus"),
     description: "Work in focused blocks with short breaks (25/5, 50/10 or 15/3), with a chime at each switch and your focused minutes for today and the week. In the Arise To Duo iPhone app, each block and break shows on your Lock Screen and in the Dynamic Island while it runs.",
     features: ["Lock Screen and Dynamic Island timer (iPhone app)", "Focus blocks with breaks", "A chime at each switch", "Focused minutes today and this week"] },
@@ -587,7 +590,8 @@ export const PLUGINS: readonly Plugin[] = [
     features: ["Join with your teacher's code", "The day's schedule", "Notes and messages"] },
   ...ARISE_APPS("life"),
   // The Plugin Kit: 400 plugins drawn by shared tools (shared/pluginKit.ts).
-  ...KIT_DEFS.map(kitPlugin),
+  // The kit list "makeup-tests" is replaced by the Makeup tests plugin (its rows can be brought in from there).
+  ...KIT_DEFS.filter((d) => d.id !== "makeup-tests").map(kitPlugin),
 ];
 
 /** The plugins one person sees in one hub. */

@@ -4,7 +4,7 @@
 import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "oneonone" | "profiles" | "goals"
+  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "oneonone" | "profiles" | "makeups" | "goals"
   | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
@@ -34,6 +34,8 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   // 1-on-1 meetings with students (shared/hubOneOnOne.ts), and a shortcut to every student's profile.
   { id: "oneonone", label: "1-on-1 meetings", tabs: ["oneonone"] },
   { id: "profiles", label: "Student profiles", tabs: ["profiles"] },
+  // Makeup tests (shared/hubMakeups.ts): replaced the Plugin Kit list of the same name.
+  { id: "makeups", label: "Makeup tests", tabs: ["makeups"] },
   { id: "goals", label: "Goals", tabs: ["goals"] },
   { id: "tasks", label: "Tasks", tabs: ["tasks"] },
   { id: "notes", label: "Notes", tabs: ["notes"] },
@@ -51,7 +53,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
-  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus", incidents: "Incident reports", oneonone: "1-on-1 meetings", profiles: "Student profiles",
+  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus", incidents: "Incident reports", oneonone: "1-on-1 meetings", profiles: "Student profiles", makeups: "Makeup tests",
   goals: "Goals",
   tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",

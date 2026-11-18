@@ -8,6 +8,7 @@ import { cleanPushInNotes, type PushInNote, type PushInStudent } from "./pushIn"
 import type { IepDraft } from "./iepWriter";
 import { cleanIncidents, incidentsFor, type Incident } from "./hubIncidents";
 import { cleanOneOnOnes, meetingsFor, type OneOnOne } from "./hubOneOnOne";
+import { cleanMakeups, makeupsFor, type Makeup } from "./hubMakeups";
 import { guideProgress } from "./hubGuide";
 import { countedPlan, goalProgress, optionalDays, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
 import { subjectMinutes, type SubjectMinutes } from "./hubSubjects";
@@ -52,6 +53,8 @@ export type StudentProfile = {
   incidents: Incident[];
   /** 1-on-1 meetings with the student, newest first. */
   oneOnOnes: OneOnOne[];
+  /** Makeup tests the student is in, open ones first. */
+  makeups: Makeup[];
   /** To-dos, calendar events and emails linked to the student or naming them. */
   tasks: Task[];
   events: HubEvent[];
@@ -118,6 +121,7 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     if (!seenFile.has(material.id)) { seenFile.add(material.id); files.push({ material, from: lesson.title || "Lesson", date: lesson.date || "", source: "lesson", given: false }); }
   }
   files.sort((a, b) => Number(b.given) - Number(a.given) || b.date.localeCompare(a.date));
+  const makeups = makeupsFor(cleanMakeups((workspace as any).makeups), student.name);
   const oneOnOnes = meetingsFor(cleanOneOnOnes((workspace as any).oneOnOnes), student.name);
   const incidents = incidentsFor(cleanIncidents((workspace as any).incidents), student.name);
   const iepDrafts = [...(workspace.iepDrafts || [])].filter((d) => fold(d.student) === name).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -144,9 +148,9 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     behavior: { total: behavior.reduce((sum, b) => sum + (Number(b.points) || 0), 0), entries: behavior },
     attendance: { counts, entries: attendance },
     grades: { rows, average: possible ? Math.round((earned / possible) * 100) : null, missing: rows.filter((r) => r.missing).length },
-    schedule, reading, classNotes, lessons, files, iepDrafts, incidents, oneOnOnes, tasks, events, emails,
+    schedule, reading, classNotes, lessons, files, iepDrafts, incidents, oneOnOnes, makeups, tasks, events, emails,
     records: goals.length + services.length + serviceLogs.length + meetings.length + guides.length + notes.length + parentLogs.length + behavior.length + attendance.length + rows.length + schedule.length + reading.length
-      + classNotes.length + lessons.length + files.length + iepDrafts.length + incidents.length + oneOnOnes.length + tasks.length + events.length + emails.length,
+      + classNotes.length + lessons.length + files.length + iepDrafts.length + incidents.length + oneOnOnes.length + makeups.length + tasks.length + events.length + emails.length,
   };
 }
 

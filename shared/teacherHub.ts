@@ -199,7 +199,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "lessons", "tasks", "notes", "journal", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
+  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "lessons", "tasks", "notes", "journal", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
   "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
   "readerAdvisory", "readerCatalog",
 ] as const;
@@ -214,7 +214,7 @@ export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "cale
  *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
  *  not by the App Store. */
 export const WORK_ADD_ON_TABS: readonly HubTab[] = [
-  "caseload", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "lessons", "arise", "behavior", "attendance",
+  "caseload", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "lessons", "arise", "behavior", "attendance",
   "gradebook", "parents", "schedules", "email",
 ];
 
@@ -234,6 +234,8 @@ export type Workspace = {
   incidents?: import("./hubIncidents").Incident[];
   /** 1-on-1 meetings with students (shared/hubOneOnOne.ts). */
   oneOnOnes?: import("./hubOneOnOne").OneOnOne[];
+  /** Makeup tests (shared/hubMakeups.ts). */
+  makeups?: import("./hubMakeups").Makeup[];
   version: number;
   profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** The teacher's position, for the weekly parent update ("math lab teacher"). */ role?: string; /** The one colour the Hub is tinted with (see shared/hubAccent.ts). */ accent?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
