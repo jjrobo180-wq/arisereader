@@ -138,16 +138,16 @@ function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKin
 
   return <div className="space-y-5 text-slate-900" data-testid={`office-home-${config.kind}`}>
     <div className="flex flex-wrap items-center gap-3">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: config.color }}>{config.icon}</span>
-      <div className="mr-auto"><h2 className="text-xl font-black">{config.title}</h2><p className="text-sm text-slate-500">Saved to your account. Opens on every device. Works with Microsoft Office files.</p></div>
+      <span className="hidden h-10 w-10 items-center justify-center rounded-xl text-white sm:inline-flex" style={{ background: config.color }}>{config.icon}</span>
+      <div className="mr-auto"><h2 className="text-2xl font-extrabold tracking-tight">{config.title}</h2><p className="text-sm text-slate-500">Saved to your account. Opens on every device. Works with Microsoft Office files.</p></div>
       <div className="relative w-full sm:w-72"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${config.noun}s`} aria-label={`Search ${config.noun}s`} className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm focus:border-slate-400 focus:bg-white focus:outline-none" /></div>
     </div>
 
-    <section className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-      <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-bold text-slate-700">Start a new {config.noun}</h3>
+    <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:bg-slate-50">
+      <div className="mb-3 flex items-center justify-between gap-2"><h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">New</h3>
         <div className="flex gap-2">
           <button type="button" onClick={() => void importOne()} disabled={!!busy} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-white px-3 text-sm font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50" data-testid="office-import"><Upload size={15} />{busy === "import" ? "Opening…" : "Import"}</button>
-          {config.templates.length > 5 && <button type="button" onClick={() => setAllTemplates(!allTemplates)} className="text-sm font-bold text-sky-700">{allTemplates ? "Fewer" : "Template gallery"}</button>}
+          {config.templates.length > 5 && <button type="button" onClick={() => setAllTemplates(!allTemplates)} className="inline-flex min-h-9 items-center rounded-lg px-3 text-sm font-bold text-sky-700 hover:bg-sky-50">{allTemplates ? "Fewer" : "All templates"}</button>}
         </div>
       </div>
       {config.starts && <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" data-testid="office-starts">{config.starts.map((st) => <button key={st.id} type="button" onClick={() => void create(`Untitled ${st.label}`, st.make())} disabled={!!busy}
@@ -160,9 +160,8 @@ function OfficeHome({ config, legacy, onOpen, say: sayOut }: { config: OfficeKin
         {templates.map((t) => <button key={t.id} type="button" onClick={() => void create(t.name, t.make())} disabled={!!busy} className="group text-left" data-testid={`office-template-${t.id}`}>
           {t.preview ? <div className="grid aspect-[4/3] place-items-center overflow-hidden rounded-xl bg-slate-50 p-2 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">{t.preview()}</div>
           : <div className="flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-xl bg-white p-3 ring-1 ring-slate-200 transition group-hover:ring-2 group-hover:ring-sky-400">
-            <span className="text-3xl">{t.emoji}</span>
-            <span className="line-clamp-2 text-[11px] leading-snug text-slate-500">{t.blurb}</span>
-            <span className="h-1.5 w-full rounded-full" style={{ background: t.color }} />
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ background: t.color }}>{config.icon}</span>
+            <span className="line-clamp-3 text-xs leading-snug text-slate-600">{t.blurb}</span>
           </div>}
           <p className="mt-1.5 truncate text-sm font-bold">{busy === t.name ? "Making…" : t.name}</p>
         </button>)}
