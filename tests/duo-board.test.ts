@@ -30,7 +30,7 @@ test("the widgets' Add and Tasks buttons open the app there", () => {
   assert.deepEqual(readFocusLink("arisetodo://focus/add"), { kind: "add" });
   assert.deepEqual(readFocusLink("arisetodo://focus/tasks"), { kind: "tasks" });
   const rb = readFileSync(new URL("../.github/scripts/add_widget.rb", import.meta.url), "utf8");
-  assert.match(rb, /DuoSmallWidget\(\)\\n {8}DuoMediumWidget\(\)\\n {8}DuoLargeWidget\(\)\\n {8}DuoLockWidget\(\)/);
+  assert.match(rb, /DuoSmallWidgets\(\)\.body\\n {8}DuoMediumWidgets\(\)\.body\\n {8}DuoLargeWidgets\(\)\.body\\n {8}DuoLockWidgets\(\)\.body/);
   const swift = readFileSync(new URL("../native/widget-extension/DuoDesigns.swift", import.meta.url), "utf8");
   for (const n of ["DuoSmallStyle", "DuoMediumStyle", "DuoLargeStyle", "DuoLockStyle"]) {
     const body = swift.slice(swift.indexOf(`enum ${n}`), swift.indexOf("}", swift.indexOf(`enum ${n}`)));

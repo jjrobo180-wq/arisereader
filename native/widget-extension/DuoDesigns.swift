@@ -1,8 +1,8 @@
 
 // MARK: - Arise To Duo: the task widgets (40 designs)
 // Added to AriseWidgets.swift by .github/scripts/add_widget.rb when the app's widget list has an id ending in
-// ".designs" (arisetodo/ios-app/widgets.json). Four widgets in the gallery, Small, Medium, Large and Lock Screen,
-// each with ten designs to pick from (long-press the widget, then Edit Widget). They all draw one "board" the app
+// ".designs" (arisetodo/ios-app/widgets.json). Forty widgets in the gallery: ten Small, ten Medium, ten Large and
+// ten for the Lock Screen, each design its own widget so all of them show. They all draw one "board" the app
 // sends (client/src/lib/duoBoard.ts): the counts, the tasks that matter now, this week and this month, plus the
 // focus timer when one is running. Done checks a task off right on the widget (CheckOffIntent) and Later moves it
 // to tomorrow (DuoLaterIntent); the app saves both when it next opens. Add, Tasks and Focus open the app.
@@ -188,50 +188,6 @@ enum DuoLockStyle: String, AppEnum, CaseIterable {
         .focus: "5 · Focus timer", .line: "6 · One line (above the clock)", .week: "7 · Week dots", .badge: "8 · Overdue badge (circle)",
         .asks: "9 · Arise asks", .progress: "10 · Progress bar",
     ]
-}
-
-struct DuoSmallIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Design"
-    static var description = IntentDescription("Pick how this widget looks.")
-    @Parameter(title: "Design", default: .ring) var style: DuoSmallStyle
-    init() {}
-}
-struct DuoMediumIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Design"
-    static var description = IntentDescription("Pick how this widget looks.")
-    @Parameter(title: "Design", default: .ringList) var style: DuoMediumStyle
-    init() {}
-}
-struct DuoLargeIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Design"
-    static var description = IntentDescription("Pick how this widget looks.")
-    @Parameter(title: "Design", default: .checklist) var style: DuoLargeStyle
-    init() {}
-}
-struct DuoLockIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Design"
-    static var description = IntentDescription("Pick how this widget looks.")
-    @Parameter(title: "Design", default: .next) var style: DuoLockStyle
-    init() {}
-}
-
-struct DuoEntry<I: WidgetConfigurationIntent>: TimelineEntry {
-    let date: Date
-    let intent: I
-    let board: DuoBoard
-}
-
-struct DuoProvider<I: WidgetConfigurationIntent>: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> DuoEntry<I> { DuoEntry(date: Date(), intent: I(), board: .sample) }
-    func snapshot(for configuration: I, in context: Context) async -> DuoEntry<I> {
-        let b = loadDuoBoard()
-        return DuoEntry(date: Date(), intent: configuration, board: context.isPreview && b.tasks.isEmpty ? .sample : b)
-    }
-    func timeline(for configuration: I, in context: Context) async -> Timeline<DuoEntry<I>> {
-        let now = Date()
-        let midnight = Calendar.current.startOfDay(for: now).addingTimeInterval(86_400 + 60)
-        return Timeline(entries: [DuoEntry(date: now, intent: configuration, board: loadDuoBoard())], policy: .after(min(midnight, now.addingTimeInterval(30 * 60))))
-    }
 }
 
 // MARK: Pieces
@@ -1228,51 +1184,152 @@ struct DuoLockView: View {
     }
 }
 
-// MARK: The four widgets
+// MARK: The widgets: every design is its own widget, so all 40 show in the widget gallery
 
-struct DuoSmallWidget: Widget {
-    var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "Arise.duo.tasks.small", intent: DuoSmallIntent.self, provider: DuoProvider<DuoSmallIntent>()) { e in
-            DuoSmallView(style: e.intent.style, b: e.board).containerBackground(for: .widget) { DuoSmallView.background(e.intent.style) }
-        }
-        .configurationDisplayName("Tasks")
-        .description("Ten designs: long-press the widget, then Edit Widget to pick one.")
-        .supportedFamilies([.systemSmall])
-        .contentMarginsDisabled()
+struct DuoBoardEntry: TimelineEntry {
+    let date: Date
+    let board: DuoBoard
+}
+
+struct DuoBoardProvider: TimelineProvider {
+    func placeholder(in context: Context) -> DuoBoardEntry { DuoBoardEntry(date: Date(), board: .sample) }
+    func getSnapshot(in context: Context, completion: @escaping (DuoBoardEntry) -> Void) {
+        let b = loadDuoBoard()
+        completion(DuoBoardEntry(date: Date(), board: context.isPreview && b.tasks.isEmpty ? .sample : b))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<DuoBoardEntry>) -> Void) {
+        let now = Date()
+        let midnight = Calendar.current.startOfDay(for: now).addingTimeInterval(86_400 + 60)
+        completion(Timeline(entries: [DuoBoardEntry(date: now, board: loadDuoBoard())], policy: .after(min(midnight, now.addingTimeInterval(30 * 60)))))
     }
 }
 
-struct DuoMediumWidget: Widget {
-    var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "Arise.duo.tasks.medium", intent: DuoMediumIntent.self, provider: DuoProvider<DuoMediumIntent>()) { e in
-            DuoMediumView(style: e.intent.style, b: e.board).containerBackground(for: .widget) { DuoMediumView.background(e.intent.style) }
-        }
-        .configurationDisplayName("Tasks")
-        .description("Ten designs: long-press the widget, then Edit Widget to pick one.")
-        .supportedFamilies([.systemMedium])
-        .contentMarginsDisabled()
+func duoSmallConfig(_ style: DuoSmallStyle, _ name: String) -> some WidgetConfiguration {
+    StaticConfiguration(kind: "Arise.duo.s." + style.rawValue, provider: DuoBoardProvider()) { e in
+        DuoSmallView(style: style, b: e.board).containerBackground(for: .widget) { DuoSmallView.background(style) }
+    }
+    .configurationDisplayName(name).description("Your tasks from Arise To Duo.").supportedFamilies([.systemSmall]).contentMarginsDisabled()
+}
+func duoMediumConfig(_ style: DuoMediumStyle, _ name: String) -> some WidgetConfiguration {
+    StaticConfiguration(kind: "Arise.duo.m." + style.rawValue, provider: DuoBoardProvider()) { e in
+        DuoMediumView(style: style, b: e.board).containerBackground(for: .widget) { DuoMediumView.background(style) }
+    }
+    .configurationDisplayName(name).description("Your tasks from Arise To Duo.").supportedFamilies([.systemMedium]).contentMarginsDisabled()
+}
+func duoLargeConfig(_ style: DuoLargeStyle, _ name: String) -> some WidgetConfiguration {
+    StaticConfiguration(kind: "Arise.duo.l." + style.rawValue, provider: DuoBoardProvider()) { e in
+        DuoLargeView(style: style, b: e.board).containerBackground(for: .widget) { DuoLargeView.background(style) }
+    }
+    .configurationDisplayName(name).description("Your tasks from Arise To Duo.").supportedFamilies([.systemLarge]).contentMarginsDisabled()
+}
+func duoLockConfig(_ style: DuoLockStyle, _ name: String, _ families: [WidgetFamily]) -> some WidgetConfiguration {
+    StaticConfiguration(kind: "Arise.duo.k." + style.rawValue, provider: DuoBoardProvider()) { e in
+        DuoLockView(style: style, b: e.board).containerBackground(for: .widget) { Color.clear }.widgetURL(duoTasksLink)
+    }
+    .configurationDisplayName(name).description("Your tasks on the Lock Screen.").supportedFamilies(families)
+}
+
+struct DuoS1: Widget { var body: some WidgetConfiguration { duoSmallConfig(.ring, "Progress ring") } }
+struct DuoS2: Widget { var body: some WidgetConfiguration { duoSmallConfig(.next, "Up next") } }
+struct DuoS3: Widget { var body: some WidgetConfiguration { duoSmallConfig(.overdue, "Overdue alert") } }
+struct DuoS4: Widget { var body: some WidgetConfiguration { duoSmallConfig(.focus, "Focus timer") } }
+struct DuoS5: Widget { var body: some WidgetConfiguration { duoSmallConfig(.checklist, "Checklist") } }
+struct DuoS6: Widget { var body: some WidgetConfiguration { duoSmallConfig(.big, "Big number") } }
+struct DuoS7: Widget { var body: some WidgetConfiguration { duoSmallConfig(.asks, "Arise asks") } }
+struct DuoS8: Widget { var body: some WidgetConfiguration { duoSmallConfig(.week, "Week dots") } }
+struct DuoS9: Widget { var body: some WidgetConfiguration { duoSmallConfig(.actions, "Quick actions") } }
+struct DuoS10: Widget { var body: some WidgetConfiguration { duoSmallConfig(.done, "Done so far") } }
+struct DuoM1: Widget { var body: some WidgetConfiguration { duoMediumConfig(.ringList, "Ring and today's list") } }
+struct DuoM2: Widget { var body: some WidgetConfiguration { duoMediumConfig(.nextButtons, "Up next with buttons") } }
+struct DuoM3: Widget { var body: some WidgetConfiguration { duoMediumConfig(.weekStrip, "Week strip") } }
+struct DuoM4: Widget { var body: some WidgetConfiguration { duoMediumConfig(.columns, "Two columns") } }
+struct DuoM5: Widget { var body: some WidgetConfiguration { duoMediumConfig(.focus, "Focus with buttons") } }
+struct DuoM6: Widget { var body: some WidgetConfiguration { duoMediumConfig(.counts, "List counts") } }
+struct DuoM7: Widget { var body: some WidgetConfiguration { duoMediumConfig(.briefing, "Arise briefing") } }
+struct DuoM8: Widget { var body: some WidgetConfiguration { duoMediumConfig(.timeline, "Timeline") } }
+struct DuoM9: Widget { var body: some WidgetConfiguration { duoMediumConfig(.editorial, "Editorial") } }
+struct DuoM10: Widget { var body: some WidgetConfiguration { duoMediumConfig(.quickAdd, "Quick add") } }
+struct DuoL1: Widget { var body: some WidgetConfiguration { duoLargeConfig(.checklist, "Full checklist") } }
+struct DuoL2: Widget { var body: some WidgetConfiguration { duoLargeConfig(.weekGrid, "Week grid") } }
+struct DuoL3: Widget { var body: some WidgetConfiguration { duoLargeConfig(.oneAtATime, "One at a time") } }
+struct DuoL4: Widget { var body: some WidgetConfiguration { duoLargeConfig(.board, "Board columns") } }
+struct DuoL5: Widget { var body: some WidgetConfiguration { duoLargeConfig(.calendar, "Month calendar") } }
+struct DuoL6: Widget { var body: some WidgetConfiguration { duoLargeConfig(.notebook, "Notebook") } }
+struct DuoL7: Widget { var body: some WidgetConfiguration { duoLargeConfig(.punch, "Punch") } }
+struct DuoL8: Widget { var body: some WidgetConfiguration { duoLargeConfig(.tiles, "Big tiles") } }
+struct DuoL9: Widget { var body: some WidgetConfiguration { duoLargeConfig(.briefing, "Arise briefing") } }
+struct DuoL10: Widget { var body: some WidgetConfiguration { duoLargeConfig(.grouped, "Grouped lists") } }
+struct DuoK1: Widget { var body: some WidgetConfiguration { duoLockConfig(.next, "Next task", [.accessoryRectangular, .accessoryInline]) } }
+struct DuoK2: Widget { var body: some WidgetConfiguration { duoLockConfig(.overdue, "Overdue", [.accessoryRectangular, .accessoryInline]) } }
+struct DuoK3: Widget { var body: some WidgetConfiguration { duoLockConfig(.gauge, "Today gauge", [.accessoryCircular]) } }
+struct DuoK4: Widget { var body: some WidgetConfiguration { duoLockConfig(.open, "Open count", [.accessoryCircular]) } }
+struct DuoK5: Widget { var body: some WidgetConfiguration { duoLockConfig(.focus, "Focus timer", [.accessoryRectangular, .accessoryCircular]) } }
+struct DuoK6: Widget { var body: some WidgetConfiguration { duoLockConfig(.line, "Above the clock", [.accessoryInline]) } }
+struct DuoK7: Widget { var body: some WidgetConfiguration { duoLockConfig(.week, "Week dots", [.accessoryRectangular]) } }
+struct DuoK8: Widget { var body: some WidgetConfiguration { duoLockConfig(.badge, "Overdue badge", [.accessoryCircular]) } }
+struct DuoK9: Widget { var body: some WidgetConfiguration { duoLockConfig(.asks, "Arise asks", [.accessoryRectangular, .accessoryCircular]) } }
+struct DuoK10: Widget { var body: some WidgetConfiguration { duoLockConfig(.progress, "Progress bar", [.accessoryRectangular, .accessoryCircular]) } }
+
+/// The ten Small designs (WidgetBundle takes ten at a time).
+struct DuoSmallWidgets: WidgetBundle {
+    var body: some Widget {
+        DuoS1()
+        DuoS2()
+        DuoS3()
+        DuoS4()
+        DuoS5()
+        DuoS6()
+        DuoS7()
+        DuoS8()
+        DuoS9()
+        DuoS10()
     }
 }
 
-struct DuoLargeWidget: Widget {
-    var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "Arise.duo.tasks.large", intent: DuoLargeIntent.self, provider: DuoProvider<DuoLargeIntent>()) { e in
-            DuoLargeView(style: e.intent.style, b: e.board).containerBackground(for: .widget) { DuoLargeView.background(e.intent.style) }
-        }
-        .configurationDisplayName("Tasks")
-        .description("Ten designs: long-press the widget, then Edit Widget to pick one.")
-        .supportedFamilies([.systemLarge])
-        .contentMarginsDisabled()
+/// The ten Medium designs (WidgetBundle takes ten at a time).
+struct DuoMediumWidgets: WidgetBundle {
+    var body: some Widget {
+        DuoM1()
+        DuoM2()
+        DuoM3()
+        DuoM4()
+        DuoM5()
+        DuoM6()
+        DuoM7()
+        DuoM8()
+        DuoM9()
+        DuoM10()
     }
 }
 
-struct DuoLockWidget: Widget {
-    var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "Arise.duo.tasks.lock", intent: DuoLockIntent.self, provider: DuoProvider<DuoLockIntent>()) { e in
-            DuoLockView(style: e.intent.style, b: e.board).containerBackground(for: .widget) { Color.clear }.widgetURL(duoTasksLink)
-        }
-        .configurationDisplayName("Tasks")
-        .description("Ten designs for the Lock Screen: tap the widget there to pick one.")
-        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline])
+/// The ten Large designs (WidgetBundle takes ten at a time).
+struct DuoLargeWidgets: WidgetBundle {
+    var body: some Widget {
+        DuoL1()
+        DuoL2()
+        DuoL3()
+        DuoL4()
+        DuoL5()
+        DuoL6()
+        DuoL7()
+        DuoL8()
+        DuoL9()
+        DuoL10()
+    }
+}
+
+/// The ten Lock Screen designs (WidgetBundle takes ten at a time).
+struct DuoLockWidgets: WidgetBundle {
+    var body: some Widget {
+        DuoK1()
+        DuoK2()
+        DuoK3()
+        DuoK4()
+        DuoK5()
+        DuoK6()
+        DuoK7()
+        DuoK8()
+        DuoK9()
+        DuoK10()
     }
 }
