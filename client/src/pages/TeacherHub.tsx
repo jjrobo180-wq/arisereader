@@ -145,6 +145,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubParentUpdate from "@/components/teacher-hub/HubParentUpdate";
+import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import { onAskFinished, openAsk, startTaskAsk, useAriseAsks } from "@/lib/ariseAsks";
@@ -621,6 +622,20 @@ function TeacherHubPage() {
   const [profileStudent, setProfileStudent] = useStayOnRefresh<string | null>("work-student", null);
   /** Checks a to-do off (or back on) and offers Undo for a few seconds. It can also be undone from "Done in the last day". */
   const checkTask = taskChecker(() => workspace.tasks, setWorkspace, (text, actions) => { toasts.show(text, actions); });
+  // The focus timer's Done button (Lock Screen and Dynamic Island, iPhone app; HubTaskFocus.tsx) checks the to-do off.
+  const focusRef = useRef({ tasks: workspace.tasks, checkTask });
+  focusRef.current = { tasks: workspace.tasks, checkTask };
+  useEffect(() => {
+    if (!focusSupported()) return;
+    listenForFocusLinks((link) => {
+      if (link.kind === "open") return;
+      if (link.kind === "done") {
+        const t = focusRef.current.tasks.find((x) => x.id === link.id);
+        if (t && !t.done) focusRef.current.checkTask(t);
+      }
+      void stopFocus();
+    });
+  }, []);
   // Apple Watch (native/duo-watch): the Work side of the watch (to-dos, the week's calendar, notes); a to-do
   // checked off or added there comes back here (shared/watchDuo.ts).
   useEffect(() => {

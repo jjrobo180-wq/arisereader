@@ -129,3 +129,14 @@ test("the app applies widget taps and focus links, and offers the timer in the t
   assert.match(app, /focusSupported\(\) && !editing\.done/);
   assert.match(app, /data-testid=\{`life-task-focus-\$\{m\}`\}/);
 });
+
+test("WorkHub's to-dos have the focus timer too, and its Done checks the to-do off", () => {
+  const edit = read("client/src/components/teacher-hub/HubTaskEdit.tsx");
+  assert.match(edit, /\{task && <TaskFocus task=\{task\} \/>\}/);
+  const box = read("client/src/components/teacher-hub/HubTaskFocus.tsx");
+  assert.match(box, /if \(!focusSupported\(\) \|\| task\.done\) return null;/);
+  assert.match(box, /startFocus\(task, m\)/);
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  assert.match(hub, /listenForFocusLinks\(\(link\) => \{/);
+  assert.match(hub, /if \(t && !t\.done\) focusRef\.current\.checkTask\(t\);/);
+});

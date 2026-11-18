@@ -13,6 +13,7 @@ import { HubModal } from "./HubModal";
 import { WEEKDAY_NAMES, repeatDays, weekdayRepeat } from "@shared/hubTasks";
 import { LinkEditor, useHubLinks } from "./HubLinks";
 import { cleanLinks, type HubLink } from "@shared/hubLinks";
+import { TaskFocus } from "./HubTaskFocus";
 
 export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete, lists, startList = "", workspace, onOpenLink }: {
   /** The to-do being changed, or null for a new one. */
@@ -88,6 +89,7 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
         </div>}
         <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm font-semibold text-slate-900" data-testid="task-important-label"><input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /><span className="text-slate-900">Mark as important</span></label>
         {workspace && <div className="rounded-2xl border border-slate-200 p-3"><LinkEditor workspace={workspace} links={draft.links || []} onChange={(links) => setDraft({ ...draft, links })} text={`${draft.title} ${draft.notes || ""}`} self={task ? { kind: "task", id: task.id } : undefined} onOpen={onOpenLink} /></div>}
+        {task && <TaskFocus task={task} />}
         <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>
         <button type="submit" hidden />
       </form>
