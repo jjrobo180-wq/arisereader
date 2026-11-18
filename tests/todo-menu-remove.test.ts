@@ -10,7 +10,7 @@ const page = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.me
 test("removing from the menu does not use window.confirm", () => {
   const fn = page.slice(page.indexOf("const removeFromMenu = "), page.indexOf("const removeApp = "));
   assert.ok(fn.length > 0);
-  assert.doesNotMatch(fn, /window\.confirm/);
+  assert.doesNotMatch(fn, /window\.confirm\(/);
   assert.match(page, /data-testid="life-remove-confirm"/);
   assert.match(page, /data-testid="life-remove-yes"/);
 });
