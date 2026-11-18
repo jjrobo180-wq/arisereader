@@ -24,7 +24,7 @@ test("general Arise To Duo accounts: no Arise learning apps, teacher apps groupe
   assert.ok(work.some((p) => p.id === "work-para-team") && life.some((p) => p.id === "life-para-team"));
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /\(user\.role === "teacher" \|\| !!user\.isAdmin\) && LEARNING_APPS\.filter/);
-  assert.match(hub, /isTabOn\("caseload", visible, !!user\.isAdmin\)\s*\? tile\("Students"/);
+  assert.match(hub, /isTabOn\("caseload", visible, seeAll\)\s*\? tile\("Students"/);
 });
 
 test("one app for one job in the Plugin Gallery", () => {

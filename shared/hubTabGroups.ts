@@ -4,7 +4,7 @@
 import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "goals"
+  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "oneonone" | "profiles" | "goals"
   | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
@@ -31,6 +31,9 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "focus", label: "Focus", tabs: ["focus"] },
   // Incident reports: what happened with a student, and the check-ins that follow (shared/hubIncidents.ts).
   { id: "incidents", label: "Incident reports", tabs: ["incidents"] },
+  // 1-on-1 meetings with students (shared/hubOneOnOne.ts), and a shortcut to every student's profile.
+  { id: "oneonone", label: "1-on-1 meetings", tabs: ["oneonone"] },
+  { id: "profiles", label: "Student profiles", tabs: ["profiles"] },
   { id: "goals", label: "Goals", tabs: ["goals"] },
   { id: "tasks", label: "Tasks", tabs: ["tasks"] },
   { id: "notes", label: "Notes", tabs: ["notes"] },
@@ -48,7 +51,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
-  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus", incidents: "Incident reports",
+  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus", incidents: "Incident reports", oneonone: "1-on-1 meetings", profiles: "Student profiles",
   goals: "Goals",
   tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",

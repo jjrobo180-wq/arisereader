@@ -55,6 +55,7 @@ import {
   Target,
   Timer,
   ShieldAlert,
+  MessagesSquare,
   Moon,
   Sun,
   Repeat,
@@ -149,6 +150,8 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubParentUpdate from "@/components/teacher-hub/HubParentUpdate";
 import HubSchedulePhoto from "@/components/teacher-hub/HubSchedulePhoto";
 import HubIncidents from "@/components/teacher-hub/HubIncidents";
+import HubOneOnOne from "@/components/teacher-hub/HubOneOnOne";
+import HubProfiles from "@/components/teacher-hub/HubProfiles";
 import { addSupplementary, studentsWithoutProfiles } from "@shared/hubSupplementary";
 import { FocusTimer } from "@/components/family-hub/Focus";
 import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
@@ -257,13 +260,15 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "prep", label: "Prep", icon: <ClipboardCheck className="h-4 w-4" /> },
   { id: "focus", label: "Focus", icon: <Timer className="h-4 w-4" /> },
   { id: "incidents", label: "Incident reports", icon: <ShieldAlert className="h-4 w-4" /> },
+  { id: "oneonone", label: "1-on-1 meetings", icon: <MessagesSquare className="h-4 w-4" /> },
+  { id: "profiles", label: "Student profiles", icon: <Users className="h-4 w-4" /> },
   { id: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
 ];
 
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
-  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />, incidents: <ShieldAlert className="h-4 w-4" />,
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />, incidents: <ShieldAlert className="h-4 w-4" />, oneonone: <MessagesSquare className="h-4 w-4" />, profiles: <Users className="h-4 w-4" />,
   notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
@@ -1006,7 +1011,16 @@ function TeacherHubPage() {
 
   // The admin console shows for admins only.
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
-  const menu = visibleGroups(visible, workspace.groupOrder, !!user.isAdmin);
+  // An admin sees every plugin page until they remove one: from then on the menu is their own choice, like
+  // anyone's (before, an admin's Remove was saved but every page still showed, so nothing could be removed).
+  const seeAll = !!user.isAdmin && (workspace as any).adminPicksTabs !== true;
+  /** The visible tabs after a change, for an admin first keeping every page they can see now. */
+  const pickTabs = (prev: Workspace, change: Partial<Record<HubTab, boolean>>): Workspace => {
+    const vt: Partial<Record<HubTab, boolean>> = { ...prev.visibleTabs };
+    if (user.isAdmin && (prev as any).adminPicksTabs !== true) for (const t of WORK_ADD_ON_TABS) vt[t] = true;
+    return { ...prev, visibleTabs: { ...vt, ...change }, ...(user.isAdmin ? { adminPicksTabs: true } : {}) } as Workspace;
+  };
+  const menu = visibleGroups(visible, workspace.groupOrder, seeAll);
   // App Store tab groups belong below My Apps, not among the hub’s built-in navigation.
   // This is a presentation split only: existing visibility, order, folders and saved data stay intact.
   const isStoreGroup = (entry: (typeof menu)[number]) => entry.tabs.some((t) => WORK_ADD_ON_TABS.includes(t));
@@ -1026,7 +1040,13 @@ function TeacherHubPage() {
             : p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
             ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) } : p.target.kind === "notesApp"
             ? { ...prev, notesInstalled: setWorkNotesApp((prev as any).notesInstalled, p, on) }
-            : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
+            : on ? { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }
+            // Removing a page: the same as the menu's Remove (an admin's menu then keeps to their choices).
+            : (() => {
+                const vt = setWorkPlugin(prev.visibleTabs, p, false);
+                const changed = Object.fromEntries(Object.entries(vt).filter(([t, v]) => v !== prev.visibleTabs[t as HubTab]));
+                return pickTabs(prev, { ...changed, ...(p.target.kind === "tab" ? { [p.target.tab]: false } : {}) });
+              })()));
           if (p.target.kind === "assistant" && on) toasts.show("AI assistant added. Tap the ✦ button at the bottom right to chat.", []);
           if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
@@ -1042,12 +1062,12 @@ function TeacherHubPage() {
   };
   /** Hide (a built-in app) or remove (an app from the Plugin Gallery) one app of the menu, with Undo. */
   const dropGroup = (item: (typeof menu)[number], removing: boolean) => {
-    const before = Object.fromEntries(item.tabs.map((t) => [t, workspace.visibleTabs[t]]));
-    setWorkspace((prev) => ({ ...prev, visibleTabs: { ...prev.visibleTabs, ...Object.fromEntries(item.tabs.map((t) => [t, false])) } }));
+    const before = { visibleTabs: workspace.visibleTabs, adminPicksTabs: (workspace as any).adminPicksTabs };
+    setWorkspace((prev) => pickTabs(prev, Object.fromEntries(item.tabs.map((t) => [t, false]))));
     if (group.id === item.id) setTab("overview");
     const name = groupLabel(item.id, visible);
     toasts.show(removing ? `${name} removed. Add it back any time from the Plugin Gallery.` : `${name} hidden. Show it again in Customize.`,
-      [{ label: "Undo", run: () => setWorkspace((prev) => ({ ...prev, visibleTabs: { ...prev.visibleTabs, ...before } })) }]);
+      [{ label: "Undo", run: () => setWorkspace((prev) => ({ ...prev, ...before } as Workspace)) }]);
   };
   const hiddenLearning: string[] = Array.isArray((workspace as any).hiddenLearning) ? (workspace as any).hiddenLearning : [];
   const setLearningHidden = (id: string, hide: boolean) => setWorkspace((prev) => {
@@ -1073,7 +1093,7 @@ function TeacherHubPage() {
     if (l.kind === "student" || l.kind === "quiz") {
       const sid = l.kind === "student" ? l.id : studentByName(goalQuizzes(workspace).find((q) => q.id === l.id)?.student || "")?.id;
       if (!sid) return;
-      if (!isTabOn("caseload", visible, !!user.isAdmin)) { setStoreOpenApp("work-caseload"); setStore(true); return; }
+      if (!isTabOn("caseload", visible, seeAll)) { setStoreOpenApp("work-caseload"); setStore(true); return; }
       setHomeTask(null); setProfileStudent(sid); goTab("caseload"); return;
     }
     if (l.kind === "note") { try { sessionStorage.setItem("arise-stay:work-note", JSON.stringify(l.id)); } catch { /* opens the board */ } setHomeTask(null); setNotesKey((k) => k + 1); goTab("notes"); return; }
@@ -1083,7 +1103,7 @@ function TeacherHubPage() {
     if (l.kind === "goal") try { sessionStorage.setItem("arise-goal-focus", l.id); } catch { /* fine */ }
     if (l.kind === "meeting") try { sessionStorage.setItem("arise-meeting-focus", l.id); } catch { /* fine */ }
     setHomeTask(null);
-    if (isTabOn(t, visible, !!user.isAdmin)) goTab(t); else { setStoreOpenApp(`work-${t}`); setStore(true); }
+    if (isTabOn(t, visible, seeAll)) goTab(t); else { setStoreOpenApp(`work-${t}`); setStore(true); }
   };
   // Where the Getting started page's buttons go (components/GettingStarted.tsx).
   const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications", "reader"].includes(t)
@@ -1095,7 +1115,7 @@ function TeacherHubPage() {
     else if (t === "passcode") setLockSettings(true);
     else if (t === "notifications") setNotifyOpen(true);
     else if (t === "reader") openReaderOrPlan();
-    else if (isTabOn(t as HubTab, visible, !!user.isAdmin)) goTab(t as HubTab);
+    else if (isTabOn(t as HubTab, visible, seeAll)) goTab(t as HubTab);
     // A screen they haven't added yet: its page in the App Store, ready to add.
     else { setStoreOpenApp(`work-${t}`); setStore(true); }
   };
@@ -1139,7 +1159,7 @@ function TeacherHubPage() {
     if (!searching) return [];
     const out: HubSearchEntry[] = [];
     const dateWord = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
-    for (const g of menu) for (const t of groupTabs(g.id, visible, !!user.isAdmin)) out.push({ id: `tab-${t}`, kind: "Section", icon: tabIcon(t), title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
+    for (const g of menu) for (const t of groupTabs(g.id, visible, seeAll)) out.push({ id: `tab-${t}`, kind: "Section", icon: tabIcon(t), title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
     if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun className="h-4 w-4" />, open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 className="h-4 w-4" />, open: () => setCustomize(true) });
@@ -1188,10 +1208,10 @@ function TeacherHubPage() {
     current.splice(at, 0, id);
     return { ...prev, groupOrder: current };
   });
-  const subTabs = groupTabs(group.id, visible, !!user.isAdmin);
+  const subTabs = groupTabs(group.id, visible, seeAll);
 
   // Passcode lock (components/lock/PrivacyLock.tsx): the screens that can be locked.
-  const lockableApps = menu.flatMap((g) => groupTabs(g.id, visible, !!user.isAdmin)).filter((t) => t !== "overview" && t !== "admin").map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t }));
+  const lockableApps = menu.flatMap((g) => groupTabs(g.id, visible, seeAll)).filter((t) => t !== "overview" && t !== "admin").map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t }));
   // The ⋯ menu and the tab bar's You sheet: notifications and every setting, the same as LifeHub's.
   const moreGroups = hubMoreGroups({
     openNotifications: openNotificationBell, notificationSettings: () => setNotifyOpen(true),
@@ -1205,7 +1225,7 @@ function TeacherHubPage() {
   const osGo = (s: OsScreen) => { setStore(false); setAddMenu(false); goTab(s === "home" ? "overview" : s); };
   const osAdd = (title?: string) => { if (title) { setHomeQuick(title.slice(0, 200)); setHomeTask(NEW_TASK); } else setAddMenu((v) => !v); };
   const osApps = () => setApps(true);
-  const osOff = (["tasks", "calendar", "notes"] as const).filter((t) => !isTabOn(t, visible, !!user.isAdmin));
+  const osOff = (["tasks", "calendar", "notes"] as const).filter((t) => !isTabOn(t, visible, seeAll));
   workOffNow.current = osOff;
   const osFirst = (user.displayName || "").split(" ")[0];
   const osToday = TODAY();
@@ -1221,7 +1241,7 @@ function TeacherHubPage() {
   const osTasks = workspace.tasks.filter((t) => !t.archived).map((t) => { const list = osLists.find((l) => l.id === t.listId); return { id: t.id, title: t.title, done: t.done, due: t.dueDate, late: !t.done && !!t.dueDate && t.dueDate < osToday, dueLabel: t.dueDate ? new Date(`${t.dueDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "", listName: list?.name ?? "", color: list?.color ?? "", assignee: "", notes: t.notes ?? "" }; });
   // Notes about a student show only their title outside the Notes app, so nothing private sits on Home.
   const osNotes = [...workspace.notes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map((n) => ({ id: n.id, title: n.title || n.type || "Note", body: n.student ? "" : n.body, locked: n.locked, when: n.date }));
-  const osShortcuts = [{ id: "classes", label: "Classes", onClick: () => setClassesOpen(true) }, ...(["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, !!user.isAdmin)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }))];
+  const osShortcuts = [{ id: "classes", label: "Classes", onClick: () => setClassesOpen(true) }, ...(["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, seeAll)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }))];
   // The bell: in the header, or in the themed top bar beside the Work/Life switch.
   const workBell = <NotificationBell
               extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
@@ -1764,11 +1784,8 @@ function TeacherHubPage() {
                             <span className="flex items-center gap-2">{g.tabs.length > 1 ? tabIcon(t) : GROUP_ICON[g.id]}{g.tabs.length > 1 ? SUB_LABELS[t] : g.label}</span>
                             <input
                               type="checkbox" className="h-5 w-5 shrink-0"
-                              checked={workspace.visibleTabs[t] !== false}
-                              onChange={(e) => setWorkspace((prev) => ({
-                                ...prev,
-                                visibleTabs: { ...prev.visibleTabs, [t]: e.target.checked },
-                              }))}
+                              checked={isTabOn(t, workspace.visibleTabs, seeAll)}
+                              onChange={(e) => setWorkspace((prev) => pickTabs(prev, { [t]: e.target.checked }))}
                             />
                           </label>
                         ))}
@@ -1862,16 +1879,16 @@ function TeacherHubPage() {
                       {tile("To-dos open", openTasks, <CheckSquare size={17} />, "bg-violet-50 text-violet-600", () => setTab("tasks"), "home-stat-tasks")}
                       {tile("Events today", eventsToday, <CalendarDays size={17} />, "bg-sky-50 text-sky-600", () => setTab("calendar"), "home-stat-events")}
                       {/* Students and meetings only once those screens are added (nothing assumes a teacher). */}
-                      {isTabOn("caseload", visible, !!user.isAdmin)
+                      {isTabOn("caseload", visible, seeAll)
                         ? tile("Students", workspace.students.length, <Users size={17} />, "bg-emerald-50 text-emerald-600", () => setTab("caseload"), "home-stat-students")
                         : tile("Notes", workspace.notes.length, <StickyNote size={17} />, "bg-emerald-50 text-emerald-600", () => setTab("notes"), "home-stat-notes")}
-                      {isTabOn("iep", visible, !!user.isAdmin)
+                      {isTabOn("iep", visible, seeAll)
                         ? tile("Meetings ahead", workspace.meetings.filter((m) => !m.done).length, <Calendar size={17} />, "bg-rose-50 text-rose-600", () => setTab("iep"), "home-stat-meetings")
                         : tile("Goals", boardGoals(workspace).length + workspace.goals.length, <Target size={17} />, "bg-rose-50 text-rose-600", () => setTab("goals"), "home-stat-goals")}
                     </div>;
                   })(),
                   picture: (
-              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={(user.displayName || "").split(" ")[0]} stats={isTabOn("caseload", visible, !!user.isAdmin) ? [{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }] : [{ label: "Open to-dos", value: openTasks }, { label: "Notes", value: workspace.notes.length }, { label: "Events", value: workspace.events.length }]} />
+              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={(user.displayName || "").split(" ")[0]} stats={isTabOn("caseload", visible, seeAll) ? [{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }] : [{ label: "Open to-dos", value: openTasks }, { label: "Notes", value: workspace.notes.length }, { label: "Events", value: workspace.events.length }]} />
                   ),
                   agenda: (
               <HubAgenda workspace={workspace} onOpenCalendar={() => setTab("calendar")} onOpenMeetings={() => setTab("iep")} />
@@ -1984,7 +2001,7 @@ function TeacherHubPage() {
           {false && tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
             onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the Plugin Gallery.", [{ label: "Open Plugin Gallery", run: () => setStore(true) }]); }} />}
           {tab === "calendar" && <HubLifeScreen which="calendar" workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(text) => toasts.show(text, [])} openTasks={() => setTab("tasks")} />}
-          {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, !!user.isAdmin) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
+          {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />{(isTabOn("caseload", visible, seeAll) || workspace.goals.length > 0) && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}</>}
           {(tab === "iep" || tab === "caseload" || tab === "minutes") && <IepPage key={tab} start={tab === "caseload" ? "profile" : tab === "minutes" ? "minutes" : "overview"} startStudent={tab === "caseload" ? profileStudent : null} workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} token={token}
             meetings={<Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
             caseload={(studentId, onPick) => <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={studentId} setProfileId={onPick} openTab={setTab} />}
@@ -2002,6 +2019,10 @@ function TeacherHubPage() {
           {tab === "gradebook" && <Gradebook workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "parents" && <Parents workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "prep" && <PrepChecklist workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />}
+          {tab === "oneonone" && <HubOneOnOne workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
+            students={[...workspace.students.map((s) => s.name)].sort((a, b) => a.localeCompare(b))}
+            openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
+          {tab === "profiles" && <HubProfiles workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} onOpenTab={goTab} onEdit={() => goTab("caseload")} />}
           {tab === "incidents" && <HubIncidents workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
             students={[...new Set([...workspace.students.map((s) => s.name), ...workspace.schedules.map((s) => s.student)].filter(Boolean))].sort((a, b) => a.localeCompare(b))}
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
