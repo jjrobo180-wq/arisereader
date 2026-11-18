@@ -134,7 +134,8 @@ test("WorkHub's to-dos have the focus timer too, and its Done checks the to-do o
   const edit = read("client/src/components/teacher-hub/HubTaskEdit.tsx");
   assert.match(edit, /\{task && <TaskFocus task=\{task\} \/>\}/);
   const box = read("client/src/components/teacher-hub/HubTaskFocus.tsx");
-  assert.match(box, /if \(!focusSupported\(\) \|\| task\.done\) return null;/);
+  assert.match(box, /if \(task\.done\) return null;/);
+  assert.match(box, /data-testid="work-task-focus-update"/);
   assert.match(box, /startFocus\(task, m\)/);
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /listenForFocusLinks\(\(link\) => \{/);

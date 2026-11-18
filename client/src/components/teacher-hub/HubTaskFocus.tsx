@@ -4,12 +4,19 @@
 import { useEffect, useState } from "react";
 import { Timer } from "lucide-react";
 import { FOCUS_MINUTES, currentFocus, focusSupported, readFocus, startFocus, stopFocus, type FocusNow } from "@/lib/duoFocus";
+import { isNativeApp, nativeFlavor } from "@/lib/nativeApp";
 
 export function TaskFocus({ task, say }: { task: { id: string; title: string; done: boolean }; say?: (text: string) => void }) {
   const [focus, setFocus] = useState<FocusNow | null>(() => currentFocus());
   const [error, setError] = useState("");
   useEffect(() => { if (focusSupported()) void readFocus().then(setFocus); }, []);
-  if (!focusSupported() || task.done) return null;
+  if (task.done) return null;
+  // The To Duo iPhone app from before the focus timer: say so, instead of showing nothing.
+  if (!focusSupported()) return isNativeApp() && nativeFlavor() === "todo" ? (
+    <p className="rounded-2xl bg-violet-50 p-3 text-xs font-semibold text-violet-900 ring-1 ring-violet-100" data-testid="work-task-focus-update">
+      <Timer className="mr-1 inline h-4 w-4" />Focus timer: update Arise To Duo from TestFlight to get a timer on your Lock Screen and in the Dynamic Island.
+    </p>
+  ) : null;
   const mine = focus?.id === task.id;
   const begin = async (m: number) => {
     setError("");
