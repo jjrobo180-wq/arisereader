@@ -726,6 +726,12 @@ export function pluginShelf(p: Plugin): string {
   return CATEGORY_SHELF[p.category] ?? "Everyday tools";
 }
 
+/** Health & fitness plugins are not offered any more (Cooked and Cooked PT cover fitness and food): the whole
+ *  "Health & wellness" shelf, Apple Health and the Health & fitness starter set. */
+export const isHealthPlugin = (p: Pick<Plugin, "id" | "category">) =>
+  ["Health & wellness", "Premium · Fitness", "Premium · Health"].includes(p.category)
+  || /^(life|work)-(apple-health|template-health|ai-workout-plan|ai-meal-plan)$/.test(p.id);
+
 /** Plugins no longer offered: a bundle whose pages are now each their own Mini plugin. */
 const RETIRED_IDS = new Set<string>([]);
 /** Bundles whose pages show in the gallery on their own (their bundle is retired above). */
@@ -738,7 +744,7 @@ const RELEASED_BUNDLES = new Set<string>([]);
 export function pluginsFor(hub: PluginHub, opts: { teacher: boolean; arise?: boolean; includeRetired?: boolean }): Plugin[] {
   const arise = opts.arise ?? opts.teacher;
   const bundled = (p: Plugin) => hub === "life" && p.target.kind === "section" && BUNDLE_PARENT.has(p.target.section) && !RELEASED_BUNDLES.has(BUNDLE_PARENT.get(p.target.section)!);
-  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !bundled(p) && (p.category !== "Arise apps" || arise)
+  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher) && !DROPPED.has(p.name) && !isHealthPlugin(p) && !bundled(p) && (p.category !== "Arise apps" || arise)
     && (opts.includeRetired || !RETIRED_IDS.has(p.id));
   const shown = (p: Plugin): Plugin => {
     const m = RENAMED.get(p.name);
@@ -946,7 +952,7 @@ const stem = (w: string): string => {
  *  Keyed by the id without its hub, so both hubs' copies get them. Scored just under the name. */
 const SEARCH_ALIASES: Readonly<Record<string, string>> = {
   cycle: "period menstrual", health: "food diet nutrition calories", pills: "medicine meds vitamins", podster: "podcast audiobook radio music",
-  cooked: "fitness workout recipes meals coach", cookedpt: "personal trainer clients coach", "arise-notes": "transcribe transcription recording meeting",
+  cooked: "fitness workout recipes meals coach calorie calories food diary diet nutrition macros water weight steps run running gym exercise health", cookedpt: "personal trainer clients coach", "arise-notes": "transcribe transcription recording meeting",
   "office-doc": "document word writing", "office-sheet": "spreadsheet excel", sheets: "spreadsheet excel", "office-slides": "presentation powerpoint deck",
   drive: "files photos storage upload", drop: "airdrop share send files", atmosphere: "clock nightstand standby", "sleep-studio": "rain sleep sounds white noise",
   datehub: "birthday birthdays anniversary anniversaries gifts", moneyhub: "budget bills finance", kitchen: "meals recipes grocery cooking", listhub: "reading watchlist bucket",

@@ -65,7 +65,10 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 /** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
  *  stays in the family's data. Earshot lives on as its own app, Podster. Health Lite (Nov 15, 2026): its
  *  tools are separate plugins again, and the ones someone picked inside it stay on, now in the menu. */
-export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot", "healthlite"];
+// Health & fitness plugins are gone: Cooked (and Cooked PT) cover food, workouts and fitness, and the rest were
+// too many of the same (shared/pluginStore.ts leaves the whole "Health & wellness" shelf out of the store too).
+export const HEALTH_SECTIONS: readonly FamilySection[] = ["health", "cycle", "pills", "mood", "meditate", "habits", "gratitude", "checkups", "sleep", "sleepfinder", "workouts", "medical"];
+export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot", "healthlite", ...HEALTH_SECTIONS];
 export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };

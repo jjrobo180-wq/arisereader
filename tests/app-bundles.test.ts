@@ -26,7 +26,8 @@ test("Health Lite is gone everywhere (Nov 15, 2026); the health tools someone pi
   assert.equal(isOn("healthlite", { sections: { ...f.sections, healthlite: true, cycle: true } }), false);
   assert.ok(!BUNDLES.some((b) => b.id === "healthlite"));
   for (const id of ["health", "cycle", "pills", "mood", "sleep", "medical"]) assert.equal(parentOf(id), undefined, `${id} is its own plugin, shown in the menu`);
-  assert.equal(isOn("cycle", { sections: { ...f.sections, healthlite: true, cycle: true } }), true);
+  // Nov 17, 2026: the health & fitness plugins were retired too (Cooked covers fitness and food).
+  assert.equal(isOn("cycle", { sections: { ...f.sections, healthlite: true, cycle: true } }), false);
   assert.ok(!read("client/src/components/family-hub/lifeApps.tsx").includes('bundleId="healthlite"'));
   assert.ok(!read("client/src/components/family-hub/Members.tsx").includes('"Health Lite"'));
 });

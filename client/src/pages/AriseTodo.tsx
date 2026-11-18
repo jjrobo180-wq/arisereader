@@ -868,7 +868,8 @@ export default function AriseTodo() {
   const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
   /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only
    *  the crossed-over ones; they open full-page like a Notes-app install. */
-  const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
+  // Health & fitness kits are gone (Cooked covers them): hidden from the menu even if added before.
+  const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d && d.category !== "Health & wellness");
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)), "life");
   // Setup shows once per account (lib/seenOnce.ts): on a device that hasn't seen it, ask the account

@@ -139,7 +139,7 @@ test("a family saved before newer parts existed is filled in, not opened as-is",
 test("screens a family used before they became App Store add-ons stay added; empty or removed ones don't", () => {
   // Before Oct 12, 2026 Pills, Chores, Money... were on for everyone, so nobody ever "added" them.
   const old = cleanFamily({ pills: [{ id: "p1", name: "Vitamin D", times: ["08:00"], days: [0, 1, 2, 3, 4, 5, 6] }], chores: [{ id: "c1", title: "Dishes" }], sections: { chores: false } });
-  assert.equal(isOn("pills", old), true, "in use, never chosen: added");
+  assert.equal(isOn("pills", old), false, "Pills is retired with the other health plugins (Nov 17, 2026)");
   assert.equal(isOn("chores", old), false, "switched off by the family: stays off");
   assert.equal(isOn("cycle", old), false, "nothing saved: off");
   const fresh = cleanFamily(JSON.parse(JSON.stringify(emptyFamily())));

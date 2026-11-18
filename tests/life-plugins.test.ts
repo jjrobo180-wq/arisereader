@@ -8,7 +8,7 @@ import { VERSES, QUOTES, cleanReference, daysUntil, forDay, guessAisle, parseMos
 test("the new sections start off, and adding one from the store turns it on", () => {
   const f = emptyFamily();
   // The Calorie counter (health) comes added for everyone (Oct 30, 2026); the rest start off.
-  assert.equal(isOn("health", f), true, "the Calorie counter starts added");
+  assert.equal(isOn("health", f), false, "health & fitness sections are retired (Cooked covers them)");
   // Retired apps (Earshot) are never in the store and never on.
   for (const s of ADD_ON_SECTIONS.filter((x) => x !== "health" && !RETIRED_SECTIONS.includes(x))) {
     assert.ok(TOGGLEABLE.includes(s), s);

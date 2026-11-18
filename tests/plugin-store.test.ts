@@ -38,7 +38,8 @@ test("WorkHub: every App Store screen is in the store, and no built-in or always
 
 test("LifeHub: every section a family can switch off is in the store, except the built-in Calendar and Notes and retired apps", () => {
   const sections = PLUGINS.flatMap((p) => (p.target.kind === "section" ? [p.target.section] : []));
-  assert.deepEqual([...sections].sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes" && !RETIRED_SECTIONS.includes(s)).sort());
+  // Health & fitness sections are retired (Cooked covers them) but their plugin entries stay, so old installs still clean up.
+  assert.deepEqual([...sections].filter((s) => !RETIRED_SECTIONS.includes(s)).sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes" && !RETIRED_SECTIONS.includes(s)).sort());
 });
 
 test("adding and removing a WorkHub tab only changes that tab", () => {
@@ -169,8 +170,10 @@ test("Health Lite is gone from the gallery, even for anyone who had it; its tool
     assert.ok(!searchPlugins(life, "health lite").some((p) => p.id === "life-healthlite"));
   }
   const life = pluginsFor("life", { teacher: false });
-  for (const id of ["life-health", "life-cycle", "life-pills", "life-mood", "life-sleep", "life-workouts", "life-meditate", "life-habits", "life-medical", "life-checkups"])
-    assert.ok(life.some((p) => p.id === id), id);
+  // Its tools went later too: every health & fitness plugin is gone, Cooked covers fitness and food.
+  for (const id of ["life-health", "life-cycle", "life-pills", "life-mood", "life-sleep", "life-workouts", "life-meditate", "life-habits", "life-medical", "life-checkups", "life-pro-couch-5k", "life-ai-workout-plan"])
+    assert.ok(!life.some((p) => p.id === id), id);
+  assert.ok(life.some((p) => p.id === "life-cooked"), "Cooked stays");
   assert.ok(!read("client/src/components/DuoSetup.tsx").includes('"life-healthlite"'));
 });
 
@@ -193,9 +196,8 @@ test("search finds things by what people call them, best match first", () => {
   assert.equal(top("docs"), "A.R.I.S.E. Docs");
   assert.equal(top("podcast"), "Podster");
   assert.equal(top("spreadsheet")?.endsWith("Sheets"), true);
-  assert.equal(top("calorie"), "Calorie counter");
+  assert.equal(top("calorie"), "Cooked");
   assert.equal(top("resume"), "Résumé Builder");
-  assert.ok(searchPlugins(life, "period").slice(0, 3).some((p) => p.name === "Cycle"));
   // A plural finds the plain word, and "notes" isn't cut to "not".
   assert.ok(searchPlugins(life, "notes").every((p) => !/\bnot\b|nothing/i.test(p.name)));
   assert.ok(searchPlugins(life, "birthdays").some((p) => p.name === "Gifts & Dates"));
