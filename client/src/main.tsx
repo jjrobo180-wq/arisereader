@@ -152,10 +152,12 @@ if (window.location.protocol === "capacitor:") {
   try {
     const h = window.location.hash;
     const saved = localStorage.getItem(LAST) || "", at = Number(localStorage.getItem(LAST_AT)) || 0;
-    if ((!h || h === "#/" || h === "#/signin") && /^#\/[\w\-\/?=&.%]*$/.test(saved) && !/^#\/(signin|join|admin-handoff)/.test(saved) && Date.now() - at < 12 * 3600_000) window.location.hash = saved;
+    if ((!h || h === "#/" || h === "#/signin") && /^#\/[\w\-\/?=&.%]*$/.test(saved) && !/^#\/(signin|join|admin-handoff)/.test(saved) && !/^#\/reader(\/|\?|$)/.test(saved) && Date.now() - at < 12 * 3600_000) window.location.hash = saved;
   } catch { /* nothing kept */ }
   window.addEventListener("hashchange", () => {
     // A tapped reminder's "?go=pills" is a one-time instruction; remembering it would re-open that screen on a later start.
+    // Arise Reader is never reopened on its own either: a notification opens it in To Duo, but starting the app
+    // again should land in your hub, not on the Reader (the Reader apps open on it anyway).
     try { const h = window.location.hash.split(/[?&](?:go|plan)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
   });
 }
