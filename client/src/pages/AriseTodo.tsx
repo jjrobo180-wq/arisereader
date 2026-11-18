@@ -348,6 +348,8 @@ export default function AriseTodo() {
   const { user, token, logout } = useAuth();
   const onTodoSite = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
   const goToSiteHome = () => onTodoSite ? window.location.assign("/") : navigate("/");
+  /** The plugin waiting on "Remove it from your menu?" (asked in the page; see removeFromMenu). */
+  const [removing, setRemoving] = useState<{ label: string; run: () => void } | null>(null);
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   // In the iPhone app, reminders are scheduled on the phone and redone a few seconds after each change.
@@ -1248,15 +1250,64 @@ export default function AriseTodo() {
       })}
     </div>
   </div>;
+  /** Adds or removes a Plugin Gallery app: used by the gallery and by the menu's remove buttons. */
+  const togglePlugin = (p: Plugin, on: boolean) => {
+        // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
+        if (on && countsAsApp("life", p) && appsFull(todoPlan, "life", appsIn("life", data))) { openUpgrade("apps"); return; }
+        // A Kit plugin from WorkHub's shelf. LifeHub's own kits are sections and fall through to
+        // setLifePlugin below, the same as before.
+        if (p.target.kind === "kit") {
+          const kitId = p.target.id;
+          setFamily((f) => ({ ...f, kitInstalled: setKitInstalled(f.kitInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (kitOpen === kitId) setKitOpen(null);
+          return;
+        }
+        if (p.target.kind === "notesApp") {
+          setFamily((f) => ({ ...f, notesInstalled: setLifeNotesApp(f.notesInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (notesAppOpen === p.target.id) setNotesAppOpen(null);
+          return;
+        }
+        if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") {
+          setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (p.target.kind === "sheetsApp" && sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
+          return;
+        }
+        setFamily((f) => setLifePlugin(f, p, on));
+        // Podster taken out: its new-episode alerts stop on this iPhone too.
+        if (p.target.kind === "section" && p.target.section === "podster" && !on) forgetDuoPodPush(token);
+        if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
+        if (p.target.kind === "dropApp" && !on) setDropOpen(false);
+        // A widget (like the Widgets board) is a part of Home, not its own section: adding it
+        // should land you looking at it, the same as tapping Open does below, not leave you to
+        // go find it yourself.
+        if (p.target.kind === "widget" && p.target.widget === "board" && on) {
+          setMessage("Widgets added to Home. Tap Add widget to pick your first one.");
+          setStore(false);
+          goToHomePart("widgets");
+        }
+      };
   /** Removes an app from the menu right where it is (no trip to the Plugin Gallery). Its saved data stays; adding it
    *  back from the Plugin Gallery brings everything back. */
   const removeFromMenu = (id: FamilySection) => {
     const label = SECTION_INFO[id].label;
-    if (!window.confirm(`Remove ${label} from your menu?\n\nEverything saved in it stays. Add it back any time from the Plugin Gallery.`)) return;
-    setFamily((f) => ({ ...f, sections: { ...f.sections, [id]: false } }));
-    if (shown === id) goSection("home");
-    setMessage(`${label} removed. Add it back any time from the Plugin Gallery.`);
+    // Asked in the page, not with window.confirm: a browser told to stop a page's dialogs (and some phone
+    // app views) answers "no" to that without showing anything, so the plugin silently stayed.
+    setRemoving({ label, run: () => {
+      setFamily((f) => ({ ...f, sections: { ...f.sections, [id]: false } }));
+      if (shown === id) goSection("home");
+    } });
   };
+  /** Removes a Plugin Gallery app that isn't a menu section (a Notes or Sheets app, Drive, Drop, a kit), the same way the gallery does. */
+  const removeApp = (p: Plugin) => setRemoving({ label: p.name, run: () => togglePlugin(p, false) });
+  const removeX = (label: string, onClick: () => void, testId: string) => dsk === "compact" ? null : (
+    <button type="button" onClick={onClick} aria-label={`Remove ${label} from the menu`} title="Remove from the menu" data-testid={testId}
+      className="flex shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 lg:opacity-0 lg:group-hover/navitem:opacity-100 lg:focus:opacity-100">
+      <X className="h-4 w-4" />
+    </button>
+  );
   /** Holding an app in the menu (touch screens have no hover): asks to remove it. */
   const holdToRemove = (id: FamilySection) => ({
     onPointerDown: (e: RPointerEvent) => { if (e.pointerType === "mouse") return; held.current = false; holdTimer.current = window.setTimeout(() => { held.current = true; removeFromMenu(id); }, 650); },
@@ -1362,6 +1413,16 @@ export default function AriseTodo() {
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
     {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). */}
     <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />
+    {removing && <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="life-remove-title" data-testid="life-remove-confirm" onClick={() => setRemoving(null)}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h2 id="life-remove-title" className="text-base font-bold text-slate-900">Remove {removing.label} from your menu?</h2>
+        <p className="mt-1.5 text-sm text-slate-600">Everything saved in it stays. Add it back any time from the Plugin Gallery.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" autoFocus onClick={() => setRemoving(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="button" data-testid="life-remove-yes" onClick={() => { const r = removing; setRemoving(null); r.run(); setMessage(`${r.label} removed. Add it back any time from the Plugin Gallery.`); }} className="min-h-11 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white hover:bg-rose-700">Remove</button>
+        </div>
+      </div>
+    </div>}
     {store && <PluginStore
       hub="life"
       initialOpen={storeOpenApp ?? undefined}
@@ -1370,44 +1431,7 @@ export default function AriseTodo() {
       arise={user.role === "teacher" || user.role === "parent" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
       kit={{ records: family.kit, setRecords: (update) => setFamily((f) => ({ ...f, kit: update(f.kit) })), today: currentDay, makeId }}
-      onToggle={(p: Plugin, on: boolean) => {
-        // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
-        if (on && countsAsApp("life", p) && appsFull(todoPlan, "life", appsIn("life", data))) { openUpgrade("apps"); return; }
-        // A Kit plugin from WorkHub's shelf. LifeHub's own kits are sections and fall through to
-        // setLifePlugin below, the same as before.
-        if (p.target.kind === "kit") {
-          const kitId = p.target.id;
-          setFamily((f) => ({ ...f, kitInstalled: setKitInstalled(f.kitInstalled, p, on) }));
-          if (on) setMessage(`${p.name} added. Find it in your menu.`);
-          else if (kitOpen === kitId) setKitOpen(null);
-          return;
-        }
-        if (p.target.kind === "notesApp") {
-          setFamily((f) => ({ ...f, notesInstalled: setLifeNotesApp(f.notesInstalled, p, on) }));
-          if (on) setMessage(`${p.name} added. Find it in your menu.`);
-          else if (notesAppOpen === p.target.id) setNotesAppOpen(null);
-          return;
-        }
-        if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") {
-          setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, on) }));
-          if (on) setMessage(`${p.name} added. Find it in your menu.`);
-          else if (p.target.kind === "sheetsApp" && sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
-          return;
-        }
-        setFamily((f) => setLifePlugin(f, p, on));
-        // Podster taken out: its new-episode alerts stop on this iPhone too.
-        if (p.target.kind === "section" && p.target.section === "podster" && !on) forgetDuoPodPush(token);
-        if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
-        if (p.target.kind === "dropApp" && !on) setDropOpen(false);
-        // A widget (like the Widgets board) is a part of Home, not its own section: adding it
-        // should land you looking at it, the same as tapping Open does below, not leave you to
-        // go find it yourself.
-        if (p.target.kind === "widget" && p.target.widget === "board" && on) {
-          setMessage("Widgets added to Home. Tap Add widget to pick your first one.");
-          setStore(false);
-          goToHomePart("widgets");
-        }
-      }}
+      onToggle={togglePlugin}
       onOpen={(p: Plugin) => {
         const at = pluginOpens(p);
         if (at && "section" in at) setSection(at.section);
@@ -1573,37 +1597,37 @@ export default function AriseTodo() {
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">My plugins</p>
           <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
             {renderSectionItems(installedSections, false)}
-            {myNotesApps.map((p) => (
-              <button key={`notes-app-${p.id}`} type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+            {myNotesApps.map((p) => (<div key={`notes-app-${p.id}`} className="group/navitem flex items-stretch gap-0.5">
+              <button type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
-              </button>
-            ))}
-            {installedOffice.map((p) => <a key={p.id} href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>)}
-            {pinnableSheets.map((p) => (
-              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
+              </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-notes-app-${p.id}`)}
+            </div>))}
+            {installedOffice.map((p) => <div key={p.id} className="group/navitem flex items-stretch gap-0.5"><a href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>{removeX(p.name, () => removeApp(p), `lifehub-remove-office-app-${p.id}`)}</div>)}
+            {pinnableSheets.map((p) => (<div key={`sheets-app-${p.id}`} className="group/navitem flex items-stretch gap-0.5">
+              <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
-              </button>
-            ))}
-            {drivePlugin && (
+              </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-sheets-app-${p.id}`)}
+            </div>))}
+            {drivePlugin && (<div className="group/navitem flex items-stretch gap-0.5">
               <button type="button" onClick={() => { closeApps(); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
-              </button>
-            )}
-            {dropPlugin && (
+              </button>{removeX(drivePlugin.name, () => removeApp(drivePlugin), "lifehub-remove-drive-app")}
+            </div>)}
+            {dropPlugin && (<div className="group/navitem flex items-stretch gap-0.5">
               <button type="button" onClick={() => { closeApps(); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
-              </button>
-            )}
-            {myKits.map((d) => (
-              <button key={`kit-${d.id}`} type="button" onClick={() => { closeApps(); setKitOpen(d.id); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`lifehub-kit-${d.id}`}
+              </button>{removeX(dropPlugin.name, () => removeApp(dropPlugin), "lifehub-remove-drop-app")}
+            </div>)}
+            {myKits.map((d) => (<div key={`kit-${d.id}`} className="group/navitem flex items-stretch gap-0.5">
+              <button type="button" onClick={() => { closeApps(); setKitOpen(d.id); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`lifehub-kit-${d.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === d.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <Puzzle className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{d.name}</span>
-              </button>
-            ))}
+              </button>{removeX(d.name, () => setRemoving({ label: d.name, run: () => { setFamily((f) => ({ ...f, kitInstalled: (f.kitInstalled ?? []).filter((k) => k !== d.id) })); if (kitOpen === d.id) setKitOpen(null); } }), `lifehub-remove-kit-${d.id}`)}
+            </div>))}
           </div>
         </div>}
         <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />Plugin Gallery</button></div>
