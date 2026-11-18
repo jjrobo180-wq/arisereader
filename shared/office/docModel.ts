@@ -64,7 +64,7 @@ const safeUrl = (u: string, img = false) => {
 export function sanitizeHtml(html: string): string {
   const out: string[] = [];
   const open: string[] = [];
-  const re = /<!--[\s\S]*?-->|<(script|style|iframe|object|embed|template|noscript|svg|math|xml|head|title)\b[\s\S]*?<\/\1\s*>|<\/?([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^\s=>\/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*\/?>|([^<]+)|</g;
+  const re = /<!--[\s\S]*?-->|<(script|style|iframe|object|embed|template|noscript|svg|math|xml|head|title)\b[\s\S]*?<\/\1\s*>|<\/?([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[^\s=>\/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*\/?>|([^<]+)|</g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     if (m[4] !== undefined) { out.push(m[4].replace(/>/g, "&gt;")); continue; }

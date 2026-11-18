@@ -7,11 +7,12 @@
 // page is edited directly and onChange gets its HTML after every change. Save it through
 // shared/richNote.ts (cleanNoteHtml + noteTextOf), never as typed.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Link as LinkIcon, List, Underline } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Link as LinkIcon, List, Table2, Underline } from "lucide-react";
 import { Baseline, CheckSquare, Highlighter, Indent, ListOrdered, Outdent, Redo2, RemoveFormatting, Strikethrough, Undo2 } from "@/components/office/icons";
 import { ColorGrid, DropButton, MenuList, Tool, ToolSep } from "@/components/office/officeUi";
 import { loadOfficeFonts } from "@/components/office/sheetsHelpers";
 import { DOC_FONTS, sanitizeHtml } from "@shared/office/docModel";
+import { NEW_TABLE_HTML, TABLE_ACTIONS, cellOf, placeCaret, tableAction, tidyPastedHtml, type TableAction } from "./noteTable";
 
 const SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
 const STYLES = [
@@ -36,7 +37,7 @@ export type RichEditorOptions = {
 export function useRichEditor({ startHtml, resetKey, onChange, onSaveKey, placeholder = "Start writing…", toolbarClassName = "", pageClassName = "", testId = "rich", label = "Note" }: RichEditorOptions): { toolbar: ReactNode; page: ReactNode; html: () => string; focus: () => void } {
   const ed = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
-  const [state, setState] = useState({ block: "p", font: "", size: 16, b: false, i: false, u: false, s: false, ul: false, ol: false, align: "left" });
+  const [state, setState] = useState({ block: "p", font: "", size: 16, b: false, i: false, u: false, s: false, ul: false, ol: false, align: "left", table: false });
   const changeRef = useRef(onChange); changeRef.current = onChange;
   const changed = () => changeRef.current(ed.current?.innerHTML || "");
 
@@ -67,6 +68,7 @@ export function useRichEditor({ startHtml, resetKey, onChange, onSaveKey, placeh
       size: Math.round(parseFloat(cs.fontSize)),
       b: q("bold"), i: q("italic"), u: q("underline"), s: q("strikeThrough"), ul: q("insertUnorderedList"), ol: q("insertOrderedList"),
       align: q("justifyCenter") ? "center" : q("justifyRight") ? "right" : "left",
+      table: !!cellOf(el, ed.current),
     });
   };
   useEffect(() => {
@@ -104,6 +106,17 @@ export function useRichEditor({ startHtml, resetKey, onChange, onSaveKey, placeh
     changed();
   };
 
+  // Tables: the change is made on the table the caret was in when the menu opened.
+  const tableOp = (action: TableAction) => {
+    const cell = cellOf(savedRange.current?.startContainer, ed.current);
+    if (!cell) return;
+    const next = tableAction(cell, action);
+    ed.current?.focus({ preventScroll: true });
+    if (next) placeCaret(next);
+    saveSel(); changed(); readState();
+  };
+  const insertTable = () => { restoreSel(); document.execCommand("insertHTML", false, NEW_TABLE_HTML); saveSel(); changed(); readState(); };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); onSaveKey?.(); return; }
@@ -131,7 +144,8 @@ export function useRichEditor({ startHtml, resetKey, onChange, onSaveKey, placeh
   const onPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const html = e.clipboardData.getData("text/html");
-    if (html) document.execCommand("insertHTML", false, sanitizeHtml(html.replace(/<!--StartFragment-->|<!--EndFragment-->/g, "")).replace(/<img\b[^>]*>/gi, ""));
+    // A table from Google Sheets, Excel or a web page comes in tidied: no fixed sizes, no empty rows or side columns.
+    if (html) document.execCommand("insertHTML", false, tidyPastedHtml(sanitizeHtml(html.replace(/<!--StartFragment-->|<!--EndFragment-->/g, "")).replace(/<img\b[^>]*>/gi, "")));
     else document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
     changed();
   };
@@ -147,6 +161,10 @@ export function useRichEditor({ startHtml, resetKey, onChange, onSaveKey, placeh
       <div className={`flex shrink-0 items-center gap-0.5 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] ${toolbarClassName}`} role="toolbar" aria-label="Formatting" data-testid={`${testId}-toolbar`}>
         <Tool title="Undo" keys="Ctrl+Z" onClick={() => exec("undo")}><Undo2 size={16} /></Tool>
         <Tool title="Redo" keys="Ctrl+Y" onClick={() => exec("redo")}><Redo2 size={16} /></Tool>
+        <ToolSep />
+        {state.table
+          ? <DropButton title="Table: add or delete rows and columns" testId={`${testId}-table-menu`} label={<span className="inline-flex items-center gap-1 text-[12px] font-semibold text-violet-700"><Table2 size={16} /> Table</span>}>{(close) => <MenuList items={TABLE_ACTIONS.flatMap((t, i) => [...(i === 4 ? [{ sep: true as const }] : []), { label: t.label, danger: t.danger, testId: `${testId}-table-${t.action}`, onClick: () => tableOp(t.action) }])} onDone={close} />}</DropButton>
+          : <Tool title="Insert table" onClick={insertTable}><Table2 size={16} /></Tool>}
         <ToolSep />
         <DropButton title="Paragraph style" label={<span className="w-[72px] truncate text-left text-[12px] font-semibold">{styleLabel}</span>}>{(close) => <MenuList items={STYLES.map((s) => ({ label: s.label, checked: state.block === s.tag, onClick: () => exec("formatBlock", s.tag) }))} onDone={close} />}</DropButton>
         <DropButton title="Font" label={<span className="w-[78px] truncate text-left text-[12px]" style={{ fontFamily: state.font || undefined }}>{state.font && !state.font.startsWith("-") ? state.font : "Font"}</span>}>{(close) => <MenuList items={DOC_FONTS.map((f) => ({ label: f, checked: state.font === f, icon: <span style={{ fontFamily: f }}>A</span>, onClick: () => exec("fontName", f) }))} onDone={close} />}</DropButton>
@@ -200,5 +218,7 @@ const NOTE_CSS = `
 .arise-note blockquote { border-left: 4px solid #c4b5fd; padding-left: 12px; color: #475569; font-style: italic; margin: 0.5em 0; }
 .arise-note pre { background: rgba(15,23,42,.06); padding: 8px 10px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9em; white-space: pre-wrap; }
 .arise-note a { color: #5b45d6; text-decoration: underline; }
-.arise-note table { border-collapse: collapse; width: 100%; } .arise-note td, .arise-note th { border: 1px solid #cbd5e1; padding: 4px 6px; }
+.arise-note table { border-collapse: collapse; width: 100%; margin: 0.4em 0 0.6em; }
+.arise-note td, .arise-note th { border: 1px solid #cbd5e1; padding: 6px 8px; min-width: 3em; height: 2.2em; vertical-align: top; text-align: left; }
+.arise-note th { background: rgba(110,90,224,.08); font-weight: 700; }
 `;
