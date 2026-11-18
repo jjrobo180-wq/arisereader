@@ -6,19 +6,20 @@ import { LOOK_GROUPS, groupedLooks, type LookInfo } from "@shared/lookCatalog";
 import { familyOf } from "@shared/lookFamilies";
 
 const LookPreview = lazy(() => import("./LookPreview"));
+import HubLookPreview, { type PreviewColors } from "./HubLookPreview";
 
 // Colors come from the page's look (or plain ones when there is none), set inline so no look's
 // recoloring of shared class names can turn the names white-on-white or navy-on-black.
 const C = { ink: "var(--an-ink, #0f172a)", muted: "var(--an-muted, #475569)", card: "var(--an-card, #ffffff)", line: "var(--an-line, rgba(15,23,42,.12))" };
 
 /** A theme that is not a look (To Duo's Tile and Old Computer): shown in its own small group. */
-export type PlainTheme = { id: string; name: string; blurb: string; swatch: string[] };
+export type PlainTheme = { id: string; name: string; blurb: string; swatch: string[]; colors?: PreviewColors };
 
 function Swatch({ colors, className = "h-12" }: { colors: string[]; className?: string }) {
   return <span className={`flex overflow-hidden rounded-[10px] ${className}`} style={{ boxShadow: `0 0 0 1px ${C.line}` }} aria-hidden>{colors.map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}</span>;
 }
 
-function Sheet({ info, plain, on, onUse, onClose, accent, variants = [], onVariant }: { info?: LookInfo; plain?: PlainTheme; on: boolean; onUse: () => void; onClose: () => void; accent: string;
+function Sheet({ info, plain, on, onUse, onClose, accent, variants = [], onVariant, hub }: { info?: LookInfo; plain?: PlainTheme; on: boolean; onUse: () => void; onClose: () => void; accent: string; hub?: boolean;
   /** The colors this design comes in (one look each); picking one previews it. */ variants?: { id: string; color: string; bg: string; dot: string; on: boolean }[]; onVariant?: (id: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -48,7 +49,8 @@ function Sheet({ info, plain, on, onUse, onClose, accent, variants = [], onVaria
           <span className="h-5 w-5 rounded-full" style={{ background: `linear-gradient(135deg, ${v.bg} 50%, ${v.dot} 50%)`, boxShadow: "0 0 0 1px rgba(15,23,42,.2)" }} aria-hidden />{v.color}</button>)}
       </div>}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
-        {info ? <Suspense fallback={<div className="grid h-60 place-items-center text-sm" style={{ color: "#475569" }}>Drawing the preview…</div>}><LookPreview look={info.look} /></Suspense>
+        {hub && (info || plain?.colors) ? <div className="mx-auto w-full max-w-[340px] overflow-hidden rounded-[28px]" style={{ boxShadow: "0 0 0 1px rgba(15,23,42,.14), 0 12px 30px rgba(15,23,42,.14)" }} data-testid="hub-look-preview"><HubLookPreview colors={info ? info.look : plain!.colors!} /></div>
+          : info ? <Suspense fallback={<div className="grid h-60 place-items-center text-sm" style={{ color: "#475569" }}>Drawing the preview…</div>}><LookPreview look={info.look} /></Suspense>
           : <div className="py-3"><Swatch colors={swatch} className="h-24" /><p className="mt-3 text-[13px]" style={{ color: "#475569" }}>This one restyles the hub itself. Pick it to see it everywhere.</p></div>}
       </div>
       <div className="flex gap-2 border-t px-5 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
@@ -59,8 +61,9 @@ function Sheet({ info, plain, on, onUse, onClose, accent, variants = [], onVaria
   </div>;
 }
 
-export default function LookPicker({ current, onPick, plain = [], accent = "#5b4fe0", testPrefix = "look", hideClassic = false }: { current: string; onPick: (id: string) => void; plain?: PlainTheme[]; accent?: string; testPrefix?: string; hideClassic?: boolean }) {
-  const groups = groupedLooks();
+export default function LookPicker({ current, onPick, plain = [], accent = "#5b4fe0", testPrefix = "look", hideClassic = false, hub = false }: { current: string; onPick: (id: string) => void; plain?: PlainTheme[]; accent?: string; testPrefix?: string; hideClassic?: boolean;
+  /** For WorkHub and To Duo: previews show the hub's Tasks screen in each look, and the Task screen designs are offered. */ hub?: boolean }) {
+  const groups = groupedLooks().filter((g) => hub || g.group.id !== "tasks");
   const [open, setOpen] = useState<string | null>(null);
   const find = (id: string) => groups.flatMap((g) => g.items).find((l) => l.id === id);
   const openInfo = open ? find(open) : undefined, openPlain = open ? plain.find((p) => p.id === open) : undefined;
@@ -82,13 +85,13 @@ export default function LookPicker({ current, onPick, plain = [], accent = "#5b4
     const fam = familyOf(id); if (!fam) return [];
     return fam.variants.map((v) => { const l = find(v.id); return l ? { id: v.id, color: v.color, bg: l.look.bg, dot: l.look.accent, on: v.id === open } : null; }).filter(Boolean) as { id: string; color: string; bg: string; dot: string; on: boolean }[];
   };
-  const card = (id: string, name: string, blurb: string, swatch: string[]) => {
+  const card = (id: string, name: string, blurb: string, swatch: string[], colors?: PreviewColors) => {
     const fam = familyOf(id);
     const on = current === id || (!!fam && curFam?.id === fam.id);
     if (fam) { name = fam.name; blurb = `${fam.variants.length} colors · ${fam.blurb}`; }
     return <button key={id} type="button" aria-pressed={on} onClick={() => setOpen(id)} data-testid={`${testPrefix}-${id}`}
       className="flex min-w-0 flex-col rounded-2xl border p-2.5 text-left transition active:scale-[.98]" style={{ background: C.card, color: C.ink, borderColor: on ? accent : C.line, boxShadow: on ? `0 0 0 2px ${accent}` : undefined }}>
-      <Swatch colors={swatch} />
+      {hub && colors ? <span className="block overflow-hidden rounded-[12px]" style={{ boxShadow: `0 0 0 1px ${C.line}` }}><HubLookPreview colors={colors} crop={500} /></span> : <Swatch colors={swatch} />}
       <span className="mt-2 flex items-center justify-between gap-1 text-[15px] font-bold leading-tight" style={{ color: C.ink }}>{name}{on && <Check className="h-4 w-4 shrink-0" style={{ color: accent }} strokeWidth={3} aria-label="Current" />}</span>
       <span className="mt-0.5 line-clamp-3 text-[12px] leading-snug" style={{ color: C.muted }}>{blurb}</span>
     </button>;
@@ -100,11 +103,11 @@ export default function LookPicker({ current, onPick, plain = [], accent = "#5b4
       return <section key={group.id} aria-labelledby={`${testPrefix}-g-${group.id}`}>
         <h3 id={`${testPrefix}-g-${group.id}`} className="text-[16px] font-black" style={{ color: C.ink }}>{group.name} <span className="text-[12px] font-semibold" style={{ color: C.muted }}>· {shownIn(list).length}</span></h3>
         <p className="mb-2.5 text-[13px]" style={{ color: C.muted }}>{group.note}</p>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{shownIn(list).map((l) => card(l.id, l.name, l.blurb, l.swatch))}</div>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{shownIn(list).map((l) => card(l.id, l.name, l.blurb, l.swatch, l.look))}</div>
       </section>;
     })}
     {plain.length > 0 && <section><h3 className="text-[16px] font-black" style={{ color: C.ink }}>Just for the hubs</h3><p className="mb-2.5 text-[13px]" style={{ color: C.muted }}>Whole-hub styles that change how Home is laid out.</p>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{plain.map((p) => card(p.id, p.name, p.blurb, p.swatch))}</div></section>}
-    {(openInfo || openPlain) && <Sheet key={open ? familyOf(open)?.id ?? open : ""} info={openInfo} plain={openPlain} on={current === open} accent={accent} onUse={() => onPick(open!)} onClose={() => setOpen(null)} variants={open ? variantsOf(open) : []} onVariant={setOpen} />}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{plain.map((p) => card(p.id, p.name, p.blurb, p.swatch, p.colors))}</div></section>}
+    {(openInfo || openPlain) && <Sheet key={open ? familyOf(open)?.id ?? open : ""} info={openInfo} plain={openPlain} on={current === open} accent={accent} onUse={() => onPick(open!)} onClose={() => setOpen(null)} variants={open ? variantsOf(open) : []} onVariant={setOpen} hub={hub} />}
   </div>;
 }

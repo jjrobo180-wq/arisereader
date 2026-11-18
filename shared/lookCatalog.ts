@@ -3,8 +3,9 @@
 // colors and type stay in notesThemes.ts / protoLooks.ts; this is only the shelf they sit on.
 import { NOTES_THEMES, type NotesTheme } from "./notesThemes";
 
-export type LookGroupId = "loud" | "calm" | "pro" | "dark" | "tactile" | "play" | "structure" | "original";
+export type LookGroupId = "tasks" | "loud" | "calm" | "pro" | "dark" | "tactile" | "play" | "structure" | "original";
 export const LOOK_GROUPS: { id: LookGroupId; name: string; note: string }[] = [
+  { id: "tasks", name: "Task screen designs", note: "New: fifteen designs made for the Tasks screen." },
   { id: "loud", name: "Bold & loud", note: "Big type, strong colour, impossible to miss." },
   { id: "calm", name: "Calm & writerly", note: "Quiet pages and warm paper for thinking slowly." },
   { id: "pro", name: "Clean & professional", note: "Minimal, precise, and easy on the eyes at work." },

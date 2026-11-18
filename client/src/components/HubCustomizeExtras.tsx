@@ -6,13 +6,22 @@ import { Check, Folder, FolderPlus, Trash2 } from "lucide-react";
 import { DESK_SIDES, FOLDER_LIMIT, setTheme, type AnyLayout, type MenuFolder } from "@shared/hubLayout";
 import { HUB_THEMES, type HubThemeId } from "@shared/appThemes";
 import LookPicker from "@/components/looks/LookPicker";
+import type { PreviewColors } from "@/components/looks/HubLookPreview";
+
+/** Tile and Old Computer are not looks: their preview is drawn from the colors they set on the hub. */
+function plainColors(t: (typeof HUB_THEMES)[number]): PreviewColors {
+  const v = t.vars, mono = t.font === "mono" ? 'ui-monospace, "SF Mono", Menlo, monospace' : '-apple-system, "Segoe UI", system-ui, sans-serif';
+  return { bg: v["--hub-bg"] ?? "#f6f7fc", card: v["--hub-surface"] ?? "#ffffff", line: v["--hub-border"] ?? "#e2e8f0", ink: v["--hub-text"] ?? "#0f172a", muted: v["--hub-text-soft"] ?? "#475569",
+    accent: v["--hub-accent"] ?? "#7566e8", onAccent: v["--hub-accent-foreground"] ?? "#ffffff", font: mono, display: mono, radius: t.radius === "sharp" ? 0 : t.radius === "round" ? 22 : 14,
+    hardShadow: t.shadow === "hard", dark: true };
+}
 
 export function ThemePicker<L extends AnyLayout>({ layout, setLayout, dark = "#292446" }: { layout: L; setLayout: (l: L) => void; dark?: string }) {
   return <section>
     <h3 className="text-sm font-black text-slate-900">Theme</h3>
     <p className="mb-3 mt-1 text-sm text-slate-500">A different look for your whole hub. Extreme customization is the whole point — try a few.</p>
     <p className="mb-3 text-sm font-bold" style={{ color: "#7c5cff" }} data-testid="hub-theme-now">Using now: {(HUB_THEMES.find((t) => t.id === (layout.theme || "classic")) ?? HUB_THEMES[0]).name}</p>
-    <LookPicker current={layout.theme || "classic"} onPick={(id) => setLayout(setTheme(layout, id as HubThemeId))} testPrefix="hub-theme" plain={HUB_THEMES.filter((t) => !t.look && t.id !== "classic").map((t) => ({ id: t.id, name: t.name, blurb: t.tagline, swatch: t.swatch }))} accent="#7c5cff" />
+    <LookPicker current={layout.theme || "classic"} onPick={(id) => setLayout(setTheme(layout, id as HubThemeId))} testPrefix="hub-theme" hub plain={HUB_THEMES.filter((t) => !t.look && t.id !== "classic").map((t) => ({ id: t.id, name: t.name, blurb: t.tagline, swatch: t.swatch, colors: plainColors(t) }))} accent="#7c5cff" />
   </section>;
 }
 
