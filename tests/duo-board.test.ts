@@ -37,3 +37,17 @@ test("the widgets' Add and Tasks buttons open the app there", () => {
     assert.equal((body.match(/"\d+ · /g) || []).length, 10, `${n}: ten designs`);
   }
 });
+
+test("Work and Life each send their own board; a widget shows either or both, and taps go back to the right hub", () => {
+  const w = duoBoard([T("a", "2026-11-17")], [], "2026-11-17", 0, "work");
+  assert.equal(w.hub, "work"); assert.equal(w.tasks[0].hub, "work");
+  assert.equal(duoBoard([T("a", "2026-11-17")], [], "2026-11-17").tasks[0].hub, "life");
+  const work = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
+  assert.match(work, /publishDuoBoard\(duoBoard\([\s\S]*"work"\)\)/);
+  assert.match(work, /watchHubWidgetTaps\(\(t\) => t\.id === "duo\.worktodos"/);
+  const life = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
+  assert.match(life, /watchHubWidgetTaps\(\(t\) => t\.id !== "duo\.worktodos"/);
+  const swift = readFileSync(new URL("../native/widget-extension/DuoDesigns.swift", import.meta.url), "utf8");
+  assert.match(swift, /loadOneBoard\(all, "duo\.board\.work", "duo\.worktodos", pending\)/);
+  assert.match(swift, /\.both: "Work and Life", \.work: "Work \(WorkHub\)", \.life: "Life \(LifeHub\)"/);
+});

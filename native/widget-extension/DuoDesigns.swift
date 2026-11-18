@@ -15,6 +15,8 @@ struct DuoTaskItem: Codable, Hashable {
     var done: Bool = false
     var today: Bool = false
     var list: String = ""
+    /** "work" or "life": which hub the task is from (where its Done and Later taps go). */
+    var hub: String? = nil
 }
 
 struct DuoDay: Codable, Hashable {
@@ -100,38 +102,72 @@ struct DuoBoard: Decodable {
     }
 }
 
-/// The board the app last sent, with taps on the widget (checked off, moved to tomorrow) already applied.
-func loadDuoBoard() -> DuoBoard {
-    let defaults = UserDefaults(suiteName: group())
-    guard let data = defaults?.data(forKey: "slots"),
-          let all = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return DuoBoard() }
-    var b = DuoBoard()
-    if let slot = all["duo.board"] as? [String: Any], let raw = slot["board"],
-       let d = try? JSONSerialization.data(withJSONObject: raw), let x = try? JSONDecoder().decode(DuoBoard.self, from: d) { b = x }
-    if let slot = all["duo.focusnow"] as? [String: Any], let raw = slot["focus"] as? [String: Any],
-       let d = try? JSONSerialization.data(withJSONObject: raw), let f = try? JSONDecoder().decode(DuoFocusNow.self, from: d),
-       f.endsAt / 1000 > Date().timeIntervalSince1970 { b.focus = f }
-    let pending = (defaults?.array(forKey: "pending") as? [[String: Any]]) ?? []
+/// Where a widget's tasks come from: WorkHub, LifeHub or both (the widget's Show choice, in Edit Widget).
+enum DuoShow: String, AppEnum {
+    case both, work, life
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Show"
+    static var caseDisplayRepresentations: [DuoShow: DisplayRepresentation] = [.both: "Work and Life", .work: "Work (WorkHub)", .life: "Life (LifeHub)"]
+}
+
+/// The slot a task's Done and Later taps come back under (the app's hub that owns it reads them).
+func duoTapSlot(_ t: DuoTaskItem) -> String { t.hub == "work" ? "duo.worktodos" : "duo.todos" }
+
+/// One hub's board as the app last sent it, with taps on the widget (checked off, moved to tomorrow) applied.
+private func loadOneBoard(_ all: [String: Any], _ key: String, _ tapSlot: String, _ pending: [[String: Any]]) -> DuoBoard? {
+    guard let slot = all[key] as? [String: Any], let raw = slot["board"],
+          let d = try? JSONSerialization.data(withJSONObject: raw), var b = try? JSONDecoder().decode(DuoBoard.self, from: d) else { return nil }
     var checked = Set<String>(), later = Set<String>()
-    for p in pending where (p["id"] as? String) == "duo.todos" {
+    for p in pending where (p["id"] as? String) == tapSlot {
         guard let item = p["item"] as? String else { continue }
         if (p["action"] as? String) == "later" { later.insert(item) } else if (p["action"] as? String) == "check" { checked.insert(item) }
     }
-    if !checked.isEmpty || !later.isEmpty {
-        for i in b.tasks.indices where checked.contains(b.tasks[i].id) && !b.tasks[i].done {
-            if b.tasks[i].late { b.overdue = max(0, b.overdue - 1) }
-            if b.tasks[i].today { b.todayDone += 1 }
-            b.open = max(0, b.open - 1); b.done += 1
-            b.tasks[i].done = true; b.tasks[i].late = false; b.tasks[i].label = "Done"
-        }
-        let moved = b.tasks.filter { later.contains($0.id) && !$0.done }
-        for t in moved {
-            if t.late { b.overdue = max(0, b.overdue - 1) }
-            if t.today { b.today = max(0, b.today - 1) }
-            b.upcoming += 1
-        }
-        b.tasks.removeAll { later.contains($0.id) && !$0.done }
+    for i in b.tasks.indices where checked.contains(b.tasks[i].id) && !b.tasks[i].done {
+        if b.tasks[i].late { b.overdue = max(0, b.overdue - 1) }
+        if b.tasks[i].today { b.todayDone += 1 }
+        b.open = max(0, b.open - 1); b.done += 1
+        b.tasks[i].done = true; b.tasks[i].late = false; b.tasks[i].label = "Done"
     }
+    for t in b.tasks where later.contains(t.id) && !t.done {
+        if t.late { b.overdue = max(0, b.overdue - 1) }
+        if t.today { b.today = max(0, b.today - 1) }
+        b.upcoming += 1
+    }
+    b.tasks.removeAll { later.contains($0.id) && !$0.done }
+    return b
+}
+
+/// Work and Life together: counts added up, the tasks that matter now first, the week and month combined.
+func mergeBoards(_ a: DuoBoard, _ b: DuoBoard) -> DuoBoard {
+    var m = a.date.isEmpty ? b : a
+    m.open = a.open + b.open; m.today = a.today + b.today; m.todayDone = a.todayDone + b.todayDone
+    m.overdue = a.overdue + b.overdue; m.upcoming = a.upcoming + b.upcoming; m.done = a.done + b.done; m.asks = a.asks + b.asks
+    func rank(_ t: DuoTaskItem) -> Int { t.late ? 0 : t.today && !t.done ? 1 : t.today ? 2 : 3 }
+    m.tasks = Array((a.tasks + b.tasks).enumerated().sorted { rank($0.element) != rank($1.element) ? rank($0.element) < rank($1.element) : $0.offset < $1.offset }.map { $0.element }.prefix(10))
+    if a.week.count == b.week.count, !a.week.isEmpty {
+        m.week = zip(a.week, b.week).map { x, y in DuoDay(label: x.label, day: x.day, count: x.count + y.count, today: x.today || y.today, late: x.late || y.late, titles: Array((x.titles + y.titles).prefix(3))) }
+    } else if m.week.isEmpty { m.week = b.week }
+    m.lists = Array((a.lists + b.lists).prefix(4))
+    m.dots = Array(Set(a.dots + b.dots)).sorted()
+    return m
+}
+
+func loadDuoBoard(_ show: DuoShow = .both) -> DuoBoard {
+    let defaults = UserDefaults(suiteName: group())
+    guard let data = defaults?.data(forKey: "slots"),
+          let all = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return DuoBoard() }
+    let pending = (defaults?.array(forKey: "pending") as? [[String: Any]]) ?? []
+    let life = show == .work ? nil : loadOneBoard(all, "duo.board", "duo.todos", pending)
+    let work = show == .life ? nil : loadOneBoard(all, "duo.board.work", "duo.worktodos", pending)
+    var b: DuoBoard
+    switch (life, work) {
+    case let (l?, w?): b = mergeBoards(w, l)
+    case let (l?, nil): b = l
+    case let (nil, w?): b = w
+    default: b = DuoBoard()
+    }
+    if let slot = all["duo.focusnow"] as? [String: Any], let raw = slot["focus"] as? [String: Any],
+       let d = try? JSONSerialization.data(withJSONObject: raw), let f = try? JSONDecoder().decode(DuoFocusNow.self, from: d),
+       f.endsAt / 1000 > Date().timeIntervalSince1970 { b.focus = f }
     return b
 }
 
@@ -141,12 +177,13 @@ struct DuoLaterIntent: AppIntent {
     static var description = IntentDescription("Moves a task to tomorrow from an Arise To Duo widget.")
     static var isDiscoverable: Bool = false
     @Parameter(title: "Task") var item: String
+    @Parameter(title: "Widget") var slot: String
     init() {}
-    init(item: String) { self.item = item }
+    init(item: String, slot: String = "duo.todos") { self.item = item; self.slot = slot }
     func perform() async throws -> some IntentResult {
         guard let defaults = UserDefaults(suiteName: group()) else { return .result() }
         var pending = (defaults.array(forKey: "pending") as? [[String: Any]]) ?? []
-        pending.append(["id": "duo.todos", "action": "later", "item": item, "amount": 0, "at": Date().timeIntervalSince1970 * 1000])
+        pending.append(["id": slot, "action": "later", "item": item, "amount": 0, "at": Date().timeIntervalSince1970 * 1000])
         defaults.set(Array(pending.suffix(200)), forKey: "pending")
         return .result()
     }
@@ -224,7 +261,7 @@ struct DuoCheck: View {
     var size: CGFloat = 18
     var square: Bool = false
     var body: some View {
-        Button(intent: CheckOffIntent(slot: "duo.todos", item: task.id)) {
+        Button(intent: CheckOffIntent(slot: duoTapSlot(task), item: task.id)) {
             ZStack {
                 if square { RoundedRectangle(cornerRadius: 3).stroke(color, lineWidth: 2) } else { Circle().stroke(color, lineWidth: 2) }
                 if task.done { Image(systemName: "checkmark").font(.system(size: size * 0.55, weight: .heavy)).foregroundStyle(color) }
@@ -573,8 +610,8 @@ struct DuoMediumView: View {
             Spacer(minLength: 0)
             if let n = b.next {
                 HStack(spacing: 8) {
-                    DuoPill(label: "Done", bg: .white, fg: dc("#3b28b0"), intent: CheckOffIntent(slot: "duo.todos", item: n.id))
-                    DuoPill(label: "Tomorrow", bg: dc("#6e5be3"), fg: .white, intent: DuoLaterIntent(item: n.id))
+                    DuoPill(label: "Done", bg: .white, fg: dc("#3b28b0"), intent: CheckOffIntent(slot: duoTapSlot(n), item: n.id))
+                    DuoPill(label: "Tomorrow", bg: dc("#6e5be3"), fg: .white, intent: DuoLaterIntent(item: n.id, slot: duoTapSlot(n)))
                 }
             } else {
                 DuoPill(label: "Add a task", bg: .white, fg: dc("#3b28b0"), url: duoAddLink)
@@ -691,7 +728,7 @@ struct DuoMediumView: View {
             }
             HStack(spacing: 6) {
                 if let t = b.lateTasks.first {
-                    Button(intent: DuoLaterIntent(item: t.id)) { Text(verbatim: "Move to tomorrow").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 10).padding(.vertical, 7).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }.buttonStyle(.plain)
+                    Button(intent: DuoLaterIntent(item: t.id, slot: duoTapSlot(t))) { Text(verbatim: "Move to tomorrow").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 10).padding(.vertical, 7).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }.buttonStyle(.plain)
                 }
                 Link(destination: duoTasksLink) { Text(verbatim: b.asks > 0 ? plural(b.asks, "question") : "Open tasks").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 10).padding(.vertical, 7).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }
             }
@@ -874,8 +911,8 @@ struct DuoLargeView: View {
             .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(dc("#f7f5ef")))
             if let t {
                 HStack(spacing: 8) {
-                    Button(intent: DuoLaterIntent(item: t.id)) { Text(verbatim: "Later").duo(14, .bold, dc("#f1f2f8")).frame(maxWidth: .infinity, minHeight: 46).overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.25), lineWidth: 1)) }.buttonStyle(.plain)
-                    Button(intent: CheckOffIntent(slot: "duo.todos", item: t.id)) { Text(verbatim: "Done").duo(14, .heavy, dc("#2a1700")).frame(maxWidth: .infinity, minHeight: 46).background(RoundedRectangle(cornerRadius: 16).fill(dc("#ffb86b"))) }.buttonStyle(.plain)
+                    Button(intent: DuoLaterIntent(item: t.id, slot: duoTapSlot(t))) { Text(verbatim: "Later").duo(14, .bold, dc("#f1f2f8")).frame(maxWidth: .infinity, minHeight: 46).overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.25), lineWidth: 1)) }.buttonStyle(.plain)
+                    Button(intent: CheckOffIntent(slot: duoTapSlot(t), item: t.id)) { Text(verbatim: "Done").duo(14, .heavy, dc("#2a1700")).frame(maxWidth: .infinity, minHeight: 46).background(RoundedRectangle(cornerRadius: 16).fill(dc("#ffb86b"))) }.buttonStyle(.plain)
                 }
             }
         }
@@ -1036,7 +1073,7 @@ struct DuoLargeView: View {
             Spacer(minLength: 0)
             HStack(spacing: 6) {
                 if let t = b.lateTasks.first {
-                    Button(intent: DuoLaterIntent(item: t.id)) { Text(verbatim: "Move to tomorrow").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 12).padding(.vertical, 8).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }.buttonStyle(.plain)
+                    Button(intent: DuoLaterIntent(item: t.id, slot: duoTapSlot(t))) { Text(verbatim: "Move to tomorrow").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 12).padding(.vertical, 8).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }.buttonStyle(.plain)
                 }
                 Link(destination: duoTasksLink) { Text(verbatim: b.asks > 0 ? plural(b.asks, "question") : "Open tasks").duo(12, .bold, .white).padding(.horizontal, 12).padding(.vertical, 8).background(Capsule().fill(dc("#6d28d9"))) }
             }
@@ -1186,44 +1223,51 @@ struct DuoLockView: View {
 
 // MARK: The widgets: every design is its own widget, so all 40 show in the widget gallery
 
+struct DuoShowIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Tasks"
+    static var description = IntentDescription("Choose whose tasks this widget shows.")
+    @Parameter(title: "Show", default: .both) var show: DuoShow
+    init() {}
+}
+
 struct DuoBoardEntry: TimelineEntry {
     let date: Date
     let board: DuoBoard
 }
 
-struct DuoBoardProvider: TimelineProvider {
+struct DuoBoardProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> DuoBoardEntry { DuoBoardEntry(date: Date(), board: .sample) }
-    func getSnapshot(in context: Context, completion: @escaping (DuoBoardEntry) -> Void) {
-        let b = loadDuoBoard()
-        completion(DuoBoardEntry(date: Date(), board: context.isPreview && b.tasks.isEmpty ? .sample : b))
+    func snapshot(for configuration: DuoShowIntent, in context: Context) async -> DuoBoardEntry {
+        let b = loadDuoBoard(configuration.show)
+        return DuoBoardEntry(date: Date(), board: context.isPreview && b.tasks.isEmpty && b.open == 0 ? .sample : b)
     }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<DuoBoardEntry>) -> Void) {
+    func timeline(for configuration: DuoShowIntent, in context: Context) async -> Timeline<DuoBoardEntry> {
         let now = Date()
         let midnight = Calendar.current.startOfDay(for: now).addingTimeInterval(86_400 + 60)
-        completion(Timeline(entries: [DuoBoardEntry(date: now, board: loadDuoBoard())], policy: .after(min(midnight, now.addingTimeInterval(30 * 60)))))
+        return Timeline(entries: [DuoBoardEntry(date: now, board: loadDuoBoard(configuration.show))], policy: .after(min(midnight, now.addingTimeInterval(30 * 60))))
     }
 }
 
 func duoSmallConfig(_ style: DuoSmallStyle, _ name: String) -> some WidgetConfiguration {
-    StaticConfiguration(kind: "Arise.duo.s." + style.rawValue, provider: DuoBoardProvider()) { e in
+    AppIntentConfiguration(kind: "Arise.duo.s." + style.rawValue, intent: DuoShowIntent.self, provider: DuoBoardProvider()) { e in
         DuoSmallView(style: style, b: e.board).containerBackground(for: .widget) { DuoSmallView.background(style) }
     }
-    .configurationDisplayName(name).description("Your tasks from Arise To Duo.").supportedFamilies([.systemSmall]).contentMarginsDisabled()
+    .configurationDisplayName(name).description("Work, Life or both: long-press it, then Edit Widget.").supportedFamilies([.systemSmall]).contentMarginsDisabled()
 }
 func duoMediumConfig(_ style: DuoMediumStyle, _ name: String) -> some WidgetConfiguration {
-    StaticConfiguration(kind: "Arise.duo.m." + style.rawValue, provider: DuoBoardProvider()) { e in
+    AppIntentConfiguration(kind: "Arise.duo.m." + style.rawValue, intent: DuoShowIntent.self, provider: DuoBoardProvider()) { e in
         DuoMediumView(style: style, b: e.board).containerBackground(for: .widget) { DuoMediumView.background(style) }
     }
-    .configurationDisplayName(name).description("Your tasks from Arise To Duo.").supportedFamilies([.systemMedium]).contentMarginsDisabled()
+    .configurationDisplayName(name).description("Work, Life or both: long-press it, then Edit Widget.").supportedFamilies([.systemMedium]).contentMarginsDisabled()
 }
 func duoLargeConfig(_ style: DuoLargeStyle, _ name: String) -> some WidgetConfiguration {
-    StaticConfiguration(kind: "Arise.duo.l." + style.rawValue, provider: DuoBoardProvider()) { e in
+    AppIntentConfiguration(kind: "Arise.duo.l." + style.rawValue, intent: DuoShowIntent.self, provider: DuoBoardProvider()) { e in
         DuoLargeView(style: style, b: e.board).containerBackground(for: .widget) { DuoLargeView.background(style) }
     }
-    .configurationDisplayName(name).description("Your tasks from Arise To Duo.").supportedFamilies([.systemLarge]).contentMarginsDisabled()
+    .configurationDisplayName(name).description("Work, Life or both: long-press it, then Edit Widget.").supportedFamilies([.systemLarge]).contentMarginsDisabled()
 }
 func duoLockConfig(_ style: DuoLockStyle, _ name: String, _ families: [WidgetFamily]) -> some WidgetConfiguration {
-    StaticConfiguration(kind: "Arise.duo.k." + style.rawValue, provider: DuoBoardProvider()) { e in
+    AppIntentConfiguration(kind: "Arise.duo.k." + style.rawValue, intent: DuoShowIntent.self, provider: DuoBoardProvider()) { e in
         DuoLockView(style: style, b: e.board).containerBackground(for: .widget) { Color.clear }.widgetURL(duoTasksLink)
     }
     .configurationDisplayName(name).description("Your tasks on the Lock Screen.").supportedFamilies(families)

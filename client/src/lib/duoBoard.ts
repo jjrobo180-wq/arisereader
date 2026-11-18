@@ -3,13 +3,16 @@
 // tasks that matter now, this week and this month. Sent as a slot named "duo.board" next to the other slots.
 // Pure (apart from publishDuoBoard), so it's tested.
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { watchWidgetActions, type WidgetTap } from "@/lib/widgets";
 
 export type BoardTask = { id: string; title: string; due: string; time: string; done: boolean; listName?: string; completedAt?: string };
 export type BoardList = { name: string; color: string; count: number };
 export type DuoBoard = {
   date: string; weekday: string; month: string;
   open: number; today: number; todayDone: number; overdue: number; upcoming: number; done: number; asks: number;
-  tasks: { id: string; title: string; label: string; late: boolean; done: boolean; today: boolean; list: string }[];
+  /** Which hub the board is from (the widget's Show choice: Work, Life or both). */
+  hub: "life" | "work";
+  tasks: { id: string; title: string; label: string; late: boolean; done: boolean; today: boolean; list: string; hub: "life" | "work" }[];
   week: { label: string; day: string; count: number; today: boolean; late: boolean; titles: string[] }[];
   lists: BoardList[];
   monthFirst: number; monthDays: number; monthToday: number; dots: number[];
@@ -32,7 +35,7 @@ function labelOf(t: BoardTask, today: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function duoBoard(tasks: BoardTask[], lists: { name: string; color: string; count: number }[], today: string, asks = 0): DuoBoard {
+export function duoBoard(tasks: BoardTask[], lists: { name: string; color: string; count: number }[], today: string, asks = 0, hub: "life" | "work" = "life"): DuoBoard {
   const open = tasks.filter((t) => !t.done);
   const late = open.filter((t) => t.due && t.due < today).sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time));
   const dueToday = tasks.filter((t) => t.due === today);
@@ -50,11 +53,12 @@ export function duoBoard(tasks: BoardTask[], lists: { name: string; color: strin
   const ym = today.slice(0, 7);
   const dots = [...new Set(open.filter((t) => t.due.startsWith(ym)).map((t) => Number(t.due.slice(8, 10))))].sort((a, b) => a - b);
   return {
+    hub,
     date: d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }),
     weekday: d.toLocaleDateString("en-US", { weekday: "long" }), month: d.toLocaleDateString("en-US", { month: "long" }),
     open: open.length, today: dueToday.length, todayDone: todayDone.length, overdue: late.length, upcoming: later.length,
     done: tasks.filter((t) => t.done).length, asks: Math.max(0, Math.round(asks) || 0),
-    tasks: pick.map((t) => ({ id: t.id, title: cut(t.title, 60), label: labelOf(t, today), late: !t.done && !!t.due && t.due < today, done: t.done, today: t.due === today, list: cut(t.listName || "", 20) })),
+    tasks: pick.map((t) => ({ id: t.id, title: cut(t.title, 60), label: labelOf(t, today), late: !t.done && !!t.due && t.due < today, done: t.done, today: t.due === today, list: cut(t.listName || "", 20), hub })),
     week, lists: lists.slice(0, 4).map((l) => ({ name: cut(l.name, 18), color: /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : "#7c6cf0", count: l.count })),
     monthFirst: first.getDay(), monthDays: days, monthToday: d.getDate(), dots,
   };
@@ -71,8 +75,30 @@ function publishRaw(slot: Record<string, unknown> & { id: string }): void {
   void nativeCall(PLUGIN, "AriseWidgets", "publish", { slots: [slot] }).catch(() => sent.delete(slot.id));
 }
 
+/** LifeHub's board is "duo.board", WorkHub's "duo.board.work"; each widget shows one or both (its Show choice). */
 export function publishDuoBoard(board: DuoBoard): void {
-  publishRaw({ id: "duo.board", title: "Tasks", value: String(board.open), board });
+  publishRaw({ id: board.hub === "work" ? "duo.board.work" : "duo.board", title: "Tasks", value: String(board.open), board });
+}
+
+/** The widget slot a hub's Done and Later taps come back under. */
+export const tapSlot = (hub: "life" | "work") => (hub === "work" ? "duo.worktodos" : "duo.todos");
+
+// Taps on the widgets come back all together, to whichever hub is open: the other hub's are kept here until
+// that hub opens (both hubs run in the same app, so they share this storage).
+const STASH = "duo-widget-taps";
+const readStash = (): WidgetTap[] => { try { const v = JSON.parse(localStorage.getItem(STASH) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
+const writeStash = (t: WidgetTap[]) => { try { localStorage.setItem(STASH, JSON.stringify(t.slice(-200))); } catch { /* lost: the widget shows it again */ } };
+/** Widget taps for this hub (`mine` picks them); the rest wait for the other hub. */
+export function watchHubWidgetTaps(mine: (t: WidgetTap) => boolean, handle: (taps: WidgetTap[]) => void): () => void {
+  const deliver = (taps: WidgetTap[]) => {
+    const all = [...readStash(), ...taps];
+    const own = all.filter(mine), rest = all.filter((t) => !mine(t));
+    writeStash(rest);
+    if (own.length) handle(own);
+  };
+  const stashed = readStash().filter(mine);
+  if (stashed.length) deliver([]);
+  return watchWidgetActions(deliver);
 }
 
 /** The focus timer, for the widgets that show it (the Live Activity has its own copy). */

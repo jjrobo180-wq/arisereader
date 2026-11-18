@@ -105,6 +105,7 @@ import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import { useHubLook } from "@/components/HubLook";
+import { duoBoard, publishDuoBoard, watchHubWidgetTaps } from "@/lib/duoBoard";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import { calendarEvents } from "@shared/hubHidden";
@@ -728,6 +729,32 @@ function TeacherHubPage() {
   // Every added Kit plugin and Notes app may be pinned to Home as its own tile (myKits/myNotesApps, just above).
   const pinnableApps = [...myKits.map((d) => d.id), ...myNotesApps.map((p) => p.id)];
   const layout = withSharedLook(cleanLayout(workspace.layout, pinnableApps), "work");
+  // The iPhone widgets (native/widget-extension/DuoDesigns.swift): WorkHub's own board, so a widget can show Work,
+  // Life or both; and its Done / Later taps, done here.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const live = (workspace.tasks || []).filter((x) => !x.archived);
+      const lists = workspace.taskLists || [];
+      const listName = (id?: string) => lists.find((l) => l.id === id)?.name;
+      publishDuoBoard(duoBoard(live.map((x) => ({ id: x.id, title: x.title, due: x.dueDate || "", time: x.dueTime || "", done: x.done, listName: listName(x.listId) })),
+        lists.map((l) => ({ name: l.name, color: l.color, count: live.filter((x) => !x.done && x.listId === l.id).length })), TODAY(), 0, "work"));
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [workspace.tasks, workspace.taskLists]);
+  useEffect(() => watchHubWidgetTaps((t) => t.id === "duo.worktodos", (taps) => {
+    const today = TODAY(), d = new Date(); d.setDate(d.getDate() + 1);
+    const tomorrow = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setWorkspace((p) => {
+      let tasks = p.tasks;
+      for (const tap of taps) {
+        const task = tasks.find((x) => x.id === tap.item);
+        if (!task || task.done) continue;
+        if (tap.action === "check") tasks = toggleTask(tasks, task.id, today).tasks;
+        else if (tap.action === "later") tasks = tasks.map((x) => (x.id === task.id ? { ...x, dueDate: tomorrow } : x));
+      }
+      return tasks === p.tasks ? p : { ...p, tasks };
+    });
+  }), [setWorkspace]);
   const hubLook = useHubLook(layout.theme, night);
   const hubRootRef = useRef<HTMLDivElement | null>(null);
   useNativeBackdrop(hubRootRef, [night, layout.theme, hubLook.look?.id]);

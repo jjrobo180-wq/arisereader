@@ -118,8 +118,8 @@ import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
-import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
-import { duoBoard, publishDuoBoard } from "@/lib/duoBoard";
+import { publishWidgets } from "@/lib/widgets";
+import { duoBoard, publishDuoBoard, watchHubWidgetTaps } from "@/lib/duoBoard";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { applyDuoWidgetTaps, duoWidgetSlots } from "@/lib/duoWidgets";
@@ -1164,7 +1164,7 @@ export default function AriseTodo() {
     return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
   // Circles tapped on the To-do and Chore checklist widgets: saved as done when the app opens.
-  useEffect(() => watchWidgetActions((taps) => {
+  useEffect(() => watchHubWidgetTaps((t) => t.id !== "duo.worktodos", (taps) => {
     const tasks = latest.current.data.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done }));
     const chores = taps.some((t) => t.id === "duo.chores");
     const { done } = applyDuoWidgetTaps(taps, tasks, emptyFamily(), today(), makeId);
