@@ -102,17 +102,20 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <GhostButton onClick={onBack}><ArrowLeft className="h-4 w-4" /> Caseload</GhostButton>
-          <Select value={s.id} onChange={(e) => onPick(e.target.value)} aria-label="Switch student" className="!w-auto max-w-full">{workspace.students.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select>
+          <Select value={s.id} onChange={(e) => onPick(e.target.value)} aria-label="Switch student" className="!w-auto max-w-full">{workspace.students.map((x) => <option key={x.id} value={x.id}>{x.name}{x.supplementary ? " (supplementary)" : ""}</option>)}</Select>
         </div>
         <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="break-words text-2xl font-bold text-slate-950">{s.name}</h2>
+            <h2 className="flex flex-wrap items-center gap-2 break-words text-2xl font-bold text-slate-950">{s.name}{s.supplementary && <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-sky-700 ring-1 ring-sky-200" data-testid="profile-supplementary">Supplementary</span>}</h2>
             <p className="text-sm text-slate-500">{profile.records ? `${profile.records} ${profile.records === 1 ? "record" : "records"} across your Hub` : "Nothing recorded for this student yet."}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <PrimaryButton onClick={() => setNoting(true)}><Plus className="h-4 w-4" /> Add a note</PrimaryButton>
             {links?.readDocument && <GhostButton onClick={() => links.readDocument!(s.name)}><Sparkles className="h-4 w-4" /> Read a document with AI</GhostButton>}
             <GhostButton onClick={() => onEdit(s.id)}>Edit details</GhostButton>
+            <GhostButton onClick={() => setWorkspace((w) => ({ ...w, students: w.students.map((x) => { if (x.id !== s.id) return x; const { supplementary: _sup, ...rest } = x; return s.supplementary ? rest : { ...rest, supplementary: true }; }) }))} data-testid="profile-toggle-supplementary">
+              {s.supplementary ? "Move to my caseload" : "Make supplementary"}
+            </GhostButton>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -120,8 +123,8 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           <Fact label="Reading level" value={s.readingLevel} />
           <Fact label="Math level" value={s.mathLevel} />
           <Fact label="Behavior points" value={profile.behavior.entries.length ? String(profile.behavior.total) : ""} />
-          <DateFact label="IEP deadline" when={profile.iep} today={today} />
-          <DateFact label="Reevaluation deadline" when={profile.reeval} today={today} />
+          {!s.supplementary && <DateFact label="IEP deadline" when={profile.iep} today={today} />}
+          {!s.supplementary && <DateFact label="Reevaluation deadline" when={profile.reeval} today={today} />}
           <Fact label="Grade average" value={profile.grades.average === null ? "" : `${profile.grades.average}%`} />
           <Fact label="Attendance" value={profile.attendance.entries.length ? `${a.Present} present · ${a.Absent} absent · ${a.Tardy} tardy` : ""} />
           {s.disability1 && <Fact label="Disability 1" value={s.disability1} />}

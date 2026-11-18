@@ -149,6 +149,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubParentUpdate from "@/components/teacher-hub/HubParentUpdate";
 import HubSchedulePhoto from "@/components/teacher-hub/HubSchedulePhoto";
 import HubIncidents from "@/components/teacher-hub/HubIncidents";
+import { addSupplementary, studentsWithoutProfiles } from "@shared/hubSupplementary";
 import { FocusTimer } from "@/components/family-hub/Focus";
 import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
@@ -941,7 +942,7 @@ function TeacherHubPage() {
         <option value="">Choose student</option>
         {includeAll && <option value="Whole group">Whole group</option>}
         {workspace.students.map((student) => (
-          <option key={student.id} value={student.name}>{student.name}</option>
+          <option key={student.id} value={student.name}>{student.name}{student.supplementary ? " (supplementary)" : ""}</option>
         ))}
       </>
     );
@@ -2107,6 +2108,9 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   const [openId, setOpenId] = useState<string | null>(null);
   // Which service area the list is filtered to, or "all".
   const [area, setArea] = useState("all");
+  // Caseload, supplementary students, or both (shared/hubSupplementary.ts).
+  const [kind, setKind] = useState<"all" | "caseload" | "supplementary">("all");
+  const [fromClasses, setFromClasses] = useState<string[] | null>(null);
   // The add form opens over the list instead of sitting on it.
   const [addOpen, setAddOpen] = useState(false);
   // The new student's IEP team. It is typed in the same form and saved with the student, by the one "Add student" button.
@@ -2167,7 +2171,9 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   }));
   const mOf = (name: string) => metrics.get(name) ?? { owed: 0, met: 0, area: "", pct: 0, short: false };
   const areas = Array.from(new Set(workspace.students.map((s) => mOf(s.name).area).filter(Boolean))).sort();
-  const roster = workspace.students.filter((s) => area === "all" || mOf(s.name).area === area);
+  const supCount = workspace.students.filter((s) => s.supplementary).length;
+  const unlisted = studentsWithoutProfiles(workspace);
+  const roster = workspace.students.filter((s) => (area === "all" || mOf(s.name).area === area) && (kind === "all" || (kind === "supplementary") === !!s.supplementary));
   const pill = (on: boolean) => `inline-flex min-h-[34px] items-center rounded-full border px-3.5 text-xs font-semibold transition ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 text-slate-900 hover:bg-slate-50"}`;
 
   // One student's whole picture takes the place of the list until the teacher goes back.
@@ -2186,12 +2192,23 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           </div>
           <div className="flex items-center gap-3 pb-1">
             {seats !== null && <span className="text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")} seats</span>}
+            {unlisted.length > 0 && <button type="button" onClick={() => setFromClasses(unlisted)} data-testid="caseload-from-classes"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50">
+              <Users className="h-4 w-4" /> Add students from my classes ({unlisted.length})
+            </button>}
             <button type="button" onClick={() => setAddOpen(true)} disabled={full} data-testid="caseload-add-open"
               className="inline-flex min-h-11 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">
               <Plus className="h-4 w-4" /> Add student
             </button>
           </div>
         </div>
+        {supCount > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Caseload or supplementary">
+            <button type="button" onClick={() => setKind("all")} aria-pressed={kind === "all"} className={pill(kind === "all")}>Everyone {workspace.students.length}</button>
+            <button type="button" onClick={() => setKind("caseload")} aria-pressed={kind === "caseload"} className={pill(kind === "caseload")}>Caseload {workspace.students.length - supCount}</button>
+            <button type="button" onClick={() => setKind("supplementary")} aria-pressed={kind === "supplementary"} className={pill(kind === "supplementary")} data-testid="caseload-kind-supplementary">Supplementary {supCount}</button>
+          </div>
+        )}
         {areas.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filter by area">
             <button type="button" onClick={() => setArea("all")} aria-pressed={area === "all"} className={pill(area === "all")}>All {workspace.students.length}</button>
@@ -2201,6 +2218,27 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           </div>
         )}
       </section>
+      {fromClasses && (
+        <HubModal title="Add students from my classes" size="lg" closeOnBackdrop onClose={() => setFromClasses(null)}>
+          <p className="mb-3 text-sm text-slate-600">These students are in your class notes, lessons, schedules, grades or other tabs but have no profile yet. They're added as <span className="font-semibold">supplementary</span> students: a full profile and every student list, left out of IEP lists. You can move anyone to your caseload later.</p>
+          <div className="mb-2 flex gap-2 text-xs"><button type="button" className="font-semibold text-teal-800 underline" onClick={() => setFromClasses(unlisted)}>Select all</button><button type="button" className="font-semibold text-slate-600 underline" onClick={() => setFromClasses([])}>Select none</button></div>
+          <div className="grid max-h-[50vh] grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2" data-testid="from-classes-list">
+            {unlisted.map((n) => { const on = fromClasses.includes(n); return (
+              <label key={n} className="flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm text-slate-800 hover:bg-slate-50"><input type="checkbox" className="h-5 w-5" checked={on} onChange={() => setFromClasses(on ? fromClasses.filter((x) => x !== n) : [...fromClasses, n])} />{n}</label>); })}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <PrimaryButton type="button" disabled={!fromClasses.length} data-testid="from-classes-add" onClick={() => {
+              const names = fromClasses;
+              let result = { added: 0, full: false };
+              setWorkspace((p) => { const r = addSupplementary(p, names, id, seats); result = r; return r.workspace; });
+              setFromClasses(null);
+              setKind("supplementary");
+              window.setTimeout(() => setAddError(result.full ? "Your plan's student seats filled up before everyone was added." : ""), 0);
+            }}><Plus className="h-4 w-4" /> Add {fromClasses.length} as supplementary</PrimaryButton>
+            <GhostButton onClick={() => setFromClasses(null)}>Cancel</GhostButton>
+          </div>
+        </HubModal>
+      )}
       {addOpen && (
         <HubModal title="Add a student" size="lg" closeOnBackdrop onClose={() => setAddOpen(false)}>
         {full && (
@@ -2226,6 +2264,10 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             </button>
             {moreOpen && <div className="border-t border-slate-200 p-3 sm:p-4"><StudentTeamFields details={form} onDetails={(change) => { setForm((p) => ({ ...p, ...change })); setAddError(""); }} draft={formTeam} onDraft={(draft) => { setFormTeam(draft); setAddError(""); }} contacts={workspace.spedContacts} /></div>}
           </div>
+          <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700 md:col-span-4">
+            <input type="checkbox" className="h-5 w-5 shrink-0" checked={!!form.supplementary} onChange={(e) => setForm({ ...form, supplementary: e.target.checked || undefined })} data-testid="student-supplementary" />
+            <span><span className="font-semibold">Supplementary student</span> <span className="text-slate-500">(not on my IEP caseload, like a gen ed student in a push-in class: a full profile, left out of IEP lists)</span></span>
+          </label>
           {addError && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-4" role="alert">{addError}</div>}
           <div className="md:col-span-4"><PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add student</PrimaryButton></div>
         </form>
@@ -2247,6 +2289,10 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
                 <div className="mb-3 text-sm font-semibold text-slate-800">Disabilities and IEP team <span className="font-normal text-slate-500">(optional)</span></div>
                 <StudentTeamFields details={editing.form} onDetails={typed} draft={editing.team} onDraft={(team) => setEditing((now) => (now ? { ...now, team, error: "" } : now))} contacts={workspace.spedContacts} autoFocus={editing.start === "team"} />
               </div>
+              <label className="flex min-h-11 items-center gap-3 text-sm text-slate-700 sm:col-span-2">
+                <input type="checkbox" className="h-5 w-5 shrink-0" checked={!!editing.form.supplementary} onChange={(e) => typed({ supplementary: e.target.checked || undefined })} />
+                <span><span className="font-semibold">Supplementary student</span> <span className="text-slate-500">(not on my IEP caseload)</span></span>
+              </label>
               {following > 0 && (
                 <p className="text-sm text-slate-600 sm:col-span-2">
                   {following === 1 ? "1 record" : `${following} records`} for {s.name} in your other tabs will show the new name too.
@@ -2270,7 +2316,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
                   {s.name.split(/\s+/).map((part) => part[0] || "").join("").slice(0, 2).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-semibold text-slate-900">{s.name}</span>
+                  <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[15px] font-semibold text-slate-900">{s.name}</span>{s.supplementary && <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-sky-700 ring-1 ring-sky-200">Supplementary</span>}</span>
                   <span className="block truncate text-[12.5px] text-slate-600">
                     {[s.grade && `Grade ${s.grade}`, mOf(s.name).area, mOf(s.name).owed > 0 ? `${mOf(s.name).owed}/wk` : ""].filter(Boolean).join(" · ") || "No details yet"}
                   </span>

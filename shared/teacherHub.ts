@@ -35,6 +35,11 @@ export type Student = {
    * to the id of one of the teacher's saved contacts. See shared/hubStudentTeam.ts.
    */
   team?: Record<string, string>;
+  /**
+   * A supplementary student: not on the teacher's IEP caseload (a gen ed student in a push-in class, say), but
+   * with a full profile and in every student list like the rest. Left out of IEP-only lists (shared/hubSupplementary.ts).
+   */
+  supplementary?: boolean;
 };
 
 export type Meeting = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;

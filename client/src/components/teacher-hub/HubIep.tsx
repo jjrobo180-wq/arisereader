@@ -101,7 +101,8 @@ export function IepPage({ workspace, setWorkspace, makeId, today, token, meeting
 
 function Overview({ workspace, today, studentName, onPick, go }: { workspace: Workspace; today: string; studentName: string; onPick: (id: string | null) => void; go: (t: IepTab) => void }) {
   const due = useMemo(() => iepComingUp(workspace, today).filter((d) => !studentName || d.student === studentName), [workspace.students, workspace.goals, workspace.meetings, today, studentName]);
-  const students = studentName ? workspace.students.filter((s) => s.name === studentName) : [...workspace.students].sort((a, b) => a.name.localeCompare(b.name));
+  // Supplementary students aren't on the IEP caseload, so the IEP folder lists only the caseload.
+  const students = studentName ? workspace.students.filter((s) => s.name === studentName) : workspace.students.filter((s) => !s.supplementary).sort((a, b) => a.name.localeCompare(b.name));
   const notes = cleanIepNotes(workspace.iepNotes);
   const KIND_TAB: Record<string, IepTab> = { iep: "meetings", reeval: "meetings", meeting: "meetings", check: "progress" };
   const own = <T extends { student: string }>(list: T[]) => (studentName ? list.filter((x) => x.student === studentName) : list);
