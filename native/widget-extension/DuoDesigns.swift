@@ -50,6 +50,8 @@ struct DuoBoard: Decodable {
     var monthFirst = 0, monthDays = 30, monthToday = 1
     var dots: [Int] = []
     var focus: DuoFocusNow? = nil
+    /// "work" or "life": the hub the widget opens (with Show set to both, the hub of what's next).
+    var hub = "life"
 
     enum CodingKeys: String, CodingKey {
         case date, weekday, month, open, today, todayDone, overdue, upcoming, done, asks, tasks, week, lists, monthFirst, monthDays, monthToday, dots
@@ -168,6 +170,7 @@ func loadDuoBoard(_ show: DuoShow = .both) -> DuoBoard {
     if let slot = all["duo.focusnow"] as? [String: Any], let raw = slot["focus"] as? [String: Any],
        let d = try? JSONSerialization.data(withJSONObject: raw), let f = try? JSONDecoder().decode(DuoFocusNow.self, from: d),
        f.endsAt / 1000 > Date().timeIntervalSince1970 { b.focus = f }
+    b.hub = show == .work ? "work" : show == .life ? "life" : (b.next?.hub ?? (work != nil && life == nil ? "work" : "life"))
     return b
 }
 
@@ -234,6 +237,26 @@ let duoAddLink = URL(string: "arisetodo://focus/add")!
 let duoTasksLink = URL(string: "arisetodo://focus/tasks")!
 let duoOpenLink = URL(string: "arisetodo://focus/open")!
 
+/// Where a tap on a widget lands in the app: arisetodo://focus/go?hub=work&to=calendar (client/src/lib/duoFocus.ts
+/// readFocusLink, then the hub's "?go=" handler). `to` is tasks, calendar, asks or add; `task` opens that task.
+func duoGoURL(_ hub: String, _ to: String, view: String = "", task: String = "") -> URL {
+    var c = URLComponents(); c.scheme = "arisetodo"; c.host = "focus"; c.path = "/go"
+    c.queryItems = [URLQueryItem(name: "hub", value: hub == "work" ? "work" : "life"), URLQueryItem(name: "to", value: to)]
+        + (view.isEmpty ? [] : [URLQueryItem(name: "view", value: view)]) + (task.isEmpty ? [] : [URLQueryItem(name: "task", value: task)])
+    return c.url ?? duoOpenLink
+}
+/// A task's own link: opens it, in the hub it's from.
+func duoTaskURL(_ t: DuoTaskItem, _ fallbackHub: String = "life") -> URL { duoGoURL(t.hub ?? fallbackHub, "tasks", task: t.id) }
+
+extension DuoBoard {
+    func go(_ to: String, view: String = "") -> URL { duoGoURL(hub, to, view: view) }
+    /// The task the widget is about (next up), or the hub's Today list when there's none.
+    var goNext: URL { next.map { duoTaskURL($0, hub) } ?? go("tasks", view: "today") }
+    /// The task being focused on, else next up.
+    var goFocus: URL { hasFocus && !(focus?.id ?? "").isEmpty ? duoGoURL(tasks.first { $0.id == focus?.id }?.hub ?? hub, "tasks", task: focus!.id) : goNext }
+    var goAsks: URL { asks > 0 ? go("asks") : go("tasks", view: "today") }
+}
+
 extension Text {
     func duo(_ size: CGFloat, _ weight: Font.Weight = .regular, _ color: Color, _ design: Font.Design = .default) -> some View {
         self.font(.system(size: size, weight: weight, design: design)).foregroundStyle(color)
@@ -284,11 +307,17 @@ struct DuoRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             DuoCheck(task: task, color: task.late ? late : muted, size: size + 3)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: task.title).duo(size, .semibold, task.done ? muted : ink).strikethrough(task.done).lineLimit(1)
-                if showLabel { Text(verbatim: task.label).duo(size - 2, .medium, task.late ? late : muted).lineLimit(1) }
+            // The title opens that task in the app (on the medium and large widgets; a small one opens as a whole).
+            Link(destination: duoTaskURL(task)) {
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(verbatim: task.title).duo(size, .semibold, task.done ? muted : ink).strikethrough(task.done).lineLimit(1)
+                        if showLabel { Text(verbatim: task.label).duo(size - 2, .medium, task.late ? late : muted).lineLimit(1) }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 0)
         }
     }
 }
@@ -383,6 +412,23 @@ struct DuoSmallView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(target)
+    }
+
+    /// Where a tap on the widget (outside its buttons) opens the app.
+    var target: URL {
+        switch style {
+        case .ring: return b.go("tasks", view: "today")
+        case .next: return b.goNext
+        case .overdue: return b.lateTasks.first.map { duoTaskURL($0, b.hub) } ?? b.go("tasks", view: "today")
+        case .focus: return b.goFocus
+        case .checklist: return b.go("tasks", view: "today")
+        case .big: return b.go("tasks", view: "all")
+        case .asks: return b.goAsks
+        case .week: return b.go("calendar")
+        case .actions: return b.go("tasks", view: "today")
+        case .done: return b.go("tasks", view: "all")
+        }
     }
 
     var ring: some View {
@@ -397,7 +443,6 @@ struct DuoSmallView: View {
             if let n = b.next { Text(verbatim: "Next: " + n.title).duo(12, .regular, dc("#5f5b6e")).lineLimit(1) }
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var next: some View {
@@ -409,7 +454,6 @@ struct DuoSmallView: View {
             Text(verbatim: b.todayLeft > 1 ? "+\(b.todayLeft - 1) more today" : b.open > 0 ? plural(b.open, "open task") : "Add one from the app").duo(12, .regular, dc("#dcd6ff"))
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var overdue: some View {
@@ -427,7 +471,6 @@ struct DuoSmallView: View {
             if b.overdue == 0 { Text(verbatim: "You're caught up.").duo(13, .semibold, dc("#3d0a04")) }
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var focus: some View {
@@ -440,7 +483,6 @@ struct DuoSmallView: View {
             DuoFocusBar(focus: b.focus, track: dc("#262b36"), fill: dc("#67e8f9")).padding(.top, 6)
         }
         .padding(16)
-        .widgetURL(duoOpenLink)
     }
 
     var checklist: some View {
@@ -452,7 +494,6 @@ struct DuoSmallView: View {
             if b.lateTasks.isEmpty && b.todayLeft == 0 { Text(verbatim: "All done for today").duo(12, .medium, dc("#5b6170")) }
         }
         .padding(14)
-        .widgetURL(duoTasksLink)
     }
 
     var big: some View {
@@ -464,7 +505,6 @@ struct DuoSmallView: View {
             Text(verbatim: "\(b.overdue) overdue · \(b.today) today").duo(13, .bold, dc("#111111"))
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var asks: some View {
@@ -476,7 +516,6 @@ struct DuoSmallView: View {
             Text(verbatim: b.asks > 0 ? "\(plural(b.asks, "question")) about tasks you added. Tap to answer." : "Ask Arise anything about your day.").duo(12, .regular, dc("#5a5470")).lineLimit(3)
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var week: some View {
@@ -500,7 +539,6 @@ struct DuoSmallView: View {
             Text(verbatim: "\(b.upcoming) more coming up").duo(12, .regular, dc("#9fb0cc"))
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var actions: some View {
@@ -517,12 +555,12 @@ struct DuoSmallView: View {
         }
         return VStack(spacing: 8) {
             HStack(spacing: 8) {
-                tile("Add task", "plus", dc("#5b47d6"), .white, duoAddLink)
-                tile("Ask Arise", "bubble.left", dc("#f3f0ff"), dc("#4b2bb8"), duoTasksLink)
+                tile("Add task", "plus", dc("#5b47d6"), .white, b.go("add"))
+                tile("Ask Arise", "bubble.left", dc("#f3f0ff"), dc("#4b2bb8"), b.go("asks"))
             }
             HStack(spacing: 8) {
-                tile("Focus", "timer", dc("#0b0d12"), dc("#67e8f9"), duoOpenLink)
-                tile("Tasks", "checklist", dc("#fff1ee"), dc("#b42318"), duoTasksLink)
+                tile("Focus", "timer", dc("#0b0d12"), dc("#67e8f9"), b.goFocus)
+                tile("Tasks", "checklist", dc("#fff1ee"), dc("#b42318"), b.go("tasks", view: "today"))
             }
         }
         .padding(10)
@@ -537,7 +575,6 @@ struct DuoSmallView: View {
             ProgressView(value: b.doneShare).progressViewStyle(.linear).tint(dc("#b9f5d8")).padding(.top, 6)
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 }
 
@@ -576,6 +613,23 @@ struct DuoMediumView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(target)
+    }
+
+    /// Where a tap on the widget (outside its buttons) opens the app.
+    var target: URL {
+        switch style {
+        case .ringList: return b.go("tasks", view: "today")
+        case .nextButtons: return b.goNext
+        case .weekStrip: return b.go("calendar")
+        case .columns: return b.go("tasks", view: "today")
+        case .focus: return b.goFocus
+        case .counts: return b.go("tasks", view: "all")
+        case .briefing: return b.goAsks
+        case .timeline: return b.go("tasks", view: "today")
+        case .editorial: return b.goNext
+        case .quickAdd: return b.go("tasks", view: "today")
+        }
     }
 
     var focusList: [DuoTaskItem] { Array(b.tasks.filter { $0.late || $0.today }.prefix(3)) }
@@ -599,7 +653,6 @@ struct DuoMediumView: View {
             }
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var nextButtons: some View {
@@ -614,7 +667,7 @@ struct DuoMediumView: View {
                     DuoPill(label: "Tomorrow", bg: dc("#6e5be3"), fg: .white, intent: DuoLaterIntent(item: n.id, slot: duoTapSlot(n)))
                 }
             } else {
-                DuoPill(label: "Add a task", bg: .white, fg: dc("#3b28b0"), url: duoAddLink)
+                DuoPill(label: "Add a task", bg: .white, fg: dc("#3b28b0"), url: b.go("add"))
             }
         }
         .padding(18)
@@ -639,7 +692,6 @@ struct DuoMediumView: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .widgetURL(duoTasksLink)
     }
 
     func column(_ title: String, _ count: Int, _ head: Color, _ fill: Color, _ items: [DuoTaskItem]) -> some View {
@@ -662,7 +714,6 @@ struct DuoMediumView: View {
             column("Today", b.today, dc("#2b44a8"), dc("#e5ecfb"), b.todayTasks.filter { !$0.done })
         }
         .padding(10)
-        .widgetURL(duoTasksLink)
     }
 
     var focus: some View {
@@ -683,7 +734,7 @@ struct DuoMediumView: View {
                     DuoPill(label: "Done", bg: dc("#67e8f9"), fg: dc("#06222a"), url: focusDoneLink(f.id), height: 38)
                     DuoPill(label: "Stop", bg: dc("#262b36"), fg: .white, url: focusLink("stop"), height: 38)
                 } else {
-                    DuoPill(label: "Start focus", bg: dc("#67e8f9"), fg: dc("#06222a"), url: duoOpenLink, height: 38)
+                    DuoPill(label: "Start focus", bg: dc("#67e8f9"), fg: dc("#06222a"), url: b.goNext, height: 38)
                 }
             }
         }
@@ -691,7 +742,7 @@ struct DuoMediumView: View {
     }
 
     func countTile(_ label: String, _ n: Int, _ color: Color, dark: Bool = false) -> some View {
-        Link(destination: duoTasksLink) {
+        Link(destination: b.go("tasks", view: label == "Upcoming" ? "upcoming" : label == "All open" ? "all" : "today")) {
             HStack(alignment: .bottom) {
                 Text(verbatim: label).duo(13, .bold, dark ? .white : color)
                 Spacer()
@@ -730,7 +781,7 @@ struct DuoMediumView: View {
                 if let t = b.lateTasks.first {
                     Button(intent: DuoLaterIntent(item: t.id, slot: duoTapSlot(t))) { Text(verbatim: "Move to tomorrow").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 10).padding(.vertical, 7).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }.buttonStyle(.plain)
                 }
-                Link(destination: duoTasksLink) { Text(verbatim: b.asks > 0 ? plural(b.asks, "question") : "Open tasks").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 10).padding(.vertical, 7).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }
+                Link(destination: b.goAsks) { Text(verbatim: b.asks > 0 ? plural(b.asks, "question") : "Open tasks").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 10).padding(.vertical, 7).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }
             }
             .padding(.leading, 40)
         }
@@ -750,7 +801,6 @@ struct DuoMediumView: View {
             if focusList.isEmpty { Text(verbatim: "A clear day").duo(13, .semibold, dc("#e8eaed")) }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .widgetURL(duoTasksLink)
     }
 
     var editorial: some View {
@@ -776,12 +826,11 @@ struct DuoMediumView: View {
             }
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var quickAdd: some View {
         VStack(spacing: 10) {
-            Link(destination: duoAddLink) {
+            Link(destination: b.go("add")) {
                 HStack(spacing: 10) {
                     Image(systemName: "plus").font(.system(size: 16, weight: .heavy)).foregroundStyle(dc("#4f46e5"))
                     Text(verbatim: "Add a task, or type @arise").duo(14, .regular, dc("#5b6170"))
@@ -790,15 +839,15 @@ struct DuoMediumView: View {
                 .padding(.horizontal, 14).frame(height: 46).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#f2f3f6")))
             }
             HStack(spacing: 8) {
-                Link(destination: duoTasksLink) {
+                Link(destination: b.go("tasks", view: "today")) {
                     VStack(spacing: 2) { Text(verbatim: "\(b.overdue)").duo(20, .bold, dc("#b42318")); Text(verbatim: "Overdue").duo(12, .bold, dc("#b42318")) }
                         .frame(maxWidth: .infinity, maxHeight: .infinity).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#fff1ee")))
                 }
-                Link(destination: duoOpenLink) {
+                Link(destination: b.goFocus) {
                     VStack(spacing: 4) { Image(systemName: "timer").font(.system(size: 18, weight: .bold)); Text(verbatim: "Focus").font(.system(size: 12, weight: .bold)) }
                         .foregroundStyle(dc("#67e8f9")).frame(maxWidth: .infinity, maxHeight: .infinity).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#0b0d12")))
                 }
-                Link(destination: duoTasksLink) {
+                Link(destination: b.go("tasks", view: "today")) {
                     VStack(spacing: 2) { Text(verbatim: "\(b.today)").duo(20, .bold, .white); Text(verbatim: "Today").duo(12, .bold, .white) }
                         .frame(maxWidth: .infinity, maxHeight: .infinity).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#4f46e5")))
                 }
@@ -843,6 +892,23 @@ struct DuoLargeView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(target)
+    }
+
+    /// Where a tap on the widget (outside its buttons) opens the app.
+    var target: URL {
+        switch style {
+        case .checklist: return b.go("tasks", view: "today")
+        case .weekGrid: return b.go("calendar")
+        case .oneAtATime: return b.goNext
+        case .board: return b.go("tasks", view: "all")
+        case .calendar: return b.go("calendar")
+        case .notebook: return b.go("tasks", view: "today")
+        case .punch: return b.go("tasks", view: "today")
+        case .tiles: return b.go("tasks", view: "all")
+        case .briefing: return b.goAsks
+        case .grouped: return b.go("tasks", view: "all")
+        }
     }
 
     func section(_ title: String, _ color: Color) -> some View { Text(verbatim: title).duo(11, .heavy, color).tracking(0.8) }
@@ -859,7 +925,7 @@ struct DuoLargeView: View {
             ForEach(Array(today.prefix(late.isEmpty ? 5 : 3).enumerated()), id: \.offset) { _, t in DuoRow(task: t, ink: dc("#14161a"), muted: dc("#5b6170"), late: dc("#b42318"), size: 14) }
             if today.isEmpty { Text(verbatim: "Nothing due today").duo(14, .medium, dc("#5b6170")) }
             Spacer(minLength: 0)
-            Link(destination: duoAddLink) {
+            Link(destination: b.go("add")) {
                 HStack(spacing: 8) { Image(systemName: "plus").font(.system(size: 15, weight: .heavy)).foregroundStyle(dc("#4f46e5")); Text(verbatim: "Add a task").duo(13, .regular, dc("#5b6170")); Spacer() }
                     .padding(.horizontal, 12).frame(height: 42).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(dc("#f2f3f6")))
             }
@@ -891,7 +957,6 @@ struct DuoLargeView: View {
             Text(verbatim: b.overdue > 0 ? "\(b.overdue) carried over from earlier" : "Nothing carried over").duo(12, .regular, dc("#5c6660"))
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var oneAtATime: some View {
@@ -941,7 +1006,6 @@ struct DuoLargeView: View {
             boardColumn("Today", b.today, dc("#2b44a8"), dc("#e5ecfb"), b.todayTasks)
         }
         .padding(12)
-        .widgetURL(duoTasksLink)
     }
 
     var calendar: some View {
@@ -973,7 +1037,6 @@ struct DuoLargeView: View {
             }
         }
         .padding(16)
-        .widgetURL(duoTasksLink)
     }
 
     var notebook: some View {
@@ -992,7 +1055,7 @@ struct DuoLargeView: View {
                     }
                     .frame(height: 38, alignment: .bottom).padding(.bottom, 4)
                 }
-                Link(destination: duoTasksLink) { hand(b.asks > 0 ? "→ Arise left you a note" : "→ open your tasks", 17, dc("#7c3aed")) }.frame(height: 38, alignment: .bottom)
+                Link(destination: b.goAsks) { hand(b.asks > 0 ? "→ Arise left you a note" : "→ open your tasks", 17, dc("#7c3aed")) }.frame(height: 38, alignment: .bottom)
             }
             .padding(.leading, 48).padding(.trailing, 16)
         }
@@ -1026,7 +1089,7 @@ struct DuoLargeView: View {
     }
 
     func bigTile(_ label: String, _ n: Int, _ bg: Color, _ fg: Color) -> some View {
-        Link(destination: duoTasksLink) {
+        Link(destination: b.go("tasks", view: label == "Upcoming" ? "upcoming" : label == "All open" ? "all" : "today")) {
             VStack(alignment: .leading) {
                 Text(verbatim: label).duo(14, .bold, fg)
                 Spacer(minLength: 0)
@@ -1041,7 +1104,7 @@ struct DuoLargeView: View {
         VStack(spacing: 10) {
             HStack(spacing: 10) { bigTile("Overdue", b.overdue, dc("#ff5a4e"), dc("#1a0503")); bigTile("Today", b.today, dc("#ffd43b"), dc("#1f1600")) }
             HStack(spacing: 10) { bigTile("Upcoming", b.upcoming, dc("#74c0fc"), dc("#031a2b")); bigTile("All open", b.open, dc("#0b0b0f"), .white) }
-            Link(destination: duoAddLink) {
+            Link(destination: b.go("add")) {
                 HStack(spacing: 8) { Image(systemName: "plus").font(.system(size: 17, weight: .heavy)); Text(verbatim: "Add a task").font(.system(size: 15, weight: .heavy)) }
                     .foregroundStyle(.white).frame(maxWidth: .infinity, minHeight: 50).background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(dc("#0b0b0f")))
             }
@@ -1075,7 +1138,7 @@ struct DuoLargeView: View {
                 if let t = b.lateTasks.first {
                     Button(intent: DuoLaterIntent(item: t.id, slot: duoTapSlot(t))) { Text(verbatim: "Move to tomorrow").duo(12, .bold, dc("#6d28d9")).padding(.horizontal, 12).padding(.vertical, 8).background(Capsule().stroke(dc("#d9d1f0"), lineWidth: 1)) }.buttonStyle(.plain)
                 }
-                Link(destination: duoTasksLink) { Text(verbatim: b.asks > 0 ? plural(b.asks, "question") : "Open tasks").duo(12, .bold, .white).padding(.horizontal, 12).padding(.vertical, 8).background(Capsule().fill(dc("#6d28d9"))) }
+                Link(destination: b.goAsks) { Text(verbatim: b.asks > 0 ? plural(b.asks, "question") : "Open tasks").duo(12, .bold, .white).padding(.horizontal, 12).padding(.vertical, 8).background(Capsule().fill(dc("#6d28d9"))) }
             }
         }
         .padding(16)
@@ -1111,7 +1174,7 @@ struct DuoLargeView: View {
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
             }
             Spacer(minLength: 0)
-            Link(destination: duoAddLink) {
+            Link(destination: b.go("add")) {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill").font(.system(size: 22)).foregroundStyle(dc("#0a66d6"))
                     Text(verbatim: "New Task").duo(15, .semibold, dc("#0a66d6"))
@@ -1119,7 +1182,6 @@ struct DuoLargeView: View {
             }
         }
         .padding(14)
-        .widgetURL(duoTasksLink)
     }
 }
 
@@ -1135,6 +1197,18 @@ struct DuoLockView: View {
         case .accessoryCircular: circular
         case .accessoryInline: inline
         default: rectangular
+        }
+    }
+
+    static func target(_ style: DuoLockStyle, _ b: DuoBoard) -> URL {
+        switch style {
+        case .next: return b.goNext
+        case .overdue, .badge: return b.lateTasks.first.map { duoTaskURL($0, b.hub) } ?? b.go("tasks", view: "today")
+        case .focus: return b.goFocus
+        case .week: return b.go("calendar")
+        case .asks: return b.goAsks
+        case .open, .progress: return b.go("tasks", view: "all")
+        case .gauge, .line: return b.go("tasks", view: "today")
         }
     }
 
@@ -1268,7 +1342,7 @@ func duoLargeConfig(_ style: DuoLargeStyle, _ name: String) -> some WidgetConfig
 }
 func duoLockConfig(_ style: DuoLockStyle, _ name: String, _ families: [WidgetFamily]) -> some WidgetConfiguration {
     AppIntentConfiguration(kind: "Arise.duo.k." + style.rawValue, intent: DuoShowIntent.self, provider: DuoBoardProvider()) { e in
-        DuoLockView(style: style, b: e.board).containerBackground(for: .widget) { Color.clear }.widgetURL(duoTasksLink)
+        DuoLockView(style: style, b: e.board).containerBackground(for: .widget) { Color.clear }.widgetURL(DuoLockView.target(style, e.board))
     }
     .configurationDisplayName(name).description("Your tasks on the Lock Screen.").supportedFamilies(families)
 }
@@ -1375,5 +1449,176 @@ struct DuoLockWidgets: WidgetBundle {
         DuoK8()
         DuoK9()
         DuoK10()
+    }
+}
+
+// MARK: - Links: buttons that open your saved links in Safari
+// The app sends each hub's Link page as a slot ("duo.links" from LifeHub, "duo.links.work" from WorkHub; client/src/lib/duoBoard.ts
+// publishDuoLinks). Each button is a plain web link, so iPhone opens it in Safari, not in the app. Small shows one link
+// (pick which in Edit Widget), medium four, large eight.
+
+struct DuoLinkItem: Codable, Hashable {
+    var id: String = ""
+    var title: String = ""
+    var url: String = ""
+    var emoji: String = ""
+    var hub: String = "life"
+    var web: URL? {
+        guard let u = URL(string: url), let s = u.scheme?.lowercased(), s == "https" || s == "http" else { return nil }
+        return u
+    }
+    var host: String { (web?.host ?? "").replacingOccurrences(of: "www.", with: "") }
+}
+
+func loadDuoLinks(_ show: DuoShow) -> [DuoLinkItem] {
+    let defaults = UserDefaults(suiteName: group())
+    guard let data = defaults?.data(forKey: "slots"),
+          let all = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+    func read(_ key: String, _ hub: String) -> [DuoLinkItem] {
+        guard let slot = all[key] as? [String: Any], let raw = slot["links"] as? [[String: Any]] else { return [] }
+        return raw.compactMap { r in
+            let l = DuoLinkItem(id: r["id"] as? String ?? "", title: r["title"] as? String ?? "", url: r["url"] as? String ?? "", emoji: r["emoji"] as? String ?? "", hub: hub)
+            return l.web == nil ? nil : l
+        }
+    }
+    let work = show == .life ? [] : read("duo.links.work", "work")
+    let life = show == .work ? [] : read("duo.links", "life")
+    return work + life
+}
+
+struct DuoLinkEntity: AppEntity {
+    let id: String
+    let title: String
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Link"
+    static var defaultQuery = DuoLinkQuery()
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(title)") }
+}
+
+struct DuoLinkQuery: EntityQuery {
+    private func all() -> [DuoLinkEntity] {
+        loadDuoLinks(.both).map { DuoLinkEntity(id: "\($0.hub):\($0.id)", title: $0.title.isEmpty ? $0.host : $0.title) }
+    }
+    func entities(for identifiers: [DuoLinkEntity.ID]) async throws -> [DuoLinkEntity] { all().filter { identifiers.contains($0.id) } }
+    func suggestedEntities() async throws -> [DuoLinkEntity] { all() }
+    func defaultResult() async -> DuoLinkEntity? { all().first }
+}
+
+struct DuoLinkIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Links"
+    static var description = IntentDescription("Buttons that open your saved links in Safari.")
+    @Parameter(title: "Show", default: .both) var show: DuoShow
+    @Parameter(title: "Link (small widget)") var link: DuoLinkEntity?
+    init() {}
+}
+
+struct DuoLinkEntry: TimelineEntry {
+    let date: Date
+    let links: [DuoLinkItem]
+    let hub: String
+}
+
+struct DuoLinkProvider: AppIntentTimelineProvider {
+    static let sample = [
+        DuoLinkItem(id: "1", title: "Google Classroom", url: "https://classroom.google.com", emoji: "🎓"),
+        DuoLinkItem(id: "2", title: "Grade book", url: "https://www.infinitecampus.com", emoji: "📊"),
+        DuoLinkItem(id: "3", title: "District email", url: "https://mail.google.com", emoji: "✉️"),
+        DuoLinkItem(id: "4", title: "Newsela", url: "https://newsela.com", emoji: "📰"),
+    ]
+    func entry(_ c: DuoLinkIntent, preview: Bool) -> DuoLinkEntry {
+        var links = loadDuoLinks(c.show)
+        if let pick = c.link?.id, let i = links.firstIndex(where: { "\($0.hub):\($0.id)" == pick }) { links.insert(links.remove(at: i), at: 0) }
+        if links.isEmpty && preview { links = Self.sample }
+        return DuoLinkEntry(date: Date(), links: links, hub: c.show == .work ? "work" : "life")
+    }
+    func placeholder(in context: Context) -> DuoLinkEntry { DuoLinkEntry(date: Date(), links: Self.sample, hub: "life") }
+    func snapshot(for configuration: DuoLinkIntent, in context: Context) async -> DuoLinkEntry { entry(configuration, preview: context.isPreview) }
+    func timeline(for configuration: DuoLinkIntent, in context: Context) async -> Timeline<DuoLinkEntry> {
+        Timeline(entries: [entry(configuration, preview: false)], policy: .after(Date().addingTimeInterval(1800)))
+    }
+}
+
+/// One link button: its emoji (or first letter) in a tile, the name, and the site.
+struct DuoLinkButton: View {
+    let link: DuoLinkItem
+    var big = false
+    var body: some View {
+        let face = HStack(spacing: big ? 0 : 10) {
+            if !big {
+                Text(verbatim: link.emoji.isEmpty ? String((link.title.isEmpty ? link.host : link.title).prefix(1)).uppercased() : link.emoji)
+                    .font(.system(size: 17, weight: .bold)).foregroundStyle(dc("#4f46e5"))
+                    .frame(width: 34, height: 34).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(dc("#eef0ff")))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: link.title.isEmpty ? link.host : link.title).duo(13, .bold, dc("#17151f")).lineLimit(1)
+                Text(verbatim: link.host).duo(11, .medium, dc("#7a7f8c")).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "safari").font(.system(size: 12, weight: .bold)).foregroundStyle(dc("#9aa0ad"))
+        }
+        .padding(.horizontal, 10).frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#f5f6f9")))
+        if let url = link.web { Link(destination: url) { face } } else { face }
+    }
+}
+
+struct DuoLinkView: View {
+    let entry: DuoLinkEntry
+    @Environment(\.widgetFamily) var family
+    var body: some View {
+        let links = entry.links
+        Group {
+            if links.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Image(systemName: "link").font(.system(size: 20, weight: .bold)).foregroundStyle(dc("#4f46e5"))
+                    Spacer(minLength: 0)
+                    Text(verbatim: "No links yet").duo(15, .bold, dc("#17151f"))
+                    Text(verbatim: "Add some on your Link page in the app.").duo(12, .regular, dc("#5f5b6e")).lineLimit(3)
+                }
+                .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .widgetURL(duoGoURL(entry.hub, "links"))
+            } else if family == .systemSmall {
+                let l = links[0]
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(verbatim: l.emoji.isEmpty ? String((l.title.isEmpty ? l.host : l.title).prefix(1)).uppercased() : l.emoji)
+                        .font(.system(size: 26, weight: .bold)).foregroundStyle(.white)
+                        .frame(width: 50, height: 50).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#4f46e5")))
+                    Spacer(minLength: 0)
+                    Text(verbatim: l.title.isEmpty ? l.host : l.title).duo(16, .bold, dc("#17151f")).lineLimit(2)
+                    HStack(spacing: 4) {
+                        Image(systemName: "safari").font(.system(size: 11, weight: .bold))
+                        Text(verbatim: l.host).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(dc("#7a7f8c"))
+                }
+                .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .widgetURL(l.web)
+            } else {
+                let n = family == .systemLarge ? 8 : 4
+                let shown = Array(links.prefix(n))
+                let rows = stride(from: 0, to: shown.count, by: 2).map { Array(shown[$0..<min($0 + 2, shown.count)]) }
+                VStack(spacing: 8) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        HStack(spacing: 8) {
+                            ForEach(row, id: \.self) { DuoLinkButton(link: $0) }
+                            if row.count == 1 { Color.clear.frame(maxWidth: .infinity) }
+                        }
+                    }
+                    if family == .systemLarge && rows.count < 4 { Spacer(minLength: 0) }
+                }
+                .padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+    }
+}
+
+struct DuoLinkWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "Arise.duo.links", intent: DuoLinkIntent.self, provider: DuoLinkProvider()) { e in
+            DuoLinkView(entry: e).containerBackground(for: .widget) { Color.white }
+        }
+        .configurationDisplayName("Links")
+        .description("Tap a link to open it in Safari. Long-press, then Edit Widget to pick Work, Life or one link.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .contentMarginsDisabled()
     }
 }

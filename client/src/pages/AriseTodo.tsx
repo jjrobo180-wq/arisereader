@@ -119,7 +119,7 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
-import { duoBoard, publishDuoBoard, watchHubWidgetTaps } from "@/lib/duoBoard";
+import { duoBoard, publishDuoBoard, publishDuoLinks, watchHubWidgetTaps } from "@/lib/duoBoard";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { applyDuoWidgetTaps, duoWidgetSlots } from "@/lib/duoWidgets";
@@ -448,6 +448,8 @@ export default function AriseTodo() {
   // Cooked, Cooked PT, Arise Notes and Podster opened from a link or a notification: the page, episode or
   // trainer's invite to open them on (#/to-do?go=podster&s=…&e=…, go=cooked&coach=…, go=arisenotes&page=record).
   const [superStart, setSuperStart] = useState<{ app: SuperAppId; page: string | null; s: string | null; e: string | null; coach: string | null; at: number } | null>(null);
+  /** The sections that are on (read by the "?go=" handler below, which is set up once). */
+  const sectionsNow = useRef<readonly string[]>([]);
   // A tapped reminder opens "#/lifehub?go=<section>[&view=today]" (shared/todoReminders.ts goUrl):
   // straight to the screen it's about, then the address is tidied so a refresh doesn't do it again.
   useEffect(() => {
@@ -455,8 +457,19 @@ export default function AriseTodo() {
       const hash = window.location.hash, q = hash.indexOf("?");
       if (q < 0) return;
       const params = new URLSearchParams(hash.slice(q + 1));
-      const go = params.get("go");
+      let go = params.get("go");
       if (!go) return;
+      // A Home Screen widget (lib/duoFocus.ts listenForWidgetGo): Add opens a new task, a task opens that task, and
+      // the calendar falls back to upcoming tasks when the Calendar is switched off.
+      const widgetTask = params.get("task");
+      if (go === "add") { dismissOverlays(); setSection("tasks"); setTimeout(() => latest.current.openAdd(), 0); }
+      if (go === "calendar" && !sectionsNow.current.includes("calendar")) { go = "tasks"; params.set("view", "upcoming"); }
+      if (go === "tasks" && widgetTask) {
+        dismissOverlays();
+        const t = latest.current?.data.tasks.find((x) => x.id === widgetTask);
+        // Still loading (the tap started the app): opened once the lists are in, like after a refresh.
+        if (t && reopened.current) setTimeout(() => setEditing({ ...t }), 0); else setOpenTaskId(widgetTask);
+      }
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         dismissOverlays();
         // An Accountability invite or nudge: the app is turned on for them if it wasn't yet.
@@ -478,7 +491,7 @@ export default function AriseTodo() {
         const askId = params.get("ask");
         openAsk(askId && isAskId(askId) ? askId : "");
       }
-      params.delete("go"); params.delete("view"); params.delete("ask"); for (const k of ["page", "s", "e", "coach"]) params.delete(k);
+      params.delete("go"); params.delete("view"); params.delete("ask"); params.delete("task"); for (const k of ["page", "s", "e", "coach"]) params.delete(k);
       const rest = params.toString();
       try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
     };
@@ -834,6 +847,7 @@ export default function AriseTodo() {
     return { ...f, sectionOrder: current };
   });
   const trial = useLifeHubTrial();
+  sectionsNow.current = sections;
   const shown: FamilySection = sections.includes(section) ? section : (parentOf(section) && sections.includes(parentOf(section) as FamilySection)) ? (parentOf(section) as FamilySection) : "home";
   // Doses still to take today show on the Pills tab.
   const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
@@ -948,7 +962,8 @@ export default function AriseTodo() {
     const visible = () => { if (document.visibilityState === "visible") read(); };
     document.addEventListener("visibilitychange", visible);
     listenForFocusLinks((link) => {
-      if (link.kind === "open") return;
+      // "go" (a widget tap) is handled for the whole app by listenForWidgetGo (main.tsx).
+      if (link.kind === "open" || link.kind === "go") return;
       // The widgets' Add and Tasks buttons.
       if (link.kind === "add") { latest.current.openAdd(); return; }
       if (link.kind === "tasks") { latest.current.goTasks(); return; }
@@ -1160,6 +1175,8 @@ export default function AriseTodo() {
       const live = data.tasks.filter(t => !t.archived);
       publishDuoBoard(duoBoard(live.map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })),
         data.lists.map(l => ({ name: l.name, color: l.color, count: live.filter(t => !t.done && t.listId === l.id).length })), currentDay));
+      // The Links widget: your Link page's links, each opening in Safari.
+      publishDuoLinks("life", family.linkPage?.links || []);
     }, 1500);
     return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);

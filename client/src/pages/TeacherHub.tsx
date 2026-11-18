@@ -105,7 +105,7 @@ import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import { useHubLook } from "@/components/HubLook";
-import { duoBoard, publishDuoBoard, watchHubWidgetTaps } from "@/lib/duoBoard";
+import { duoBoard, publishDuoBoard, publishDuoLinks, watchHubWidgetTaps } from "@/lib/duoBoard";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
 import { calendarEvents } from "@shared/hubHidden";
@@ -631,7 +631,8 @@ function TeacherHubPage() {
   useEffect(() => {
     if (!focusSupported()) return;
     listenForFocusLinks((link) => {
-      if (link.kind === "open") return;
+      // Only the timer's own Done and Stop end it (the widgets' taps open sections: listenForWidgetGo, main.tsx).
+      if (link.kind !== "done" && link.kind !== "stop") return;
       if (link.kind === "done") {
         const t = focusRef.current.tasks.find((x) => x.id === link.id);
         if (t && !t.done) focusRef.current.checkTask(t);
@@ -655,6 +656,8 @@ function TeacherHubPage() {
   const [homeTask, setHomeTask] = useStayOnRefresh<string | null>("work-home-task", null);
   const [homeQuick, setHomeQuick] = useState("");
   // "@arise" asks (lib/ariseAsks.ts), the same as in To Duo: typing "@arise ..." in a to-do sends it to Arise's AI.
+  /** The tabs that are off (read by the "?go=" handler below, which is set up once). */
+  const workOffNow = useRef<readonly string[]>([]);
   // The ones asked from here open here (the notification's link is "#/workhub?go=asks&ask=...").
   const ariseAsks = useAriseAsks(user ? token : null);
   useEffect(() => onAskFinished((a) => toasts.show(a.status === "done" ? `Arise finished: ${a.title || a.ask}. It's in Tasks › Arise asks.` : `Arise couldn't make "${a.ask.slice(0, 60)}". Open Tasks › Arise asks to try again.`, [{ label: a.status === "done" ? "See it" : "Try again", run: () => { setTab("tasks"); openAsk(a.id); } }])), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -663,11 +666,23 @@ function TeacherHubPage() {
       const hash = window.location.hash, q = hash.indexOf("?");
       if (q < 0) return;
       const params = new URLSearchParams(hash.slice(q + 1));
-      if (params.get("go") !== "asks") return;
-      setTab("tasks");
-      const askId = params.get("ask");
-      openAsk(askId && isAskId(askId) ? askId : "");
-      params.delete("go"); params.delete("ask");
+      const go = params.get("go");
+      if (go === "asks") {
+        setTab("tasks");
+        const askId = params.get("ask");
+        openAsk(askId && isAskId(askId) ? askId : "");
+      } else if (go === "tasks" || go === "calendar" || go === "add" || go === "links" || go === "home") {
+        // A Home Screen widget (lib/duoFocus.ts listenForWidgetGo): the section it shows, the task it's about, or a new to-do.
+        closeApps();
+        const task = params.get("task");
+        if (go === "links") openKit("link-page");
+        else if (go === "home") setTab("overview");
+        else setTab(go === "calendar" && !workOffNow.current.includes("calendar") ? "calendar" : "tasks");
+        if (go === "add") { setHomeQuick(""); setHomeTask(NEW_TASK); }
+        else if (task) setHomeTask(task);
+        window.scrollTo({ top: 0 });
+      } else return;
+      params.delete("go"); params.delete("ask"); params.delete("task"); params.delete("view");
       const rest = params.toString();
       try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
     };
@@ -741,6 +756,8 @@ function TeacherHubPage() {
     }, 1500);
     return () => window.clearTimeout(t);
   }, [workspace.tasks, workspace.taskLists]);
+  // The Links widget: WorkHub's Link page, each link opening in Safari.
+  useEffect(() => { const t = window.setTimeout(() => publishDuoLinks("work", workLinks.links || []), 1500); return () => window.clearTimeout(t); }, [workLinks]);
   useEffect(() => watchHubWidgetTaps((t) => t.id === "duo.worktodos", (taps) => {
     const today = TODAY(), d = new Date(); d.setDate(d.getDate() + 1);
     const tomorrow = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1184,6 +1201,7 @@ function TeacherHubPage() {
   const osAdd = (title?: string) => { if (title) { setHomeQuick(title.slice(0, 200)); setHomeTask(NEW_TASK); } else setAddMenu((v) => !v); };
   const osApps = () => setApps(true);
   const osOff = (["tasks", "calendar", "notes"] as const).filter((t) => !isTabOn(t, visible, !!user.isAdmin));
+  workOffNow.current = osOff;
   const osFirst = (user.displayName || "").split(" ")[0];
   const osToday = TODAY();
   const osEvents = osCore ? calendarEvents(workspace, osToday, addDays(osToday, 34)) : [];

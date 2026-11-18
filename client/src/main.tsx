@@ -160,6 +160,8 @@ if (window.location.protocol === "capacitor:") {
     // again should land in your hub, not on the Reader (the Reader apps open on it anyway).
     try { const h = window.location.hash.split(/[?&](?:go|plan)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
   });
+  // A tap on a To Duo widget opens the section (or task) it shows, in its hub (lib/duoFocus.ts).
+  void import("@/lib/duoFocus").then((m) => m.listenForWidgetGo()).catch(() => {});
 }
 
 // No zoom, anywhere: index.html fixes the page at scale 1 (maximum-scale=1, user-scalable=no), which

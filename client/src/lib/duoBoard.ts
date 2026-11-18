@@ -105,3 +105,17 @@ export function watchHubWidgetTaps(mine: (t: WidgetTap) => boolean, handle: (tap
 export function publishFocusNow(focus: { id: string; title: string; startedAt: number; endsAt: number } | null): void {
   publishRaw({ id: "duo.focusnow", title: focus ? "Focus" : "", value: "", focus: focus ? { id: focus.id, title: cut(focus.title, 60), startedAt: focus.startedAt, endsAt: focus.endsAt } : null });
 }
+
+/** The links the Links widget shows (web links only: each button opens Safari). Pure, so it's tested. */
+export function duoLinks(links: { id: string; title: string; url: string; emoji?: string }[]): { id: string; title: string; url: string; emoji: string }[] {
+  return links
+    .filter((l) => /^https?:\/\/[^\s]+$/i.test(String(l.url || "").trim()))
+    .slice(0, 40)
+    .map((l) => ({ id: String(l.id).slice(0, 80), title: cut(String(l.title || "").trim(), 40), url: String(l.url).trim().slice(0, 2000), emoji: String(l.emoji || "").slice(0, 8) }));
+}
+
+/** LifeHub's Link page is "duo.links", WorkHub's "duo.links.work" (the Links widget's Show choice picks one or both). */
+export function publishDuoLinks(hub: "life" | "work", links: { id: string; title: string; url: string; emoji?: string }[]): void {
+  const list = duoLinks(links);
+  publishRaw({ id: hub === "work" ? "duo.links.work" : "duo.links", title: "Links", value: String(list.length), links: list });
+}

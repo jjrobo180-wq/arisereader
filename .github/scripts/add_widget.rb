@@ -57,7 +57,7 @@ if own.empty?
     if link.(w) then "        AriseLink#{i}()"
     elsif check.(w) then "        AriseCheck#{i}()"
     elsif live.(w) then "        AriseLive#{i}()"
-    elsif designs.(w) then "        DuoSmallWidgets().body\n        DuoMediumWidgets().body\n        DuoLargeWidgets().body\n        DuoLockWidgets().body"
+    elsif designs.(w) then "        DuoSmallWidgets().body\n        DuoMediumWidgets().body\n        DuoLargeWidgets().body\n        DuoLockWidgets().body\n        DuoLinkWidget()"
     else "        AriseSimple#{i}()
         AriseDetail#{i}()"
     end

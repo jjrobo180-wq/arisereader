@@ -9,7 +9,10 @@ const PLUGIN = /arise.?widgets/i;
 
 export type FocusNow = { id: string; title: string; startedAt: number; endsAt: number };
 /** "add" and "tasks" come from the Home Screen widgets' buttons (native/widget-extension/DuoDesigns.swift). */
-export type FocusLink = { kind: "done"; id: string } | { kind: "stop" } | { kind: "open" } | { kind: "add" } | { kind: "tasks" };
+export type FocusLink = { kind: "done"; id: string } | { kind: "stop" } | { kind: "open" } | { kind: "add" } | { kind: "tasks" } | WidgetGo;
+/** A tap on a Home Screen or Lock Screen widget: the hub and the section it's about, and the task when it's about one. */
+export type WidgetGo = { kind: "go"; hub: "work" | "life"; to: string; view: string; task: string };
+const GO_TO = new Set(["tasks", "calendar", "asks", "add", "links", "home"]);
 
 export const FOCUS_MINUTES = [15, 25, 45, 60] as const;
 
@@ -56,9 +59,15 @@ export async function readFocus(): Promise<FocusNow | null> {
 
 /** What an arisetodo://focus/... link asks for. */
 export function readFocusLink(url: string): FocusLink | null {
-  const m = /^arisetodo:\/\/focus\/(done|stop|open|add|tasks)\b(?:\?(.*))?$/i.exec(String(url || "").trim());
+  const m = /^arisetodo:\/\/focus\/(done|stop|open|add|tasks|go)\b(?:\?(.*))?$/i.exec(String(url || "").trim());
   if (!m) return null;
   const kind = m[1].toLowerCase();
+  if (kind === "go") {
+    const q = new URLSearchParams(m[2] || "");
+    const to = (q.get("to") || "").toLowerCase();
+    const view = (q.get("view") || "").toLowerCase();
+    return { kind: "go", hub: q.get("hub") === "work" ? "work" : "life", to: GO_TO.has(to) ? to : "tasks", view: /^(today|upcoming|all)$/.test(view) ? view : "", task: (q.get("task") || "").slice(0, 80) };
+  }
   if (kind === "stop") return { kind: "stop" };
   if (kind === "open") return { kind: "open" };
   if (kind === "add") return { kind: "add" };
@@ -86,6 +95,38 @@ export function listenForFocusLinks(handle: (link: FocusLink) => void): void {
     const url = String(r?.url || "");
     if (!url) return;
     try { if (sessionStorage.getItem("duo-focus-launch") === url) return; sessionStorage.setItem("duo-focus-launch", url); } catch { /* act on it */ }
+    run(url);
+  }).catch(() => {});
+  void nativeListen("App", "appUrlOpen", (e: any) => run(e?.url));
+}
+
+/** Where a widget tap goes in the app: the hub's own "?go=" link (each hub reads it and opens that section or task). */
+export function widgetGoHash(g: WidgetGo): string {
+  const q = new URLSearchParams({ go: g.to });
+  if (g.view) q.set("view", g.view);
+  if (g.task) q.set("task", g.task);
+  return `#/${g.hub === "work" ? "workhub" : "lifehub"}?${q.toString()}`;
+}
+
+/**
+ * Widget taps open the exact place they show, whichever screen the app is on (or opened on): set once at start-up
+ * (main.tsx). Separate from listenForFocusLinks, which the hubs use for the timer's Done and Stop.
+ */
+export function listenForWidgetGo(): void {
+  if (!isNativeApp() || nativeFlavor() !== "todo") return;
+  let last = "";
+  const run = (url?: string) => {
+    const link = url ? readFocusLink(url) : null;
+    if (!link || link.kind !== "go") return;
+    const key = `${url}@${Math.floor(Date.now() / 3000)}`;
+    if (key === last) return;
+    last = key;
+    window.location.hash = widgetGoHash(link);
+  };
+  nativeCall(/^App$/, "App", "getLaunchUrl").then((r: any) => {
+    const url = String(r?.url || "");
+    if (!url) return;
+    try { if (sessionStorage.getItem("duo-go-launch") === url) return; sessionStorage.setItem("duo-go-launch", url); } catch { /* act on it */ }
     run(url);
   }).catch(() => {});
   void nativeListen("App", "appUrlOpen", (e: any) => run(e?.url));

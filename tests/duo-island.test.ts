@@ -122,7 +122,7 @@ test("the To Duo app turns Live Activities on and answers arisetodo:// links", (
 
 test("the app applies widget taps and focus links, and offers the timer in the task editor", () => {
   const app = read("client/src/pages/AriseTodo.tsx");
-  assert.match(app, /watchWidgetActions\(\(taps\) =>/);
+  assert.match(app, /watchHubWidgetTaps\(/);
   assert.match(app, /applyDuoWidgetTaps\(taps/);
   assert.match(app, /listenForFocusLinks\(/);
   assert.match(app, /if \(!task\.done && focus\?\.id === task\.id\) endFocus\(\)/, "checking the task off ends its timer");
