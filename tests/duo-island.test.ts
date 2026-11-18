@@ -141,3 +141,15 @@ test("WorkHub's to-dos have the focus timer too, and its Done checks the to-do o
   assert.match(hub, /listenForFocusLinks\(\(link\) => \{/);
   assert.match(hub, /if \(t && !t\.done\) focusRef\.current\.checkTask\(t\);/);
 });
+
+test("Focus is a WorkHub plugin, and the Focus timer (both hubs) runs on the Dynamic Island", async () => {
+  const { PLUGINS } = await import("../shared/pluginStore");
+  const { HUB_GROUPS } = await import("../shared/hubTabGroups");
+  const p = PLUGINS.find((x) => x.id === "work-focus");
+  assert.ok(p && p.target.kind === "tab" && p.target.tab === "focus");
+  assert.ok(HUB_GROUPS.some((g) => g.id === "focus" && g.tabs.includes("focus" as any)));
+  const timer = read("client/src/components/family-hub/Focus.tsx");
+  assert.match(timer, /startFocus\(\{ id: FOCUS_BLOCK_ID/);
+  assert.match(timer, /if \(!running\) \{ void stopFocus\(\); return; \}/);
+  assert.match(read("client/src/pages/TeacherHub.tsx"), /\{tab === "focus" && <FocusTimer /);
+});

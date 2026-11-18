@@ -145,6 +145,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import HubParentUpdate from "@/components/teacher-hub/HubParentUpdate";
+import { FocusTimer } from "@/components/family-hub/Focus";
 import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
@@ -249,13 +250,14 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "parents", label: "Parents", icon: <MessageSquare className="h-4 w-4" /> },
   { id: "schedules", label: "Schedules", icon: <Clock3 className="h-4 w-4" /> },
   { id: "prep", label: "Prep", icon: <ClipboardCheck className="h-4 w-4" /> },
+  { id: "focus", label: "Focus", icon: <Timer className="h-4 w-4" /> },
   { id: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
 ];
 
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
-  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />,
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />,
   notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
@@ -1950,6 +1952,8 @@ function TeacherHubPage() {
           {tab === "gradebook" && <Gradebook workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "parents" && <Parents workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "prep" && <PrepChecklist workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />}
+          {tab === "focus" && <FocusTimer log={Array.isArray((workspace as any).focusLog) ? (workspace as any).focusLog : []} today={TODAY()} say={(t) => toasts.show(t, [])}
+            onFocused={(minutes) => setWorkspace((p) => ({ ...p, focusLog: [...(Array.isArray((p as any).focusLog) ? (p as any).focusLog : []), { id: id(), date: TODAY(), minutes }].slice(-500) } as typeof p))} />}
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}

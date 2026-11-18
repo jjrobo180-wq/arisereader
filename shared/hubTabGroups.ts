@@ -4,7 +4,7 @@
 import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "goals"
+  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "goals"
   | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
@@ -27,6 +27,8 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "iep", label: "IEP", tabs: ["iep", "caseload", "minutes"] },
   // Prep: the planning-period checklist of jobs that repeat. Its own plugin, not part of IEP.
   { id: "prep", label: "Prep", tabs: ["prep"] },
+  // Focus: focus blocks with breaks; in the iPhone app each shows in the Dynamic Island.
+  { id: "focus", label: "Focus", tabs: ["focus"] },
   { id: "goals", label: "Goals", tabs: ["goals"] },
   { id: "tasks", label: "Tasks", tabs: ["tasks"] },
   { id: "notes", label: "Notes", tabs: ["notes"] },
@@ -44,7 +46,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
-  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep",
+  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus",
   goals: "Goals",
   tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",
