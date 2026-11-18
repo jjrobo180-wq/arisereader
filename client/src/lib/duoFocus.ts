@@ -3,11 +3,13 @@
 // AriseWidgets plugin). Its Done and Stop buttons open the app with an arisetodo://focus/... link, which
 // listenForFocusLinks hands back here. Outside the iPhone app none of this shows.
 import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen } from "@/lib/nativeApp";
+import { publishFocusNow } from "@/lib/duoBoard";
 
 const PLUGIN = /arise.?widgets/i;
 
 export type FocusNow = { id: string; title: string; startedAt: number; endsAt: number };
-export type FocusLink = { kind: "done"; id: string } | { kind: "stop" } | { kind: "open" };
+/** "add" and "tasks" come from the Home Screen widgets' buttons (native/widget-extension/DuoDesigns.swift). */
+export type FocusLink = { kind: "done"; id: string } | { kind: "stop" } | { kind: "open" } | { kind: "add" } | { kind: "tasks" };
 
 export const FOCUS_MINUTES = [15, 25, 45, 60] as const;
 
@@ -23,6 +25,7 @@ export async function startFocus(task: { id: string; title: string }, minutes: n
   try {
     const r = await nativeCall(PLUGIN, "AriseWidgets", "startFocus", { id: task.id, title: task.title.slice(0, 80) || "Focus", minutes, tint });
     current = { id: task.id, title: task.title, startedAt: Number(r?.startedAt) || Date.now(), endsAt: Number(r?.endsAt) || Date.now() + minutes * 60_000 };
+    publishFocusNow(current);
     return current;
   } catch (e: any) {
     const msg = String(e?.message || e || "");
@@ -35,6 +38,7 @@ export async function startFocus(task: { id: string; title: string }, minutes: n
 /** Ends the timer (it leaves the Lock Screen and the Dynamic Island). */
 export async function stopFocus(): Promise<void> {
   current = null;
+  publishFocusNow(null);
   if (!focusSupported()) return;
   try { await nativeCall(PLUGIN, "AriseWidgets", "stopFocus"); } catch { /* nothing running */ }
 }
@@ -46,16 +50,19 @@ export async function readFocus(): Promise<FocusNow | null> {
     const r = await nativeCall(PLUGIN, "AriseWidgets", "focusState");
     current = r && typeof r.id === "string" && Number(r.endsAt) > 0 ? { id: r.id, title: String(r.title || ""), startedAt: Number(r.startedAt) || 0, endsAt: Number(r.endsAt) } : null;
   } catch { current = null; }
+  publishFocusNow(current);
   return current;
 }
 
 /** What an arisetodo://focus/... link asks for. */
 export function readFocusLink(url: string): FocusLink | null {
-  const m = /^arisetodo:\/\/focus\/(done|stop|open)\b(?:\?(.*))?$/i.exec(String(url || "").trim());
+  const m = /^arisetodo:\/\/focus\/(done|stop|open|add|tasks)\b(?:\?(.*))?$/i.exec(String(url || "").trim());
   if (!m) return null;
   const kind = m[1].toLowerCase();
   if (kind === "stop") return { kind: "stop" };
   if (kind === "open") return { kind: "open" };
+  if (kind === "add") return { kind: "add" };
+  if (kind === "tasks") return { kind: "tasks" };
   const id = new URLSearchParams(m[2] || "").get("id") || "";
   return id ? { kind: "done", id } : { kind: "stop" };
 }

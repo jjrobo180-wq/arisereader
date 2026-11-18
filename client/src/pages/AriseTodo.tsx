@@ -119,6 +119,7 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets, watchWidgetActions } from "@/lib/widgets";
+import { duoBoard, publishDuoBoard } from "@/lib/duoBoard";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { applyDuoWidgetTaps, duoWidgetSlots } from "@/lib/duoWidgets";
@@ -937,8 +938,8 @@ export default function AriseTodo() {
   // The iPhone app's Tasks tab is a native screen over the web app (native/arise-native). Everything it does comes back as
   // actions applied here; without the plugin (the website, an older app) the web Tasks screen is used.
   const nativeTasksOpen = useRef(false);
-  const latest = useRef({ data, toggleDone });
-  latest.current = { data, toggleDone };
+  const latest = useRef({ data, toggleDone, openAdd, goTasks: () => goSection("tasks") });
+  latest.current = { data, toggleDone, openAdd, goTasks: () => goSection("tasks") };
   // The focus timer: what's running (read again whenever the app comes back), and its Done and Stop buttons.
   useEffect(() => {
     if (!focusSupported()) return;
@@ -948,6 +949,9 @@ export default function AriseTodo() {
     document.addEventListener("visibilitychange", visible);
     listenForFocusLinks((link) => {
       if (link.kind === "open") return;
+      // The widgets' Add and Tasks buttons.
+      if (link.kind === "add") { latest.current.openAdd(); return; }
+      if (link.kind === "tasks") { latest.current.goTasks(); return; }
       if (link.kind === "done") {
         const t = latest.current.data.tasks.find((x) => x.id === link.id);
         if (t && !t.done) latest.current.toggleDone(t);
@@ -1152,6 +1156,10 @@ export default function AriseTodo() {
     const t = window.setTimeout(() => {
       const listName = (id: string) => data.lists.find(l => l.id === id)?.name;
       publishWidgets(duoWidgetSlots(family, data.tasks.filter(t => !t.archived).map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })), currentDay, weatherFeed.data ?? null));
+      // The iPhone widgets' 40 designs (native/widget-extension/DuoDesigns.swift) all read this one board.
+      const live = data.tasks.filter(t => !t.archived);
+      publishDuoBoard(duoBoard(live.map(t => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done, listName: listName(t.listId) })),
+        data.lists.map(l => ({ name: l.name, color: l.color, count: live.filter(t => !t.done && t.listId === l.id).length })), currentDay));
     }, 1500);
     return () => window.clearTimeout(t);
   }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
@@ -1161,6 +1169,13 @@ export default function AriseTodo() {
     const chores = taps.some((t) => t.id === "duo.chores");
     const { done } = applyDuoWidgetTaps(taps, tasks, emptyFamily(), today(), makeId);
     for (const id of done) { const t = latest.current.data.tasks.find((x) => x.id === id); if (t && !t.done) latest.current.toggleDone(t); }
+    // "Later" on a widget: the task moves to tomorrow.
+    const later = new Set(taps.filter((t) => t.id === "duo.todos" && t.action === "later" && t.item).map((t) => t.item!));
+    if (later.size) {
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      const tomorrow = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      setData((p) => ({ ...p, tasks: p.tasks.map((t) => (later.has(t.id) && !t.done ? { ...t, due: tomorrow } : t)) }));
+    }
     if (chores) setFamily((f) => applyDuoWidgetTaps(taps, [], f, today(), makeId).family);
   }), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Apple Watch (native/duo-watch): the Life side of the watch (tasks, calendar, chores, groceries, habits,

@@ -105,7 +105,7 @@ test("add_widget.rb builds .check widgets as checklists and .live as the Live Ac
   assert.match(rb, /end_with\?\("\.live"\)/);
   assert.match(rb, /FocusLiveActivity\(\)\.config/);
   const list: string[][] = JSON.parse(read("arisetodo/ios-app/widgets.json"));
-  assert.deepEqual(list.filter((w) => /\.(check|live)$/.test(w[0])), [["duo.todos.check", "To-do checklist"], ["duo.chores.check", "Chore checklist"], ["duo.focus.live", "Focus timer"]]);
+  assert.deepEqual(list.filter((w) => /\.(check|live)$/.test(w[0])), [["duo.focus.live", "Focus timer"]]);
 });
 
 test("the To Duo app turns Live Activities on and answers arisetodo:// links", () => {

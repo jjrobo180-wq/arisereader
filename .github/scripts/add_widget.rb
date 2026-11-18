@@ -34,6 +34,9 @@ if own.empty?
   link = ->(w) { w[0].to_s.end_with?("linkpage") }
   check = ->(w) { w[0].to_s.end_with?(".check") }
   live = ->(w) { w[0].to_s.end_with?(".live") }
+  # An id ending in ".designs" is Arise To Duo's task widgets: Small, Medium, Large and Lock Screen, ten designs
+  # each (native/widget-extension/DuoDesigns.swift, added to the file below).
+  designs = ->(w) { w[0].to_s.end_with?(".designs") }
   structs = widgets.each_with_index.map do |w, i|
     if link.(w)
       "struct AriseLink#{i}: Widget { var body: some WidgetConfiguration { LinkPageWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
@@ -41,6 +44,8 @@ if own.empty?
       "struct AriseCheck#{i}: Widget { var body: some WidgetConfiguration { ChecklistWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }"
     elsif live.(w)
       "struct AriseLive#{i}: Widget { var body: some WidgetConfiguration { FocusLiveActivity().config } }"
+    elsif designs.(w)
+      ""
     else
       "struct AriseSimple#{i}: Widget { var body: some WidgetConfiguration { SimpleWidget(id: #{w[0].to_json}, name: #{w[1].to_json}).config } }
 " \
@@ -52,11 +57,13 @@ if own.empty?
     if link.(w) then "        AriseLink#{i}()"
     elsif check.(w) then "        AriseCheck#{i}()"
     elsif live.(w) then "        AriseLive#{i}()"
+    elsif designs.(w) then "        DuoSmallWidget()\n        DuoMediumWidget()\n        DuoLargeWidget()\n        DuoLockWidget()"
     else "        AriseSimple#{i}()
         AriseDetail#{i}()"
     end
   end.join("
 ")
+  src += "\n" + File.read(File.join(root, "native/widget-extension/DuoDesigns.swift")) if widgets.any? { |w| designs.(w) }
   src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)
 else
   # An app's own widgets (Arise Notes): used as they are.

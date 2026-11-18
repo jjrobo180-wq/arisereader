@@ -1,66 +1,10 @@
 [
  [
-  "duo.potty.next",
-  "Potty"
- ],
- [
-  "duo.agenda",
-  "Today's agenda"
- ],
- [
-  "duo.todos",
-  "To-dos due"
- ],
- [
-  "duo.bills",
-  "Next bill"
- ],
- [
-  "duo.goals",
-  "Goals"
- ],
- [
-  "duo.notes",
-  "Sticky notes"
- ],
- [
-  "duo.countdown",
-  "Countdown"
- ],
- [
-  "duo.email",
-  "Email to-dos"
- ],
- [
-  "duo.weather",
-  "Weather"
- ],
- [
-  "duo.chores",
-  "Chores today"
- ],
- [
-  "duo.week",
-  "This week"
- ],
- [
-  "duo.accountability",
-  "Accountability"
- ],
- [
-  "duo.todos.check",
-  "To-do checklist"
- ],
- [
-  "duo.chores.check",
-  "Chore checklist"
+  "duo.tasks.designs",
+  "Tasks"
  ],
  [
   "duo.focus.live",
   "Focus timer"
- ],
- [
-  "duo.linkpage",
-  "Link page"
  ]
 ]

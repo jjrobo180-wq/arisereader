@@ -17,20 +17,11 @@ test("Fit: every widget in widgets.json has a slot, with short text", () => {
   for (const s of cleanSlots(slots)) assert.ok(s.title && s.value, s.id);
 });
 
-test("To Duo: each widget in widgets.json is sent by the app (one potty widget from the potty app, accountability from its page)", () => {
-  // ".check" widgets (checklists) read the slot of the same name without ".check"; ".live" is the focus timer's Live Activity.
+test("To Duo: the iPhone widgets are the 40 task designs (one board) and the focus timer's Live Activity", () => {
   const all = list("../arisetodo/ios-app/widgets.json").map((w) => w[0]);
-  const ids = all.filter((id) => !id.endsWith(".check") && !id.endsWith(".live"));
-  const here = duoWidgetSlots(emptyFamily(), [], "2026-11-02", null).map((s) => s.id);
-  for (const id of all.filter((x) => x.endsWith(".check"))) assert.ok(here.includes(id.slice(0, -".check".length)), id);
-  assert.deepEqual(all.filter((x) => x.endsWith(".live")), ["duo.focus.live"]);
-  const elsewhere = ["duo.potty.next", "duo.accountability", "duo.linkpage"];
-  assert.deepEqual([...here, ...elsewhere].sort(), [...ids].sort());
-  const potty = readFileSync(new URL("../client/src/components/pro/potty/PottyApp.tsx", import.meta.url), "utf8");
-  assert.ok(potty.includes('"duo.potty.next"'));
-  assert.ok(!potty.includes('"duo.potty.today"') && !potty.includes('"duo.potty.last"'), "only one potty widget");
-  assert.ok(readFileSync(new URL("../client/src/components/family-hub/Accountability.tsx", import.meta.url), "utf8").includes('"duo.accountability"'));
-  assert.ok(readFileSync(new URL("../client/src/components/family-hub/LinkPageCard.tsx", import.meta.url), "utf8").includes('"duo.linkpage"'));
+  assert.deepEqual(all, ["duo.tasks.designs", "duo.focus.live"]);
+  const page = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
+  assert.ok(page.includes("publishDuoBoard(duoBoard("), "the app sends the board the designs draw");
 });
 
 test("To Duo: agenda, to-dos, bills and countdowns show what's coming", () => {

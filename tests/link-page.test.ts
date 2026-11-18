@@ -56,7 +56,6 @@ test("the iPhone widget gets a QR code of the page (https only), and the app sen
   const [slot] = cleanSlots([{ id: "duo.linkpage", title: "Jermaine Robinson", value: "JR", detail: "arisetodo.com/share/abc", qr: "https://arisetodo.com/share/abcdefghijklmnopqrstuv" }]);
   assert.equal(slot.qr, "https://arisetodo.com/share/abcdefghijklmnopqrstuv");
   assert.equal(cleanSlots([{ id: "duo.linkpage", title: "x", value: "x", qr: "javascript:alert(1)" }])[0].qr, undefined);
-  assert.deepEqual(JSON.parse(read("arisetodo/ios-app/widgets.json")).at(-1), ["duo.linkpage", "Link page"]);
   const swift = read("native/widget-extension/AriseWidgets.swift");
   assert.match(swift, /CIFilter\.qrCodeGenerator\(\)/);
   assert.match(swift, /struct LinkPageWidget \{/);

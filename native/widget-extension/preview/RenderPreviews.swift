@@ -126,11 +126,33 @@ private struct DuoExtras: View {
     }
 }
 
+/// Arise To Duo: all 40 task designs (DuoDesigns.swift) with the sample board, each at its real size.
+private struct DuoDesignsSheet: View {
+    func tile<V: View>(_ w: CGFloat, _ h: CGFloat, _ bg: Color, _ v: V) -> some View {
+        v.frame(width: w, height: h).background(bg).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+    var body: some View {
+        let b = DuoBoard.sample
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 18) { ForEach(Array(DuoSmallStyle.allCases.prefix(5)), id: \.self) { s in tile(170, 170, DuoSmallView.background(s), DuoSmallView(style: s, b: b)) } }
+            HStack(spacing: 18) { ForEach(Array(DuoSmallStyle.allCases.suffix(5)), id: \.self) { s in tile(170, 170, DuoSmallView.background(s), DuoSmallView(style: s, b: b)) } }
+            ForEach(0..<5, id: \.self) { r in
+                HStack(spacing: 18) { ForEach(Array(DuoMediumStyle.allCases[(r * 2)..<(r * 2 + 2)]), id: \.self) { s in tile(364, 170, DuoMediumView.background(s), DuoMediumView(style: s, b: b)) } }
+            }
+            ForEach(0..<5, id: \.self) { r in
+                HStack(spacing: 18) { ForEach(Array(DuoLargeStyle.allCases[(r * 2)..<(r * 2 + 2)]), id: \.self) { s in tile(364, 382, DuoLargeView.background(s), DuoLargeView(style: s, b: b)) } }
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.12, green: 0.13, blue: 0.18))
+    }
+}
+
 @main
 struct RenderPreviews {
     @MainActor static func main() {
         let app = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "fit"
-        let r = ImageRenderer(content: Sheet(slots: sample(app)))
+        let r = app == "todo" ? ImageRenderer(content: AnyView(DuoDesignsSheet())) : ImageRenderer(content: AnyView(Sheet(slots: sample(app))))
         r.scale = 1.5
         guard let cg = r.cgImage else { print("RENDER FAILED"); return }
         let data = NSMutableData()
