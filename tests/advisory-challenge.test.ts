@@ -188,7 +188,8 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
 
 test("the Reader opens the hub in a new tab, signs out to arisereader.com, and has a phone rail with a Hide button", () => {
   const page = read("client/src/pages/TeacherReader.tsx");
-  assert.match(page, /target="_blank" rel="noopener" onClick=\{openHub\} data-testid="reader-open-workhub"/);
+  // In an iPhone app (To Duo opens it from a notification) it goes back in place: a new tab would go nowhere.
+  assert.match(page, /target=\{inApp \? undefined : "_blank"\} rel="noopener" onClick=\{inApp \? goBack : openHub\} data-testid="reader-open-workhub"/);
   assert.match(page, /export const READER_SIGN_IN = `\$\{READER_APP\}#\/signin`;/);
   assert.match(page, /onClick=\{\(\) => \{ logout\(\); if \(isReaderApp\(\)\) goToSignIn\(\); else window\.location\.assign\(READER_SIGN_IN\); \}\}/);
   assert.match(page, /localStorage\.getItem\(RAIL_KEY\) !== "closed"/, "the phone rail starts open");
@@ -231,7 +232,7 @@ test("a student's profile, messages and certificates open as pop-ups; the hub op
   const reader = read("client/src/pages/TeacherReader.tsx");
   assert.match(reader, /\/api\/auth\/admin-handoff\/start/);
   assert.match(reader, /const url = `\$\{TODO_APP\}#\/admin-handoff\?code=\$\{d\.code\}`;/);
-  assert.match(reader, /onClick=\{openHub\} data-testid="reader-open-workhub"/);
+  assert.match(reader, /onClick=\{inApp \? goBack : openHub\} data-testid="reader-open-workhub"/);
 });
 
 test("parents see the prizes, every leaderboard, and their child's school's challenge; banners are slim", () => {

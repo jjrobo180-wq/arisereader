@@ -6,11 +6,11 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BellRing, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, ChevronLeft, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, goToSignIn, isReaderHost } from "@/lib/hubs";
-import { isReaderApp } from "@/lib/nativeApp";
+import { isNativeApp, isReaderApp } from "@/lib/nativeApp";
 import AccountPrivacy from "@/components/AccountPrivacy";
 import GetReaderApp from "@/components/GetReaderApp";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
@@ -135,6 +135,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   // Opening the hub: on arisereader.com the sign-in has to be carried over to arisetodo.com. Doing
   // that here, before the new tab loads anything, takes the tab straight to the hub instead of
   // loading the Reader site, then a "carrying your sign-in" screen, then the hub.
+  // Inside an iPhone app (To Duo opens the Reader from a notification) a new tab goes nowhere: go back in place.
+  const inApp = isNativeApp() && !isReaderApp();
+  const goBack = (e: React.MouseEvent) => { e.preventDefault(); window.location.assign(workhubHref); };
   const openHub = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isReaderHost() || !token || e.metaKey || e.ctrlKey || e.shiftKey) return; // the plain link does the rest
     e.preventDefault();
@@ -233,8 +236,10 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
     <div className="teacher-reader hub-paper hub-night min-h-screen w-full max-w-[100vw] overflow-x-clip" data-testid="arise-reader-page"
       style={{ background: "#0d0b1a", color: "#ece9f7", fontFamily: "'Figtree', system-ui, sans-serif" }}>
 
-      <header className="sticky top-0 z-50 flex h-[calc(4rem+var(--sat,0px))] items-center pt-[var(--sat,0px)] justify-between gap-2 border-b px-3 sm:gap-3 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
+      <header data-own-sat="" className="sticky top-0 z-50 flex h-[calc(4rem+var(--sat,0px))] items-center pt-[var(--sat,0px)] justify-between gap-2 border-b px-3 sm:gap-3 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          {inApp && <a href={workhubHref} onClick={goBack} aria-label="Back to your hub" data-testid="reader-back-to-hub"
+            className="flex h-10 shrink-0 items-center gap-1 rounded-[10px] border px-2 text-[12px] font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}><ChevronLeft className="h-4 w-4" />Back</a>}
           {/* Phones: the menu's Hide / Menu button, up top where it is easy to find. */}
           <button type="button" onClick={() => setRail(!rail)} aria-expanded={rail} aria-controls="reader-phone-rail" data-testid="reader-rail-toggle"
             className="flex h-10 shrink-0 items-center gap-1 rounded-[10px] border px-2 text-[12px] font-bold lg:hidden" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>
@@ -269,7 +274,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
                 <Icon className="h-3.5 w-3.5" style={{ color }} />{label}
               </a>
             ))}
-            <a href={workhubHref} className="inline-flex min-h-9 items-center rounded-xl px-4 text-sm font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" onClick={openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
+            <a href={workhubHref} className="inline-flex min-h-9 items-center rounded-xl px-4 text-sm font-black" style={{ background: "#5eead4", color: "#062b27" }} target={inApp ? undefined : "_blank"} rel="noopener" onClick={inApp ? goBack : openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
           </div>
         </section>}
         {/* The iPhone app's download link, for parents, teachers and admins (hidden inside the app itself). */}

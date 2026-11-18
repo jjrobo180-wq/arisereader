@@ -8,7 +8,7 @@
 html.todo-edge.todo-compact { font-size: 93.75%; }
 html.todo-edge { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 44px)); --sab: env(safe-area-inset-bottom, 0px); }
 /* The hub's own header grows up behind the clock: its color reaches the top of the screen, its buttons stay below it. */
-html.todo-edge header.sticky.top-0:not([role="dialog"] *):not(.fixed *):not(.an-root *) { box-sizing: content-box; padding-top: var(--sat); }
+html.todo-edge header.sticky.top-0:not([role="dialog"] *):not(.fixed *):not(.an-root *):not([data-own-sat]) { box-sizing: content-box; padding-top: var(--sat); }
 /* A strip in the page's color sits behind the clock, so nothing scrolls under the time when the header slides away. */
 html.todo-edge body::after { content: ""; position: fixed; inset: 0 0 auto; height: var(--sat); background-color: inherit; z-index: 39; pointer-events: none; }
 /* A page with no such header (sign-in, plain pages) starts below the clock. */
