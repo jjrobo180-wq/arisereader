@@ -59,10 +59,11 @@ export function TaskRow({ plain = false, task, today, workspace, setWorkspace, m
           <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
         </div>
       </button>
-      {ariseAsk && <button type="button" onClick={() => openAsk(ariseAsk.id)} data-testid="task-arise-chip"
-        className={`order-last ml-9 inline-flex min-h-9 basis-full items-center gap-1.5 rounded-xl px-3 text-xs font-bold sm:basis-auto ${ariseAsk.status === "done" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : ariseAsk.status === "failed" ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-violet-50 text-violet-700 hover:bg-violet-100"}`}>
+      {/* Always on its own line under the to-do: beside the title it squeezed the words into a thin column. */}
+      {ariseAsk && <div className="order-last basis-full pl-9"><button type="button" onClick={() => openAsk(ariseAsk.id)} data-testid="task-arise-chip"
+        className={`inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-xl px-3 text-xs font-bold ${ariseAsk.status === "done" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : ariseAsk.status === "failed" ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-violet-50 text-violet-700 hover:bg-violet-100"}`}>
         <Sparkles className="h-3.5 w-3.5" />{ariseAsk.status === "done" ? `Arise made it · Open${ariseAsk.seen ? "" : " (new)"}` : ariseAsk.status === "failed" ? "Arise couldn't make it · Try again" : ariseAsk.status === "scheduled" ? `Arise · ${ariseAsk.when.replace(/^Made /, "")}` : "Arise is making it…"}
-      </button>}
+      </button></div>}
       {/* On a phone these sit on their own line under the to-do, so the words get the full width. */}
       <div className={email ? "flex basis-full items-center gap-3 pl-9 sm:contents" : "contents"}>
         {email && (

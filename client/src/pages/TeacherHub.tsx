@@ -948,6 +948,32 @@ function TeacherHubPage() {
   const installedMenu = menu.filter(isStoreGroup);
   /** The apps listed with this one (built-in or My plugins), in menu order, the ones you can move. */
   function sectionOf(id: HubGroupId): HubGroupId[] { return (menu.some((m) => m.id === id && isStoreGroup(m)) ? installedMenu : coreMenu).map((m) => m.id).filter((g) => g !== "home"); }
+  /** Adds or removes a Plugin Gallery app: used by the gallery and by the menu's "Remove app". */
+  const toggleWorkPlugin = (p: Plugin, on: boolean) => {
+          // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
+          if (on && countsAsApp("work", p) && appsFull(todoPlan, "work", appsIn("work", workspace))) { openUpgrade("apps"); return; }
+          // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
+          setWorkspace((prev) => (p.target.kind === "brief" ? { ...prev, briefOff: !on }
+            : (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
+            : p.target.kind === "driveApp" ? { ...prev, driveInstalled: on }
+            : p.target.kind === "dropApp" ? { ...prev, dropInstalled: on }
+            : p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
+            ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) } : p.target.kind === "notesApp"
+            ? { ...prev, notesInstalled: setWorkNotesApp((prev as any).notesInstalled, p, on) }
+            : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
+          if (p.target.kind === "assistant" && on) toasts.show("AI assistant added. Tap the ✦ button at the bottom right to chat.", []);
+          if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
+          if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
+          if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
+          if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
+            if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
+          }
+        };
+  /** "Remove app" on a My plugins item that isn't a menu group (Notes, Sheets and Office apps, Drive, Dropbox), with Undo. */
+  const removeWorkApp = (p: Plugin) => {
+    toggleWorkPlugin(p, false);
+    toasts.show(`${p.name} removed. Add it back any time from the Plugin Gallery.`, [{ label: "Undo", run: () => toggleWorkPlugin(p, true) }]);
+  };
   /** Hide (a built-in app) or remove (an app from the Plugin Gallery) one app of the menu, with Undo. */
   const dropGroup = (item: (typeof menu)[number], removing: boolean) => {
     const before = Object.fromEntries(item.tabs.map((t) => [t, workspace.visibleTabs[t]]));
@@ -1163,26 +1189,7 @@ function TeacherHubPage() {
         teacherApps={user.role === "teacher" || !!user.isAdmin}
         arise={user.role === "teacher" || user.role === "parent" || !!user.isAdmin}
         isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled, !!(workspace as any).briefOff, (workspace as any).sheetsInstalled, !!(workspace as any).driveInstalled, !!(workspace as any).dropInstalled)}
-        onToggle={(p: Plugin, on: boolean) => {
-          // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
-          if (on && countsAsApp("work", p) && appsFull(todoPlan, "work", appsIn("work", workspace))) { openUpgrade("apps"); return; }
-          // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
-          setWorkspace((prev) => (p.target.kind === "brief" ? { ...prev, briefOff: !on }
-            : (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
-            : p.target.kind === "driveApp" ? { ...prev, driveInstalled: on }
-            : p.target.kind === "dropApp" ? { ...prev, dropInstalled: on }
-            : p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
-            ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) } : p.target.kind === "notesApp"
-            ? { ...prev, notesInstalled: setWorkNotesApp((prev as any).notesInstalled, p, on) }
-            : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
-          if (p.target.kind === "assistant" && on) toasts.show("AI assistant added. Tap the ✦ button at the bottom right to chat.", []);
-          if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
-          if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
-          if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
-          if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
-            if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
-          }
-        }}
+        onToggle={toggleWorkPlugin}
         kit={{
           records: kitRecords,
           setRecords: setKitRecords,
@@ -1385,6 +1392,8 @@ function TeacherHubPage() {
                       isStoreGroup(item) ? { label: "Remove app", danger: true, onPick: () => dropGroup(item, true) } : { label: "Hide from menu", onPick: () => dropGroup(item, false) },
                       { label: "Customize menu", onPick: () => setCustomize(true) },
                     ]} />}
+                  {movable && isStoreGroup(item) && !deskTop && !deskCompact && <button type="button" onClick={() => dropGroup(item, true)} aria-label={`Remove ${groupLabel(item.id, visible)} from the menu`} title="Remove from the menu" data-testid={`hub-remove-${item.id}`}
+                    className="hidden shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/navitem:opacity-100 focus:opacity-100 md:flex"><X className="h-4 w-4" /></button>}
                   {movable && (
                     <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${deskTop || deskCompact || nested ? "" : "md:flex"}`}>
                       <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={sectionOf(item.id).indexOf(item.id) <= 0} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
@@ -1506,7 +1515,7 @@ function TeacherHubPage() {
               // Everything else under My plugins (kits like IEP, Notes, Sheets and Office apps, Drive, Dropbox),
               // in the order you set: ⋯ (or press and hold) → Move up / Move down.
               const extras: { key: string; label: string; node: any; remove?: () => void }[] = [];
-              myOfficeApps.forEach((a) => extras.push({ key: `office:${a.id}`, label: a.name, node: <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={`flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-600 hover:text-indigo-700 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm md:hover:bg-slate-100`}><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></a> }));
+              myOfficeApps.forEach((a) => extras.push({ key: `office:${a.id}`, label: a.name, remove: () => removeWorkApp(a), node: <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={`flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-600 hover:text-indigo-700 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm md:hover:bg-slate-100`}><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></a> }));
               myKits.forEach((d) => { const Icon = kitIcon(d.icon); extras.push({ key: `kit:${d.id}`, label: d.name, remove: () => {
                 const before: string[] | undefined = (workspace as any).kitInstalled;
                 setWorkspace((prev) => ({ ...prev, kitInstalled: ((prev as any).kitInstalled as string[] | undefined ?? []).filter((k) => k !== d.id) } as typeof prev));
@@ -1519,28 +1528,28 @@ function TeacherHubPage() {
                     <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{d.name}</span>
                   </button>
                 </div>) }); });
-              myNotesApps.forEach((p) => extras.push({ key: `notes:${p.id}`, label: p.name, node: (<div key={`notes-app-${p.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              myNotesApps.forEach((p) => extras.push({ key: `notes:${p.id}`, label: p.name, remove: () => removeWorkApp(p), node: (<div key={`notes-app-${p.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); openNotesApp(p.id); afterPick(); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`hub-notes-app-${p.id}`} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${notesAppOpen === p.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><StickyNote className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{p.name}</span>
                 </button>
               </div>) }));
-              mySheetsApps.forEach((a) => extras.push({ key: `sheets:${a.id}`, label: a.name, node: (<div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              mySheetsApps.forEach((a) => extras.push({ key: `sheets:${a.id}`, label: a.name, remove: () => removeWorkApp(a), node: (<div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(a.id); afterPick(); }} aria-current={sheetsAppOpen === a.id ? "page" : undefined} data-testid={`hub-sheets-app-${a.id}`} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${sheetsAppOpen === a.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: a.color }}><Table className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span>
                 </button>
               </div>) }));
-              if (drivePlugin) extras.push({ key: "drive", label: drivePlugin.name, node: (<div key={"drive-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              if (drivePlugin) extras.push({ key: "drive", label: drivePlugin.name, remove: () => removeWorkApp(drivePlugin), node: (<div key={"drive-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setDriveOpen(true); afterPick(); }} aria-current={driveOpen ? "page" : undefined} data-testid={"hub-drive-app"} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${driveOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: drivePlugin.color }}><FolderOpen className="h-3.5 w-3.5" /></span>
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{drivePlugin.name}</span>
                 </button>
               </div>) });
-              if (dropPlugin) extras.push({ key: "drop", label: dropPlugin.name, node: (<div key={"drop-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+              if (dropPlugin) extras.push({ key: "drop", label: dropPlugin.name, remove: () => removeWorkApp(dropPlugin), node: (<div key={"drop-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setDropOpen(true); afterPick(); }} aria-current={dropOpen ? "page" : undefined} data-testid={"hub-drop-app"} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${dropOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: dropPlugin.color }}><QrCode className="h-3.5 w-3.5" /></span>
@@ -1560,6 +1569,8 @@ function TeacherHubPage() {
                 <div className="min-w-0 flex-1" onClickCapture={(e) => { if (wasHeld()) { e.stopPropagation(); e.preventDefault(); } }}>{x.node}</div>
                 <AppItemMenu name={x.label} open={itemMenu === `x:${x.key}`} setOpen={(o) => setItemMenu(o ? `x:${x.key}` : null)} className={deskTop || deskCompact ? "md:hidden" : ""}
                   actions={[...(i > 0 ? [{ label: "Move up", onPick: () => move(x.key, -1) }] : []), ...(i < sorted.length - 1 ? [{ label: "Move down", onPick: () => move(x.key, 1) }] : []), ...(x.remove ? [{ label: "Remove app", danger: true, onPick: x.remove }] : []), { label: "Customize menu", onPick: () => setCustomize(true) }]} />
+                {x.remove && !deskTop && !deskCompact && <button type="button" onClick={x.remove} aria-label={`Remove ${x.label} from the menu`} title="Remove from the menu" data-testid={`hub-remove-${x.key}`}
+                  className="hidden shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/navitem:opacity-100 focus:opacity-100 md:flex"><X className="h-4 w-4" /></button>}
                 {!deskTop && !deskCompact && <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
                   <button type="button" onClick={() => move(x.key, -1)} disabled={i === 0} aria-label={`Move ${x.label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
                   <button type="button" onClick={() => move(x.key, 1)} disabled={i === sorted.length - 1} aria-label={`Move ${x.label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
