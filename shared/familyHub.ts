@@ -80,10 +80,22 @@ export type Redemption = { id: string; memberId: string; title: string; cost: nu
 export type FamilyCalendar = { id: string; name: string; color: string; show: boolean;
   /** A calendar linked by its .ics link (a school or work calendar): its events are replaced each time it's read. */
   url?: string; syncedAt?: string };
-export type EventRepeat = "none" | "weekly" | "monthly" | "yearly";
+export const EVENT_REPEAT_VALUES = ["none", "daily", "weekdays", "weekly", "biweekly", "days", "monthly", "yearly"] as const;
+export type EventRepeat = (typeof EVENT_REPEAT_VALUES)[number];
+/** What each repeat is called in the event editor. */
+export const EVENT_REPEAT_LABEL: Record<EventRepeat, string> = {
+  none: "Never", daily: "Every day", weekdays: "Every weekday (Mon–Fri)", weekly: "Every week", biweekly: "Every 2 weeks",
+  days: "On certain days of the week", monthly: "Every month", yearly: "Every year (birthdays)",
+};
 export type FamilyEvent = {
   id: string; title: string; date: string; time: string; endTime: string; calendarId: string;
   memberIds: string[]; location: string; notes: string; repeat: EventRepeat;
+  /** For repeat "days": the days of the week it falls on (0 Sunday … 6 Saturday). */
+  days?: number[];
+  /** The last day a repeating event can fall on (YYYY-MM-DD). Left out, it goes on. */
+  until?: string;
+  /** Days taken out of a repeating event. */
+  skip?: string[];
 };
 export type TripStop = { id: string; date: string; time: string; title: string; cost: number };
 export type PackItem = { id: string; item: string; memberId: string; packed: boolean };
@@ -499,7 +511,8 @@ export function cleanFamily(input: unknown): Family {
       return title && date ? {
         id: id(r.id), title, date, time: clock(r.time), endTime: clock(r.endTime), calendarId: id(r.calendarId),
         memberIds: ids(r.memberIds, LIMITS.members), location: str(r.location, 160), notes: str(r.notes, 1000),
-        repeat: oneOf(r.repeat, ["none", "weekly", "monthly", "yearly"] as const, "none"),
+        repeat: oneOf(r.repeat, EVENT_REPEAT_VALUES, "none"),
+        ...cleanRepeatExtras(r),
       } : null;
     }),
     trips: rows(raw.trips, LIMITS.trips, (r) => {
@@ -832,15 +845,30 @@ export const isOn = (section: FamilySection, f: Pick<Family, "sections">): boole
   return !TOGGLEABLE.includes(section) || (ADD_ON_SECTIONS.includes(section) ? f.sections[section] === true : f.sections[section] !== false);
 };
 
+/** An event's repeat days, end day and skipped days, made safe (only what is set is returned). */
+export function cleanRepeatExtras(r: any): Pick<FamilyEvent, "days" | "until" | "skip"> {
+  const days = Array.isArray(r?.days) ? [...new Set(r.days.map(Number).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= 6))].sort() as number[] : [];
+  const until = typeof r?.until === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.until) ? r.until : "";
+  const skip = Array.isArray(r?.skip) ? r.skip.filter((d: unknown) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 500) : [];
+  return { ...(days.length ? { days } : {}), ...(until ? { until } : {}), ...(skip.length ? { skip } : {}) };
+}
+
 /** Whether an event (or one of its repeats) falls on a day. */
 export function occursOn(e: FamilyEvent, date: string): boolean {
   // Same answers as checking the date first, in the cheapest order: a one-off event on another day is a
   // quick "no" with no Date objects (most events, called for every event on every day shown or planned).
-  if (date === e.date) return isDay(date);
+  if (e.skip?.length && e.skip.includes(date)) return false;
   if (date < e.date) return false;
-  if (e.repeat !== "weekly" && e.repeat !== "monthly" && e.repeat !== "yearly") return false;
+  if (e.repeat === "none" || !e.repeat) return date === e.date && isDay(date);
+  if (e.until && date > e.until) return false;
   if (!isDay(date)) return false;
   const a = fromDay(e.date), b = fromDay(date);
+  // "On certain days": the first day always counts; after it, the days picked (or its own weekday if none were).
+  if (e.repeat === "days") return date === e.date || (e.days?.length ? e.days : [a.getDay()]).includes(b.getDay());
+  if (date === e.date) return true;
+  if (e.repeat === "daily") return true;
+  if (e.repeat === "weekdays") return b.getDay() !== 0 && b.getDay() !== 6;
+  if (e.repeat === "biweekly") return a.getDay() === b.getDay() && Math.round((b.getTime() - a.getTime()) / 86_400_000) % 14 === 0;
   if (e.repeat === "weekly") return a.getDay() === b.getDay();
   if (e.repeat === "monthly") {
     const last = new Date(b.getFullYear(), b.getMonth() + 1, 0).getDate();

@@ -27,7 +27,7 @@ test("cleaning drops bad rows, caps text and keeps good data unchanged", () => {
   const messy = cleanFamily({
     members: [{ id: "m1", name: "" }, { id: "m2", name: "x".repeat(99), color: "red", kind: "boss" }, { id: "m2", name: "dup" }, "nope"],
     chores: [{ id: "c", title: "Trash", days: [9, 1, 1, "2"], points: 9999 }],
-    events: [{ id: "e", title: "Bad date", date: "2026-02-30" }, { id: "e2", title: "Ok", date: "2026-03-01", time: "25:00", repeat: "daily" }],
+    events: [{ id: "e", title: "Bad date", date: "2026-02-30" }, { id: "e2", title: "Ok", date: "2026-03-01", time: "25:00", repeat: "hourly" }],
     polls: [{ id: "p", question: "Dinner?", options: [{ id: "a", label: "Tacos" }], votes: { m2: "a", m3: "zzz" } }],
     bills: [{ id: "b", name: "Rent", amount: "1200.555", dueDay: 40, paid: ["2026-10", "2026-13", 5] }],
     sections: { chores: false, home: false, nope: true },

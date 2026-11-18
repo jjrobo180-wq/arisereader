@@ -4,10 +4,10 @@
 import { addDays, addMonths } from "./hubDates";
 import type { HubEvent, Workspace } from "./teacherHub";
 
-export const EVENT_REPEATS = ["Daily", "Weekdays", "Weekly", "Every 2 weeks", "Monthly", "Yearly"] as const;
+export const EVENT_REPEATS = ["Daily", "Weekdays", "Weekly", "Every 2 weeks", "Days", "Monthly", "Yearly"] as const;
 export type EventRepeat = (typeof EVENT_REPEATS)[number];
 export const REPEAT_LABELS: Record<EventRepeat, string> = {
-  Daily: "Every day", Weekdays: "Every weekday (Mon to Fri)", Weekly: "Every week", "Every 2 weeks": "Every 2 weeks", Monthly: "Every month", Yearly: "Every year",
+  Daily: "Every day", Weekdays: "Every weekday (Mon to Fri)", Weekly: "Every week", "Every 2 weeks": "Every 2 weeks", Days: "On certain days of the week", Monthly: "Every month", Yearly: "Every year",
 };
 export const isRepeat = (value: unknown): value is EventRepeat => (EVENT_REPEATS as readonly string[]).includes(String(value));
 
@@ -26,7 +26,7 @@ export function occurrenceOf(id: string): { eventId: string; date: string } {
 export const occurrenceId = (eventId: string, date: string) => `${eventId}${SEP}${date}`;
 
 /** The days a repeating event falls on between `from` and `to` (both included), its skipped days left out. */
-export function repeatDates(event: Pick<HubEvent, "date" | "repeat" | "until" | "skip">, from: string, to: string): string[] {
+export function repeatDates(event: Pick<HubEvent, "date" | "repeat" | "until" | "skip" | "days">, from: string, to: string): string[] {
   if (!isRepeat(event.repeat) || !DAY.test(event.date)) return [];
   const last = event.until && DAY.test(event.until) && event.until < to ? event.until : to;
   const skip = new Set(event.skip || []);
@@ -47,6 +47,7 @@ export function repeatDates(event: Pick<HubEvent, "date" | "repeat" | "until" | 
   }
   for (let n = 0; n < MOST && date && date <= last; n++, date = addDays(date, step)) {
     if (event.repeat === "Weekdays" && (weekday(date) === 0 || weekday(date) === 6)) continue;
+    if (event.repeat === "Days" && date !== event.date && !(event.days?.length ? event.days : [weekday(event.date)]).includes(weekday(date))) continue;
     take(date);
   }
   return out;

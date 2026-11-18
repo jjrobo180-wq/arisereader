@@ -6,7 +6,7 @@ import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, ExternalLink, Gr
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { LookAgenda, useActiveLook } from "@/components/HubLook";
-import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
+import { EVENT_REPEAT_LABEL, EVENT_REPEAT_VALUES, MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
 import { Avatar, FormGroup, FormRow, Label, MemberPicker, Modal, PageHead, Panel, PickField, Toggle, clock12, rowInput, rowSelect, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
 import { ShareButton } from "./ShareLink";
 import { addToIphoneCalendar, inIphoneApp, readIphoneEvents, type PhoneEvent } from "@/lib/nativeCalendar";
@@ -75,6 +75,15 @@ function useHubEvents(on: boolean, from: string, to: string) {
 
 const blankEvent = (date: string, calendarId: string, id: string): FamilyEvent =>
   ({ id, title: "", date, time: "", endTime: "", calendarId, memberIds: [], location: "", notes: "", repeat: "none" });
+
+const WEEKDAY_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+const WEEKDAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** How an event repeats, in words: "Every week", "Mon, Wed, Fri until Jun 5". */
+function repeatWords(e: FamilyEvent): string {
+  const how = e.repeat === "days" ? (e.days?.length ? e.days.map((d) => WEEKDAY_ABBR[d]).join(", ") : "Certain days") : EVENT_REPEAT_LABEL[e.repeat].replace(" (birthdays)", "");
+  return e.until ? `${how} until ${fromDay(e.until).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : how;
+}
 
 export default function FamilyCalendar({ family, setFamily, today, makeId, say, tasks, onOpenTasks, heading }: SectionProps & { tasks: CalendarTask[]; onOpenTasks: () => void; /** A title and line of its own, for a hub that isn't about a family (WorkHub). */ heading?: { title: string; blurb: string } }) {
   const { user } = useAuth();
@@ -182,7 +191,11 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
   const save = (e: FormEvent) => {
     e.preventDefault();
     if (!editing || !editing.title.trim() || !editing.date) return;
-    const clean = { ...editing, title: editing.title.trim().slice(0, 120), endTime: editing.time ? editing.endTime : "" };
+    // Days and an end only mean something on a repeating event; "certain days" with none picked uses the first day's weekday.
+    const { days: _days, until: _until, ...base } = editing;
+    const days = editing.repeat === "days" ? (editing.days?.length ? [...editing.days].sort() : [fromDay(editing.date).getDay()]) : undefined;
+    const until = editing.repeat !== "none" && editing.until && editing.until >= editing.date ? editing.until : undefined;
+    const clean: FamilyEvent = { ...base, title: editing.title.trim().slice(0, 120), endTime: editing.time ? editing.endTime : "", ...(days ? { days } : {}), ...(until ? { until } : {}) };
     setFamily((f) => ({ ...f, events: f.events.some((x) => x.id === clean.id) ? f.events.map((x) => (x.id === clean.id ? clean : x)) : [...f.events, clean] }));
     setPicked(clean.date);
     setMonth(clean.date.slice(0, 7));
@@ -247,7 +260,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
                   {it.kind === "task" && <span>Task</span>}{it.kind === "bill" && <span className="inline-flex items-center gap-1"><Receipt size={11} /> Bill</span>}{it.kind === "trip" && <span className="inline-flex items-center gap-1"><Plane size={11} /> Trip</span>}
                   {it.time && <span>{clock12(it.time)}{it.event?.endTime ? `–${clock12(it.event.endTime)}` : it.hub?.end ? `–${clock12(it.hub.end)}` : ""}</span>}
                   {(it.event?.location || it.hub?.location) && <span className="inline-flex items-center gap-1"><MapPin size={11} />{it.event?.location || it.hub?.location}</span>}
-                  {it.event && it.event.repeat !== "none" && <span className="inline-flex items-center gap-1"><Repeat2 size={11} />{it.event.repeat}</span>}
+                  {it.event && it.event.repeat !== "none" && <span className="inline-flex items-center gap-1"><Repeat2 size={11} />{repeatWords(it.event)}</span>}
                 </span>
                 {it.members.length > 0 && <span className="mt-1.5 flex -space-x-1">{it.members.map((m) => <Avatar key={m} member={memberOf(family, m)} size="sm" />)}</span>}
               </span>
@@ -324,7 +337,19 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
           <FormRow label="Date" icon={<CalendarDays size={15} />}><PickField type="date" required label="Date" value={editing.date} onChange={(v) => setEditing({ ...editing, date: v })} /></FormRow>
           <FormRow label="Starts" icon={<Clock size={15} />}><PickField type="time" label="Starts" empty="All day" value={editing.time} onChange={(v) => setEditing({ ...editing, time: v })} /></FormRow>
           <FormRow label="Ends" icon={<Clock size={15} />}><PickField type="time" label="Ends" empty={editing.time ? "Add" : "—"} disabled={!editing.time} value={editing.endTime} onChange={(v) => setEditing({ ...editing, endTime: v })} /></FormRow>
-          <FormRow label="Repeats" icon={<Repeat size={15} />}><select value={editing.repeat} onChange={(e) => setEditing({ ...editing, repeat: e.target.value as EventRepeat })} className={rowSelect}><option value="none">Never</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year (birthdays)</option></select></FormRow>
+          <FormRow label="Repeats" icon={<Repeat size={15} />}><select value={editing.repeat} data-testid="event-repeat" onChange={(e) => { const repeat = e.target.value as EventRepeat; setEditing({ ...editing, repeat, ...(repeat === "days" && !editing.days?.length ? { days: [fromDay(editing.date).getDay()] } : {}) }); }} className={rowSelect}>{EVENT_REPEAT_VALUES.map((v) => <option key={v} value={v}>{EVENT_REPEAT_LABEL[v]}</option>)}</select></FormRow>
+          {editing.repeat === "days" && <div className="px-4 py-3" role="group" aria-label="Repeat on">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Repeat on</p>
+            <div className="flex flex-wrap gap-1.5">{WEEKDAY_SHORT.map((d, i) => { const on = !!editing.days?.includes(i); return (
+              <button key={d} type="button" aria-pressed={on} aria-label={WEEKDAY_FULL[i]} data-testid={`event-day-${i}`} onClick={() => { const next = on ? (editing.days || []).filter((x) => x !== i) : [...(editing.days || []), i]; setEditing({ ...editing, days: next.sort() }); }}
+                className={`h-10 w-10 rounded-full text-sm font-bold transition ${on ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{d}</button>); })}</div>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+              <button type="button" onClick={() => setEditing({ ...editing, days: [1, 2, 3, 4, 5] })} className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Mon–Fri</button>
+              <button type="button" onClick={() => setEditing({ ...editing, days: [1, 3, 5] })} className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Mon, Wed, Fri</button>
+              <button type="button" onClick={() => setEditing({ ...editing, days: [2, 4] })} className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Tue, Thu</button>
+            </div>
+          </div>}
+          {editing.repeat !== "none" && <FormRow label="Ends" icon={<CalendarDays size={15} />}><PickField type="date" label="Ends" empty="Never" value={editing.until || ""} onChange={(v) => setEditing({ ...editing, until: v })} /></FormRow>}
         </FormGroup>
         <FormGroup title="Details">
           <FormRow label="Calendar" icon={<CalendarDays size={15} />}><select value={editing.calendarId} onChange={(e) => setEditing({ ...editing, calendarId: e.target.value })} className={rowSelect}>{family.calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></FormRow>

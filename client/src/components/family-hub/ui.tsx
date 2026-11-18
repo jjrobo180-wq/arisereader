@@ -115,7 +115,10 @@ export function PickField({ type, value, onChange, label, empty = "Add", disable
   const shown = !value ? empty : type === "time" ? clock12(value) : new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
   return <span className={`relative inline-flex max-w-full ${disabled ? "opacity-45" : ""}`}>
     <span className={`truncate rounded-lg px-2.5 py-1.5 text-[15px] font-semibold ${value ? "bg-white text-slate-900 ring-1 ring-slate-200" : "text-violet-700"}`}>{shown}</span>
+    {/* One click opens the picker: on a computer a click on the hidden box only picked a part of it (hour,
+        minute…), so it took several clicks before anything opened. showPicker opens it straight away. */}
     <input type={type} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} required={required} aria-label={label}
+      onClick={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; if (!disabled) { try { el.showPicker?.(); } catch { /* the browser opens it itself */ } } }}
       className="absolute inset-0 h-full w-full min-w-0 cursor-pointer appearance-none opacity-0 disabled:cursor-default" />
   </span>;
 }

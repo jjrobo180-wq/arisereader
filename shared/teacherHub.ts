@@ -138,6 +138,8 @@ export type HubEvent = {
   repeat?: string;
   /** The last day a repeating event can fall on (YYYY-MM-DD). Left out, it goes on. */
   until?: string;
+  /** For repeat "Days": the days of the week it falls on (0 Sunday … 6 Saturday). */
+  days?: number[];
   /** Days taken out of a repeating event. */
   skip?: string[];
   /** Days of a repeating event that were checked off. */

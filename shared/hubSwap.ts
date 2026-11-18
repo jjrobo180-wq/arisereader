@@ -7,8 +7,8 @@ import { emptyWorkspace, type HubEvent, type NoteItem, type Task, type Workspace
 
 export const WORK_CALENDAR_ID = "work";
 const WORK_COLOR = "#0d9488";
-const REPEAT_OUT: Record<string, EventRepeat> = { Weekly: "weekly", Monthly: "monthly", Yearly: "yearly", Annually: "yearly" };
-const REPEAT_IN: Record<EventRepeat, string> = { none: "", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
+const REPEAT_OUT: Record<string, EventRepeat> = { Daily: "daily", Weekdays: "weekdays", Weekly: "weekly", "Every 2 weeks": "biweekly", Days: "days", Monthly: "monthly", Yearly: "yearly", Annually: "yearly" };
+const REPEAT_IN: Record<EventRepeat, string> = { none: "", daily: "Daily", weekdays: "Weekdays", weekly: "Weekly", biweekly: "Every 2 weeks", days: "Days", monthly: "Monthly", yearly: "Yearly" };
 const isOthers = (c: { owner?: string }) => !!c.owner;
 
 // ─── Notes ───────────────────────────────────────────────────────────────────
@@ -59,7 +59,8 @@ export function eventsToFamily(w: Pick<Workspace, "events" | "calendars" | "hidd
   const hidden = w.hiddenEvents || [];
   return (w.events || []).filter((e) => !(e.calendarId && theirs.has(e.calendarId)))
     .filter((e) => !hidden.some((h) => h.title.trim().toLowerCase() === e.title.trim().toLowerCase() && (!h.date || (h.date === e.date && h.start === e.start))))
-    .map((e): FamilyEvent => ({ id: e.id, title: e.title, date: e.date, time: e.start || "", endTime: e.end || "", calendarId: e.calendarId || WORK_CALENDAR_ID, memberIds: [], location: e.location || "", notes: e.notes || "", repeat: REPEAT_OUT[e.repeat || ""] ?? "none" }));
+    .map((e): FamilyEvent => ({ id: e.id, title: e.title, date: e.date, time: e.start || "", endTime: e.end || "", calendarId: e.calendarId || WORK_CALENDAR_ID, memberIds: [], location: e.location || "", notes: e.notes || "", repeat: REPEAT_OUT[e.repeat || ""] ?? "none",
+      ...(e.repeat && e.days?.length ? { days: e.days } : {}), ...(e.repeat && e.until ? { until: e.until } : {}), ...(e.repeat && e.skip?.length ? { skip: e.skip } : {}) }));
 }
 
 /**
@@ -73,11 +74,14 @@ export function calendarFromFamily(w: Workspace & { extraCalendars?: FamilyCalen
   const events = next.events.map((e): HubEvent => {
     const was = old.get(e.id);
     const sameRepeat = was && (REPEAT_OUT[was.repeat || ""] ?? "none") === e.repeat;
-    const { repeat: _r, until: _u, skip: _s, doneOn: _d, calendarId: _c, ...rest } = was ?? ({ id: e.id } as HubEvent);
+    const { repeat: _r, until: _u, skip: _s, doneOn: _d, days: _days, calendarId: _c, ...rest } = was ?? ({ id: e.id } as HubEvent);
     return {
       ...rest, id: e.id, title: e.title, date: e.date, start: e.time || "", end: e.endTime || "", location: e.location || "", notes: e.notes || "",
       ...(e.calendarId && e.calendarId !== WORK_CALENDAR_ID ? { calendarId: e.calendarId } : {}),
-      ...(sameRepeat ? { ...(was!.repeat ? { repeat: was!.repeat } : {}), ...(was!.until ? { until: was!.until } : {}), ...(was!.skip ? { skip: was!.skip } : {}), ...(was!.doneOn ? { doneOn: was!.doneOn } : {}) } : REPEAT_IN[e.repeat] ? { repeat: REPEAT_IN[e.repeat] } : {}),
+      // The repeat, its days and its end come from the editor; skipped and checked-off days stay while the rhythm is the same.
+      ...(REPEAT_IN[e.repeat] ? { repeat: sameRepeat && was!.repeat ? was!.repeat : REPEAT_IN[e.repeat] } : {}),
+      ...(REPEAT_IN[e.repeat] && e.days?.length ? { days: e.days } : {}), ...(REPEAT_IN[e.repeat] && e.until ? { until: e.until } : {}),
+      ...(sameRepeat ? { ...(was!.skip ? { skip: was!.skip } : {}), ...(was!.doneOn ? { doneOn: was!.doneOn } : {}) } : {}),
     };
   });
   const theirs = (w.calendars || []).filter(isOthers);
