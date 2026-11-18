@@ -916,10 +916,14 @@ struct FocusLiveActivity {
                 .widgetURL(focusLink("open"))
         } dynamicIsland: { context in
             DynamicIsland {
+                // The leading region is narrow: a word there wrapped one letter per line ("Fo / cu / s").
+                // Only the icon sits there now; the word goes above the task's name in the middle.
                 DynamicIslandExpandedRegion(.leading) {
-                    Label { Text(verbatim: context.isStale ? "Done?" : "Focus") } icon: { Image(systemName: "timer") }
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Image(systemName: context.isStale ? "checkmark" : "timer")
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(Theme.vivid(context.attributes.tint).glow)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(Theme.vivid(context.attributes.tint).glow.opacity(0.18)))
                         .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -927,7 +931,16 @@ struct FocusLiveActivity {
                         .frame(maxWidth: 96, alignment: .trailing).padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    Text(verbatim: context.attributes.title).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(.white).lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: context.isStale ? "TIME’S UP" : "FOCUS")
+                            .font(.system(size: 11, weight: .heavy, design: .rounded)).tracking(1.2)
+                            .foregroundStyle(Theme.vivid(context.attributes.tint).glow)
+                            .lineLimit(1).fixedSize()
+                        Text(verbatim: context.attributes.title)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(.white)
+                            .lineLimit(2).minimumScaleFactor(0.85)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     FocusIslandBottom(taskId: context.attributes.taskId, tint: context.attributes.tint,
