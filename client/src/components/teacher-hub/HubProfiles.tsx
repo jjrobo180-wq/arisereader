@@ -1,17 +1,18 @@
 // Arise WorkHub: Student profiles (a Plugin Gallery plugin). A shortcut to every student's whole profile: search,
 // pin the students you open most, see who you opened last, and open a profile right here (caseload and
 // supplementary students alike). The profile itself is HubStudentProfile.tsx.
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Pin, PinOff, Search } from "lucide-react";
 import type { HubTab, Workspace } from "@shared/teacherHub";
 import { studentProfile } from "@shared/hubStudentProfile";
 import StudentProfileView from "./HubStudentProfile";
 import { Card, Empty, Field } from "./ui";
+import { AddStudentButton } from "./HubQuickAddStudent";
 
 const initials = (name: string) => name.split(/\s+/).map((p) => p[0] || "").join("").slice(0, 2).toUpperCase();
 
-export default function HubProfiles({ workspace, setWorkspace, today, makeId, onOpenTab, onEdit }: {
-  workspace: Workspace; setWorkspace: Dispatch<SetStateAction<Workspace>>; today: string; makeId: () => string;
+export default function HubProfiles({ workspace, setWorkspace, today, makeId, onOpenTab, onEdit, seats }: {
+  workspace: Workspace; setWorkspace: Dispatch<SetStateAction<Workspace>>; today: string; makeId: () => string; seats: number | null;
   onOpenTab: (tab: HubTab) => void; onEdit: (studentId: string) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -21,6 +22,13 @@ export default function HubProfiles({ workspace, setWorkspace, today, makeId, on
   const pin = (id: string) => setWorkspace((w) => { const cur: string[] = Array.isArray((w as any).pinnedStudents) ? (w as any).pinnedStudents : []; return { ...w, pinnedStudents: cur.includes(id) ? cur.filter((x) => x !== id) : [id, ...cur].slice(0, 24) } as Workspace; });
   const open = (id: string) => { setOpenId(id); setWorkspace((w) => { const cur: string[] = Array.isArray((w as any).recentStudents) ? (w as any).recentStudents : []; return { ...w, recentStudents: [id, ...cur.filter((x) => x !== id)].slice(0, 8) } as Workspace; }); };
 
+  // A student just added opens straight away, once they're in the list.
+  const [justAdded, setJustAdded] = useState("");
+  useEffect(() => {
+    if (!justAdded) return;
+    const st = workspace.students.find((x) => x.name.trim().toLowerCase() === justAdded.trim().toLowerCase());
+    if (st) { setJustAdded(""); open(st.id); }
+  }, [justAdded, workspace.students]); // eslint-disable-line react-hooks/exhaustive-deps
   const counts = useMemo(() => new Map(workspace.students.map((s) => [s.id, studentProfile(workspace, s.id, today)?.records ?? 0])), [workspace, today]);
   if (openId && workspace.students.some((s) => s.id === openId)) {
     return <StudentProfileView workspace={workspace} setWorkspace={setWorkspace} studentId={openId} today={today} makeId={makeId} onBack={() => setOpenId(null)} onPick={open} onOpenTab={onOpenTab} onEdit={onEdit} />;
@@ -44,7 +52,11 @@ export default function HubProfiles({ workspace, setWorkspace, today, makeId, on
   };
   return (
     <div className="space-y-5" data-testid="hub-profiles">
-      <div className="relative max-w-md"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Field value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a student" aria-label="Find a student" className="!pl-9" /></div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[14rem] max-w-md flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Field value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a student" aria-label="Find a student" className="!pl-9" /></div>
+        <AddStudentButton workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} label="Add a student (supplementary or caseload)"
+          onAdded={(name) => { setQ(""); setJustAdded(name); }} />
+      </div>
       {!words && pinned.some((id) => byId.has(id)) && <Card title="Pinned"><ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{pinned.map(tile)}</ul></Card>}
       {!words && recent.some((id) => byId.has(id)) && <Card title="Opened lately"><ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{recent.filter((id) => !pinned.includes(id)).map(tile)}</ul></Card>}
       <Card title={words ? "Found" : "Every student"}>{list.length ? <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{list.map((s) => tile(s.id))}</ul> : <Empty>{workspace.students.length ? "No student matches that." : "Add students on the Caseload page first."}</Empty>}</Card>

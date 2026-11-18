@@ -9,9 +9,10 @@ import { SCHEDULE_DAYS, addScheduleRows, cleanScheduleRows, type ScheduleRow } f
 import type { Workspace } from "@shared/teacherHub";
 import { shrinkImage } from "./HubImport";
 import { Card, Field, Labeled, Select } from "./ui";
+import { AddStudentButton } from "./HubQuickAddStudent";
 
-export default function HubSchedulePhoto({ workspace, setWorkspace, token, students, makeId, say }: {
-  workspace: Workspace; setWorkspace: Dispatch<SetStateAction<Workspace>>; token: string | null;
+export default function HubSchedulePhoto({ workspace, setWorkspace, token, students, makeId, say, seats }: {
+  workspace: Workspace; setWorkspace: Dispatch<SetStateAction<Workspace>>; token: string | null; seats: number | null;
   students: string[]; makeId: () => string; say: (text: string) => void;
 }) {
   const [student, setStudent] = useState("");
@@ -59,13 +60,14 @@ export default function HubSchedulePhoto({ workspace, setWorkspace, token, stude
   return (
     <Card title="Read a schedule photo with AI">
       <p className="-mt-1 mb-4 text-sm text-slate-600">Pick the student, then add a photo or screenshot of their schedule. Check the blocks the AI finds, then add them. They show here and on the student's profile.</p>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
         <Labeled label="Student">
           <Select value={student} onChange={(e) => { setStudent(e.target.value); setRows(null); setError(""); }} data-testid="schedule-photo-student">
             <option value="">Choose a student</option>
             {students.map((s) => <option key={s} value={s}>{s}</option>)}
           </Select>
         </Labeled>
+        <div className="flex items-end"><AddStudentButton workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} label="New student" onAdded={(name) => { setStudent(name); setRows(null); setError(""); say(`${name} added. Now add their schedule photo.`); }} /></div>
         <div className="flex items-end">
           <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white ${student && !reading ? "bg-slate-950 hover:bg-slate-800" : "pointer-events-none bg-slate-300"}`} aria-disabled={!student || reading}>
             {reading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}{reading ? "Reading…" : "Add a schedule photo"}

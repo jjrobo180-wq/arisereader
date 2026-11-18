@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, type StudentDetails } from "@shared/hubStudentTeam";
 import { StudentTeamFields } from "./HubStudentTeam";
 import { Field, PrimaryButton, TextArea } from "./ui";
+import { HubModal } from "./HubModal";
 import type { Workspace } from "@shared/teacherHub";
 
 type Props = {
@@ -14,6 +15,8 @@ type Props = {
   seats: number | null;
   onAdded: (studentName: string) => void;
   onCancel?: () => void;
+  /** Offer "Supplementary student" (not on the IEP caseload), ticked to start with when true. */
+  supplementary?: boolean;
 };
 
 const blank = (): StudentDetails => ({
@@ -21,8 +24,9 @@ const blank = (): StudentDetails => ({
   readingLevel: "", mathLevel: "", notes: "", disability1: "", disability2: ""
 });
 
-export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, seats, onAdded, onCancel }: Props) {
-  const [form, setForm] = useState<StudentDetails>(blank);
+export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, seats, onAdded, onCancel, supplementary }: Props) {
+  const [form, setForm] = useState<StudentDetails>(() => (supplementary ? { ...blank(), supplementary: true } : blank()));
+  const sup = !!form.supplementary;
   const [team, setTeam] = useState(emptyTeamDraft);
   const [extra, setExtra] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +50,11 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
   }
 
   return <div className="space-y-3" data-testid="iep-quick-add-student">
-    <p className="text-sm text-slate-600">Add the student once. Their information will also appear in Caseload, meeting guides and scheduling.</p>
+    <p className="text-sm text-slate-600">Add the student once. They get a full profile and show in every student list (Caseload, schedules, minutes, notes and the rest).</p>
+    {supplementary !== undefined && <label className="flex min-h-11 items-center gap-3 rounded-xl bg-sky-50 px-3 text-sm text-slate-800 ring-1 ring-sky-100">
+      <input type="checkbox" className="h-5 w-5 shrink-0" checked={sup} onChange={(e) => update({ supplementary: e.target.checked || undefined })} data-testid="quick-add-supplementary" />
+      <span><span className="font-semibold">Supplementary student</span> <span className="text-slate-600">(not on my IEP caseload: a full profile, left out of IEP lists)</span></span>
+    </label>}
     {full && <div role="alert" className="rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-900">Your caseload is full ({seats} seats). <a href="#/billing" className="font-bold underline">View billing to add seats</a>.</div>}
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="text-xs font-bold text-slate-700">Student name
@@ -55,12 +63,12 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
       <label className="text-xs font-bold text-slate-700">Grade
         <Field value={form.grade} onChange={(e) => update({ grade: e.target.value })} placeholder="Grade" />
       </label>
-      <label className="text-xs font-bold text-slate-700">IEP deadline
+      {!sup && <label className="text-xs font-bold text-slate-700">IEP deadline
         <Field type="date" value={form.iepDate} onChange={(e) => update({ iepDate: e.target.value })} />
-      </label>
-      <label className="text-xs font-bold text-slate-700">Reevaluation deadline
+      </label>}
+      {!sup && <label className="text-xs font-bold text-slate-700">Reevaluation deadline
         <Field type="date" value={form.reevalDate} onChange={(e) => update({ reevalDate: e.target.value })} />
-      </label>
+      </label>}
       <label className="text-xs font-bold text-slate-700">Reading level (optional)
         <Field value={form.readingLevel} onChange={(e) => update({ readingLevel: e.target.value })} />
       </label>
@@ -84,8 +92,25 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
     </div>
     {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" data-testid="iep-quick-add-error">{error}</p>}
     <div className="flex flex-wrap gap-2">
-      <span data-testid="iep-quick-add-save"><PrimaryButton type="button" onClick={add} disabled={full}><Plus className="h-4 w-4"/> Add to caseload</PrimaryButton></span>
+      <span data-testid="iep-quick-add-save"><PrimaryButton type="button" onClick={add} disabled={full}><Plus className="h-4 w-4"/> {sup ? "Add student" : "Add to caseload"}</PrimaryButton></span>
       {onCancel && <button type="button" onClick={onCancel} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>}
     </div>
   </div>;
+}
+
+/**
+ * An "Add a student" button that opens the quick-add form, with "Supplementary student" ticked to start with
+ * (it's for pages like Student profiles and Student schedules, where a gen ed student is often the one to add).
+ */
+export function AddStudentButton({ workspace, setWorkspace, makeId, seats, onAdded, label = "Add a student", className }: Omit<Props, "onCancel" | "supplementary"> & { label?: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    <button type="button" onClick={() => setOpen(true)} data-testid="add-student-button"
+      className={className ?? "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"}>
+      <Plus className="h-4 w-4" /> {label}
+    </button>
+    {open && <HubModal title="Add a student" size="lg" closeOnBackdrop onClose={() => setOpen(false)}>
+      <HubQuickAddStudent workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} supplementary onCancel={() => setOpen(false)} onAdded={(name) => { setOpen(false); onAdded(name); }} />
+    </HubModal>}
+  </>;
 }

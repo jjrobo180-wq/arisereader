@@ -141,7 +141,7 @@ import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
 import { Tasks, TaskRow, NewChip } from "@/components/teacher-hub/HubTasks";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
-import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
+import HubQuickAddStudent, { AddStudentButton } from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, resumeStep, stepsDone } from "@shared/meetingSteps";
 import HubNotifySettings from "@/components/teacher-hub/HubNotifySettings";
@@ -2027,14 +2027,14 @@ function TeacherHubPage() {
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
           {tab === "makeups" && <HubMakeups workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
-          {tab === "profiles" && <HubProfiles workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} onOpenTab={goTab} onEdit={() => goTab("caseload")} />}
+          {tab === "profiles" && <HubProfiles workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} seats={seats} onOpenTab={goTab} onEdit={() => goTab("caseload")} />}
           {tab === "incidents" && <HubIncidents workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
             students={[...new Set([...workspace.students.map((s) => s.name), ...workspace.schedules.map((s) => s.student)].filter(Boolean))].sort((a, b) => a.localeCompare(b))}
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
           {tab === "focus" && <FocusTimer log={Array.isArray((workspace as any).focusLog) ? (workspace as any).focusLog : []} today={TODAY()} say={(t) => toasts.show(t, [])}
             onFocused={(minutes) => setWorkspace((p) => ({ ...p, focusLog: [...(Array.isArray((p as any).focusLog) ? (p as any).focusLog : []), { id: id(), date: TODAY(), minutes }].slice(-500) } as typeof p))} />}
-          {tab === "schedules" && <><HubSchedulePhoto workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(t) => toasts.show(t, [])} students={[...new Set([...workspace.students.map((s) => s.name), ...workspace.schedules.map((s) => s.student)].filter(Boolean))].sort((a, b) => a.localeCompare(b))} />
-            <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} /></>}
+          {tab === "schedules" && <><HubSchedulePhoto workspace={workspace} setWorkspace={setWorkspace} token={token} seats={seats} makeId={id} say={(t) => toasts.show(t, [])} students={[...new Set([...workspace.students.map((s) => s.name), ...workspace.schedules.map((s) => s.student)].filter(Boolean))].sort((a, b) => a.localeCompare(b))} />
+            <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} seats={seats} /></>}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
           </LockedApp>}
@@ -2627,7 +2627,7 @@ function Parents({ workspace, setWorkspace, remove, studentOptions }: SectionPro
   );
 }
 
-function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }: SectionProps & { studentOptions: () => ReactNode; warnings: string[] }) {
+function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings, seats }: SectionProps & { studentOptions: () => ReactNode; warnings: string[]; seats: number | null }) {
   const [form, setForm] = useState({ student: "", day: "Monday", start: "08:00", end: "08:30", label: "" });
   function add(e: FormEvent) {
     e.preventDefault();
@@ -2638,7 +2638,8 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
     <>
       <AddCard title="Weekly student schedules" label="Add schedule">
         <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-6">
-          <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
+          <div className="flex gap-1.5 md:col-span-1"><Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
+            <AddStudentButton workspace={workspace} setWorkspace={setWorkspace} makeId={id} seats={seats} label="" className="inline-flex min-h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" onAdded={(name) => setForm((f) => ({ ...f, student: name }))} /></div>
           <Select value={form.day} onChange={(e) => setForm({ ...form, day: e.target.value })}><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option></Select>
           <Field type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
           <Field type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />

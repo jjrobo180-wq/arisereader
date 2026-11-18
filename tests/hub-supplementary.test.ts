@@ -46,3 +46,14 @@ test("the Caseload page, the forms, the pickers, the profile and the IEP page kn
   const iep = readFileSync(new URL("../client/src/components/teacher-hub/HubIep.tsx", import.meta.url), "utf8");
   assert.ok(iep.includes("workspace.students.filter((s) => !s.supplementary)"));
 });
+
+test("Add a student (supplementary to start) is on Student profiles, Student schedules and the schedule photo box", () => {
+  const quick = readFileSync(new URL("../client/src/components/teacher-hub/HubQuickAddStudent.tsx", import.meta.url), "utf8");
+  assert.ok(quick.includes("export function AddStudentButton(") && quick.includes('data-testid="quick-add-supplementary"') && quick.includes("supplementary onCancel="));
+  const profiles = readFileSync(new URL("../client/src/components/teacher-hub/HubProfiles.tsx", import.meta.url), "utf8");
+  assert.ok(profiles.includes("<AddStudentButton "));
+  const photo = readFileSync(new URL("../client/src/components/teacher-hub/HubSchedulePhoto.tsx", import.meta.url), "utf8");
+  assert.ok(photo.includes("<AddStudentButton "));
+  const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
+  assert.ok(hub.includes("onAdded={(name) => setForm((f) => ({ ...f, student: name }))}"), "the Add schedule form");
+});
