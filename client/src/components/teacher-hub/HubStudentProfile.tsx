@@ -16,6 +16,7 @@ import { clock12, type HubTab, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, GhostButton, PrimaryButton, Select } from "./ui";
 import { BEHAVIOR_LABEL, CHECK_LABEL, MATERIAL_LABEL, PARTICIPATION_LABEL, type LessonCheck } from "@shared/lessonPlanner";
 import { printHtml, worksheetHtml } from "@/lib/lessonExport";
+import { CHECK_RESULT_LABEL, STATUS_LABEL, nextCheckDay, planWords } from "@shared/hubIncidents";
 import { NoteCard, NoteModal } from "./HubNotes";
 import { StudentTeamSummary } from "./HubStudentTeam";
 
@@ -145,6 +146,20 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
       {links && <ConnectedPanel workspace={workspace} kind="student" id={s.id} onOpen={links.openLink} title={`Everything connected to ${s.name.split(" ")[0]}`} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Part title="Incident reports" count={profile.incidents.length} tab="incidents" tabLabel="Incident reports" onOpenTab={onOpenTab}>
+          <Rows rows={profile.incidents} empty="No incident reports." render={(i) => {
+            const next = nextCheckDay(i, today), last = [...i.checkIns].sort((a, b) => b.date.localeCompare(a.date))[0];
+            return (
+              <li key={i.id} className={row} data-testid="profile-incident">
+                <div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words font-medium text-slate-900">{i.type}{i.where ? ` · ${i.where}` : ""}</span><span className="text-xs font-semibold text-slate-700">{day(i.date)} · {STATUS_LABEL[i.status]}</span></div>
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-xs text-slate-700">{i.summary}</p>
+                {planWords(i) && i.status !== "closed" && <p className="mt-1 text-xs text-violet-800">{planWords(i)}{next ? ` · next ${next === today ? "today" : day(next)}` : ""}</p>}
+                <p className="mt-1 text-xs text-slate-500">{i.checkIns.length} {i.checkIns.length === 1 ? "check-in" : "check-ins"}{last ? ` · last ${day(last.date)} with ${last.with}: ${CHECK_RESULT_LABEL[last.result]}${last.note ? ` (${last.note})` : ""}` : ""}</p>
+              </li>
+            );
+          }} />
+        </Part>
+
         <Part title="Class notes (Minutes)" count={profile.classNotes.length} tab="minutes" tabLabel="Minutes" onOpenTab={onOpenTab}>
           <Rows rows={profile.classNotes} empty="No class notes for this student yet." render={({ note, entry }) => (
             <li key={note.id} className={row} data-testid="profile-class-note">

@@ -7,6 +7,7 @@
 // Nothing a teacher uploads is kept or logged here. Photos, PDFs and text go to
 // the AI service to be read; calendar files and calendar links are read on this
 // server without AI.
+import { cleanScheduleRows, schedulePhotoPrompt } from "../shared/hubSchedulePhoto";
 import type { Express, RequestHandler } from "express";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, HUB_IMPORT_LIMITS, cleanDate, cleanHubImport, emptyHubImport, hubImportCount, linesToTasks,
@@ -301,6 +302,35 @@ export function registerTeacherHubImportRoutes(app: Express, authMiddleware: Req
     } catch (error: any) {
       if (error instanceof HubAiError) return res.status(502).json({ message: error.message });
       console.error("[teacher-hub] minutes read failed:", error?.name || "error");
+      return res.status(500).json({ message: "That could not be read right now. Try again in a moment." });
+    }
+  });
+
+  // Student schedules: a photo of one student's schedule is read into the blocks of their week.
+  // Nothing is saved here. The page shows the blocks, and the teacher checks them before adding.
+  app.post("/api/teacher-hub/import/schedule", authMiddleware, async (req: any, res) => {
+    if (!(await deps.gate(req, res))) return;
+    res.set("Cache-Control", "no-store");
+    try {
+      const images: unknown[] = Array.isArray(req.body?.images) ? req.body.images : [];
+      if (!images.length) return res.status(400).json({ message: "Add a photo or a screenshot of the schedule." });
+      if (images.length > HUB_IMPORT_LIMITS.images) return res.status(400).json({ message: `Add up to ${HUB_IMPORT_LIMITS.images} photos at a time.` });
+      if (!photosOk(images)) return res.status(400).json({ message: "That photo could not be read. Try a screenshot or a JPEG photo." });
+      if (!aiConfigured()) return res.status(503).json({ message: "AI is not set up on this site yet, so a photo can't be read. You can still add blocks yourself." });
+
+      const key = String(req.user.id);
+      if (asks.retryAfter(key) > 0) return res.status(429).json({ message: `You have used AI ${HUB_IMPORT_LIMITS.perDay} times today. You can use it again tomorrow.` });
+      asks.fail(key);
+
+      const student = typeof req.body?.student === "string" ? req.body.student.trim().slice(0, 80) : "";
+      const reply = parseAiReply(await askAI({ system: schedulePhotoPrompt(student), parts: (images as string[]).map((dataUrl): AiPart => ({ type: "image", dataUrl })) }));
+      if (!reply) return res.status(502).json({ message: "The AI's answer could not be understood. Try again." });
+      const rows = cleanScheduleRows(reply.rows);
+      const summary = typeof reply.summary === "string" ? reply.summary.replace(/\s+/g, " ").trim().slice(0, 240) : "";
+      return res.json({ rows, summary });
+    } catch (error: any) {
+      if (error instanceof HubAiError) return res.status(502).json({ message: error.message });
+      console.error("[teacher-hub] schedule read failed:", error?.name || "error");
       return res.status(500).json({ message: "That could not be read right now. Try again in a moment." });
     }
   });

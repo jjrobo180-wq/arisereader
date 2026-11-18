@@ -6,6 +6,7 @@ import { daysBetween } from "./hubDates";
 import { cleanClasses, cleanLessons, rosterOf, type LessonMaterial, type LessonPlan, type StudentMark } from "./lessonPlanner";
 import { cleanPushInNotes, type PushInNote, type PushInStudent } from "./pushIn";
 import type { IepDraft } from "./iepWriter";
+import { cleanIncidents, incidentsFor, type Incident } from "./hubIncidents";
 import { guideProgress } from "./hubGuide";
 import { countedPlan, goalProgress, optionalDays, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
 import { subjectMinutes, type SubjectMinutes } from "./hubSubjects";
@@ -46,6 +47,8 @@ export type StudentProfile = {
   /** Worksheets and files: those given to the student in a class note, and those on the student's lessons. */
   files: { material: LessonMaterial; from: string; date: string; source: "class" | "lesson"; given: boolean }[];
   iepDrafts: IepDraft[];
+  /** Incident reports about the student, newest first, with their check-ins. */
+  incidents: Incident[];
   /** To-dos, calendar events and emails linked to the student or naming them. */
   tasks: Task[];
   events: HubEvent[];
@@ -112,6 +115,7 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     if (!seenFile.has(material.id)) { seenFile.add(material.id); files.push({ material, from: lesson.title || "Lesson", date: lesson.date || "", source: "lesson", given: false }); }
   }
   files.sort((a, b) => Number(b.given) - Number(a.given) || b.date.localeCompare(a.date));
+  const incidents = incidentsFor(cleanIncidents((workspace as any).incidents), student.name);
   const iepDrafts = [...(workspace.iepDrafts || [])].filter((d) => fold(d.student) === name).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 
   // Anything that names the student by their full name, or is linked to them.
@@ -136,9 +140,9 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     behavior: { total: behavior.reduce((sum, b) => sum + (Number(b.points) || 0), 0), entries: behavior },
     attendance: { counts, entries: attendance },
     grades: { rows, average: possible ? Math.round((earned / possible) * 100) : null, missing: rows.filter((r) => r.missing).length },
-    schedule, reading, classNotes, lessons, files, iepDrafts, tasks, events, emails,
+    schedule, reading, classNotes, lessons, files, iepDrafts, incidents, tasks, events, emails,
     records: goals.length + services.length + serviceLogs.length + meetings.length + guides.length + notes.length + parentLogs.length + behavior.length + attendance.length + rows.length + schedule.length + reading.length
-      + classNotes.length + lessons.length + files.length + iepDrafts.length + tasks.length + events.length + emails.length,
+      + classNotes.length + lessons.length + files.length + iepDrafts.length + incidents.length + tasks.length + events.length + emails.length,
   };
 }
 
