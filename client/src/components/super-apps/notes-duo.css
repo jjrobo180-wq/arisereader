@@ -41,3 +41,31 @@
 .an-root.an-in-duo.an-night .an-input, .todo-night .an-root.an-in-duo .an-input { background: #191730 !important; border-color: #2c2a4c !important; color: #f1effa; }
 .an-root.an-in-duo.an-night .an-primary, .todo-night .an-root.an-in-duo .an-primary { background: #a99cf5 !important; color: #16132a !important; }
 .an-root.an-in-duo.an-night .an-chip[aria-pressed="true"], .todo-night .an-root.an-in-duo .an-chip[aria-pressed="true"] { background: #f1effa; border-color: #f1effa; color: #16132a; }
+
+/* ── The Notes page inside To Duo (pages/PagesView.tsx): To Duo's colors and type, not the gray "Apple Notes"
+   look, in one white box with To Duo's hairline, beside the hub's menu (never wider than the space it has). ── */
+.super-arisenotes { min-width: 0; max-width: 100%; overflow-x: clip; }
+.an-root.an-in-duo { min-height: 0 !important; }
+.an-root.an-in-duo::before { display: none !important; }
+.an-root.an-in-duo.an-pro {
+  --an-bg: transparent !important; --an-card: #ffffff !important; --an-line: #e7e8f0 !important;
+  --an-ink: #232139 !important; --an-muted: #64748b !important; --an-faint: #94a3b8 !important;
+  --an-violet: #6e5ae0 !important; --an-violet-ink: #5948c8 !important; --an-violet-soft: #f1effd !important; --an-on-accent: #ffffff !important;
+  --pp-accent: #6e5ae0; --pp-accent-2: #5948c8; --pp-row-on: #f1effd; --pp-icon: #6e5ae0; --pp-shadow: none;
+  background: transparent !important;
+  font-family: 'Barlow', Arial, Helvetica, sans-serif !important;
+}
+.an-root.an-in-duo.an-pro.an-pro-dark {
+  --an-card: #191730 !important; --an-line: #2c2a4c !important;
+  --an-ink: #f1effa !important; --an-muted: #9a97b8 !important; --an-faint: #7c7999 !important;
+  --an-violet: #a99cf5 !important; --an-violet-ink: #cfc6ff !important; --an-violet-soft: #26234a !important; --an-on-accent: #16132a !important;
+  --pp-accent: #a99cf5; --pp-accent-2: #cfc6ff; --pp-row-on: #26234a; --pp-icon: #a99cf5;
+}
+.an-root.an-in-duo .pp-min.pp-in-duo { border: 1px solid var(--an-line); border-radius: 1.5rem; background: var(--an-card) !important; box-shadow: 0 8px 28px rgba(23, 21, 43, .03); }
+.an-root.an-in-duo .pp-in-duo aside, .an-in-duo .pp-in-duo section { background: color-mix(in srgb, var(--an-violet-soft) 35%, var(--an-card)); }
+.an-root.an-in-duo .pp-in-duo .pp-group { border: 1px solid var(--an-line); border-radius: .9rem; }
+.an-root.an-in-duo .pp-in-duo .pp-title { font-weight: 800; letter-spacing: -.01em; }
+.an-root.an-in-duo .pp-in-duo .pp-section { color: var(--an-muted); font-weight: 800; letter-spacing: .12em; }
+.an-root.an-in-duo .pp-in-duo .pp-quick { border-radius: 999px; box-shadow: inset 0 0 0 1px var(--an-line); font-weight: 700; }
+.an-root.an-in-duo .pp-in-duo .an-search input { border-radius: .75rem !important; }
+.an-root.an-in-duo .pp-in-duo .pp-blank p { color: var(--an-muted); }

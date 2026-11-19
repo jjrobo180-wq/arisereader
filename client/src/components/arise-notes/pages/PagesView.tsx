@@ -42,7 +42,16 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
   /** Notes waiting to go into the folder being made from "Move to › New folder…". */
   const [moveAfterFolder, setMoveAfterFolder] = useState<string[] | null>(null);
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1000);
-  useEffect(() => { const f = () => setWide(window.innerWidth >= 1000); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
+  // Inside To Duo the notes sit beside the hub's menu, so the room they have is the box's width, not the window's.
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const f = () => setWide(ctx.duo && boxRef.current ? boxRef.current.clientWidth >= 860 : window.innerWidth >= 1000);
+    f();
+    window.addEventListener("resize", f);
+    const ro = ctx.duo && boxRef.current && typeof ResizeObserver !== "undefined" ? new ResizeObserver(f) : null;
+    if (ro && boxRef.current) ro.observe(boxRef.current);
+    return () => { window.removeEventListener("resize", f); ro?.disconnect(); };
+  }, [ctx.duo]);
   useEffect(() => { if (message) say(message); }, [message, say]);
   // The dock's + > New note while Notes is already open: show the new-note sheet (it is only read on first open otherwise).
   useEffect(() => {
@@ -178,6 +187,8 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
   // Record a meeting straight into a new note (PageScreen records; typing @ariserecord does too).
   const recordMeeting = () => { try { sessionStorage.setItem("arise-pages-record", "1"); } catch { /* opens without recording */ } void create(PAGE_TEMPLATES[0]); };
   const nav = <nav className="pp-nav" aria-label="Folders" data-testid="pages-folders">
+    {/* Inside To Duo, Record, Upload, Plugins, @arise and Settings are on To Duo's row of pages above. */}
+    {!ctx.duo && <>
     <button type="button" onClick={recordMeeting} data-testid="pages-record" className="pp-record" title="Records into a new note. Or type @ariserecord in any note.">
       <span className="pp-record-dot" aria-hidden /><span className="flex-1">Record a meeting</span><Mic className="h-4 w-4 opacity-60" aria-hidden />
     </button>
@@ -188,6 +199,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
       {wide && <FolderRow on={false} icon={<MessageCircle />} label="Ask" onClick={() => ctx.go({ name: "undercover" })} testId="pages-side-ask" />}
       {wide && <FolderRow on={false} icon={<SettingsIcon />} label="Settings" onClick={() => ctx.go({ name: "settings" })} testId="pages-side-settings" />}
     </ul>
+    </>}
     <ul className="pp-group">
       <FolderRow on={on({ kind: "all" })} icon={<FileText />} label="All notes" count={live.length} onClick={() => pick({ kind: "all" })} testId="pages-folder-all" />
       {/* Pinned, Handwritten and Locked only show when they have notes (or are open), to keep the list short. */}
@@ -290,7 +302,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
 
   const editor = openId ? <PageScreen key={openId} ctx={ctx} id={openId} onBack={() => ctx.go({ name: "pages" })} expanded={wide && full} onExpand={wide ? () => setFull((v) => !v) : undefined} /> : null;
 
-  return <div className="pp-min flex h-[100dvh] min-h-0 flex-col" data-testid="pages-view">
+  return <div ref={boxRef} className={`pp-min flex min-h-0 min-w-0 flex-col ${ctx.duo ? "pp-in-duo h-[calc(100dvh-15rem)] min-h-[32rem] overflow-hidden" : "h-[100dvh]"}`} data-testid="pages-view">
     {!wide && !openId && tabs}
     <div className="flex min-h-0 flex-1">
       {wide ? <>

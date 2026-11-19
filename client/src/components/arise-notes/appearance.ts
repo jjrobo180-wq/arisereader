@@ -1,6 +1,9 @@
 // Light / Dark / Auto for the Notes tab and the typing screen. New accounts start on Light; Auto follows the phone (or computer), so
 // dark mode just works; the choice is kept on this device, like Apple Notes does.
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+
+/** Inside Arise To Duo, To Duo's Day/Night decides (not this device's Notes setting or the computer's dark mode). */
+export const ForcedDark = createContext<boolean | null>(null);
 
 export type Appearance = "auto" | "light" | "dark";
 const KEY = "arise-notes-appearance";
@@ -19,6 +22,7 @@ const systemDark = () => typeof window !== "undefined" && !!window.matchMedia?.(
 
 /** The chosen setting and whether the screen should be dark right now. */
 export function useAppearance(): { mode: Appearance; dark: boolean; set: (v: Appearance) => void } {
+  const forced = useContext(ForcedDark);
   const [mode, setMode] = useState<Appearance>(getAppearance);
   const [sys, setSys] = useState(systemDark);
   useEffect(() => {
@@ -41,5 +45,6 @@ export function useAppearance(): { mode: Appearance; dark: boolean; set: (v: App
       document.removeEventListener("visibilitychange", onBack); window.removeEventListener("focus", onBack); window.removeEventListener("pageshow", onBack); window.clearInterval(tick);
     };
   }, []);
+  if (forced !== null) return { mode: forced ? "dark" : "light", dark: forced, set: setAppearance };
   return { mode, dark: mode === "dark" || (mode === "auto" && sys), set: setAppearance };
 }

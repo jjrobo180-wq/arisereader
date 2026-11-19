@@ -6,7 +6,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { NoteTypeIcon } from "./NoteIcon";
 import { NotesDock } from "./NotesDock";
 import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Loader2, Lock, Mic, MessageCircle, Pencil, Search, Settings, Sparkles, Upload, Users, Zap } from "lucide-react";
-import { hasAppearance, setAppearance, useAppearance } from "./appearance";
+import { ForcedDark, hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
 import { isNotesApp, nativeCall } from "@/lib/nativeApp";
@@ -126,7 +126,8 @@ const loadThemeFont = (href?: string) => {
 };
 
 export default function NotesApp(props: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string; duo?: NotesDuo }) {
-  return <ToastHost><Shell {...props} /></ToastHost>;
+  // Inside To Duo, every screen (the list, an open note's paper) follows To Duo's Day/Night, not the computer's dark mode.
+  return <ForcedDark.Provider value={props.duo ? !!props.duo.night : null}><ToastHost><Shell {...props} /></ToastHost></ForcedDark.Provider>;
 }
 
 function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string; duo?: NotesDuo }) {
@@ -271,11 +272,11 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
   // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
   // page: their colors and type replace the neutral ones there (notes-suite.css).
-  const suite = SUITE_LOOKS.has(look.id) && !s?.contrast;
+  const suite = SUITE_LOOKS.has(look.id) && !s?.contrast && !duo;
   // Every other look dresses the Notes tab and the writing page too (they stayed plain gray and white,
   // though the look's preview shows its colors everywhere).
   const proLook = pro && !suite && !s?.contrast && !duo && (look.id !== "classic" || !!s?.night);
-  const proDark = pro && (suite || proLook ? !!look.dark : appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
+  const proDark = pro && (duo ? !!duo.night : suite || proLook ? !!look.dark : appearance.mode === "dark" ? true : appearance.mode === "light" ? false : appearance.dark || !!s?.night || (look.id !== "classic" && !!look.dark));
   const themed = !pro && !s?.contrast && !duo && (look.id !== "classic" || !!s?.night);
   useEffect(() => { if (themed || suite || proLook) loadThemeFont(look.fontUrl); }, [themed, suite, proLook, look.fontUrl]);
   // The areas around the page (behind the status bar and Home indicator) match the look.
