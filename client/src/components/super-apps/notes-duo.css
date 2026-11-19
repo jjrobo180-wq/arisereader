@@ -22,3 +22,22 @@
 .an-root.an-root.an-in-duo.an-in-duo.an-in-duo { background: transparent !important; background-image: none !important; --an-bg: #f6f7fc !important; font-family: 'Barlow', Arial, Helvetica, sans-serif !important; }
 .an-root.an-root.an-in-duo.an-in-duo.an-pro-dark, .todo-night .an-root.an-root.an-in-duo.an-in-duo.an-in-duo { --an-bg: #0e0d1a !important; }
 .an-root.an-in-duo .pp-min { background: transparent !important; }
+/* To Duo's shapes and type inside Notes too: no serif headings, flat violet buttons, rounder cards with To Duo's
+   hairline, its pills, text fields and the dimmed box sheets open in. */
+.an-root.an-in-duo { --an-serif: 'Barlow', Arial, Helvetica, sans-serif !important; }
+.an-root.an-in-duo .an-display { font-family: 'Barlow', Arial, Helvetica, sans-serif !important; font-weight: 800; letter-spacing: -.01em; line-height: 1.1; }
+.an-root.an-in-duo .an-card { border-radius: 1.5rem !important; border-color: #e7e8f0 !important; box-shadow: 0 8px 28px rgba(23, 21, 43, .03) !important; }
+.an-root.an-in-duo .an-btn { border-radius: .75rem !important; font-weight: 600; letter-spacing: 0; }
+.an-root.an-in-duo .an-primary { background: #6e5ae0 !important; box-shadow: none !important; color: #fff !important; }
+.an-root.an-in-duo .an-primary:hover { background: #5948c8 !important; }
+.an-root.an-in-duo .an-input { border-radius: .75rem !important; background: #fff !important; border-color: #e2e8f0 !important; box-shadow: none !important; }
+.an-root.an-in-duo .an-chip { height: 2.25rem; padding: 0 .9rem; font-weight: 700; font-size: .82rem; }
+.an-root.an-in-duo .an-chip[aria-pressed="true"] { background: #0f172a; border-color: #0f172a; color: #fff; }
+.an-root.an-in-duo .an-sheet-back { background: rgba(22, 21, 42, .65) !important; backdrop-filter: blur(4px) !important; }
+.an-root.an-in-duo .an-sheet-card { border-radius: 1.5rem 1.5rem 0 0 !important; box-shadow: 0 24px 60px rgba(0, 0, 0, .25) !important; }
+.an-root.an-in-duo .an-sheet-card::before { display: none !important; }
+@media (min-width: 640px) { .an-root.an-in-duo .an-sheet-card { border-radius: 1.5rem !important; } }
+.an-root.an-in-duo.an-night .an-card, .todo-night .an-root.an-in-duo .an-card { border-color: #2c2a4c !important; box-shadow: none !important; }
+.an-root.an-in-duo.an-night .an-input, .todo-night .an-root.an-in-duo .an-input { background: #191730 !important; border-color: #2c2a4c !important; color: #f1effa; }
+.an-root.an-in-duo.an-night .an-primary, .todo-night .an-root.an-in-duo .an-primary { background: #a99cf5 !important; color: #16132a !important; }
+.an-root.an-in-duo.an-night .an-chip[aria-pressed="true"], .todo-night .an-root.an-in-duo .an-chip[aria-pressed="true"] { background: #f1effa; border-color: #f1effa; color: #16132a; }

@@ -30,3 +30,66 @@
 /* Night: To Duo's hairline around the page instead of a bright one. */
 .pod-duo.pod-duo-night [data-testid="podster-home"] { --tw-ring-color: #2c2a4c; }
 .pod-duo.pod-duo-night [class*="bg-[#fff1e8]"], .pod-duo.pod-duo-night [class*="bg-[#fff4ec]"] { background-color: #26234a !important; }
+
+/* ── To Duo's look over Podster's own greys (its pages are drawn like a video site: #0f0f0f ink, #f2f2f2 chips,
+   #606060 captions, a blue link). Day first, then To Duo's Night. ── */
+.pod-duo [data-ps-root] { background-color: transparent !important; }
+.pod-duo .text-\[\#0f0f0f\] { color:#232139 !important }
+.pod-duo .text-\[\#606060\],
+.pod-duo .text-\[\#767676\] { color:#64748b !important }
+.pod-duo .text-\[\#909090\] { color:#94a3b8 !important }
+.pod-duo .text-\[\#3f3f3f\],
+.pod-duo .text-\[\#3a3a3a\] { color:#475569 !important }
+.pod-duo .bg-\[\#0f0f0f\] { background-color:#232139 !important }
+.pod-duo .bg-\[\#f2f2f2\] { background-color:#ffffff !important; box-shadow: inset 0 0 0 1px #e7e8f0 }
+.pod-duo .bg-\[\#f8f8f8\],
+.pod-duo .bg-\[\#f6f6f6\],
+.pod-duo .bg-\[\#f7f7f5\] { background-color:#f6f7fc !important }
+.pod-duo .bg-\[\#e5e5e5\],
+.pod-duo .bg-\[\#ececec\] { background-color:#eceef5 !important }
+.pod-duo .hover\:bg-\[\#f2f2f2\]:hover,
+.pod-duo .hover\:bg-\[\#f8f8f8\]:hover,
+.pod-duo .hover\:bg-\[\#f7f7f5\]:hover,
+.pod-duo .hover\:bg-\[\#f0f0f0\]:hover,
+.pod-duo .hover\:bg-\[\#efefec\]:hover { background-color:#f1f2f8 !important }
+.pod-duo .hover\:bg-\[\#e5e5e5\]:hover { background-color:#e4e6f0 !important }
+.pod-duo .hover\:bg-\[\#272727\]:hover { background-color:#3a3756 !important }
+.pod-duo .border-\[\#d3d3d3\],
+.pod-duo .border-\[\#e5e5e5\],
+.pod-duo .border-\[\#ececec\],
+.pod-duo .border-\[\#c4c4c4\] { border-color:#e7e8f0 !important }
+.pod-duo .text-\[\#065fd4\] { color:#6e5ae0 !important }
+.pod-duo .border-\[\#1c62b9\] { border-color:#6e5ae0 !important }
+.pod-duo .ring-\[\#1c62b9\] { --tw-ring-color:#6e5ae0 !important }
+.pod-duo .hover\:bg-\[\#def1ff\]:hover { background-color:#f1effd !important }
+.pod-duo .divide-\[\#ececec\] > :not([hidden]) ~ :not([hidden]), .pod-duo .divide-\[\#e5e5e5\] > :not([hidden]) ~ :not([hidden]) { border-color: #eceef5 !important; }
+.pod-duo [data-ps-root] input:not([type=color]):not([type=range]):not([type=checkbox]), .pod-duo [data-ps-root] textarea { border-radius: .75rem; }
+/* Night */
+.pod-duo.pod-duo-night .ps-dark, .pod-duo.pod-duo-night [data-ps-root] { background-color: transparent !important; color: #f1effa !important; }
+.pod-duo.pod-duo-night .ps-dark .bg-white { background-color:#191730 !important }
+.pod-duo.pod-duo-night .ps-dark .text-\[\#0f0f0f\] { color:#f1effa !important }
+.pod-duo.pod-duo-night .ps-dark .text-\[\#606060\],
+.pod-duo.pod-duo-night .ps-dark .text-\[\#767676\] { color:#9a97b8 !important }
+.pod-duo.pod-duo-night .ps-dark .text-\[\#909090\] { color:#7c7999 !important }
+.pod-duo.pod-duo-night .ps-dark .text-\[\#3f3f3f\],
+.pod-duo.pod-duo-night .ps-dark .text-\[\#3a3a3a\] { color:#cfcce3 !important }
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#0f0f0f\]:not(.ps-keep) { background-color:#f1effa !important; color:#16132a !important }
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#f2f2f2\] { background-color:#191730 !important; box-shadow: inset 0 0 0 1px #2c2a4c }
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#f8f8f8\],
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#f6f6f6\],
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#f7f7f5\] { background-color:#1f1d38 !important }
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#e5e5e5\],
+.pod-duo.pod-duo-night .ps-dark .bg-\[\#ececec\] { background-color:#26234a !important }
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#f2f2f2\]:hover,
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#f8f8f8\]:hover,
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#f7f7f5\]:hover,
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#f0f0f0\]:hover,
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#efefec\]:hover,
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#e5e5e5\]:hover { background-color:#26234a !important }
+.pod-duo.pod-duo-night .ps-dark .border-\[\#d3d3d3\],
+.pod-duo.pod-duo-night .ps-dark .border-\[\#e5e5e5\],
+.pod-duo.pod-duo-night .ps-dark .border-\[\#ececec\],
+.pod-duo.pod-duo-night .ps-dark .border-\[\#c4c4c4\] { border-color:#2c2a4c !important }
+.pod-duo.pod-duo-night .ps-dark .text-\[\#065fd4\] { color:#a99cf5 !important }
+.pod-duo.pod-duo-night .ps-dark .hover\:bg-\[\#def1ff\]:hover { background-color:#26234a !important }
+.pod-duo.pod-duo-night .ps-dark input:not([type=color]), .pod-duo.pod-duo-night .ps-dark textarea { background-color: #191730 !important; color: #f1effa !important; }

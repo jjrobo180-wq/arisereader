@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { superAppOf } from "@shared/superApps";
 import TrainerApp, { type TrainerEmbed } from "@/pages/trainer/TrainerApp";
 import { PageStrip, SuperHead } from "./SuperShell";
+import { InDuoCtx } from "@/pages/fit/fitUi";
 
 export default function CookedPtInDuo({ say, night, start }: { say: (m: string) => void; night: boolean; start?: string | null }) {
   const app = superAppOf("cookedpt")!;
@@ -15,5 +16,5 @@ export default function CookedPtInDuo({ say, night, start }: { say: (m: string) 
       <PageStrip app={app} pages={tabs.map((t) => t.id)} current={tab} onPick={go} badges={Object.fromEntries(tabs.map((t) => [t.id, t.badge]))} />
     </>,
   }), [night, say, start]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <div className="super-cookedpt" data-testid="super-app-cookedpt"><TrainerApp embed={embed} /></div>;
+  return <InDuoCtx.Provider value><div className="super-cookedpt" data-testid="super-app-cookedpt"><TrainerApp embed={embed} /></div></InDuoCtx.Provider>;
 }

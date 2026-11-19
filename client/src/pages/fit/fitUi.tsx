@@ -73,7 +73,15 @@ const DUO_TYPE = {
 };
 /** Wins over every Cooked theme and layout (they set the same variables on the same element). */
 const important = (t: Record<string, string>) => Object.entries(t).map(([k, x]) => `--fit-${k}:${x} !important`).join(";");
-export const DUO_CSS = `html[data-fit-duo="light"]{${important({ ...DUO_TOKENS.light, ...DUO_TYPE })}}html[data-fit-duo="dark"]{${important({ ...DUO_TOKENS.dark, ...DUO_TYPE })}}`;
+export const DUO_CSS = `html[data-fit-duo="light"]{${important({ ...DUO_TOKENS.light, ...DUO_TYPE })}}html[data-fit-duo="dark"]{${important({ ...DUO_TOKENS.dark, ...DUO_TYPE })}}`
+  // To Duo is calm: no shine sweeping across cards, nothing popping, wiggling or sliding in. Rings and bars still fill.
+  + `html[data-fit-duo] .fit-shine::after{display:none!important}html[data-fit-duo] .fit-in,html[data-fit-duo] .fit-slide,html[data-fit-duo] .fit-pop,html[data-fit-duo] .fit-wiggle,html[data-fit-duo] .fit-pulse{animation:none!important}`
+  // To Duo's shapes: rounder cards and boxes, its text fields (white with a hairline edge).
+  + `html[data-fit-duo] [data-fit-embed] .rounded-\\[14px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[16px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[18px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[20px\\],html[data-fit-duo] [data-fit-duo-modal] .rounded-\\[14px\\]{border-radius:1.25rem}`
+  + `html[data-fit-duo] [data-fit-embed] .rounded-\\[10px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[12px\\],html[data-fit-duo] [data-fit-duo-modal] .rounded-\\[10px\\],html[data-fit-duo] [data-fit-duo-modal] .rounded-\\[12px\\]{border-radius:.75rem}`
+  + `html[data-fit-duo] [data-fit-embed] input.h-12,html[data-fit-duo] [data-fit-duo-modal] input.h-12,html[data-fit-duo] [data-fit-embed] select.h-12,html[data-fit-duo] [data-fit-duo-modal] select.h-12{height:2.75rem;font-size:15px;background:var(--fit-card)!important;box-shadow:inset 0 0 0 1px var(--fit-line)}`;
+/** True inside Arise To Duo (Cooked and Cooked PT as plugins): pieces draw in To Duo's own way. Given by the To Duo wrapper. */
+export const InDuoCtx = createContext(false);
 /** To Duo's Day or Night while Cooked or Cooked PT shows inside it; null on their own. */
 let duoLook: "light" | "dark" | null = null;
 export const inDuo = () => duoLook !== null;
@@ -282,18 +290,23 @@ export function useFitFonts() {
 export const cardStyle: React.CSSProperties = { background: v("card-bg"), boxShadow: v("card-shadow") };
 
 export function Card({ children, className = "", onClick, testId, style }: { children: ReactNode; className?: string; onClick?: () => void; testId?: string; style?: React.CSSProperties }) {
-  const cls = `fit-in rounded-[14px] p-4 ${onClick ? "text-left w-full active:scale-[.98] transition-transform" : ""} ${className}`;
+  const duo = useContext(InDuoCtx);
+  const cls = `fit-in ${duo ? "rounded-[1.5rem] p-4 sm:p-5" : "rounded-[14px] p-4"} ${onClick ? "text-left w-full active:scale-[.98] transition-transform" : ""} ${className}`;
   return onClick
     ? <button type="button" onClick={onClick} className={cls} style={{ ...cardStyle, ...style }} data-testid={testId}>{children}</button>
     : <div className={cls} style={{ ...cardStyle, ...style }} data-testid={testId}>{children}</div>;
 }
 
 export function Title({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  if (useContext(InDuoCtx)) return <div className="mb-2 mt-6 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.12em]" style={{ color: C.dim }}>{children}</h2>{right}</div>;
   return <div className="mb-3 mt-8 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[13px] tracking-[.16em]" style={{ ...display, color: C.dim }}>{children}</h2>{right}</div>;
 }
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
   const st = kind === "primary" ? { background: C.lime, color: "var(--fit-on-accent)" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
+  // To Duo's buttons: sentence case, its type, a little smaller and softer.
+  if (useContext(InDuoCtx)) return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-40 ${className}`}
+    style={{ ...st, ...(kind === "soft" ? { boxShadow: `inset 0 0 0 1px ${C.line}`, background: C.card } : {}) }}>{children}</button>;
   return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: "var(--fit-btn-font)", fontSize: "var(--fit-btn-size)", textTransform: "var(--fit-btn-case)" as React.CSSProperties["textTransform"], fontWeight: 800 }}>{children}</button>;
 }
 
@@ -360,10 +373,24 @@ export function Layer({ children }: { children: ReactNode }) {
  *  same content is drawn as a tab instead: a big heading, no close button. */
 export function Sheet({ title, onClose, children, testId, right, inline }: { title: string; onClose: () => void; children: ReactNode; testId?: string; right?: ReactNode; inline?: boolean }) {
   useEffect(() => { if (inline) return; const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc); }, [onClose, inline]);
+  const duo = useContext(InDuoCtx);
   if (inline) return <div data-testid={testId}>
-    <div className="mb-3 flex items-end justify-between px-1"><h1 className="text-[46px] leading-[.95]" style={display}>{title}</h1>{right}</div>
+    {duo ? <div className="mb-3 flex items-end justify-between gap-3 px-1"><h2 className="text-xl font-bold" style={{ color: C.text }}>{title}</h2>{right}</div>
+      : <div className="mb-3 flex items-end justify-between px-1"><h1 className="text-[46px] leading-[.95]" style={display}>{title}</h1>{right}</div>}
     {children}
   </div>;
+  // Inside To Duo: To Duo's own box (from the bottom on a phone, centered on a computer) over a dimmed page,
+  // not a screen sliding over everything, so the menu and the app stay where they were.
+  if (duo) return <Layer><div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div role="dialog" aria-modal="true" aria-label={title} data-testid={testId} data-fit-duo-modal className="flex max-h-[94dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-[1.5rem] sm:max-w-2xl sm:rounded-[1.5rem]" style={{ background: C.bg, color: C.text, ...font, boxShadow: "0 24px 60px rgba(0,0,0,.25)" }}>
+      <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-5">
+        <h2 className="min-w-0 flex-1 truncate text-xl font-black">{title}</h2>
+        {right}
+        <button type="button" onClick={onClose} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ color: C.dim }}><X className="h-5 w-5" /></button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">{children}</div>
+    </div>
+  </div></Layer>;
   return <Layer><div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
     <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-[max(10px,var(--sat,env(safe-area-inset-top,0px)))]">
       <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full" style={{ background: C.card, boxShadow: v("card-shadow") }}><X className="h-5 w-5" /></button>
@@ -375,6 +402,10 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
 }
 
 export function Chips<T extends string>({ items, value, onChange, label }: { items: { id: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
+  if (useContext(InDuoCtx)) return <div role="group" aria-label={label} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+    {items.map((i) => <button key={i.id} type="button" onClick={() => onChange(i.id)} aria-pressed={value === i.id}
+      className="min-h-9 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold transition-colors" style={value === i.id ? { background: C.text, color: C.bg } : { background: C.card, color: C.dim, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{i.label}</button>)}
+  </div>;
   return <div role="group" aria-label={label} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
     {items.map((i) => <button key={i.id} type="button" onClick={() => onChange(i.id)} aria-pressed={value === i.id}
       className="h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3.5 text-[13px] font-semibold transition-colors duration-200" style={value === i.id ? { background: C.lime, color: "var(--fit-on-accent)" } : { background: C.card, color: C.text, boxShadow: `inset 0 0 0 1px ${C.line}` }}>{i.label}</button>)}

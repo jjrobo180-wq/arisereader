@@ -6,6 +6,7 @@ import { superAppOf } from "@shared/superApps";
 import type { FitEmbed } from "@/pages/fit/FitApp";
 import { FitInDuo } from "@/pages/fit/FitApp";
 import { PageStrip, SuperHead } from "./SuperShell";
+import { InDuoCtx } from "@/pages/fit/fitUi";
 
 export default function CookedInDuo({ say, night, start, coach }: { say: (m: string) => void; night: boolean; start?: string | null; coach?: string | null }) {
   const app = superAppOf("cooked")!;
@@ -20,5 +21,5 @@ export default function CookedInDuo({ say, night, start, coach }: { say: (m: str
       </>;
     },
   }), [night, start, coach]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <div className="super-cooked" data-testid="super-app-cooked"><FitInDuo say={say} embed={embed} /></div>;
+  return <InDuoCtx.Provider value><div className="super-cooked" data-testid="super-app-cooked"><FitInDuo say={say} embed={embed} /></div></InDuoCtx.Provider>;
 }
