@@ -146,17 +146,18 @@ export function classSavedText(result: Pick<ClassResult, "given" | "absent">, ti
 const samePerson = (a: string, b: string) => fold(a) === fold(b);
 
 /** Who can join a class, and which other class each one would leave: a student has one plan for each kind of service. */
-export function classCandidates(names: string[], group: ClassGroup, kind: string, groups: ClassGroup[]): { name: string; movesFrom: string }[] {
+export function classCandidates(names: string[], group: ClassGroup, kind: string, groups: ClassGroup[]): { name: string; alsoIn: string }[] {
   const inClass = new Set(group.students.map((s) => fold(s.student)));
   return names.filter((n) => !inClass.has(fold(n))).map((name) => {
-    const other = groups.find((g) => g.key !== group.key && g.students.some((s) => samePerson(s.student, name) && s.kind === kind));
-    return { name, movesFrom: other ? [other.title, other.label].filter(Boolean).join(" · ") : "" };
+    const others = groups.filter((g) => g.key !== group.key && g.students.some((s) => samePerson(s.student, name) && s.kind === kind));
+    return { name, alsoIn: others.map((g) => [g.title, g.label].filter(Boolean).join(" · ")).join(", ") };
   });
 }
 
 /**
  * Adds students to a class, with the same service, days, minutes, subject and place as the class's first student.
- * A student who already has that kind of service keeps its id and start date, and moves to this class.
+ * A student already in another class is copied in, not moved: they stay in that class too (many students are in
+ * more than one). Only a matching service that isn't in any class yet is put into this one instead of copied.
  */
 export function addToClass(services: ServicePlan[], group: ClassGroup, names: string[], makeId: () => string, since: string): ServicePlan[] {
   const model = group.students.map((s) => services.find((p) => p.id === s.planId)).find(Boolean);
@@ -166,10 +167,10 @@ export function addToClass(services: ServicePlan[], group: ClassGroup, names: st
   for (const raw of names) {
     const student = raw.trim();
     if (!student || group.students.some((s) => samePerson(s.student, student))) continue;
-    const existing = next.find((p) => samePerson(p.student, student) && p.kind === model.kind);
-    next = existing
-      ? next.map((p) => (p === existing ? { ...fields, id: p.id, student: p.student, ...(p.since ? { since: p.since } : {}) } : p))
-      : [...next, { ...fields, id: makeId(), student, since }];
+    const loose = next.find((p) => samePerson(p.student, student) && p.kind === model.kind && !p.block);
+    next = loose
+      ? next.map((p) => (p === loose ? { ...fields, id: p.id, student: p.student, ...(p.since ? { since: p.since } : {}) } : p))
+      : [...next, { ...fields, id: makeId(), student: next.find((p) => samePerson(p.student, student))?.student ?? student, since }];
   }
   return next;
 }
@@ -239,7 +240,8 @@ export function editClass(services: ServicePlan[], group: ClassGroup, change: Cl
   });
 }
 
-/** A new class: each name gets the service with the same place, teacher, subject and weekly minutes. A name that already has that kind of service moves into it. */
+/** A new class: each name gets the service with the same place, teacher, subject and weekly minutes. A student
+ *  already in another class is copied in and stays there too; only a matching service in no class is used. */
 export function createClass(services: ServicePlan[], names: string[], fields: ClassChange & { kind: string; minutesPerWeek: number }, makeId: () => string, since: string): ServicePlan[] {
   const block = fields.block || "", part = block ? cleanPart(fields.part) : undefined;
   const teacher = cleanTeacher(fields.teacher), subject = cleanSubject(fields.subject);
@@ -248,10 +250,10 @@ export function createClass(services: ServicePlan[], names: string[], fields: Cl
   for (const raw of names) {
     const student = raw.trim();
     if (!student) continue;
-    const existing = next.find((p) => samePerson(p.student, student) && p.kind === fields.kind);
+    const existing = next.find((p) => samePerson(p.student, student) && p.kind === fields.kind && !p.block);
     next = existing
       ? next.map((p) => { if (p !== existing) return p; const { block: _b, part: _p, teacher: _t, subject: _s, ...rest } = p; return { ...rest, ...place }; })
-      : [...next, { id: makeId(), student, kind: fields.kind, minutesPerWeek: fields.minutesPerWeek, ...place, since }];
+      : [...next, { id: makeId(), student: next.find((p) => samePerson(p.student, student))?.student ?? student, kind: fields.kind, minutesPerWeek: fields.minutesPerWeek, ...place, since }];
   }
   return next;
 }

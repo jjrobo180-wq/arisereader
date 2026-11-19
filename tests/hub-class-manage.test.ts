@@ -23,16 +23,27 @@ test("someone in the class already isn't added twice, whatever their capitals", 
   assert.equal(addToClass(services, groupsOf(services)[0], [" amy "], made(), "2026-11-02").length, 1);
 });
 
-test("a student in another class moves, says so first, and keeps their id and start date", () => {
+test("a student in another class is copied in, not moved: they stay in both classes", () => {
   const services = [plan("a", "Amy", "b1"), plan("c", "Cal", "b2")];
   const groups = groupsOf(services), one = groups.find((g) => g.block === "b1")!;
-  assert.equal(classCandidates(["Amy", "Cal", "Dee"], one, "Push-in", groups).find((x) => x.name === "Cal")!.movesFrom, "Block 2 · Ms. Lee");
+  assert.equal(classCandidates(["Amy", "Cal", "Dee"], one, "Push-in", groups).find((x) => x.name === "Cal")!.alsoIn, "Block 2 · Ms. Lee");
   assert.deepEqual(classCandidates(["Amy", "Cal", "Dee"], one, "Push-in", groups).map((x) => x.name), ["Cal", "Dee"]);
+  const next = addToClass(services, one, ["cal"], made(), "2026-11-02");
+  assert.equal(next.length, 3);
+  assert.equal(next.find((p) => p.id === "c")!.block, "b2", "still in the other class, untouched");
+  const copy = next.find((p) => p.id !== "a" && p.id !== "c")!;
+  assert.deepEqual([copy.student, copy.block, copy.since], ["Cal", "b1", "2026-11-02"]);
+  // In both classes now.
+  assert.equal(groupsOf(next).filter((g) => g.students.some((s) => s.student === "Cal")).length, 2);
+});
+
+test("a matching service that isn't in any class yet is put into the class (no copy)", () => {
+  const loose = { ...plan("c", "Cal", "b2") }; delete (loose as any).block;
+  const services = [plan("a", "Amy", "b1"), loose];
+  const one = groupsOf(services).find((g) => g.block === "b1")!;
   const next = addToClass(services, one, ["Cal"], made(), "2026-11-02");
   assert.equal(next.length, 2);
-  const cal = next.find((p) => p.id === "c")!;
-  assert.equal(cal.block, "b1");
-  assert.equal(cal.since, "2026-09-01");
+  assert.equal(next.find((p) => p.id === "c")!.block, "b1");
 });
 
 test("deleting a class keeps the students' required minutes unless asked, and touches no other class", () => {
@@ -53,4 +64,13 @@ test("undo puts a deleted class back without losing changes made since", () => {
   const back = restorePlans(later, [services[0]]);
   assert.deepEqual(back.map((p) => p.id).sort(), ["a", "c", "d"]);
   assert.equal(back.find((p) => p.id === "a")!.block, "b1");
+});
+
+test("a new class copies in a student who's already in another class (they stay in both)", async () => {
+  const { createClass } = await import("../shared/hubClassMinutes");
+  const services = [plan("c", "Cal", "b2")];
+  const next = createClass(services, ["Cal"], { kind: "Push-in", minutesPerWeek: 60, block: "b1" } as any, made(), "2026-11-19");
+  assert.equal(next.length, 2);
+  assert.equal(next.find((p) => p.id === "c")!.block, "b2");
+  assert.ok(next.some((p) => p.id !== "c" && p.block === "b1" && p.student === "Cal"));
 });
