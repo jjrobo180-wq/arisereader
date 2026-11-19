@@ -67,6 +67,11 @@ export type Kitchen = {
   /** The Monday the plan starts on (YYYY-MM-DD). Empty: the current week. */
   start: string;
   store: { id: string; name: string; zip: string } | null;
+  /** The Monday these meals are for. When that plan is over, the meals move to `last` and a fresh week starts
+   *  (like the budget), so last week's dinners don't sit there as this week's. */
+  planFor?: string;
+  /** The plan that just ended, to bring back with one tap. */
+  last?: { from: string; weeks: number; week: Record<string, KMeal[]> };
 };
 export const nWeeks = (k: Kitchen) => (k.weeks === 2 || k.weeks === 4 ? k.weeks : 1);
 export const planStart = (k: Kitchen, today: string) => k.start || mondayOf(today);
@@ -100,12 +105,17 @@ export function cleanKitchen(raw: unknown): Kitchen {
     return id && name && isSlot(x.slot) ? { id, slot: x.slot, name, kcal: n(x.kcal, 0, 5000), minutes: n(x.minutes, 0, 1440), tags: [], pop: 0, parts: cleanParts(x.parts), own: true } : null;
   }).filter(Boolean) as KDish[];
   const dishIds = new Set([...K_DISHES.map((d) => d.id), ...own.map((d) => d.id), SKIP]);
-  const week: Record<string, KMeal[]> = {};
+  const cleanWeek = (raw: unknown) => { const week: Record<string, KMeal[]> = {};
   for (let wk = 0; wk < MAX_WEEKS; wk++) for (const day of WEEK) for (const sl of K_SLOTS) {
     const key = cell(day, sl.id, wk);
-    const meals = (Array.isArray(o(r.week)[key]) ? o(r.week)[key] : []).slice(0, 8).map((m: unknown) => ({ id: s(o(m).id, 60), dish: s(o(m).dish, 80), people: [...new Set((Array.isArray(o(m).people) ? o(m).people : []).slice(0, 12).map((x: unknown) => s(x, 60)).filter(Boolean).map((x: string) => sameAs.get(x) ?? x))] as string[] })).filter((m: KMeal) => m.id && dishIds.has(m.dish));
+    const meals = (Array.isArray(o(raw)[key]) ? o(raw)[key] : []).slice(0, 8).map((m: unknown) => ({ id: s(o(m).id, 60), dish: s(o(m).dish, 80), people: [...new Set((Array.isArray(o(m).people) ? o(m).people : []).slice(0, 12).map((x: unknown) => s(x, 60)).filter(Boolean).map((x: string) => sameAs.get(x) ?? x))] as string[] })).filter((m: KMeal) => m.id && dishIds.has(m.dish));
     if (meals.length) week[key] = meals;
   }
+  return week; };
+  const week = cleanWeek(r.week);
+  const isDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T12:00:00Z`));
+  const lr = o(r.last), lastWeek = cleanWeek(lr.week);
+  const roll = { ...(isDay(r.planFor) ? { planFor: mondayOf(r.planFor) } : {}), ...(isDay(lr.from) && Object.keys(lastWeek).length ? { last: { from: mondayOf(lr.from), weeks: [1, 2, 4].includes(Number(lr.weeks)) ? Number(lr.weeks) : 1, week: lastWeek } } : {}) };
   const products = (Array.isArray(r.products) ? r.products : []).slice(0, 400).map(cleanProduct).filter(Boolean) as KProduct[];
   const productIds = new Set([...PRODUCTS.map((p) => p.id), ...products.map((p) => p.id)]);
   const choice = Object.fromEntries(Object.entries(o(r.choice)).filter(([g, p]) => GROUP_BY_ID.has(g) && typeof p === "string" && productIds.has(p)).slice(0, 300)) as Record<string, string>;
@@ -119,7 +129,7 @@ export function cleanKitchen(raw: unknown): Kitchen {
   const amounts = (v: unknown) => Object.fromEntries(Object.entries(o(v)).filter(([g, x]) => GROUP_BY_ID.has(g) && typeof x === "number" && Number.isFinite(x) && x >= 0).slice(0, 400).map(([g, x]) => [g, Math.round(Math.min(100000, x as number) * 100) / 100])) as Record<string, number>;
   const stock = amounts(r.stock), keep = Object.fromEntries(Object.entries(amounts(r.keep)).filter(([, x]) => x > 0));
   const st = o(r.store);
-  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, ...(() => { const pp = Object.fromEntries(Object.entries(o(r.plainPrice)).slice(0, 200).map(([n, v]) => [String(n).toLowerCase().trim().slice(0, 80), Math.round(Math.min(10000, Math.max(0, Number(v) || 0)) * 100) / 100]).filter(([n, v]) => n && (v as number) > 0)); return Object.keys(pp).length ? { plainPrice: pp } : {}; })(), ...(typeof r.usedThrough === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.usedThrough) ? { usedThrough: r.usedThrough } : {}), start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null };
+  return { setup: r.setup === true, people, week, choice, prices, products, own, edits, servings, have, stock, keep, weeks: [1, 2, 4].includes(Number(r.weeks)) ? Number(r.weeks) : 1, ...(() => { const pp = Object.fromEntries(Object.entries(o(r.plainPrice)).slice(0, 200).map(([n, v]) => [String(n).toLowerCase().trim().slice(0, 80), Math.round(Math.min(10000, Math.max(0, Number(v) || 0)) * 100) / 100]).filter(([n, v]) => n && (v as number) > 0)); return Object.keys(pp).length ? { plainPrice: pp } : {}; })(), ...(typeof r.usedThrough === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.usedThrough) ? { usedThrough: r.usedThrough } : {}), start: typeof r.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.start) && !Number.isNaN(Date.parse(`${r.start}T12:00:00Z`)) ? mondayOf(r.start) : "", store: s(st.id, 40) ? { id: s(st.id, 40), name: s(st.name, 80), zip: s(st.zip, 10) } : null, ...roll };
 }
 
 // ── Looking things up ──────────────────────────────────────────────────────────────────────────────────────────
@@ -580,3 +590,32 @@ export const SERVING_UNITS: Record<KUnit, { id: string; label: string; to: numbe
 export const servingIn = (g: KGroup, amount: number, unit: string) => r2(Math.max(0, amount) * ((SERVING_UNITS[g.unit] ?? []).find((u) => u.id === unit)?.to ?? 1));
 /** How many servings one package holds ("a 13 oz bag is 13 servings"). */
 export const servingsPer = (p: KProduct, per: number) => (per > 0 ? Math.floor((p.size / per) * 10 + 1e-9) / 10 : 0);
+
+// ── A fresh plan each week ─────────────────────────────────────────────────────────────────────────────────────
+
+/** When the plan's weeks are over, its meals move to `last` and a new, empty week starts (like the budget does).
+ *  A plan saved before this existed is taken as this week's, so nothing is wiped on the first visit. */
+export function rollWeek(k: Kitchen, today: string): Kitchen {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return k;
+  const now = mondayOf(today);
+  // The later of the two: moving the dates back a week (the ‹ arrow) must not end the plan.
+  const begin = [k.start, k.planFor].filter(Boolean).sort().at(-1) ?? "";
+  if (!k.planFor) return { ...k, planFor: begin && begin > now ? begin : now };
+  if (addDays(begin, 7 * nWeeks(k)) > now) return k;
+  const active = Object.fromEntries(Object.entries(k.week).filter(([key]) => parseCell(key).wk < nWeeks(k)));
+  return { ...k, week: {}, start: "", planFor: now, ...(Object.keys(active).length ? { last: { from: begin, weeks: nWeeks(k), week: active } } : {}) };
+}
+/** Meals in the plan that just ended. */
+export const lastCount = (k: Kitchen) => Object.values(k.last?.week ?? {}).reduce((a, ms) => a + ms.length, 0);
+/** Bring last plan's meals back into this one, on the same days. Meals already planned stay; the same food for
+ *  the same people on the same day isn't added twice. */
+export function importLast(k: Kitchen, newId: () => string): Kitchen {
+  if (!k.last) return k;
+  const week = { ...k.week };
+  for (const [key, ms] of Object.entries(k.last.week)) {
+    const here = week[key] ?? [];
+    const add = ms.filter((m) => !here.some((h) => h.dish === m.dish && h.people.join() === m.people.join())).map((m) => ({ ...m, id: newId() }));
+    if (add.length) week[key] = [...here, ...add];
+  }
+  return { ...k, week, weeks: Math.max(nWeeks(k), k.last.weeks) };
+}

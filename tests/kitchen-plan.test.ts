@@ -407,3 +407,30 @@ test("copy Vanessa's dinners to Jermaine: he shares her dish, his old dinner is 
   assert.deepEqual(eat("wed:dinner", "j"), ["burgers"], "a night she has nothing keeps his");
   assert.deepEqual(eat("mon:lunch", "j"), ["salad"].filter(() => false), "lunch wasn't copied");
 });
+
+test("Kitchen starts a fresh week like the budget, and last week's meals come back with one tap", async () => {
+  const { rollWeek, importLast, lastCount, emptyKitchen, cleanKitchen } = await import("../shared/kitchen");
+  const dishId = K_DISHES[0].id; const meal = (id: string) => ({ id, dish: dishId, people: ["p1"] });
+  let k = { ...emptyKitchen(), setup: true, week: { "mon:dinner": [meal("a")] } } as any;
+  // A plan saved before this existed is this week's: nothing is wiped.
+  k = rollWeek(k, "2026-11-18");
+  assert.equal(k.planFor, "2026-11-16");
+  assert.equal(Object.keys(k.week).length, 1);
+  assert.equal(rollWeek(k, "2026-11-22"), k, "still the same week on Sunday");
+  // Moving the dates back a week doesn't end the plan.
+  assert.equal(rollWeek({ ...k, start: "2026-11-09" }, "2026-11-18").week, k.week);
+  // Next Monday: a fresh week, last week's meals set aside.
+  const next = rollWeek(k, "2026-11-23");
+  assert.deepEqual(next.week, {});
+  assert.equal(next.planFor, "2026-11-23");
+  assert.equal(next.last?.from, "2026-11-16");
+  assert.equal(lastCount(next), 1);
+  let n = 0;
+  const back = importLast(next, () => `new${n++}`);
+  assert.equal(back.week["mon:dinner"][0].dish, dishId);
+  assert.equal(importLast(back, () => "x").week["mon:dinner"].length, 1, "bringing it back twice doesn't double it");
+  // It survives saving.
+  const saved = cleanKitchen(JSON.parse(JSON.stringify(next)));
+  assert.equal(saved.planFor, "2026-11-23");
+  assert.equal(lastCount(saved), 1);
+});

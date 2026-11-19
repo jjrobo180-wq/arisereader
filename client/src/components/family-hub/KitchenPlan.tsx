@@ -2,7 +2,7 @@
 // real products and package sizes, how much is left over, ways to share and save. Saved with the family, so
 // everyone in the family sees the same plan. The math lives in shared/kitchen.ts.
 import { useEffect, useMemo, useState } from "react";
-import { useUpPast, planToList, planToListAll, plainLines, groupGuesses, matchPlain, setPlainPrice, DAY_LABEL, K_SLOTS, PLAN_LENGTHS, PORTIONS, WEEK, addDays, amountText, buyText, cell, clearMeals, countMeals, dateOf, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, hiddenMeals, mondayOf, money, moveMeal, nWeeks, parseCell, peopleIn, planStart, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
+import { importLast, lastCount, rollWeek, useUpPast, planToList, planToListAll, plainLines, groupGuesses, matchPlain, setPlainPrice, DAY_LABEL, K_SLOTS, PLAN_LENGTHS, PORTIONS, WEEK, addDays, amountText, buyText, cell, clearMeals, countMeals, dateOf, dishName, dishOf, duplicateCount, emptyKitchen, foodCount, hiddenMeals, mondayOf, money, moveMeal, nWeeks, parseCell, peopleIn, planStart, removeDuplicates, removeMeal, SKIP, setStock, stockUp, takeoutOf, tips, totals, useUp, type KDay, type Kitchen, type KMeal, type KSlot } from "@shared/kitchen";
 import { useAuth } from "@/context/AuthContext";
 import { findStores, storePrices, storeStatus, type StoreLocation } from "@/lib/kitchenStore";
 import { guessAisle } from "@shared/lifePlugins";
@@ -45,7 +45,8 @@ export default function KitchenPlan({ family, setFamily, makeId, say, today }: S
   useEffect(() => { void storeStatus(token).then(setConnected); }, [token]);
 
   // Days that went by used up their meals' food, so the list and inventory never think eaten food is still at home.
-  useEffect(() => { const next = useUpPast(k, today); if (next !== k && (next.usedThrough !== k.usedThrough || JSON.stringify(next.stock) !== JSON.stringify(k.stock))) setK(() => next); }, [today, k.usedThrough, k.start, k.weeks]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A new week starts fresh, like the budget: last week's meals move aside, ready to bring back with one tap.
+  useEffect(() => { const used = useUpPast(k, today); const next = rollWeek(used, today); if (next !== k && (next.usedThrough !== k.usedThrough || next.planFor !== k.planFor || next.last !== k.last || JSON.stringify(next.stock) !== JSON.stringify(k.stock))) setK(() => next); }, [today, k.usedThrough, k.start, k.weeks, k.planFor]); // eslint-disable-line react-hooks/exhaustive-deps
   const t = useMemo(() => totals(useUpPast(k, today)), [k, today]);
   const ideas = useMemo(() => tips(k), [k]);
   const lineNeed = (group: string) => t.lines.find((l) => l.group.id === group)?.need ?? 0;
@@ -94,6 +95,13 @@ export default function KitchenPlan({ family, setFamily, makeId, say, today }: S
           </span>
           {k.start && k.start !== mondayOf(today) && <button type="button" onClick={() => setK((x) => ({ ...x, start: "" }))} className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900">Back to this week</button>}
         </div>
+        {lastCount(k) > 0 && <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3" data-testid="kitchen-last-week">
+          <p className="min-w-0 text-sm text-slate-600">{planned ? "Want last week's meals too?" : "A fresh week."} <span className="text-slate-400">{lastCount(k)} meal{lastCount(k) === 1 ? "" : "s"} from {fmtRange(k.last!.from, k.last!.weeks)}</span></p>
+          <span className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => { change("Brought back last week's meals.", (x) => importLast(x, makeId)); say("Last week's meals are in, on the same days."); }} className="min-h-10 rounded-full bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800" data-testid="kitchen-import-last">Use last week's meals</button>
+            <button type="button" onClick={() => setK((x) => { const { last: _l, ...rest } = x; return rest as Kitchen; })} aria-label="Hide last week's meals" className="grid h-10 w-10 place-items-center rounded-full text-lg text-slate-400 hover:bg-slate-100">&times;</button>
+          </span>
+        </div>}
         {hiddenMeals(k) > 0 && <p className="px-1 text-xs text-slate-400">{hiddenMeals(k)} meal{hiddenMeals(k) === 1 ? " is" : "s are"} in later weeks, kept but hidden. Pick a longer plan to see {hiddenMeals(k) === 1 ? "it" : "them"}.</p>}
       </div>
       {ideas.length > 0 && <section className="space-y-2" aria-label="Ways to save">
