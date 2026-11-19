@@ -162,6 +162,8 @@ if (window.location.protocol === "capacitor:") {
   });
   // A tap on a To Duo widget opens the section (or task) it shows, in its hub (lib/duoFocus.ts).
   void import("@/lib/duoFocus").then((m) => m.listenForWidgetGo()).catch(() => {});
+  // A tap on the Link widget opens that site in Safari, whichever hub or screen is open (lib/duoLinks.ts).
+  void import("@/lib/duoLinks").then((m) => { if (m.isTodoApp()) m.listenForWidgetWebLinks(); }).catch(() => {});
 }
 
 // No zoom, anywhere: index.html fixes the page at scale 1 (maximum-scale=1, user-scalable=no), which

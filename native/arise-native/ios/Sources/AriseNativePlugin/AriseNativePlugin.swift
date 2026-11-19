@@ -5,6 +5,7 @@
 //   updateTasks({ tasks, lists }) refreshes it with the web app's latest
 //   takeActions()                 -> { actions: [{ type, id?, title?, due?, listId? }] } and clears the queue
 //   closeTasks()                  closes it
+//   openExternal({ url })         opens an http(s) link in Safari (a Link widget tap, a link on the Link page)
 import Foundation
 import Capacitor
 import SwiftUI
@@ -18,7 +19,8 @@ public class AriseNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "openTasks", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateTasks", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takeActions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "closeTasks", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "closeTasks", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openExternal", returnType: CAPPluginReturnPromise)
     ]
 
     private let model = TasksModel()
@@ -56,6 +58,17 @@ public class AriseNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func takeActions(_ call: CAPPluginCall) {
         lock.lock(); let out = pending; pending = []; lock.unlock()
         call.resolve(["actions": out])
+    }
+
+    /// Safari, not the app's own web view: window.open from a widget tap isn't a tap in the page, so the web view
+    /// silently refuses it. Only http and https.
+    @objc func openExternal(_ call: CAPPluginCall) {
+        guard let raw = call.getString("url"), let url = URL(string: raw), let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+            call.reject("Not a web link."); return
+        }
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url, options: [:]) { ok in ok ? call.resolve() : call.reject("Couldn't open it.") }
+        }
     }
 
     @objc func closeTasks(_ call: CAPPluginCall) {

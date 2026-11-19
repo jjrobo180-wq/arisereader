@@ -1,7 +1,8 @@
 // WorkHub's Tasks screen: views and coloured lists down the side, numbers across the top, progress and what's
 // next beside the list. LifeHub uses this same screen (pages/AriseTodo.tsx) over its own to-dos (shared/hubSwap.ts).
 import { openHubEmail } from "@/components/teacher-hub/HubInbox";
-import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { FOCUS_TASK_EVENT, scrollToTask, takePendingFocus } from "@/lib/taskFocus";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { Archive, ArchiveRestore, ListTodo, FolderPlus, Circle, Search, CalendarDays, CheckCircle2, Check, Clock3, Link2, Mail, Pencil, Plus, Save, Sparkles, Trash2, Flag, Sun, Repeat, X, MoreHorizontal } from "lucide-react";
 import { dueState, friendlyDate, type DueState } from "@shared/hubDates";
 import { repeatLabel, renameTaskList, TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskSort, type TaskView } from "@shared/hubTasks";
@@ -33,7 +34,7 @@ type SectionProps = {
 export function TaskRow({ plain = false, task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive, ariseAsk }: { plain?: boolean; task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void; /** The "@arise" ask this to-do was made from (Arise To Duo). */ ariseAsk?: AriseAsk }) {
   const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
   return (
-    <li className="group flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:gap-y-2 sm:p-4" data-testid="task-row">
+    <li className="group flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:gap-y-2 sm:p-4" data-testid="task-row" data-task-id={task.id}>
       <label className={`relative mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}>
         <input type="checkbox" className="absolute inset-0 cursor-pointer opacity-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => onToggle(task)} />
         <Check className="h-[15px] w-[15px]" />
@@ -116,6 +117,20 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const listId = listPick === "all" || lists.some((l) => l.id === listPick) ? listPick : "all";
   const [sort, setSort] = useSavedChoice<TaskSort>("hub-tasks-sort", "due", TASK_SORTS.map((o) => o.id));
   const [search, setSearch] = useState("");
+  // A widget tap on one to-do (lib/taskFocus.ts): show the view and list it's in, then scroll to it and light it up.
+  const tasksNow = useRef(workspace.tasks); tasksNow.current = workspace.tasks;
+  useEffect(() => {
+    const show = (id: string) => {
+      if (!id) return;
+      const t = tasksNow.current.find((x) => x.id === id);
+      if (t) { setView(t.archived ? "archived" : t.done ? "completed" : "all"); setListPick("all"); setSearch(""); }
+      scrollToTask(id);
+    };
+    show(takePendingFocus());
+    const on = (e: Event) => { takePendingFocus(); show(String((e as CustomEvent).detail || "")); };
+    window.addEventListener(FOCUS_TASK_EVENT, on);
+    return () => window.removeEventListener(FOCUS_TASK_EVENT, on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [quick, setQuick] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [newList, setNewList] = useState("");

@@ -1,5 +1,6 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
 import { listenForDuoLinks } from "@/lib/duoLinks";
+import { focusTask } from "@/lib/taskFocus";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import ShareNews from "@/components/family-hub/ShareNews";
 import { Redirect, useLocation } from "wouter";
@@ -470,9 +471,9 @@ export default function AriseTodo() {
       if (go === "calendar" && !sectionsNow.current.includes("calendar")) { go = "tasks"; params.set("view", "upcoming"); }
       if (go === "tasks" && widgetTask) {
         dismissOverlays();
-        const t = latest.current?.data.tasks.find((x) => x.id === widgetTask);
-        // Still loading (the tap started the app): opened once the lists are in, like after a refresh.
-        if (t && reopened.current) setTimeout(() => setEditing({ ...t }), 0); else setOpenTaskId(widgetTask);
+        // A to-do on the widget: Tasks scrolls straight to it and lights it up (lib/taskFocus.ts); if the list
+        // isn't drawn yet (the tap started the app), it does so as soon as it is.
+        focusTask(widgetTask);
       }
       if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
         dismissOverlays();

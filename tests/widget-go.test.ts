@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { readFocusLink, widgetGoHash } from "../client/src/lib/duoFocus.ts";
 import { duoLinks } from "../client/src/lib/duoBoard.ts";
 
@@ -27,4 +28,13 @@ test("the Links widget only gets web links", () => {
     { id: "4", title: "", url: "http://example.com/x" },
   ]);
   assert.deepEqual(out.map((l) => l.id), ["1", "4"]);
+});
+
+test("a to-do tapped on a widget scrolls the Tasks list to it and lights it up, in both hubs", () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
+  const tasks = read("../client/src/components/teacher-hub/HubTasks.tsx");
+  assert.ok(tasks.includes("data-task-id={task.id}") && tasks.includes("scrollToTask(id)") && tasks.includes("FOCUS_TASK_EVENT"));
+  assert.ok(read("../client/src/pages/TeacherHub.tsx").includes("focusTask(task)"));
+  assert.ok(read("../client/src/pages/AriseTodo.tsx").includes("focusTask(widgetTask)"));
+  assert.ok(read("../client/src/lib/taskFocus.ts").includes('scrollIntoView({ behavior: "smooth", block: "center" })'));
 });

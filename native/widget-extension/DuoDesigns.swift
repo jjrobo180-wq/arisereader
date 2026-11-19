@@ -1468,6 +1468,13 @@ struct DuoLinkItem: Codable, Hashable {
         return u
     }
     var host: String { (web?.host ?? "").replacingOccurrences(of: "www.", with: "") }
+    /// The tap: arisetodo://link?u=<the address>.
+    var open: URL? {
+        guard let w = web else { return nil }
+        var c = URLComponents(); c.scheme = "arisetodo"; c.host = "link"
+        c.queryItems = [URLQueryItem(name: "u", value: w.absoluteString)]
+        return c.url
+    }
 }
 
 func loadDuoLinks(_ show: DuoShow) -> [DuoLinkItem] {
@@ -1557,7 +1564,9 @@ struct DuoLinkButton: View {
         }
         .padding(.horizontal, 10).frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dc("#f5f6f9")))
-        if let url = link.web { Link(destination: url) { face } } else { face }
+        // A widget can't open Safari itself: every tap goes to the app first. arisetodo://link?u=… tells the app
+        // (client/src/lib/duoLinks.ts) to hand the address straight to Safari.
+        if let url = link.open { Link(destination: url) { face } } else { face }
     }
 }
 

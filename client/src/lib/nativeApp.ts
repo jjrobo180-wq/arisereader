@@ -13,7 +13,13 @@ export const isNativeApp = (): boolean => typeof window !== "undefined" && windo
 /** Opens a website outside the app, once. In the iPhone apps the app hands the address to Safari; it must
  *  not also be loaded a second way, or a one-use sign-in link is spent before the visible tab uses it. */
 export function openOutside(url: string): void {
-  if (isNativeApp()) { try { window.open(url, "_blank"); } catch { /* nothing else: never twice */ } return; }
+  if (isNativeApp()) {
+    // Safari through the app itself where it can (a widget tap isn't a tap in the page, so the web view refuses
+    // window.open then); window.open in older builds.
+    if (/^https?:\/\//i.test(url) && hasNativePlugin(/AriseNative/)) { void nativeCall(/AriseNative/, "AriseNative", "openExternal", { url }).catch(() => { try { window.open(url, "_blank"); } catch { /* no */ } }); return; }
+    try { window.open(url, "_blank"); } catch { /* nothing else: never twice */ }
+    return;
+  }
   let opened: Window | null = null;
   try { opened = window.open(url, "_blank"); } catch { opened = null; }
   if (!opened) window.location.href = url;

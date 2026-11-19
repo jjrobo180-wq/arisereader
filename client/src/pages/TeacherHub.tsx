@@ -108,6 +108,7 @@ import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import { useNativeBackdrop } from "@/lib/nativeBackdrop";
 import { useHubLook } from "@/components/HubLook";
+import { focusTask } from "@/lib/taskFocus";
 import { duoBoard, publishDuoBoard, publishDuoLinks, watchHubWidgetTaps } from "@/lib/duoBoard";
 import { HubWaiting } from "@/lib/hubBackdrop";
 import { LookDock, LookOS, LookYou, type OsScreen } from "@/components/look-os/LookOS";
@@ -692,8 +693,9 @@ function TeacherHubPage() {
         else if (go === "home") setTab("overview");
         else setTab(go === "calendar" && !workOffNow.current.includes("calendar") ? "calendar" : "tasks");
         if (go === "add") { setHomeQuick(""); setHomeTask(NEW_TASK); }
-        else if (task) setHomeTask(task);
-        window.scrollTo({ top: 0 });
+        // A to-do on the widget: Tasks scrolls straight to it and lights it up (lib/taskFocus.ts).
+        else if (task) { setHomeTask(null); focusTask(task); }
+        if (!task) window.scrollTo({ top: 0 });
       } else return;
       params.delete("go"); params.delete("ask"); params.delete("task"); params.delete("view");
       const rest = params.toString();

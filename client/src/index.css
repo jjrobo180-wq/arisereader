@@ -1085,3 +1085,11 @@ html.notes-app { font-size: 14.5px; }
 html.notes-app { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 44px)); }
 /* Cooked draws edge to edge too: its phone's own clock space (lib/deviceInsets.ts), already divided by its 0.9 page zoom. */
 html.fit-app { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 0px)); }
+
+/* A to-do opened from a widget (lib/taskFocus.ts): lit up for a moment once it's scrolled into view. */
+.duo-task-flash { animation: duo-task-flash 2.8s ease-out; position: relative; z-index: 1; }
+@keyframes duo-task-flash {
+  0%, 35% { box-shadow: 0 0 0 3px #6e5ae0, 0 10px 30px rgba(110, 90, 224, .25); background-color: #f1effd; }
+  100% { box-shadow: 0 0 0 0 rgba(110, 90, 224, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .duo-task-flash { animation: none; box-shadow: 0 0 0 3px #6e5ae0; } }

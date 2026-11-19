@@ -49,3 +49,15 @@ test("switching Work and Life replaces the page, so Back never flips hubs", () =
   assert.ok(sw.includes("window.location.replace(hash);"));
   assert.ok(sw.includes('onClick={(e) => switchHub("#/workhub", e)}') && sw.includes('onClick={(e) => switchHub("#/lifehub", e)}'));
 });
+
+test("Link widget taps open Safari from anywhere in the app, through the app's own Safari opener", async () => {
+  const { readDuoLink, widgetWebUrl } = await import("../client/src/lib/duoLinks");
+  assert.deepEqual(readDuoLink("arisetodo://link?u=https%3A%2F%2Fexample.com%2Fa"), { kind: "web", url: "https://example.com/a" });
+  assert.equal(widgetWebUrl("https://example.com/x"), "https://example.com/x", "an older widget's plain link still opens");
+  assert.equal(widgetWebUrl("https://arisetodo.com/app#/lifehub"), "", "the app's own site never bounces to Safari");
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
+  assert.ok(read("../client/src/main.tsx").includes("listenForWidgetWebLinks()"), "listened for app-wide, not only in LifeHub");
+  assert.ok(read("../client/src/lib/nativeApp.ts").includes('"openExternal"'));
+  assert.ok(read("../native/arise-native/ios/Sources/AriseNativePlugin/AriseNativePlugin.swift").includes("UIApplication.shared.open(url"));
+  assert.ok(read("../native/widget-extension/DuoDesigns.swift").includes("if let url = link.open { Link(destination: url)"));
+});
