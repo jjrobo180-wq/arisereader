@@ -41,3 +41,32 @@ export function applyDeviceTopInset(scale = 1): void {
   window.addEventListener("resize", set);
   window.addEventListener("orientationchange", set);
 }
+
+/** The phone's bottom safe area (the home bar) in points: 34 on every iPhone with no Home button, none on the ones that have one. */
+export function deviceBottomInset(screenW: number, screenH: number): number | null {
+  const top = deviceTopInset(screenW, screenH);
+  if (top === null) return null;
+  return top > 20 ? 34 : 0;
+}
+
+/** Sets --sab-device, the home bar's space, the same way applyDeviceTopInset sets the clock's. */
+export function applyDeviceBottomInset(): void {
+  if (typeof window === "undefined") return;
+  const bottom = deviceBottomInset(window.screen.width, window.screen.height);
+  if (bottom === null) return;
+  const set = () => document.documentElement.style.setProperty("--sab-device", `${window.innerWidth > window.innerHeight ? Math.min(bottom, 21) : bottom}px`);
+  set();
+  window.addEventListener("resize", set);
+  window.addEventListener("orientationchange", set);
+}
+
+/** True when the web view fills the whole screen (contentInset "never"). Apps still on an older build, where iOS
+ *  insets the page itself, are shorter than the screen, so they keep drawing the way they always have. */
+export function drawsEdgeToEdge(): boolean {
+  if (typeof window === "undefined") return false;
+  const sw = window.screen.width, sh = window.screen.height;
+  if (!sw || !sh) return false;
+  const portrait = window.innerHeight >= window.innerWidth;
+  const full = portrait ? Math.max(sw, sh) : Math.min(sw, sh);
+  return window.innerHeight >= full - 8;
+}

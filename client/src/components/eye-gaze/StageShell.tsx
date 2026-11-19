@@ -46,7 +46,7 @@ export default function StageShell({ title, badge, accent = "#38bdf8", hostRef, 
     <main className="sg-font fixed inset-0 z-[120] h-[100dvh] touch-manipulation select-none overflow-hidden bg-slate-900 text-slate-950">
       <style>{STAGE_CSS}</style>
       <div ref={hostRef} className="absolute inset-0" />
-      <header data-stage-ui className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>
+      <header data-stage-ui className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, var(--sat-in, env(safe-area-inset-top)))" }}>
         {/* Arise Kids' look: the yellow Back button, its word always showing (it was hidden on phones). */}
         <GazeButton dwell={D} onSelect={back} className="pointer-events-auto flex min-h-12 shrink-0 items-center gap-1.5 rounded-full bg-[#ffd34d] pl-2.5 pr-4 text-[17px] font-extrabold text-[#14102a] shadow-lg" label="Back"><ArrowLeft className="h-5 w-5" strokeWidth={3} /><span>Back</span></GazeButton>
         <div className="pointer-events-auto mx-auto flex min-h-12 min-w-0 items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[#14102a] shadow-lg">

@@ -392,7 +392,7 @@ export default function EyeGazeTV() {
   </main>;
 
   return <main className="fixed inset-0 z-[130] h-[100dvh] bg-black text-white overflow-hidden select-none">
-    <header className="absolute z-[70] top-0 inset-x-0 p-3 flex items-center gap-3 bg-gradient-to-b from-black/85 via-black/35 to-transparent pointer-events-none">
+    <header className="absolute z-[70] top-0 inset-x-0 p-3 flex items-center gap-3 bg-gradient-to-b from-black/85 via-black/35 to-transparent pointer-events-none" style={{ paddingTop: "calc(0.75rem + var(--sat-in, 0px))" }}>
       <button onClick={()=>navigate("/eye-gaze-home")} className="pointer-events-auto min-h-12 rounded-full bg-black/70 border border-white/20 px-4 font-black flex items-center gap-2">
         <ArrowLeft className="w-5 h-5"/> Home
       </button>
@@ -425,7 +425,7 @@ export default function EyeGazeTV() {
           </div>}
           <div className="absolute inset-x-0 bottom-0 z-[21] h-64 bg-gradient-to-t from-black via-black/65 to-transparent pointer-events-none" />
 
-          <div className="absolute z-30 left-4 right-24 bottom-8 pointer-events-none">
+          <div className="absolute z-30 left-4 right-24 bottom-8 pointer-events-none" style={{ bottom: "calc(2rem + var(--sab-in, 0px))" }}>
             <span className="inline-block rounded-full bg-cyan-300 text-slate-950 px-3 py-1 text-xs font-black">
               {item.source === "parent" ? "✓ GROWN-UP APPROVED SHORT" : "▶ EDUCATIONAL YOUTUBE SHORT"}
             </span>
@@ -434,7 +434,7 @@ export default function EyeGazeTV() {
             <p className="text-xs font-bold text-white/55 mt-2">Swipe up for the next Short</p>
           </div>
 
-          {active && <div className="absolute z-40 right-3 bottom-24 flex flex-col gap-3">
+          {active && <div className="absolute z-40 right-3 bottom-24 flex flex-col gap-3" style={{ bottom: "calc(6rem + var(--sab-in, 0px))" }}>
             <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid grid-cols-1 place-items-center shadow-xl" aria-label={playing?"Pause":"Play"}>
               {playing?<Pause className="w-7 h-7"/>:<Play className="w-7 h-7 fill-current ml-1"/>}
             </button>
@@ -450,6 +450,6 @@ export default function EyeGazeTV() {
       </section>}
     </div>
 
-    {!automaticDiscovery && <div className="absolute z-50 bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-amber-300 text-slate-950 px-3 py-1 text-[10px] font-black pointer-events-none">Starter educational Shorts</div>}
+    {!automaticDiscovery && <div className="absolute z-50 bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-amber-300 text-slate-950 px-3 py-1 text-[10px] font-black pointer-events-none" style={{ bottom: "calc(0.5rem + var(--sab-in, 0px))" }}>Starter educational Shorts</div>}
   </main>;
 }

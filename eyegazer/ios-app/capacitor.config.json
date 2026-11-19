@@ -26,6 +26,7 @@
     }
   },
   "ios": {
-    "contentInset": "automatic"
+    "contentInset": "never",
+    "backgroundColor": "#ffffff"
   }
 }

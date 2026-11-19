@@ -56,7 +56,7 @@ export default function EyeGazeWren() {
   useEffect(() => () => { delete (window as any).__ariseWren; }, []);
 
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-[#f7f8ff]" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+    <div className="fixed inset-0 z-[80] flex flex-col bg-[#f7f8ff]" style={{ paddingTop: "var(--sat-in, env(safe-area-inset-top))" }}>
       <div className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-[#e5e8f4] bg-white px-3 sm:px-5">
         <button type="button" onClick={() => navigate("/eye-gaze-home")} className="eg-press inline-flex min-h-11 items-center gap-2 rounded-full bg-violet-700 px-4 text-sm font-bold text-white" data-testid="button-wren-home">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Home

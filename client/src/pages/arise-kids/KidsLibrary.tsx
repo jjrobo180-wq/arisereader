@@ -9,7 +9,8 @@ import { LESSON_POINTS, picturePath } from "@shared/eyegaze/lessonSteps";
 import { Icon, KIDS_TAB_PATHS, KidsTabBar, css } from "./kidsUi";
 
 const FONT = "Lexend, system-ui, sans-serif";
-const TOP = (px: number) => `max(${px}px, env(safe-area-inset-top))`;
+// --sat-in: the clock's space when the app draws edge to edge (index.css); on the web, and in an older app build, the browser's own.
+const TOP = (px: number) => `max(${px}px, var(--sat-in, env(safe-area-inset-top)))`;
 const BACK = "M15 18l-6-6 6-6";
 const CHECK = "m5 12 5 5 9-10";
 const STAR = "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z";

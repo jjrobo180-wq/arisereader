@@ -1086,6 +1086,24 @@ html.notes-app { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 44p
 /* Cooked draws edge to edge too: its phone's own clock space (lib/deviceInsets.ts), already divided by its 0.9 page zoom. */
 html.fit-app { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 0px)); }
 
+/* Arise AAC draws edge to edge (eyegazer/ios-app/capacitor.config.json, class set in main.tsx). Most of its pages were
+   made while iOS kept every page inside the clock and the home bar, so by default they are held there the same
+   way: the page starts below the clock, fixed full-screen pages are moved in, and a white strip covers the
+   clock and the home bar so nothing scrolls under them. Arise Kids' screens, Shorts and the games set
+   html.edge-screen (EyeGazeSiteShell) and draw to the real top and bottom of the screen, keeping their own buttons
+   clear through --sat-in and --sab-in. */
+html.eyegaze-edge { --sat: max(env(safe-area-inset-top, 0px), var(--sat-device, 44px)); --sab: max(env(safe-area-inset-bottom, 0px), var(--sab-device, 0px)); }
+html.eyegaze-edge:not(.edge-screen) { --sat-in: 0px; --sab-in: 0px; }
+html.eyegaze-edge.edge-screen { --sat-in: var(--sat); --sab-in: var(--sab); }
+html.eyegaze-edge:not(.edge-screen) #root { box-sizing: border-box; padding-top: var(--sat); padding-bottom: var(--sab); }
+html.eyegaze-edge:not(.edge-screen)::before, html.eyegaze-edge:not(.edge-screen)::after { content: ""; position: fixed; left: 0; right: 0; background: #ffffff; z-index: 2147483000; pointer-events: none; }
+html.eyegaze-edge:not(.edge-screen)::before { top: 0; height: var(--sat); }
+html.eyegaze-edge:not(.edge-screen)::after { bottom: 0; height: var(--sab); }
+html.eyegaze-edge:not(.edge-screen) .fixed:is(.inset-0, .inset-y-0, .top-0) { top: var(--sat); }
+html.eyegaze-edge:not(.edge-screen) .fixed:is(.inset-0, .inset-y-0, .bottom-0) { bottom: var(--sab); }
+html.eyegaze-edge:not(.edge-screen) .fixed.inset-0 { height: auto; }
+html.eyegaze-edge:not(.edge-screen) .sticky.top-0 { top: var(--sat); }
+
 /* A to-do opened from a widget (lib/taskFocus.ts): lit up for a moment once it's scrolled into view. */
 .duo-task-flash { animation: duo-task-flash 2.8s ease-out; position: relative; z-index: 1; }
 @keyframes duo-task-flash {

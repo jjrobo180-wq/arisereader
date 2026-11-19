@@ -241,3 +241,29 @@ test("Wren's word board is pinned inside its box so it can't overlap the rail an
   assert.match(w, /main\.stage > \.board \{ position: absolute; top: 0; left: 0; right: 0; bottom: 12px; height: auto; \}/);
   assert.match(w, /@media \(max-width: 719px\) \{ main\.stage > \.board \{ bottom: 6px; \} \}/);
 });
+
+test("Arise AAC draws edge to edge: the app setting, the safe-area rules, and the screens that go to the real top and bottom", () => {
+  const cfg = JSON.parse(read("eyegazer/ios-app/capacitor.config.json"));
+  assert.equal(cfg.ios.contentInset, "never");
+  // Detected at launch, so an app copy still on the older build keeps its old (inset) look.
+  const main = read("client/src/main.tsx");
+  assert.match(main, /nativeFlavor\(\) === "eyegaze" && drawsEdgeToEdge\(\)/);
+  assert.match(main, /classList\.add\("eyegaze-edge"\)/);
+  const insets = read("client/src/lib/deviceInsets.ts");
+  assert.match(insets, /export function drawsEdgeToEdge/);
+  assert.match(insets, /--sab-device/);
+  const css = read("client/src/index.css");
+  assert.match(css, /html\.eyegaze-edge:not\(\.edge-screen\) #root \{[^}]*padding-top: var\(--sat\)[^}]*padding-bottom: var\(--sab\)/);
+  assert.match(css, /html\.eyegaze-edge\.edge-screen \{ --sat-in: var\(--sat\); --sab-in: var\(--sab\); \}/);
+  assert.match(css, /html\.eyegaze-edge:not\(\.edge-screen\) \.fixed:is\(\.inset-0, \.inset-y-0, \.top-0\) \{ top: var\(--sat\); \}/);
+  // Shorts, the Kids screens and the games are the edge screens; they keep their own buttons clear.
+  const shell = read("client/src/components/EyeGazeSiteShell.tsx");
+  assert.match(shell, /const edgeScreen = kidsScreen \|\| kidsPage \|\| location\.startsWith\("\/eye-gaze-tv"\);/);
+  assert.match(shell, /classList\.toggle\("edge-screen", edgeScreen\)/);
+  assert.match(read("client/src/pages/EyeGazeTV.tsx"), /calc\(0\.75rem \+ var\(--sat-in, 0px\)\)/);
+  assert.match(read("client/src/pages/EyeGazeTV.tsx"), /calc\(6rem \+ var\(--sab-in, 0px\)\)/);
+  for (const f of ["KidsApp", "KidsExtras", "KidsLibrary"]) assert.match(read(`client/src/pages/arise-kids/${f}.tsx`), /max\(\$\{px\}px, var\(--sat-in, env\(safe-area-inset-top\)\)\)/);
+  assert.match(read("client/src/components/eye-gaze/StageShell.tsx"), /var\(--sat-in, env\(safe-area-inset-top\)\)/);
+  // Pages that are moved in by default must not also pad for the clock themselves.
+  assert.match(read("client/src/pages/EyeGazeWren.tsx"), /paddingTop: "var\(--sat-in, env\(safe-area-inset-top\)\)"/);
+});

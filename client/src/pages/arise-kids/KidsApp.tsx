@@ -23,7 +23,8 @@ const CHECK = "m5 12 5 5 9-10";
 const STAR = "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z";
 
 const FONT = "Lexend, system-ui, sans-serif";
-const TOP = (px: number) => `max(${px}px, env(safe-area-inset-top))`;
+// --sat-in: the clock's space when the app draws edge to edge (index.css); on the web, and in an older app build, the browser's own.
+const TOP = (px: number) => `max(${px}px, var(--sat-in, env(safe-area-inset-top)))`;
 
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const say = (text: string) => { void sayAI(text, { voice: "calm" }).catch(() => false); };

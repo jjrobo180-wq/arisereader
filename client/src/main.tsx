@@ -12,7 +12,7 @@ import "./keyboard-inset.css";
 import "./reader-app.css";
 import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
-import { applyDeviceTopInset } from "./lib/deviceInsets";
+import { applyDeviceBottomInset, applyDeviceTopInset, drawsEdgeToEdge } from "./lib/deviceInsets";
 import { startReaderNative } from "./lib/readerNative";
 import { installNoFullscreen } from "./lib/noFullscreen";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
@@ -61,7 +61,14 @@ if (todoCompact) document.documentElement.classList.add("todo-compact");
 if (isNativeApp() && nativeFlavor() === "todo") applyDeviceTopInset();
 if (isNotesApp()) applyDeviceTopInset();
 // Arise Reader draws edge to edge too (reader/ios-app/capacitor.config.json), so it gets its phone's own clock space.
-// The Educator, Talk and Arise AAC apps let iOS inset the page ("automatic"), so the system already does this.
+// The Educator and Talk apps let iOS inset the page ("automatic"), so the system already does this. Arise AAC
+// draws edge to edge since its newest build (eyegazer/ios-app/capacitor.config.json): html.eyegaze-edge, index.css.
+// An Arise AAC copy that is still the older build (its page stops at the clock and the home bar) keeps the old way.
+if (isNativeApp() && nativeFlavor() === "eyegaze" && drawsEdgeToEdge()) {
+  document.documentElement.classList.add("eyegaze-edge");
+  applyDeviceTopInset();
+  applyDeviceBottomInset();
+}
 // Cooked PT draws edge to edge ("never") and pads with env(safe-area-inset-*) itself.
 if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }
 

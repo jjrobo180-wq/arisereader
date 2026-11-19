@@ -25,6 +25,15 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const immersiveRoute = kidsScreen || kidsPage || location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
   const immersive = immersiveRoute || (location === "/eye-gaze-games" && gameImmersive);
 
+  // Arise AAC draws edge to edge (index.css, html.eyegaze-edge). These screens go all the way to the top and bottom of
+  // the phone and keep their own buttons clear of the clock and the home bar; every other page is held inside them.
+  const edgeScreen = kidsScreen || kidsPage || location.startsWith("/eye-gaze-tv");
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.toggle("edge-screen", edgeScreen);
+    return () => html.classList.remove("edge-screen");
+  }, [edgeScreen]);
+
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ active?: boolean }>).detail;
@@ -117,7 +126,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
         .eg-press:active { transform: scale(.97); }
         @media (prefers-reduced-motion: reduce) { .eg-press, .eg-press:active { transition: none; transform: none; } }
       `}</style>
-      {!immersive && <header className="sticky top-0 z-[70] border-b border-[#e5e8f4] bg-white/85 backdrop-blur-xl" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      {!immersive && <header className="sticky top-0 z-[70] border-b border-[#e5e8f4] bg-white/85 backdrop-blur-xl" style={{ paddingTop: "var(--sat-in, env(safe-area-inset-top))" }}>
         <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-3 px-4 sm:px-6">
           <button type="button" onClick={() => navigate("/eye-gaze-home")} className="eg-press mr-auto flex min-w-0 items-center gap-3" aria-label="Home">
             <img src="/app-icons/eyegazer-1024.png" alt="" className="h-10 w-10 flex-shrink-0 rounded-[11px] shadow-[0_1px_3px_rgba(0,0,0,.18)]" />

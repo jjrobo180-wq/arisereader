@@ -11,7 +11,8 @@ import {
 const CLOSE = "M6 6l12 12M18 6 6 18";
 const CHECK = "m5 12 5 5 9-10";
 const SPEAKER = "M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7";
-const TOP = (px: number) => `max(${px}px, env(safe-area-inset-top))`;
+// --sat-in: the clock's space when the app draws edge to edge (index.css); on the web, and in an older app build, the browser's own.
+const TOP = (px: number) => `max(${px}px, var(--sat-in, env(safe-area-inset-top)))`;
 
 export type ExtraProps = { onClose: () => void; onWin: () => void; say: (text: string) => void; go: (path: string) => void; openTab: (tab: string) => void };
 
