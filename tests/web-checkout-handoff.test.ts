@@ -21,7 +21,8 @@ test("each app's link opens its own page, signed in when there's a code", () => 
 
 test("the iPhone apps hand the link to Safari once (a second open spent the one-use code)", () => {
   const lib = read("client/src/lib/nativeApp.ts");
-  assert.match(lib, /export function openOutside\(url: string\): void \{\s*if \(isNativeApp\(\)\) \{ try \{ window\.open\(url, "_blank"\); \} catch \{[^}]*\} return; \}/);
+  // Opened once: Safari through the app's own opener (or window.open in older builds), then it returns.
+  assert.match(lib, /export function openOutside\(url: string\): void \{\s*if \(isNativeApp\(\)\) \{[\s\S]*?"openExternal"[\s\S]*?return; \}\s*try \{ window\.open\(url, "_blank"\); \} catch \{[^}]*\}\s*return;\s*\}/);
   const offer = read("client/src/components/AllAccessOffer.tsx");
   assert.match(offer, /openOutside\(allAccessLink\(app, code\)\);/);
   assert.doesNotMatch(offer, /window\.location\.href = url/);
