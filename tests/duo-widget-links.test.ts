@@ -43,3 +43,9 @@ test("the widget extension uses the tap addresses, and the app listens for them"
   const app = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
   assert.ok(app.includes("listenForDuoLinks((section) => {"));
 });
+
+test("switching Work and Life replaces the page, so Back never flips hubs", () => {
+  const sw = readFileSync(new URL("../client/src/components/HubSwitch.tsx", import.meta.url), "utf8");
+  assert.ok(sw.includes("window.location.replace(hash);"));
+  assert.ok(sw.includes('onClick={(e) => switchHub("#/workhub", e)}') && sw.includes('onClick={(e) => switchHub("#/lifehub", e)}'));
+});
