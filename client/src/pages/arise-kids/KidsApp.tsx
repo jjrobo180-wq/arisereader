@@ -98,6 +98,7 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
     if (t.game === "cards") return openCards(t.deck ?? "letters");
     if (t.game === "pick") { setReward(null); return setScreen({ kind: "pick", q: 0, on: 0, picked: null }); }
     if (t.game === "stickers") return navigate(KIDS_TAB_PATHS.stickers);
+    if (t.game === "update") { setToast("Checking for the newest version…"); void import("@/lib/nativeApp").then((m) => m.checkForUpdateNow()).catch(() => "Couldn't check for updates.").then((msg) => { setToast(msg); window.clearTimeout(toastTimer.current); toastTimer.current = window.setTimeout(() => setToast(""), 8000); }); return; }
     if (t.path) { say(t.name); navigate(t.path); }
   };
   const goHome = () => { setScreen({ kind: "tab" }); if (tab !== "home") navigate(KIDS_TAB_PATHS.home); };

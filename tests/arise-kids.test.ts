@@ -57,7 +57,7 @@ test("everything Arise AAC had is on the Apps shelves, and a grown-up's choices 
   assert.ok(!names.includes("My Talker") && !names.includes("Wren"), "Wren follows My Talker's permission");
   assert.ok(names.includes("Card Quest") && names.includes("Pick It!"), "the built-in games always show");
   const none = visibleShelves(() => false);
-  assert.deepEqual(none.map((s) => s.name), ["Games", "Card decks"]);
+  assert.deepEqual(none.map((s) => s.name), ["Games", "Card decks", "Me"]);
 });
 
 test("the word of the day changes each day", () => {
@@ -114,4 +114,11 @@ test("Shorts open for anyone signed in, and the site owner can use every Arise A
   const shorts = routes.slice(routes.indexOf("app.get('/api/eye-gaze/youtube-shorts'"), routes.indexOf("app.get('/api/eye-gaze/youtube-shorts'") + 900);
   assert.ok(!shorts.includes("A linked Arise AAC account is required"), "Shorts no longer refuse a grown-up");
   assert.match(shorts, /const raw = child \? await storage\.getSetting/);
+});
+
+test("Apps → Me has Update app, which gets the newest version now and says what happened", () => {
+  const me = SHELVES.find((s) => s.name === "Me")!;
+  assert.ok(me.tiles.some((t) => t.name === "Update app" && t.game === "update"));
+  assert.ok(visibleShelves(() => false).some((s) => s.tiles.some((t) => t.game === "update")), "always shown");
+  assert.match(read("client/src/pages/arise-kids/KidsApp.tsx"), /m\.checkForUpdateNow\(\)/);
 });
