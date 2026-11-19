@@ -342,3 +342,69 @@ export function missedText(t: AcctTask, assigneeName: string): { title: string; 
   const who = assigneeName || "Your partner";
   return { title: `⏰ ${who} missed: ${t.title}`, body: `It was due by ${timeWords(t.due)} and isn't checked off yet. Tap to nudge them.` };
 }
+
+// ---- the Activity feed: everything that happened in a space, newest first ----
+
+/** Reminders and missed deadlines the server recorded (acct_nudges, acct_alerts). */
+export type AcctEvent = { taskId: string; day: string; kind: "nudged" | "missed"; at: string; n?: number };
+export type ActivityKind = "asked" | "did" | "late" | "approved" | "redo" | "missed" | "nudged";
+export type ActivityItem = {
+  id: string; kind: ActivityKind; at: string; day: string;
+  taskId: string; title: string; gone: boolean;
+  /** Who it's about (who did it, who was asked, who missed it), and who acted (asked it, approved it). */
+  who: number; by: number;
+  checkin?: Checkin; n?: number;
+};
+
+const dayOfIso = (iso: string, tz: string) => { const t = Date.parse(iso); return Number.isFinite(t) ? localNow(t, tz).day : ""; };
+
+/** One list of what happened: asks, check-ins (late ones marked), approvals and redos, missed deadlines
+ *  and reminders, newest first. Check-ins on removed tasks still show, by the title they had. */
+export function buildActivity(tasks: AcctTask[], checkins: Checkin[], events: AcctEvent[], tz = "", gone: Pick<AcctTask, "id" | "title">[] = []): ActivityItem[] {
+  const byId = new Map<string, { t?: AcctTask; title: string }>();
+  for (const g of gone) byId.set(g.id, { title: g.title });
+  for (const t of tasks) byId.set(t.id, { t, title: t.title });
+  const out: ActivityItem[] = [];
+  const base = (taskId: string) => { const b = byId.get(taskId); return b ? { taskId, title: b.title, gone: !b.t, t: b.t } : null; };
+  for (const t of tasks) {
+    // Asking someone else (asking yourself, or "I already did something", isn't news).
+    if (t.createdBy !== t.assignee && t.createdAt) out.push({ id: `a-${t.id}`, kind: "asked", at: t.createdAt, day: dayOfIso(t.createdAt, tz), taskId: t.id, title: t.title, gone: false, who: t.assignee, by: t.createdBy });
+  }
+  for (const c of checkins) {
+    const b = base(c.taskId); if (!b) continue;
+    const doneOn = dayOfIso(c.at, tz);
+    const late = !!b.t && !!doneOn && (c.day < doneOn || (c.day === doneOn && localNow(Date.parse(c.at), tz).minutes > minutesOf(b.t.due)));
+    out.push({ id: `c-${c.id}`, kind: late ? "late" : "did", at: c.at, day: c.day, taskId: c.taskId, title: b.title, gone: b.gone, who: c.by, by: c.by, checkin: c });
+    if ((c.status === "approved" || c.status === "redo") && c.reviewedAt && c.reviewedBy != null && c.reviewedBy !== c.by)
+      out.push({ id: `r-${c.id}`, kind: c.status, at: c.reviewedAt, day: c.day, taskId: c.taskId, title: b.title, gone: b.gone, who: c.by, by: c.reviewedBy, checkin: c });
+  }
+  for (const e of events) {
+    const b = base(e.taskId); if (!b || !b.t) continue;
+    // A deadline that passed and was then done later the same day reads as "late", not "missed".
+    if (e.kind === "missed" && checkins.some((c) => c.taskId === e.taskId && c.day === e.day && isDone(c))) continue;
+    out.push({ id: `${e.kind}-${e.taskId}-${e.day}`, kind: e.kind, at: e.at, day: e.day, taskId: e.taskId, title: b.title, gone: false, who: b.t.assignee, by: b.t.createdBy, n: e.n });
+  }
+  return out.filter((x) => x.at).sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** The sentence for one item, from the viewer's side ("You", "Maria"). */
+export function activityWords(x: ActivityItem, nameOf: (id: number) => string): string {
+  const who = nameOf(x.who), by = nameOf(x.by), t = `“${x.title}”`;
+  switch (x.kind) {
+    case "asked": return `${by} asked ${who === "You" ? "you" : who} to ${x.title.charAt(0).toLowerCase()}${x.title.slice(1)}`;
+    case "did": return `${who} did ${t}`;
+    case "late": return `${who} did ${t}, late`;
+    case "approved": return `${by} approved ${t}`;
+    case "redo": return `${by} asked for a redo of ${t}`;
+    case "missed": return `${who} missed ${t}`;
+    case "nudged": return `${who === "You" ? "You were" : `${who} was`} reminded about ${t}${x.n && x.n > 1 ? ` ${x.n} times` : ""}`;
+  }
+}
+
+/** "Today", "Yesterday", or "Mon, Nov 17". */
+export function activityDayLabel(day: string, today: string): string {
+  if (day === today) return "Today";
+  if (day === addDays(today, -1)) return "Yesterday";
+  const d = new Date(`${day}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? day : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}

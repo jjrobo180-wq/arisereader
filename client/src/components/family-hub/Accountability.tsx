@@ -3,12 +3,12 @@
 // it's done, and they check it off with a photo or video, an AI worksheet, or a quiz your child took.
 import { duoOpen } from "@/lib/duoWidgets";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BadgeCheck, Bell, Camera, Check, ChevronLeft, ClipboardList, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
+import { AlarmClock, BadgeCheck, Bell, CircleAlert, MessageSquarePlus, Camera, Check, ChevronLeft, ClipboardList, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import {
-  NAG_CHOICES, NOTIFY_KINDS, addDays, cleanNotify, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
-  type AcctTask, type Checkin, type NotifyKind, type NotifyPrefs, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
+  NAG_CHOICES, NOTIFY_KINDS, activityDayLabel, activityWords, addDays, buildActivity, cleanNotify, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
+  type AcctEvent, type ActivityItem, type ActivityKind, type AcctTask, type Checkin, type NotifyKind, type NotifyPrefs, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
 } from "@shared/accountability";
 import { publishWidgets } from "@/lib/widgets";
 import { isNativeApp } from "@/lib/nativeApp";
@@ -17,7 +17,7 @@ import TodoNotifications from "./TodoNotifications";
 import type { SectionProps } from "./ui";
 
 const TEAL = "#0d9488";
-type Data = { me: number; spaces: Space[]; myNotify?: Record<string, NotifyPrefs>; tasks: AcctTask[]; checkins: Checkin[] };
+type Data = { me: number; spaces: Space[]; myNotify?: Record<string, NotifyPrefs>; tasks: AcctTask[]; checkins: Checkin[]; events?: AcctEvent[]; gone?: { id: string; title: string }[] };
 const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { return ""; } })();
 const SPACE_KEY = "arise-acct-space";
 const hashParam = (k: string) => { const h = window.location.hash, q = h.indexOf("?"); return q < 0 ? "" : new URLSearchParams(h.slice(q + 1)).get(k) || ""; };
@@ -75,6 +75,7 @@ export default function Accountability({ say }: SectionProps) {
   const [tab, setTab] = useState<"today" | "tasks" | "activity">("today");
   const [sheet, setSheet] = useState<null | { kind: "new" } | { kind: "edit"; task: AcctTask } | { kind: "do"; task: AcctTask } | { kind: "task"; task: AcctTask } | { kind: "invite" } | { kind: "start" } | { kind: "join"; code?: string } | { kind: "review"; checkin: Checkin } | { kind: "done" } | { kind: "notify" }>(null);
   const [kid, setKid] = useState<AcctTask | null>(null);
+  const [removing, setRemoving] = useState<AcctTask | null>(null);
 
   const load = useCallback(async () => {
     try { const d = await api<Data>(`?tz=${encodeURIComponent(TZ)}`); setData(d); setError(""); return d; }
@@ -148,27 +149,26 @@ export default function Accountability({ say }: SectionProps) {
 
   return <div className="mx-auto max-w-3xl space-y-5 pb-28" data-testid="acct-app">
     {/* header */}
-    <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#4338ca] p-5 text-white shadow-xl sm:p-6">
-      <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0"><p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-white/70">Accountability</p><h1 className="mt-1 truncate text-2xl font-black">{space.name}</h1>
-          <div className="mt-3 flex -space-x-2">{space.members.map((m) => <Avatar key={m.userId} name={m.name} color={colorOf(space, m.userId)} size={32} />)}</div></div>
-        <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => setSheet({ kind: "notify" })} aria-label="Notifications" className="grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur hover:bg-white/25" data-testid="acct-notify"><Bell size={17} /></button>
-          <button type="button" onClick={() => inviteOnSharing()} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/15 px-3.5 text-sm font-bold backdrop-blur hover:bg-white/25" data-testid="acct-invite"><Share2 size={15} />Invite</button>
-        </div>
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[.14em] text-teal-700">Accountability</p><h1 className="mt-0.5 truncate text-2xl font-black tracking-tight text-slate-950">{space.name}</h1>
+        <div className="mt-2 flex items-center gap-2"><div className="flex -space-x-2">{space.members.map((m) => <Avatar key={m.userId} name={m.name} color={colorOf(space, m.userId)} size={26} />)}</div><span className="truncate text-xs font-semibold text-slate-500">{space.members.map((m) => (m.userId === me ? "You" : m.name)).join(", ")}</span></div></div>
+      <div className="flex shrink-0 gap-2">
+        <button type="button" onClick={() => setSheet({ kind: "notify" })} aria-label="Notifications" className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" data-testid="acct-notify"><Bell size={17} /></button>
+        <button type="button" onClick={() => inviteOnSharing()} className="flex min-h-10 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50" data-testid="acct-invite"><Share2 size={15} />Invite</button>
       </div>
-      {data.spaces.length > 1 && <div className="relative mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none]">{data.spaces.map((s) => <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${s.id === space.id ? "bg-white text-teal-800" : "bg-white/15 text-white"}`}>{s.name}</button>)}<button type="button" onClick={() => setSheet({ kind: "start" })} className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">+ New</button></div>}
     </div>
+    {data.spaces.length > 1 && <div className="-mt-1 flex gap-2 overflow-x-auto [scrollbar-width:none]">{data.spaces.map((s) => <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${s.id === space.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`}>{s.name}</button>)}<button type="button" onClick={() => setSheet({ kind: "start" })} className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">+ New</button></div>}
 
-    <button type="button" onClick={() => setSheet({ kind: "new" })} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-3xl bg-[#0d9488] text-base font-black text-white shadow-[0_12px_30px_#0d948844] transition active:scale-[.98]" data-testid="acct-ask"><Plus size={22} strokeWidth={3} />Ask for something</button>
-    <button type="button" onClick={() => setSheet({ kind: "done" })} className="-mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border-2 border-teal-600 bg-white text-base font-black text-teal-700 transition active:scale-[.98]" data-testid="acct-did"><Camera size={20} strokeWidth={2.5} />I already did something</button>
+    <div className="grid grid-cols-2 gap-2">
+      <button type="button" onClick={() => setSheet({ kind: "new" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#0d9488] text-[15px] font-black text-white shadow-[0_8px_22px_#0d948838] transition active:scale-[.98]" data-testid="acct-ask"><Plus size={19} strokeWidth={3} />Ask for something</button>
+      <button type="button" onClick={() => setSheet({ kind: "done" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-[15px] font-black text-slate-800 transition hover:bg-slate-50 active:scale-[.98]" data-testid="acct-did"><Camera size={18} strokeWidth={2.5} />I did something</button>
+    </div>
 
     {/* everyone's progress */}
     <div className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" data-testid="acct-dashboard">
       {members.map((m) => {
         const st = personStats(m.userId, tasks, checkins, today), color = colorOf(space, m.userId);
-        return <div key={m.userId} className="min-w-[15.5rem] flex-1 snap-start rounded-3xl border border-slate-100 bg-white p-4 shadow-[0_8px_28px_#0f172a0d]">
+        return <div key={m.userId} className="min-w-[15.5rem] flex-1 snap-start rounded-3xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-3"><Ring value={st.todayDone} total={st.todayDue} color={color} />
             <div className="min-w-0"><p className="truncate font-black text-slate-900">{m.userId === me ? "You" : m.name}</p><p className="text-xs font-semibold text-slate-500">today{st.todayDue && st.todayDone === st.todayDue ? " · all done 🎉" : ""}</p><p className="mt-1 text-xs font-bold" style={{ color }}>{st.rate}% this week</p></div></div>
           <div className="mt-3 flex h-10 items-end gap-1.5" aria-label="Last 7 days">{st.week.map((d) => <div key={d.day} className="flex flex-1 flex-col items-center gap-1"><div className="w-full rounded-md bg-slate-100" style={{ height: 30 }}><div className="w-full rounded-md" style={{ height: `${d.due ? (d.done / d.due) * 100 : 0}%`, marginTop: `${d.due ? 30 - (d.done / d.due) * 30 : 30}px`, background: color }} /></div><span className="text-[9px] font-bold text-slate-400">{"SMTWTFS"[new Date(`${d.day}T12:00:00Z`).getUTCDay()]}</span></div>)}</div>
@@ -189,7 +189,8 @@ export default function Accountability({ say }: SectionProps) {
         onPoke={() => void act(() => api(`/tasks/${t.id}/poke`, { method: "POST", body: {} }), `Nudged ${nameOf(t.assignee)} 👋`)} />} />
     </div>}
     {tab === "tasks" && <div className="space-y-2.5" data-testid="acct-all">{tasks.length ? tasks.map((t) => <button key={t.id} type="button" onClick={() => setSheet({ kind: "task", task: t })} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 text-left shadow-sm"><KindIcon kind={t.kind} /><span className="min-w-0 flex-1"><span className="block truncate font-bold">{t.title}</span><span className="text-xs text-slate-500">{nameOf(t.assignee)} · {repeatWords(t.repeat)} · by {timeWords(t.due)}</span></span>{streak(t, checkins, today) > 1 && <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-black text-orange-600">🔥 {streak(t, checkins, today)}</span>}</button>) : <Empty text="No tasks yet. Tap Ask to make the first one." />}</div>}
-    {tab === "activity" && <Activity checkins={checkins} tasks={tasks} nameOf={nameOf} colorFor={(id) => colorOf(space, id)} onOpen={(c) => setSheet(c.by !== me && c.status === "done" ? { kind: "review", checkin: c } : { kind: "task", task: tasks.find((t) => t.id === c.taskId)! })} />}
+    {tab === "activity" && <Activity items={buildActivity(tasks, checkins, (data.events ?? []), TZ, data.gone ?? [])} me={me} today={today} members={members.map((m) => m.userId)} nameOf={nameOf} colorFor={(id) => colorOf(space, id)} api={api}
+      onOpen={(x) => { const t = tasks.find((y) => y.id === x.taskId); if (x.checkin) setSheet({ kind: "review", checkin: x.checkin }); else if (t) setSheet({ kind: "task", task: t }); }} />}
 
     <button type="button" onClick={() => setSheet({ kind: "notify" })} className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 p-3 text-left text-xs leading-5 text-slate-500 hover:bg-slate-100"><Bell size={16} className="shrink-0 text-teal-600" /><span className="flex-1">Everyone in this space gets alerts when something is asked, done, missed or checked. <b className="text-teal-700">Set up and test notifications</b></span></button>
 
@@ -205,8 +206,10 @@ export default function Accountability({ say }: SectionProps) {
     {sheet?.kind === "task" && <TaskSheet task={sheet.task} me={me} space={space} checkins={checkins} today={today} api={api} nameOf={nameOf} onClose={() => setSheet(null)}
       onEdit={() => setSheet({ kind: "edit", task: sheet.task })} onDo={() => (sheet.task.kind === "quiz" ? (setKid(sheet.task), setSheet(null)) : setSheet({ kind: "do", task: sheet.task }))}
       onReview={(c) => setSheet({ kind: "review", checkin: c })}
-      onDelete={() => { if (window.confirm(`Remove “${sheet.task.title}”?`)) void act(() => api(`/tasks/${sheet.task.id}`, { method: "DELETE" }), "Removed.").then((ok) => ok && setSheet(null)); }} />}
-    {sheet?.kind === "review" && <ReviewSheet checkin={sheet.checkin} task={tasks.find((t) => t.id === sheet.checkin.taskId)} who={nameOf(sheet.checkin.by)} api={api} onClose={() => setSheet(null)}
+      onDelete={() => setRemoving(sheet.task)} />}
+    {removing && <Sheet title={`Remove “${removing.title}”?`} onClose={() => setRemoving(null)}><div className="space-y-4" data-testid="acct-remove"><p className="text-sm text-slate-500">It stops repeating and nobody gets reminded. What was already done stays in Activity.</p>
+      <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setRemoving(null)} className={ghostBtn}>Keep it</button><button type="button" onClick={() => { const t = removing; setRemoving(null); void act(() => api(`/tasks/${t.id}`, { method: "DELETE" }), "Removed.").then((ok) => ok && setSheet(null)); }} className={`${btn} bg-rose-600 text-white hover:bg-rose-700`}>Remove</button></div></div></Sheet>}
+    {sheet?.kind === "review" && <ReviewSheet me={me} reviewerName={sheet.checkin.reviewedBy != null ? nameOf(sheet.checkin.reviewedBy) : ""} checkin={sheet.checkin} task={tasks.find((t) => t.id === sheet.checkin.taskId)} who={nameOf(sheet.checkin.by)} api={api} onClose={() => setSheet(null)}
       onReview={async (status, feedback) => { const ok = await act(() => api(`/checkins/${sheet.checkin.id}/review`, { method: "POST", body: { status, feedback } }), status === "approved" ? "Approved ⭐" : "Sent back for a redo."); if (ok) setSheet(null); }} />}
     {sheet?.kind === "done" && <DoneSheet spaceId={space.id} today={today} api={api} say={say} others={space.members.filter((m) => m.userId !== me).map((m) => m.name || "your partner")} onClose={() => setSheet(null)}
       onSend={async (body) => { const others = space.members.filter((m) => m.userId !== me); const ok = await act(() => api("/done", { method: "POST", body: { spaceId: space.id, ...body } }), others.length ? `Sent ✓ ${others.length === 1 ? others[0].name || "Your partner" : "Everyone"} will see it.` : "Saved ✓"); if (ok) setSheet(null); }} />}
@@ -254,14 +257,57 @@ function ProofView({ proofs, api }: { proofs: Proof[]; api: ReturnType<typeof us
   return <div className="grid grid-cols-2 gap-2">{proofs.map((p) => <div key={p.path} className="overflow-hidden rounded-2xl bg-slate-100">{!urls[p.path] ? <div className="grid aspect-square place-items-center"><Loader2 className="animate-spin text-slate-400" /></div> : p.type === "video" ? <video src={urls[p.path]} controls playsInline className="aspect-square w-full bg-black object-contain" /> : <a href={urls[p.path]} target="_blank" rel="noreferrer"><img src={urls[p.path]} alt="Proof" className="aspect-square w-full object-cover" /></a>}</div>)}</div>;
 }
 
-function Activity({ checkins, tasks, nameOf, colorFor, onOpen }: { checkins: Checkin[]; tasks: AcctTask[]; nameOf: (id: number) => string; colorFor: (id: number) => string; onOpen: (c: Checkin) => void }) {
-  const list = checkins.filter((c) => tasks.some((t) => t.id === c.taskId)).slice(0, 60);
-  if (!list.length) return <Empty text="Check-ins show up here." />;
-  return <div className="space-y-2.5" data-testid="acct-activity">{list.map((c) => { const t = tasks.find((x) => x.id === c.taskId)!; return <button key={c.id} type="button" onClick={() => onOpen(c)} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-sm">
-    <Avatar name={nameOf(c.by)} color={colorFor(c.by)} size={34} />
-    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold"><span className="text-slate-500">{nameOf(c.by)} · </span>{t.title}</span><span className="text-xs text-slate-400">{new Date(c.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}{c.score ? ` · ${c.score.right}/${c.score.total}` : ""}{c.proof.length ? ` · 📎${c.proof.length}` : ""}</span></span>
-    <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${c.status === "approved" ? "bg-emerald-100 text-emerald-700" : c.status === "redo" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"}`}>{c.status === "approved" ? "⭐ OK" : c.status === "redo" ? "Redo" : "New"}</span>
-  </button>; })}</div>;
+const ACT_LOOK: Record<ActivityKind, { icon: ReactNode; bg: string; fg: string; chip?: [string, string] }> = {
+  asked: { icon: <MessageSquarePlus size={16} />, bg: "#e0f2fe", fg: "#0369a1" },
+  did: { icon: <Check size={16} strokeWidth={3} />, bg: "#d1fae5", fg: "#047857" },
+  late: { icon: <Check size={16} strokeWidth={3} />, bg: "#fef3c7", fg: "#b45309", chip: ["Late", "bg-amber-100 text-amber-800"] },
+  approved: { icon: <Star size={15} className="fill-current" />, bg: "#fef9c3", fg: "#ca8a04" },
+  redo: { icon: <RotateCcw size={15} />, bg: "#ffe4e6", fg: "#be123c" },
+  missed: { icon: <CircleAlert size={16} />, bg: "#ffe4e6", fg: "#e11d48", chip: ["Missed", "bg-rose-100 text-rose-700"] },
+  nudged: { icon: <AlarmClock size={15} />, bg: "#f1f5f9", fg: "#64748b" },
+};
+/** Everything that happened, by day: asks, check-ins (with their photos), approvals, redos, misses, reminders. */
+function Activity({ items, me, today, members, nameOf, colorFor, api, onOpen }: { items: ActivityItem[]; me: number; today: string; members: number[]; nameOf: (id: number) => string; colorFor: (id: number) => string; api: ReturnType<typeof useApi>; onOpen: (x: ActivityItem) => void }) {
+  const [who, setWho] = useState<number | null>(null);
+  const [quiet, setQuiet] = useState(true);
+  const list = items.filter((x) => (who == null || x.who === who || x.by === who) && (!quiet || x.kind !== "nudged")).slice(0, 120);
+  const days: [string, ActivityItem[]][] = [];
+  for (const x of list) { const d = localNow(Date.parse(x.at), TZ).day; const last = days[days.length - 1]; if (last && last[0] === d) last[1].push(x); else days.push([d, [x]]); }
+  const chip = (on: boolean) => `min-h-9 shrink-0 rounded-full px-3 text-xs font-bold ${on ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`;
+  return <div className="space-y-4" data-testid="acct-activity">
+    <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+      <button type="button" onClick={() => setWho(null)} className={chip(who == null)}>Everyone</button>
+      {members.length > 1 && members.map((id) => <button key={id} type="button" onClick={() => setWho(id)} className={chip(who === id)}>{id === me ? "You" : nameOf(id)}</button>)}
+      <button type="button" onClick={() => setQuiet(!quiet)} aria-pressed={!quiet} className={`${chip(!quiet)} ml-auto inline-flex items-center gap-1`}><AlarmClock size={13} />Reminders</button>
+    </div>
+    {!list.length ? <Empty text={items.length ? "Nothing here with these filters." : "When someone asks for something, checks it off, approves it or misses it, it shows here."} />
+      : days.map(([day, xs]) => <section key={day}>
+        <h3 className="mb-1.5 px-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">{activityDayLabel(day, today)}</h3>
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-3xl border border-slate-200 bg-white">{xs.map((x) => { const look = ACT_LOOK[x.kind]; const c = x.checkin; const waiting = (x.kind === "did" || x.kind === "late") && c?.status === "done" && c.by !== me;
+          return <li key={x.id}><button type="button" onClick={() => onOpen(x)} className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-slate-50" data-testid="acct-activity-row">
+            <span className="relative mt-0.5 shrink-0"><Avatar name={nameOf(x.kind === "asked" || x.kind === "approved" || x.kind === "redo" ? x.by : x.who)} color={colorFor(x.kind === "asked" || x.kind === "approved" || x.kind === "redo" ? x.by : x.who)} size={34} />
+              <span className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full ring-2 ring-white" style={{ background: look.bg, color: look.fg }}>{look.icon}</span></span>
+            <span className="min-w-0 flex-1">
+              <span className={`block text-sm leading-5 ${x.kind === "nudged" ? "text-slate-500" : "font-semibold text-slate-800"}`}>{activityWords(x, nameOf)}{x.gone ? <span className="font-normal text-slate-400"> (removed)</span> : null}</span>
+              <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                <span>{new Date(x.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                {look.chip && <span className={`rounded-full px-2 py-px text-[11px] font-bold ${look.chip[1]}`}>{look.chip[0]}</span>}
+                {waiting && <span className="rounded-full bg-amber-100 px-2 py-px text-[11px] font-bold text-amber-800">Needs your OK</span>}
+                {(x.kind === "did" || x.kind === "late") && c?.score && <span>{c.score.right}/{c.score.total} right</span>}
+                {(x.kind === "redo" || x.kind === "approved") && c?.feedback && <span className="truncate italic">“{c.feedback}”</span>}
+                {(x.kind === "did" || x.kind === "late") && c?.note && <span className="max-w-full truncate">“{c.note}”</span>}
+              </span>
+              {(x.kind === "did" || x.kind === "late") && c && c.proof.length > 0 && <ProofStrip proofs={c.proof} api={api} />}
+            </span>
+          </button></li>; })}</ul>
+      </section>)}
+  </div>;
+}
+function ProofStrip({ proofs, api }: { proofs: Proof[]; api: ReturnType<typeof useApi> }) {
+  const urls = useProofUrls(api, proofs);
+  return <span className="mt-2 flex gap-1.5">{proofs.slice(0, 4).map((p) => <span key={p.path} className="relative block h-14 w-14 overflow-hidden rounded-xl bg-slate-100">
+    {urls[p.path] ? (p.type === "video" ? <><video src={urls[p.path]} muted playsInline preload="metadata" className="h-full w-full object-cover" /><Video size={14} className="absolute bottom-1 right-1 text-white drop-shadow" /></> : <img src={urls[p.path]} alt="" className="h-full w-full object-cover" loading="lazy" />) : null}
+  </span>)}{proofs.length > 4 && <span className="grid h-14 w-10 place-items-center text-xs font-bold text-slate-400">+{proofs.length - 4}</span>}</span>;
 }
 
 // ---------------- sheets ----------------
@@ -557,7 +603,7 @@ function TaskSheet({ task, me, space, checkins, today, api, nameOf, onClose, onE
   </div></Sheet>;
 }
 
-function ReviewSheet({ checkin, task, who, api, onClose, onReview }: { checkin: Checkin; task?: AcctTask; who: string; api: ReturnType<typeof useApi>; onClose: () => void; onReview: (status: "approved" | "redo", feedback: string) => Promise<void> }) {
+function ReviewSheet({ me, reviewerName, checkin, task, who, api, onClose, onReview }: { me: number; reviewerName: string; checkin: Checkin; task?: AcctTask; who: string; api: ReturnType<typeof useApi>; onClose: () => void; onReview: (status: "approved" | "redo", feedback: string) => Promise<void> }) {
   const [feedback, setFeedback] = useState(""); const [busy, setBusy] = useState(false);
   const go = async (s: "approved" | "redo") => { setBusy(true); await onReview(s, feedback); setBusy(false); };
   return <Sheet title={task?.title || "Check-in"} onClose={onClose} wide><div className="space-y-4" data-testid="acct-review-sheet">
@@ -567,8 +613,12 @@ function ReviewSheet({ checkin, task, who, api, onClose, onReview }: { checkin: 
     {task?.kind === "worksheet" && task.worksheet && <ul className="space-y-1.5">{task.worksheet.items.map((it, i) => <li key={it.id} className="rounded-xl bg-slate-50 p-2 text-sm"><span className="font-bold">{i + 1}. {it.prompt}</span><span className="block text-slate-600">→ {checkin.answers[it.id] || "—"}{it.answer ? <span className="text-slate-400"> (answer: {it.answer})</span> : null}</span></li>)}</ul>}
     {checkin.note && <p className="rounded-2xl bg-slate-50 p-3 text-sm">“{checkin.note}”</p>}
     <ProofView proofs={checkin.proof} api={api} />
+    {checkin.status !== "done" || checkin.by === me ? <p className={`rounded-2xl p-3 text-sm font-bold ${checkin.status === "approved" ? "bg-emerald-50 text-emerald-800" : checkin.status === "redo" ? "bg-rose-50 text-rose-800" : "bg-slate-50 text-slate-600"}`} data-testid="acct-review-state">
+      {checkin.status === "approved" ? `⭐ Approved${reviewerName && checkin.reviewedBy !== checkin.by ? ` by ${reviewerName}` : ""}` : checkin.status === "redo" ? `Sent back for a redo${reviewerName ? ` by ${reviewerName}` : ""}` : task?.review ? "Waiting for an OK." : "Checked off."}{checkin.feedback ? <span className="mt-1 block font-medium">“{checkin.feedback}”</span> : null}</p>
+    : <>
     <textarea className={`${field} min-h-16 py-2`} value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Say something (optional): Great job!" />
     <div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy} onClick={() => void go("redo")} className={`${btn} border border-rose-200 bg-rose-50 text-rose-700`} data-testid="acct-redo"><RotateCcw size={17} />Redo</button><button type="button" disabled={busy} onClick={() => void go("approved")} className={`${btn} bg-emerald-500 text-white hover:bg-emerald-600`} data-testid="acct-approve"><Star size={17} className="fill-white" />Approve</button></div>
+    </>}
   </div></Sheet>;
 }
 

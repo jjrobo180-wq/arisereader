@@ -133,8 +133,23 @@ export function registerAccountabilityRoutes(app: Express, authMiddleware: Reque
       ]);
       if (e1 || e2 || e3) throw e1 || e2 || e3;
       const out: Space[] = (spaces || []).map((s: any) => ({ id: s.id, name: s.name, code: s.code, createdBy: s.created_by, members: (members.get(s.id) || []).map(publicMember) }));
+      // The Activity feed: reminders and missed deadlines from the last two weeks, and the names of removed
+      // tasks that still have check-ins (they used to drop out of the feed).
+      const liveIds = (tasks || []).map((t: any) => t.id);
+      const since = new Date(now() - 15 * 86_400_000).toISOString().slice(0, 10);
+      const goneIds = Array.from(new Set((checks || []).map((c: any) => c.task_id).filter((id: string) => !liveIds.includes(id)))).slice(0, 500);
+      const [{ data: nrows }, { data: arows }, { data: grows }] = await Promise.all([
+        liveIds.length ? db().from("acct_nudges").select("task_id, day, n, last_at").in("task_id", liveIds).gte("day", since).limit(2000) : Promise.resolve({ data: [] as any[] }),
+        liveIds.length ? db().from("acct_alerts").select("task_id, day, kind, at").in("task_id", liveIds).gte("day", since).limit(2000) : Promise.resolve({ data: [] as any[] }),
+        goneIds.length ? db().from("acct_tasks").select("id, data").in("id", goneIds) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const events = [
+        ...(nrows || []).map((r: any) => ({ taskId: r.task_id, day: r.day, kind: "nudged" as const, at: r.last_at, n: r.n })),
+        ...(arows || []).filter((r: any) => r.kind === "missed").map((r: any) => ({ taskId: r.task_id, day: r.day, kind: "missed" as const, at: r.at })),
+      ];
+      const gone = (grows || []).map((r: any) => ({ id: r.id, title: String(r.data?.title || "A removed task") }));
       const myNotify = Object.fromEntries((spaces || []).map((s: any) => [s.id, cleanNotify((members.get(s.id) || []).find((m) => m.userId === userId)?.notify)]));
-      res.json({ me: userId, spaces: out, myNotify, tasks: (tasks || []).map(rowToTask), checkins: (checks || []).map(rowToCheckin) });
+      res.json({ me: userId, spaces: out, myNotify, tasks: (tasks || []).map(rowToTask), checkins: (checks || []).map(rowToCheckin), events, gone });
     } catch (e) { fail(res, e, "load"); }
   });
 
