@@ -3,7 +3,7 @@ import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox
 import { PICTURE_ART } from "@/lib/pictureArt";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
 import { markEmailRead } from "@shared/hubInbox";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
@@ -222,6 +222,12 @@ import { isNativeApp } from "@/lib/nativeApp";
 import { REMINDERS_CHANGED, installReminderTaps, scheduleNativeReminders } from "@/lib/nativeReminders";
 import { lockPageScroll } from "@/lib/scrollLock";
 import AppItemMenu from "@/components/hub-pieces/AppItemMenu";
+// Arise Notes and the premium apps (Potty Training, Water…) open inside WorkHub with the menu beside them, like any
+// plugin, not on a page of their own.
+const NotesInWork = lazy(() => import("@/components/super-apps/NotesInWork"));
+const ProAppInHub = lazy(() => import("@/pages/ProApps").then((m) => ({ default: m.ProAppInHub })));
+/** "in:notes" or "in:pro:<id>" for an app link that opens inside WorkHub, else "". */
+const inHubOf = (href: string) => /^#\/arise-notes(?:[?/]|$)/.test(href) ? "in:notes" : (/^#\/pro\?app=([a-z0-9-]+)/i.exec(href)?.[1] ? `in:pro:${/^#\/pro\?app=([a-z0-9-]+)/i.exec(href)![1]}` : "");
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -1293,7 +1299,7 @@ function TeacherHubPage() {
           setNotes: setNotesAppRecords,
           makeId: id,
         }}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); const inHub = inHubOf(p.target.href); if (inHub) setKitOpen(inHub); else window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
       {/* Blends into the page (no white bar or line), and slides away as you scroll down on a phone. */}
@@ -1408,7 +1414,7 @@ function TeacherHubPage() {
                     ))}
                     {!hubOpenFolder && [
                       ...mySheetsApps.map((a) => ({ key: `sheets-app-${a.id}`, name: a.name, color: a.color, icon: <Table className="h-7 w-7" />, open: () => setSheetsAppOpen(a.id) })),
-                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <OfficeAppIcon icon={a.icon} className="h-7 w-7" />, open: () => { if (a.target.kind === "officeApp") window.location.hash = a.target.href; } })),
+                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <OfficeAppIcon icon={a.icon} className="h-7 w-7" />, open: () => { if (a.target.kind !== "officeApp") return; const inHub = inHubOf(a.target.href); if (inHub) { closeApps(); setKitOpen(inHub); } else window.location.hash = a.target.href; } })),
                       ...(drivePlugin ? [{ key: "drive-app", name: drivePlugin.name, color: drivePlugin.color, icon: <FolderOpen className="h-7 w-7" />, open: () => setDriveOpen(true) }] : []),
                       ...(dropPlugin ? [{ key: "drop-app", name: dropPlugin.name, color: dropPlugin.color, icon: <QrCode className="h-7 w-7" />, open: () => setDropOpen(true) }] : []),
                     ].filter((a) => a.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => (
@@ -1607,7 +1613,10 @@ function TeacherHubPage() {
               // Everything else under My plugins (kits like IEP, Notes, Sheets and Office apps, Drive, Dropbox),
               // in the order you set: ⋯ (or press and hold) → Move up / Move down.
               const extras: { key: string; label: string; node: any; remove?: () => void }[] = [];
-              myOfficeApps.forEach((a) => extras.push({ key: `office:${a.id}`, label: a.name, remove: () => removeWorkApp(a), node: <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={`flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-600 hover:text-indigo-700 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm md:hover:bg-slate-100`}><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></a> }));
+              myOfficeApps.forEach((a) => { const inHub = a.target.kind === "officeApp" ? inHubOf(a.target.href) : ""; const cls = `flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm ${inHub && kitOpen === inHub ? "bg-indigo-600 text-white md:bg-indigo-600" : "text-slate-600 hover:text-indigo-700 md:hover:bg-slate-100"}`; const inner = <><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></>;
+                extras.push({ key: `office:${a.id}`, label: a.name, remove: () => { removeWorkApp(a); if (inHub && kitOpen === inHub) setKitOpen(null); }, node: inHub
+                  ? <button key={a.id} type="button" onClick={() => { closeApps(); setKitOpen(inHub); afterPick(); }} aria-current={kitOpen === inHub ? "page" : undefined} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={cls}>{inner}</button>
+                  : <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} data-hub-nav title={a.name} className={cls}>{inner}</a> }); });
               myKits.forEach((d) => { const Icon = kitIcon(d.icon); extras.push({ key: `kit:${d.id}`, label: d.name, remove: () => {
                 const before: string[] | undefined = (workspace as any).kitInstalled;
                 setWorkspace((prev) => ({ ...prev, kitInstalled: ((prev as any).kitInstalled as string[] | undefined ?? []).filter((k) => k !== d.id) } as typeof prev));
@@ -1679,7 +1688,16 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${deskSidebar ? "md:px-7 md:pt-6 lg:px-9 lg:pt-10 xl:px-12" : ""} ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${deskSidebar ? "md:px-7 md:pt-6 lg:px-9 lg:pt-10 xl:px-12" : ""} ${(kitOpen && (kitDef(kitOpen) || kitOpen.startsWith("in:"))) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+          {kitOpen?.startsWith("in:") && (
+            <div data-kit-view data-testid="hub-in-app-view">
+              <Suspense fallback={<p className="py-10 text-center text-sm font-semibold text-slate-500">Opening…</p>}>
+                {kitOpen === "in:notes"
+                  ? <NotesInWork night={night} picked={(workspace as any).superPages?.arisenotes} savePicked={(ids) => setWorkspace((p) => ({ ...p, superPages: { ...((p as any).superPages ?? {}), arisenotes: ids } } as any))} />
+                  : <ProAppInHub id={kitOpen.slice("in:pro:".length)} />}
+              </Suspense>
+            </div>
+          )}
           {kitOpen && kitDef(kitOpen) && (
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
