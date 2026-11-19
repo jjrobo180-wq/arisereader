@@ -148,6 +148,9 @@ const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
 const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
 const NotesInDuo = lazy(() => import("@/components/super-apps/NotesInDuo"));
 const PodsterInDuo = lazy(() => import("@/components/super-apps/PodsterInDuo"));
+// Premium apps (Potty Training, Water, Sleep…) open inside LifeHub, with the menu beside them, not on a page of their own.
+const ProAppInHub = lazy(() => import("@/pages/ProApps").then((m) => ({ default: m.ProAppInHub })));
+const proAppOf = (href: string) => /^#\/pro\?app=([a-z0-9-]+)/i.exec(href)?.[1] ?? "";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
@@ -484,6 +487,12 @@ export default function AriseTodo() {
         setSection(go as FamilySection);
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
+      }
+      // A premium app (Potty Training's timer, a widget): opened inside LifeHub, menu and all.
+      if (go === "pro") {
+        const app = (params.get("app") || "").replace(/[^a-z0-9-]/gi, "");
+        if (app) { dismissOverlays(); setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(`pro:${app}`); }
+        params.delete("app");
       }
       // An "@arise" ask is ready (a notification from server/todoAsks.ts): Tasks, on the Arise tab, opened on it.
       if (go === "asks") {
@@ -1155,7 +1164,7 @@ export default function AriseTodo() {
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
-    ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <OfficeAppIcon icon={p.icon} />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
+    ...installedOffice.map((p) => { const pro = p.target.kind === "officeApp" ? proAppOf(p.target.href) : ""; return { id: `office-app-${p.id}`, label: p.name, icon: <OfficeAppIcon icon={p.icon} />, active: !!pro && kitOpen === `pro:${pro}`, color: p.color, onClick: () => { closeApps(); if (pro) setKitOpen(`pro:${pro}`); else if (p.target.kind === "officeApp") window.location.hash = p.target.href; } }; }),
     { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
     { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
@@ -1481,7 +1490,7 @@ export default function AriseTodo() {
         if (at && "section" in at) setSection(at.section);
         if (p.target.kind === "brief") { setBriefOpen(true); setStore(false); return; }
         if (p.target.kind === "sheetsApp") { setSheetsAppOpen(p.target.id); setStore(false); return; }
-        if (p.target.kind === "officeApp") { setStore(false); window.location.hash = p.target.href; return; }
+        if (p.target.kind === "officeApp") { setStore(false); const pro = proAppOf(p.target.href); if (pro) { closeApps(); setKitOpen(`pro:${pro}`); } else window.location.hash = p.target.href; return; }
         if (p.target.kind === "driveApp") { setDriveOpen(true); setStore(false); return; }
         if (p.target.kind === "dropApp") { setDropOpen(true); setStore(false); return; }
         if (p.target.kind === "kit") { closeApps(); setKitOpen(p.target.id); setStore(false); return; }
@@ -1647,7 +1656,7 @@ export default function AriseTodo() {
                 <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-notes-app-${p.id}`)}
             </div>))}
-            {installedOffice.map((p) => <div key={p.id} className="group/navitem flex items-stretch gap-0.5"><a href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>{removeX(p.name, () => removeApp(p), `lifehub-remove-office-app-${p.id}`)}</div>)}
+            {installedOffice.map((p) => { const pro = p.target.kind === "officeApp" ? proAppOf(p.target.href) : ""; return <div key={p.id} className="group/navitem flex items-stretch gap-0.5">{pro ? <button type="button" onClick={() => { closeApps(); setKitOpen(`pro:${pro}`); }} aria-current={kitOpen === `pro:${pro}` ? "page" : undefined} data-testid={`lifehub-office-app-${p.id}`} className={`flex min-h-10 w-full min-w-0 flex-1 items-center gap-3 rounded-xl px-3 text-left text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === `pro:${pro}` ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></button> : <a href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>}{removeX(p.name, () => { removeApp(p); if (kitOpen === `pro:${proAppOf(p.target.kind === "officeApp" ? p.target.href : "")}`) setKitOpen(null); }, `lifehub-remove-office-app-${p.id}`)}</div>; })}
             {pinnableSheets.map((p) => (<div key={`sheets-app-${p.id}`} className="group/navitem flex items-stretch gap-0.5">
               <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
@@ -1740,6 +1749,9 @@ export default function AriseTodo() {
               <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> Plugin Gallery</button>
             </div>
             <DropApp say={setMessage} token={token} />
+          </div>}
+          {kitOpen?.startsWith("pro:") && <div className="mt-2" data-testid="lifehub-pro-app">
+            <SuperBoundary key={kitOpen} name="This app"><Suspense fallback={superWaiting}><ProAppInHub id={kitOpen.slice(4)} /></Suspense></SuperBoundary>
           </div>}
           {kitOpen && kitDef(kitOpen) && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">

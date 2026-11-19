@@ -60,6 +60,9 @@ export default function ProApps() {
   const fromHub = params().get("hub");
   const hub = fromHub === "work" ? "#/workhub" : fromHub === "life" ? "#/lifehub" : user?.role === "teacher" ? "#/workhub" : "#/lifehub";
   const fromList = params().get("from") === "apps";
+  // A LifeHub app opened from a link (a timer notification, a widget, an old bookmark): shown inside LifeHub with
+  // its menu, like every other plugin, not on a page of its own. Someone else's shared copy still opens here.
+  useEffect(() => { if (id && fromHub !== "work" && !ownerId && !fromList) window.location.replace(`#/lifehub?go=pro&app=${encodeURIComponent(id)}`); }, [id, fromHub, ownerId, fromList]);
   const found = id ? proApp(id) : undefined;
   const meta = found && PRO_LIVE_GROUPS.includes(found.group) ? found : undefined;
   const App = id ? appComponent(id) : null;
@@ -86,6 +89,17 @@ export default function ProApps() {
       </> : <Gallery onOpen={go} />}
     </div>
   </main>;
+}
+
+/** A premium app inside LifeHub or WorkHub (no page of its own): the hub's menu stays beside it, like any plugin. */
+export function ProAppInHub({ id }: { id: string }) {
+  const found = proApp(id);
+  const meta = found && PRO_LIVE_GROUPS.includes(found.group) ? found : undefined;
+  const App = meta ? appComponent(id) : null;
+  if (!meta || !App) return <Missing />;
+  return <SharedOwnerContext.Provider value={null}>
+    <Suspense fallback={<p className="py-10 text-center text-sm font-semibold text-slate-500">Opening {meta.name}…</p>}><div data-testid={`pro-app-${meta.id}`}><App /></div></Suspense>
+  </SharedOwnerContext.Provider>;
 }
 
 /** Whose app this is, and whether you can change it. With View only, a try to change something flashes a reminder. */
