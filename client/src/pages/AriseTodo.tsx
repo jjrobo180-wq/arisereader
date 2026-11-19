@@ -1,4 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
+import { listenForDuoLinks } from "@/lib/duoLinks";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import ShareNews from "@/components/family-hub/ShareNews";
 import { Redirect, useLocation } from "wouter";
@@ -954,6 +955,16 @@ export default function AriseTodo() {
   const nativeTasksOpen = useRef(false);
   const latest = useRef({ data, toggleDone, openAdd, goTasks: () => goSection("tasks") });
   latest.current = { data, toggleDone, openAdd, goTasks: () => goSection("tasks") };
+  // Home Screen widgets: a tap opens that widget's section, and a link on the Link page widget opens in Safari.
+  const goSectionRef = useRef(goSection);
+  goSectionRef.current = goSection;
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    listenForDuoLinks((section) => {
+      if (section === "tasks" && nativeTasksAvailable()) { latest.current.goTasks(); return; }
+      if ((FAMILY_SECTIONS as readonly string[]).includes(section)) goSectionRef.current(section);
+    });
+  }, []);
   // The focus timer: what's running (read again whenever the app comes back), and its Done and Stop buttons.
   useEffect(() => {
     if (!focusSupported()) return;

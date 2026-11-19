@@ -7,6 +7,13 @@ import type { WidgetSlot, WidgetTap } from "./widgets";
 
 // The widgets themselves (ids and names) are listed in widgets.json next to the app's iOS project; the build reads it.
 
+/** A link that opens a LifeHub section in Arise To Duo (handled by listenForDuoLinks in AriseTodo.tsx). */
+export const duoOpen = (section: string) => `arisetodo://open?s=${encodeURIComponent(section)}`;
+/** A link that opens a web address from a widget (the app hands it to Safari). */
+export const duoLink = (url: string) => `arisetodo://link?u=${encodeURIComponent(url)}`;
+/** Each widget's section. */
+const OPENS: Record<string, string> = { "duo.agenda": "calendar", "duo.todos": "tasks", "duo.bills": "money", "duo.goals": "goals", "duo.notes": "notes", "duo.countdown": "countdowns", "duo.email": "tasks", "duo.weather": "weather", "duo.chores": "chores", "duo.week": "calendar" };
+
 export type DuoTask = { id: string; title: string; due: string; time: string; done: boolean; listName?: string };
 
 const clock = (t: string) => { if (!t) return ""; const [h, m] = t.split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
@@ -61,7 +68,7 @@ export function duoWidgetSlots(family: Family, tasks: DuoTask[], today: string, 
   const week: string[] = [];
   for (let i = 0; i < 7 && week.length < 8; i++) { const d = addDays(today, i); for (const e of on("calendar") ? eventsOn(family, d, true) : []) { if (week.length < 8) week.push(`${i === 0 ? "Today" : new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}  ${clock(e.time) || "All day"}  ${e.title}`); } }
   slots.push({ id: "duo.week", title: "This week", value: week.length ? `${week.length}+` : "Open", detail: week[0] ?? "Nothing planned", tint: "#f97316", lines: week });
-  return slots;
+  return slots.map((x) => (OPENS[x.id] && !x.open ? { ...x, open: duoOpen(OPENS[x.id]) } : x));
 }
 
 /** What checklist taps on the widgets mean: the to-dos to check off (only ones not done yet, so a second tap

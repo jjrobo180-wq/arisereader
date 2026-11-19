@@ -1,6 +1,7 @@
 // Accountability (an Arise To Duo app; shared/accountability.ts, server/accountability.ts): a space
 // you share with your partner or family. Ask for something once or on repeat, they're nudged until
 // it's done, and they check it off with a photo or video, an AI worksheet, or a quiz your child took.
+import { duoOpen } from "@/lib/duoWidgets";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, Bell, Camera, Check, ChevronLeft, ClipboardList, Hand, ListChecks, Loader2, Pencil, Plus, Printer, RotateCcw, Share2, Sparkles, Star, Trash2, Users, Video, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -97,7 +98,7 @@ export default function Accountability({ say }: SectionProps) {
     if (!data || !me) return;
     const stats = personStats(me, tasks, checkins, today);
     const dueToday = tasks.filter((t) => t.assignee === me && !t.archived && dueOn(t, today) && !isDone(checkinFor(checkins, t.id, today)));
-    publishWidgets([{ id: "duo.accountability", title: "Accountability", value: stats.todayDue ? `${stats.todayDone}/${stats.todayDue}` : "None due", detail: stats.todayDue ? (dueToday[0]?.title ?? "All done today") : "Nothing asked of you today", tint: "#0d9488",
+    publishWidgets([{ open: duoOpen("accountability"), id: "duo.accountability", title: "Accountability", value: stats.todayDue ? `${stats.todayDone}/${stats.todayDue}` : "None due", detail: stats.todayDue ? (dueToday[0]?.title ?? "All done today") : "Nothing asked of you today", tint: "#0d9488",
       progress: stats.todayDue ? stats.todayDone / stats.todayDue : 0, lines: [...dueToday.slice(0, 6).map((t) => t.title), `Week: ${stats.rate}% done`] }]);
   }, [data, tasks, checkins, today, me]); // eslint-disable-line react-hooks/exhaustive-deps
   const nameOf = (id: number) => (id === me ? "You" : space?.members.find((m) => m.userId === id)?.name || "Someone");

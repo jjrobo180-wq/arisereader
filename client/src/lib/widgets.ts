@@ -29,7 +29,14 @@ export type WidgetSlot = {
   qr?: string;
   /** Things to check off right on the widget (the ".check" checklist widgets); taps come back with `item`. */
   items?: { id: string; text: string }[];
+  /** Where a tap on the widget goes: an app link ("arisetodo://open?s=calendar"). Left out, the app just opens. */
+  open?: string;
+  /** For each of `lines`, where a tap on that line goes (the Link page widget: each link). Same rules as `open`. */
+  urls?: string[];
 };
+
+/** A link a widget may open: the app's own scheme (arisetodo://…) or a web address. */
+export const widgetLinkOk = (v: unknown): v is string => typeof v === "string" && /^(?:[a-z][a-z0-9+.-]{1,30}:\/\/)[^\s"<>]{0,600}$/i.test(v) && !/^(?:javascript|data|file):/i.test(v);
 /** A tap on a widget: a button (`action`, `amount`) or a checklist circle (`action` "check", `item` its id). */
 export type WidgetTap = { id: string; action: string; amount: number; at: number; item?: string };
 
@@ -54,6 +61,8 @@ export function cleanSlots(slots: WidgetSlot[]): WidgetSlot[] {
     ...(Number.isFinite(s.goal) ? { goal: s.goal } : {}),
     ...(s.unit ? { unit: text(s.unit, 8) } : {}),
     ...(typeof s.qr === "string" && /^https:\/\/[^\s]{4,300}$/.test(s.qr) ? { qr: s.qr } : {}),
+    ...(widgetLinkOk(s.open) ? { open: s.open } : {}),
+    ...(Array.isArray(s.urls) && s.urls.length ? { urls: s.urls.slice(0, 8).map((u) => (widgetLinkOk(u) ? u : "")) } : {}),
     ...(Array.isArray(s.items) ? { items: s.items.filter((i) => i && /^[\w.:@\-]{1,120}$/.test(String(i.id))).slice(0, 12).map((i) => ({ id: String(i.id), text: text(i.text, 60) })) } : {}),
   }));
 }

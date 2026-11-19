@@ -1,5 +1,6 @@
 // The Link page on Home: a small card of your page (your mark, name and address) with one tap to copy or
 // share it, open it, or edit it, and your links below as tiles. Shown when the page has links.
+import { duoLink, duoOpen } from "@/lib/duoWidgets";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, Copy, Loader2, Pencil, Share2 } from "lucide-react";
 import type { LinkPage } from "@shared/familyHub";
@@ -58,7 +59,8 @@ export function linkPageSlot(page: LinkPage, url?: string): WidgetSlot {
     id: "duo.linkpage", title: name, value: monogram(name),
     detail: short || "Share your page to get a QR code",
     tint: THEME_COLORS[page.theme ?? "light"].page,
-    ...(page.links.length ? { lines: page.links.slice(0, 8).map((l) => l.title) } : {}),
+    ...(page.links.length ? { lines: page.links.slice(0, 8).map((l) => l.title), urls: page.links.slice(0, 8).map((l) => (/^https?:\/\//i.test(l.url) ? duoLink(l.url) : duoOpen("links"))) } : {}),
+    open: duoOpen("links"),
     ...(url ? { qr: url } : {}),
   };
 }

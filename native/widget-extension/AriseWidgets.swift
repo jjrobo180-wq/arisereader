@@ -45,6 +45,18 @@ struct Slot: Codable {
     var qr: String?
     /// Things to check off (the checklist widgets).
     var items: [SlotItem]?
+    /// Where a tap on the widget goes (an app link like arisetodo://open?s=calendar). Without it the app just opens.
+    var open: String?
+    /// For each of `lines`, where a tap on that line goes (the Link page widget: each link).
+    var urls: [String]?
+}
+
+/// The address a tap on a widget opens, if the app sent one.
+func tapURL(_ slot: Slot) -> URL? { slot.open.flatMap { $0.isEmpty ? nil : URL(string: $0) } }
+/// The address a tap on line `i` opens, if the app sent one.
+func lineURL(_ slot: Slot, _ i: Int) -> URL? {
+    guard let urls = slot.urls, i < urls.count, !urls[i].isEmpty else { return nil }
+    return URL(string: urls[i])
 }
 
 struct SlotItem: Codable {
@@ -552,6 +564,7 @@ struct SimpleWidget {
     var config: some WidgetConfiguration {
         StaticConfiguration(kind: "Arise.\(id)", provider: SimpleProvider(id: id, name: name)) { entry in
             SimpleView(entry: entry).containerBackground(for: .widget) { GradientBackground(theme: Theme.vivid(entry.slot.tint)) }
+                .widgetURL(tapURL(entry.slot))
         }
         .configurationDisplayName(name)
         .description("Colourful, with a live ring. Updates when you open the app.")
@@ -565,6 +578,7 @@ struct DetailWidget {
     var config: some WidgetConfiguration {
         StaticConfiguration(kind: "Arise.\(id).detail", provider: DetailProvider(id: id, name: name)) { entry in
             DetailView(entry: entry).containerBackground(for: .widget) { GradientBackground(theme: Theme.look(entry.look, tint: entry.slot.tint)) }
+                .widgetURL(tapURL(entry.slot))
         }
         .configurationDisplayName(name + " +") // a plain String: an interpolated name crashed the extension
         .description("Detailed, with a spotlight that moves through your day.")
@@ -654,14 +668,16 @@ struct LinkPageEntryView: View {
                     Text(verbatim: "Scan to see my links").font(.system(size: 12, weight: .medium)).foregroundStyle(sub).frame(maxWidth: .infinity)
                 }
                 VStack(spacing: 6) {
-                    ForEach(Array((s.lines ?? []).prefix(qr == nil ? 7 : 3).enumerated()), id: \.offset) { _, line in
-                        HStack {
+                    ForEach(Array((s.lines ?? []).prefix(qr == nil ? 7 : 3).enumerated()), id: \.offset) { i, line in
+                        let row = HStack {
                             Text(verbatim: line).font(.system(size: 13, weight: .medium)).foregroundStyle(ink).lineLimit(1)
                             Spacer(minLength: 0)
                             Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(sub)
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(ink.opacity(0.14), lineWidth: 1))
+                        // Each link is its own tap: the app gets the link and opens it in Safari.
+                        if let url = lineURL(s, i) { Link(destination: url) { row } } else { row }
                     }
                 }
                 Spacer(minLength: 0)
@@ -688,6 +704,7 @@ struct LinkPageWidget {
     var config: some WidgetConfiguration {
         StaticConfiguration(kind: "Arise.\(id)", provider: SimpleProvider(id: id, name: name)) { entry in
             LinkPageEntryView(entry: entry).containerBackground(for: .widget) { RGB(entry.slot.tint ?? "#ffffff").color }
+                .widgetURL(tapURL(entry.slot))
         }
         .configurationDisplayName(name)
         .description("Your Link page, with a QR code anyone can scan to open it.")
@@ -804,6 +821,7 @@ struct ChecklistWidget {
         let base = id.hasSuffix(".check") ? String(id.dropLast(".check".count)) : id
         return StaticConfiguration(kind: "Arise.\(id)", provider: ChecklistProvider(base: base, name: name)) { entry in
             ChecklistView(entry: entry).containerBackground(for: .widget) { GradientBackground(theme: Theme.vivid(entry.slot.tint)) }
+                .widgetURL(tapURL(entry.slot))
         }
         .configurationDisplayName(name)
         .description("Tap a circle to check it off, without opening the app.")
