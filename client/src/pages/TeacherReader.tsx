@@ -16,7 +16,8 @@ import GetReaderApp from "@/components/GetReaderApp";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
-import { AdvisoryStandings, GamesBeginStaffPopup, datesText } from "@/components/AdvisoryChallenge";
+import { AdvisoryStandings, ChallengeStatus, GamesBeginStaffPopup } from "@/components/AdvisoryChallenge";
+import { challengeEnded } from "@shared/advisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { ordinal } from "@shared/advisoryChallenge";
 import { nameWords } from "@shared/classTeachers";
@@ -483,7 +484,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             <h1 className="text-[30px] font-black tracking-[-0.02em]">Advisory Challenge</h1>
             {challenge?.challenge ? (
               <section className="flex flex-col gap-3 rounded-[18px] border p-4" style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
-                <p className="text-sm font-semibold leading-relaxed text-white/75">{datesText(challenge as any)}</p>
+                <ChallengeStatus view={challenge} mineName={mine?.name} />
                 <AdvisoryStandings view={challenge} mineName={mine?.name} />
               </section>
             ) : <p className="text-[15px]" style={{ color: "#a29fb8" }}>{challenge === undefined ? "Loading…" : "Your school has no Advisory Challenge running."}</p>}
@@ -588,8 +589,8 @@ function ParentLeaderboards({ token, challenge }: { token: string | null; challe
     <p className="-mt-2 text-[15px]" style={{ color: "#c9c5dc" }}>Every race going on right now. Points come from passing reading quizzes.</p>
     {challenge?.challenge && (
       <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
-        <h2 className="text-lg font-extrabold">Advisory Challenge · prize: pizza party</h2>
-        <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>{datesText(challenge as any)}{challenge.mine?.advisory ? ` Your child’s advisory is ${challenge.mine.advisory}.` : ""}</p>
+        <h2 className="text-lg font-extrabold">Advisory Challenge · {challengeEnded(challenge.challenge.phase) ? "over" : "prize: pizza party"}</h2>
+        <div className="mb-3 mt-1" style={{ color: "#c9c5dc" }}><ChallengeStatus view={challenge} mineName={challenge.mine?.advisory} className="text-sm" extra={challenge.mine?.advisory ? ` Your child’s advisory is ${challenge.mine.advisory}.` : ""} /></div>
         <AdvisoryStandings view={challenge} mineName={challenge.mine?.advisory} />
       </section>
     )}
@@ -761,7 +762,8 @@ function ChallengeKit({ challenge, mineName, onStandings }: { challenge: ReturnT
     </section>
     {challenge?.challenge && (
       <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
-        <h2 className="mb-3 text-lg font-extrabold">Standings right now</h2>
+        <h2 className="mb-3 text-lg font-extrabold">{challengeEnded(challenge.challenge.phase) ? "Final standings" : "Standings right now"}</h2>
+        {challengeEnded(challenge.challenge.phase) && <div className="mb-3"><ChallengeStatus view={challenge} mineName={mineName} /></div>}
         <AdvisoryStandings view={challenge} mineName={mineName} />
       </section>
     )}

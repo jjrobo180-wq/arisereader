@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  CGMS_FALL_2026, challengeForSchool, challengePhase, challengeWindow, dayLabel, dayStartMs, daysLeft, nextDay, ordinal, rankAdvisories,
+  CGMS_FALL_2026, challengeEnded, challengeForSchool, challengePhase, challengeWinners, joinNames, challengeWindow, dayLabel, dayStartMs, daysLeft, nextDay, ordinal, rankAdvisories,
 } from "../shared/advisoryChallenge";
 import { advisoriesForSchool } from "../shared/advisories";
 import { registerAdvisoryChallengeRoutes } from "../server/advisoryChallenge";
@@ -368,4 +368,37 @@ test("admins can delete accounts in bulk, but never admins, themselves or sample
 test("the students' library banner shows a big countdown clock on the last day", () => {
   const banner = readFileSync(new URL("../client/src/components/AdvisoryChallenge.tsx", import.meta.url), "utf8");
   assert.ok(banner.includes('data-testid="challenge-timer"') && banner.includes("countdownText((v.challenge as any).endMs)"));
+});
+
+test("once the challenge is over, the winner and 'it's over' lead everywhere the standings show", () => {
+  assert.equal(challengeEnded("over"), true);
+  assert.equal(challengeEnded("done"), true);
+  assert.equal(challengeEnded("live"), false);
+  assert.equal(challengeEnded("soon"), false);
+  assert.equal(challengeEnded(undefined), false);
+  const rows = [{ rank: 1, points: 4368 }, { rank: 2, points: 4249 }, { rank: 6, points: 790 }];
+  assert.deepEqual(challengeWinners(rows), [rows[0]]);
+  assert.deepEqual(challengeWinners([{ rank: 1, points: 12 }, { rank: 1, points: 12 }, { rank: 3, points: 5 }]).length, 2, "a tie for first has two winners");
+  assert.deepEqual(challengeWinners([{ rank: 1, points: 0 }, { rank: 1, points: 0 }]), [], "nobody scored: nobody won");
+  assert.equal(joinNames(["A"]), "A");
+  assert.equal(joinNames(["A", "B"]), "A and B");
+  assert.equal(joinNames(["A", "B", "C"]), "A, B and C");
+
+  const comp = read("client/src/components/AdvisoryChallenge.tsx");
+  // The headline names the winner (the reader's own place is a smaller line in the result panel).
+  assert.match(comp, /if \(winners\.length\) return `\$\{joinNames\(winners\.map\(\(w\) => w\.name\)\)\} won!`;/);
+  assert.match(comp, /data-testid="challenge-result"/);
+  assert.match(comp, /The challenge is over · Final results/);
+  assert.match(comp, /data-testid="challenge-winner"/);
+  assert.match(comp, /finished \{placeText\(view\.standings, mine\.rank\)\} of \{view\.standings\.length\}/, "your own place, in the past tense");
+  assert.match(comp, /data-testid="challenge-over-pill"/, "the library banner says Over");
+  assert.match(comp, /\{over \? <div className="mt-2"><ChallengeResult view=\{v\} mineName=\{mine\?\.advisory\} \/><\/div> : <>/, "the banner swaps the 'in 6th place' lines for the result");
+  assert.match(comp, /data-testid="advisory-winner-chip"/, "the winner's row is tagged");
+  assert.match(comp, /<ChallengeStatus view=\{v\} mineName=\{mine\?\.advisory\}/, "the sign-in pop-up too");
+  // Every board shows the dates line while it runs and the result once it's over.
+  for (const f of ["client/src/pages/StudentProgress.tsx", "client/src/pages/LeaderboardPage.tsx", "client/src/pages/TeacherReader.tsx"]) {
+    const src = read(f);
+    assert.match(src, /<ChallengeStatus view=\{challenge\}/, f);
+    assert.doesNotMatch(src, /\{datesText\(challenge as any\)\}/, `${f} still prints only the dates line`);
+  }
 });

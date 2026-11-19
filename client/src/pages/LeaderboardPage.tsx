@@ -8,7 +8,7 @@ import { BrandText } from "@/components/BrandText";
 import { useAuth } from "@/context/AuthContext";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 import MonthCountdown from "@/components/MonthCountdown";
-import { AdvisoryStandings, datesText } from "@/components/AdvisoryChallenge";
+import { AdvisoryStandings, ChallengeStatus } from "@/components/AdvisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { monthLabel, previousYearMonth, recentSchoolMonths, schoolYearMonth } from "@shared/schoolMonth";
 
@@ -396,7 +396,7 @@ export default function LeaderboardPage() {
               <div className="bg-[#151326] p-4 sm:p-6">
                 {challenge && challenge.challenge ? (
                   <div className="space-y-3">
-                    <p className="text-sm text-white/75">{datesText(challenge as any)}</p>
+                    <ChallengeStatus view={challenge} className="text-sm text-white/75" />
                     <AdvisoryStandings view={challenge} />
                   </div>
                 ) : advisoryData.length === 0 ? (

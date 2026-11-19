@@ -143,6 +143,21 @@ export function ordinal(n: number): string {
   return `${n}${["th", "st", "nd", "rd"][n % 10] || "th"}`;
 }
 
+/** True once the challenge has ended (through the prize day, and after it). */
+export function challengeEnded(phase: ChallengePhase | undefined): boolean {
+  return phase === "over" || phase === "done";
+}
+
+/** The advisories in first place with points on the board: more than one when they are tied. */
+export function challengeWinners<T extends { rank: number; points: number }>(standings: readonly T[]): T[] {
+  return standings.filter((s) => s.rank === 1 && s.points > 0);
+}
+
+/** "A", "A and B", "A, B and C". */
+export function joinNames(names: readonly string[]): string {
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 /** What the challenge payload looks like to the site. */
 export type ChallengeView = {
   challenge: (Challenge & { phase: ChallengePhase; daysLeft: number; endMs?: number }) | null;

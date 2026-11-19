@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Award, CheckCircle2, Flame, Gift, Lock, Medal, Trophy, Zap } from "lucide-react";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 import MonthCountdown from "@/components/MonthCountdown";
-import { AdvisoryStandings, datesText, headline } from "@/components/AdvisoryChallenge";
+import { AdvisoryStandings, ChallengeStatus, headline } from "@/components/AdvisoryChallenge";
+import { challengeEnded } from "@shared/advisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
 
@@ -381,16 +382,16 @@ export default function StudentProgress() {
         {tab === "leaderboard" && board === "advisories" && challenge && challenge.challenge && (
           <section className="overflow-hidden rounded-2xl border border-[#f2542d]/40 bg-[#1a1020] text-white" data-testid="advisory-challenge-board">
             <div className="flex items-start gap-3 bg-gradient-to-br from-[#f2542d] to-[#c2361b] px-4 py-4 sm:px-5">
-              <span className="text-3xl leading-none" aria-hidden="true">🍕</span>
+              <span className="text-3xl leading-none" aria-hidden="true">{challengeEnded(challenge.challenge.phase) ? "🏆" : "🍕"}</span>
               <div className="min-w-0">
-                <h2 className="text-lg font-black leading-tight">Advisory Challenge</h2>
-                <p className="mt-0.5 text-sm font-bold text-white/90">
+                <h2 className="flex flex-wrap items-center gap-2 text-lg font-black leading-tight">Advisory Challenge{challengeEnded(challenge.challenge.phase) && <span className="rounded-full bg-[#ffc93c] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#2a1405]" data-testid="challenge-over-pill">Over</span>}</h2>
+                <p className={`mt-0.5 font-bold text-white/90 ${challengeEnded(challenge.challenge.phase) ? "text-xl font-black text-white" : "text-sm"}`}>
                   {headline(challenge as any)}
                 </p>
               </div>
             </div>
             <div className="space-y-3 p-4 sm:p-5">
-              <p className="text-sm font-semibold leading-relaxed text-white/75">{datesText(challenge as any)}</p>
+              <ChallengeStatus view={challenge} mineName={challenge.mine?.advisory} />
               <AdvisoryStandings view={challenge} mineName={challenge.mine?.advisory} />
             </div>
           </section>
