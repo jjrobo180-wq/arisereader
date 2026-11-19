@@ -215,3 +215,9 @@ test("Update app: one shared download per version (taps don't start it over), an
   assert.match(kids, /if \(updating\.current\) return;/);
   assert.match(kids, /Downloading the update… \$\{p\}%/);
 });
+
+test("Wren Talker frame names its file (iPhone app answers a folder address with the app's front page = blank screen)", () => {
+  const w = read("client/src/pages/EyeGazeWren.tsx");
+  assert.match(w, /<iframe src="\/eyegaze\/wren\/index\.html"/);
+  assert.doesNotMatch(w, /<iframe src="\/eyegaze\/wren\/"/);
+});

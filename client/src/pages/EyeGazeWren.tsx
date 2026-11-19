@@ -67,7 +67,9 @@ export default function EyeGazeWren() {
       {isNativeApp() && nativeFlavor() !== "eyegaze"
         ? <p className="p-6 text-center text-slate-600" data-testid="wren-not-here">Wren Talker is in the Arise AAC app. Open Arise AAC to use it.</p>
         : ready
-        ? <iframe src="/eyegaze/wren/" title="Wren talker" allow="autoplay; camera" className="w-full flex-1 border-0 bg-white" data-testid="frame-wren" />
+        // Name the file: in the iPhone app a folder address (no ".html") is answered with the app's own
+        // front page, so Wren showed a blank white screen there.
+        ? <iframe src="/eyegaze/wren/index.html" title="Wren talker" allow="autoplay; camera" className="w-full flex-1 border-0 bg-white" data-testid="frame-wren" />
         : <p className="p-6 text-center text-slate-600">Sign in to your Arise AAC account to use Wren.</p>}
     </div>
   );
