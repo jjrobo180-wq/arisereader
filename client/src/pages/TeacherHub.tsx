@@ -795,6 +795,15 @@ function TeacherHubPage() {
   }), [setWorkspace]);
   const hubLook = useHubLook(layout.theme, night);
   const hubRootRef = useRef<HTMLDivElement | null>(null);
+  // WorkHub never scrolls sideways: a trackpad swipe used to slide the whole page left (the menu's icons and the
+  // WorkHub name cut off), because "100vw" counts the scrollbar and anything a pixel too wide let the page move.
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const before = [html.style.overflowX, body.style.overflowX];
+    html.style.overflowX = "clip"; body.style.overflowX = "clip";
+    if (window.scrollX) window.scrollTo({ left: 0, top: window.scrollY });
+    return () => { html.style.overflowX = before[0]; body.style.overflowX = before[1]; };
+  }, []);
   useNativeBackdrop(hubRootRef, [night, layout.theme, hubLook.look?.id]);
   const setLayout = (next: HubLayout) => { const stamped = stampLook(layout, next); setWorkspace((p) => ({ ...p, layout: stamped })); window.dispatchEvent(new Event(SHARED_LOOK_EVENT)); };
   /** A look runs as its own system, everywhere but the Duo's book view and split-screen panes. */
@@ -1264,7 +1273,7 @@ function TeacherHubPage() {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}><WidgetLinksProvider page={workLinks} open={() => openKit("link-page")}>
-    <div ref={hubRootRef} className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
+    <div ref={hubRootRef} className={`${hubLook.look ? "" : "hub-paper hub-lifelook "}min-h-screen w-full max-w-full overflow-x-clip bg-slate-100 text-slate-950 ${night && !hubLook.look ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""} ${hubLook.className}`}
       style={{ ...hubLook.style, "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {canUseHub && loaded && !loadError && !needsPlan && <HubCoach userId={user.id} hub="work" />}

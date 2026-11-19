@@ -41,35 +41,54 @@ export type HubImportDeps = {
 class HubAiError extends Error {}
 
 const AI_MODEL = "gpt-4.1";
+/** Tried once when the first model turns a request down. */
+const AI_FALLBACK_MODEL = "gpt-4o";
 
 /** The site's AI service (the same one the photo tools already use). */
 async function askOpenAI(request: AiRequest): Promise<string> {
-  const content = request.parts.map((part) => {
+  // The AI always gets a line of words first: a request that's only a PDF or only photos can be turned down.
+  const parts: AiPart[] = request.parts[0]?.type === "text" ? request.parts : [{ type: "text", text: "Read this and reply in JSON as described." }, ...request.parts];
+  const hasPdf = parts.some((p) => p.type === "pdf");
+  const content = parts.map((part) => {
     if (part.type === "text") return { type: "text", text: part.text };
     if (part.type === "image") return { type: "image_url", image_url: { url: part.dataUrl, detail: "high" } };
-    return { type: "file", file: { filename: part.name, file_data: `data:application/pdf;base64,${part.base64}` } };
+    // A plain file name: accents, emoji and odd characters in a name can make the AI refuse the file.
+    const filename = `${(part.name.replace(/\.pdf$/i, "").normalize("NFKD").replace(/[^\w .-]+/g, "").trim().slice(0, 60) || "schedule")}.pdf`;
+    return { type: "file", file: { filename, file_data: `data:application/pdf;base64,${part.base64}` } };
   });
-  let response: Response;
-  try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        temperature: 0.1,
-        max_tokens: 9000,
-        response_format: { type: "json_object" },
-        messages: [{ role: "system", content: request.system }, { role: "user", content }],
-      }),
-      signal: AbortSignal.timeout(80_000),
-    });
-  } catch (error: any) {
-    throw new HubAiError(error?.name === "TimeoutError" ? "That took too long to read. Try a smaller piece." : "The AI could not be reached. Try again in a moment.");
+  const send = async (model: string) => {
+    try {
+      return await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          temperature: 0.1,
+          max_tokens: 9000,
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: request.system }, { role: "user", content }],
+        }),
+        signal: AbortSignal.timeout(110_000),
+      });
+    } catch (error: any) {
+      throw new HubAiError(error?.name === "TimeoutError" ? "That took too long to read. Try a smaller piece." : "The AI could not be reached. Try again in a moment.");
+    }
+  };
+  let response = await send(AI_MODEL);
+  // Turned down: say why in the log (the AI's own error code, never what was sent), then try once more with the
+  // other vision model (a retired model, or a PDF one model won't take, shouldn't stop the teacher).
+  const why = async (r: Response) => { const b: any = await r.json().catch(() => null); return { code: String(b?.error?.code || b?.error?.type || r.status), msg: String(b?.error?.message || "").slice(0, 200) }; };
+  if (!response.ok && response.status !== 429) {
+    const first = await why(response);
+    console.error("[teacher-hub] AI request failed:", response.status, first.code, first.msg);
+    response = await send(AI_FALLBACK_MODEL);
   }
   if (!response.ok) {
-    // Only the status is logged: the reply can quote what the teacher sent.
-    console.error("[teacher-hub] AI request failed:", response.status);
-    throw new HubAiError(response.status === 429 ? "The AI is busy right now. Try again in a minute." : "The AI could not read that. Try again, or paste the text instead.");
+    const last = await why(response);
+    console.error("[teacher-hub] AI retry failed:", response.status, last.code, last.msg);
+    if (response.status === 429) throw new HubAiError("The AI is busy right now. Try again in a minute.");
+    if (hasPdf) throw new HubAiError(`The AI couldn't open that PDF (${last.code}). Take a screenshot of the schedule and add that instead.`);
+    throw new HubAiError(`The AI could not read that (${last.code}). Try a clearer photo or a screenshot.`);
   }
   const payload: any = await response.json().catch(() => null);
   if (payload?.choices?.[0]?.finish_reason === "length") throw new HubAiError("That was too much to read at once. Try a smaller piece.");
