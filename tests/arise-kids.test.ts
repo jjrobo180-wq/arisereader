@@ -116,6 +116,21 @@ test("Shorts open for anyone signed in, and the site owner can use every Arise A
   assert.match(shorts, /const raw = child \? await storage\.getSetting/);
 });
 
+test("no dead ends: every page in the Arise AAC app has the tab bar back to Home/Apps, for any account", () => {
+  const shell = read("client/src/components/EyeGazeSiteShell.tsx");
+  assert.match(shell, /const inAacApp = isEyeGazerApp\(\);/);
+  assert.match(shell, /if \(\(!isEyeGazer && !inAacApp\) \|\| !user/);
+  assert.match(read("client/src/pages/ReadingLevelUp.tsx"), /navigate\(isEyeGazerApp\(\) \? "\/eye-gaze-apps" : "\/library"\)/);
+  // Each game inside Eye-gaze games has its own way back.
+  for (const f of ["client/src/pages/AnimalSplashGame.tsx", "client/src/pages/ReadingRunnerPro.tsx", "client/src/pages/ReadingNinja.tsx", "client/src/pages/eye-gaze/MatchPairsGame.tsx", "client/src/pages/eye-gaze/WordPopGame.tsx", "client/src/pages/eye-gaze/SentenceTrainGame.tsx"])
+    assert.match(read(f), /onClick=\{onBack\}|onBack\(\)/, f);
+});
+
+test("the server build fits Render's 2 GB build machine (no gzip size report holding every file in memory)", () => {
+  assert.match(read("vite.config.ts"), /reportCompressedSize: false/);
+  assert.ok(!/addTask=\{[^}]*\}\} addTask=/.test(read("client/src/pages/TeacherHub.tsx")), "no duplicate addTask prop");
+});
+
 test("Apps → Me has Update app, which gets the newest version now and says what happened", () => {
   const me = SHELVES.find((s) => s.name === "Me")!;
   assert.ok(me.tiles.some((t) => t.name === "Update app" && t.game === "update"));

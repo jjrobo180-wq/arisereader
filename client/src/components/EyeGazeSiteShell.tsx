@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { BookOpen, Gamepad2, Home, LogOut, MessageCircle, UserRound } from "lucide-react";
 import { KidsTabBar } from "@/pages/arise-kids/kidsUi";
+import { isEyeGazerApp } from "@/lib/nativeApp";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
@@ -16,9 +17,12 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const [parentControls, setParentControls] = useState<ParentControls>(cachedParentControls());
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
+  const inAacApp = isEyeGazerApp();
   // Arise Kids (Home, Apps, Stickers) draws its own screens edge to edge, with its own tab bar.
   const kidsScreen = location === "/eye-gaze-home" || location === "/eye-gaze-apps" || location === "/eye-gaze-stickers";
-  const immersiveRoute = kidsScreen || location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
+  // Each game on its own page, and the Quizzes and Books apps (they draw their own bar), are full screen too.
+  const kidsPage = location.startsWith("/eye-gaze-play/") || location === "/eye-gaze-quizzes" || location === "/eye-gaze-books";
+  const immersiveRoute = kidsScreen || kidsPage || location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
   const immersive = immersiveRoute || (location === "/eye-gaze-games" && gameImmersive);
 
   useEffect(() => {
@@ -71,7 +75,9 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     return () => window.removeEventListener("eye-gaze-profile-photo-updated", handler);
   }, []);
 
-  if (!isEyeGazer || location === "/to-do" || location === "/lifehub") return <>{children}</>;
+  // Everyone inside the Arise AAC app gets the tab bar back to Home/Apps/Stickers (a grown-up or the site owner
+  // trying it too, not only an Arise AAC child), so no page is a dead end.
+  if ((!isEyeGazer && !inAacApp) || !user || location === "/to-do" || location === "/lifehub") return <>{children}</>;
 
   // Five tabs, like an App Store app (Life Skills, My World and the rest are on Home). Grown-ups' choices decide
   // which ones a child sees.

@@ -16,6 +16,9 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Render's build has a 2 GB machine; working out each file's gzip size for the report holds every file in
+    // memory at the end and ran it out of memory (Nov 18, 2026). The sizes are only printed, never used.
+    reportCompressedSize: false,
     // Two pages: the A.R.I.S.E. / Arise To Duo app, and Arise Notes on its own at /notes/.
     rollupOptions: {
       input: {

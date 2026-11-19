@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI } from "@/lib/tts";
+import { isEyeGazerApp } from "@/lib/nativeApp";
 import {
   ArrowLeft,
   Award,
@@ -683,8 +684,8 @@ export default function ReadingLevelUp() {
     <div className="min-h-screen bg-[#07111f] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <header className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate("/library")} className="min-h-[48px] px-4 rounded-2xl bg-white/10 border border-white/10 font-black flex items-center gap-2">
-            <ArrowLeft className="w-5 h-5" /> Library
+          <button onClick={() => navigate(isEyeGazerApp() ? "/eye-gaze-apps" : "/library")} className="min-h-[48px] px-4 rounded-2xl bg-white/10 border border-white/10 font-black flex items-center gap-2">
+            <ArrowLeft className="w-5 h-5" /> {isEyeGazerApp() ? "Apps" : "Library"}
           </button>
           <div className="ml-auto flex items-center gap-2 rounded-2xl bg-white/10 border border-white/10 px-4 py-2">
             <Flame className="w-5 h-5 text-orange-400" />
