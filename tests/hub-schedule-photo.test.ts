@@ -66,14 +66,14 @@ test("a schedule can be a PDF or a Word, Excel or text file too, not only a phot
   assert.ok(route.includes("parts: [...fileParts,"));
   const page = readFileSync(new URL("../client/src/components/teacher-hub/HubSchedulePhoto.tsx", import.meta.url), "utf8");
   assert.ok(page.includes('accept="image/*,.pdf,application/pdf,.docx'));
-  assert.ok(page.includes("files: await Promise.all(docs.map("));
+  assert.ok(page.includes("files: await Promise.all(sendDocs.map(") && page.includes("await pdfToImages(doc, room)"), "a PDF is read as pictures of its pages");
 });
 
 test("when the AI turns a schedule down, it retries once with another model, says why, and WorkHub never slides sideways", () => {
   const server = readFileSync(new URL("../server/teacherHubImport.ts", import.meta.url), "utf8");
   assert.ok(server.includes("response = await send(AI_FALLBACK_MODEL);"));
   assert.ok(server.includes('request.parts[0]?.type === "text" ? request.parts : [{ type: "text"'), "a PDF or photo never goes alone");
-  assert.ok(server.includes("The AI couldn't open that PDF (${last.code})"));
+  assert.ok(server.includes("The AI couldn't open that PDF (${last.code}"));
   const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
   assert.ok(hub.includes('html.style.overflowX = "clip"; body.style.overflowX = "clip";'));
 });

@@ -8,6 +8,7 @@ import { HUB_IMPORT_LIMITS } from "@shared/teacherHub";
 import { SCHEDULE_DAYS, addScheduleRows, cleanScheduleRows, type ScheduleRow } from "@shared/hubSchedulePhoto";
 import type { Workspace } from "@shared/teacherHub";
 import { shrinkImage, toBase64 } from "./HubImport";
+import { pdfToImages } from "@/lib/pdfPages";
 import { Card, Field, Labeled, Select } from "./ui";
 import { AddStudentButton } from "./HubQuickAddStudent";
 
@@ -39,9 +40,22 @@ export default function HubSchedulePhoto({ workspace, setWorkspace, token, stude
       for (const file of files.slice(0, HUB_IMPORT_LIMITS.images)) {
         try { images.push(await shrinkImage(file)); } catch { throw new Error("That photo could not be opened. Try a screenshot, or save it as a JPEG first."); }
       }
+      // A PDF is turned into pictures of its pages here, the way a photo is read (a PDF sent as a file can be
+      // turned down by the AI, like a locked school-system printout). If that can't be done, it goes as a file.
+      const sendDocs: File[] = [];
+      for (const doc of docs) {
+        const room = HUB_IMPORT_LIMITS.images - images.length;
+        if (/\.pdf$/i.test(doc.name) || doc.type === "application/pdf") {
+          if (room > 0) {
+            try { const pages = await pdfToImages(doc, room); if (pages.length) { images.push(...pages); continue; } }
+            catch (e: any) { if (/password/i.test(String(e?.name || e?.message))) throw new Error("That PDF has a password. Open it, take a screenshot of the schedule and add that instead."); }
+          }
+        }
+        sendDocs.push(doc);
+      }
       const response = await fetch(`${API_BASE}/api/teacher-hub/import/schedule`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ images, student, files: await Promise.all(docs.map(async (f) => ({ name: f.name, data: await toBase64(f) }))) }),
+        body: JSON.stringify({ images, student, files: await Promise.all(sendDocs.map(async (f) => ({ name: f.name, data: await toBase64(f) }))) }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "That could not be read right now. Try again in a moment.");

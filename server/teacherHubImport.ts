@@ -87,7 +87,7 @@ async function askOpenAI(request: AiRequest): Promise<string> {
     const last = await why(response);
     console.error("[teacher-hub] AI retry failed:", response.status, last.code, last.msg);
     if (response.status === 429) throw new HubAiError("The AI is busy right now. Try again in a minute.");
-    if (hasPdf) throw new HubAiError(`The AI couldn't open that PDF (${last.code}). Take a screenshot of the schedule and add that instead.`);
+    if (hasPdf) throw new HubAiError(`The AI couldn't open that PDF (${last.code}${last.msg ? `: ${last.msg.slice(0, 120)}` : ""}). Take a screenshot of the schedule and add that instead.`);
     throw new HubAiError(`The AI could not read that (${last.code}). Try a clearer photo or a screenshot.`);
   }
   const payload: any = await response.json().catch(() => null);
