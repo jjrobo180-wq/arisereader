@@ -134,8 +134,8 @@ export default function FarmWorldGame({ onBack }: { onBack: () => void }) {
           {riding ? <GazeButton dwell={D} onSelect={() => g()?.dismount()} className={btn + " bg-rose-500 text-white"}>🛑 Get off {riding.name.split(" ")[0]}</GazeButton>
             : nearRide ? <GazeButton dwell={D} onSelect={() => g()?.ride(nearRide.id)} className={btn + " bg-amber-400"}>{nearRide.emoji} Ride {nearRide.name.split(" ")[0]}</GazeButton> : null}
           <div className="flex gap-2">
-            <GazeButton dwell={D} onSelect={() => setPanel(p => p === "places" ? null : "places")} className={btn + " bg-white/90"} label="Places">📍<span className="hidden sm:inline">Places</span></GazeButton>
-            <GazeButton dwell={D} onSelect={() => { setPlacing(null); setPanel(p => p === "feed" ? null : "feed"); }} className={btn + " bg-amber-300/95"} label="Feed the animals">🥕<span className="hidden sm:inline">Feed</span></GazeButton>
+            <GazeButton dwell={D} onSelect={() => setPanel(p => p === "places" ? null : "places")} className={btn + " bg-white/90"} label="Places">📍<span>Places</span></GazeButton>
+            <GazeButton dwell={D} onSelect={() => { setPlacing(null); setPanel(p => p === "feed" ? null : "feed"); }} className={btn + " bg-amber-300/95"} label="Feed the animals">🥕<span>Feed</span></GazeButton>
             {placing && <GazeButton dwell={D} onSelect={() => setPlacing(null)} className={btn + " bg-white/90"} label="Cancel food">✕</GazeButton>}
             <GazeButton dwell={D} onSelect={() => setPanel("help")} className={btn + " bg-white/90"} label="How to play">?</GazeButton>
           </div>

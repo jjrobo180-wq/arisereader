@@ -85,7 +85,7 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950/70 to-transparent" />
           <div className="absolute left-3 top-3 z-10 flex gap-2 sm:left-5 sm:top-5" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-            <Dwell dwell={dw} onSelect={exit} onHover={hover} className="flex min-h-12 items-center gap-2 rounded-2xl bg-black/40 px-4 font-black backdrop-blur" label="Back to games"><ArrowLeft className="h-5 w-5" />Games</Dwell>
+            <Dwell dwell={dw} onSelect={exit} onHover={hover} className="flex min-h-12 items-center gap-1.5 rounded-full bg-[#ffd34d] pl-2.5 pr-4 text-[17px] font-extrabold text-[#14102a] shadow-lg" label="Back"><ArrowLeft className="h-5 w-5" strokeWidth={3} />Back</Dwell>
           </div>
           <div className="absolute right-3 top-3 z-10 flex gap-2 sm:right-5 sm:top-5" style={{ paddingTop: "env(safe-area-inset-top)" }}>
             <Dwell dwell={dw} onSelect={() => { click(); setPanel("how"); }} onHover={hover} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="How to play"><HelpCircle className="h-6 w-6" /></Dwell>

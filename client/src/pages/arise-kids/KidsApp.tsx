@@ -3,9 +3,10 @@
 // and space below is copied from it as written (css() turns the prototype's style text into React styles).
 // Everything Arise AAC had before is a tile on the Apps shelves and opens its own page, as before.
 // Data and rules: shared/ariseKids.ts.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import TracePad from "./TracePad";
+import { AnimalSounds, Breathe, ColorHunt, FirstThen, KidsTimer, type ExtraProps } from "./KidsExtras";
 import { Icon, KIDS_TAB_PATHS, KidsTabBar, css, type KidsTab } from "./kidsUi";
 import { useAuth } from "@/context/AuthContext";
 import { sayAI } from "@/lib/aiVoice";
@@ -34,7 +35,9 @@ function useStored<T>(key: string, start: T): [T, (v: T) => void] {
   return [value, set];
 }
 
-type Screen = { kind: "tab" } | { kind: "cards"; deck: DeckId; index: number } | { kind: "pick"; q: number; on: number; picked: number | null };
+type Extra = "hunt" | "firstthen" | "timer" | "breathe" | "sounds";
+const EXTRAS: Record<Extra, ComponentType<ExtraProps>> = { hunt: ColorHunt, firstthen: FirstThen, timer: KidsTimer, breathe: Breathe, sounds: AnimalSounds };
+type Screen = { kind: "tab" } | { kind: "cards"; deck: DeckId; index: number } | { kind: "pick"; q: number; on: number; picked: number | null } | { kind: "extra"; game: Extra };
 
 export default function KidsApp({ tab }: { tab: KidsTab }) {
   const { user, token } = useAuth();
@@ -98,12 +101,15 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
     if (t.game === "cards") return openCards(t.deck ?? "letters");
     if (t.game === "pick") { setReward(null); return setScreen({ kind: "pick", q: 0, on: 0, picked: null }); }
     if (t.game === "stickers") return navigate(KIDS_TAB_PATHS.stickers);
+    if (t.game && t.game in EXTRAS) { setReward(null); say(t.name); return setScreen({ kind: "extra", game: t.game as Extra }); }
     if (t.game === "update") { setToast("Checking for the newest version…"); void import("@/lib/nativeApp").then((m) => m.checkForUpdateNow()).catch(() => "Couldn't check for updates.").then((msg) => { setToast(msg); window.clearTimeout(toastTimer.current); toastTimer.current = window.setTimeout(() => setToast(""), 8000); }); return; }
     if (t.path) { say(t.name); navigate(t.path); }
   };
-  const goHome = () => { setScreen({ kind: "tab" }); if (tab !== "home") navigate(KIDS_TAB_PATHS.home); };
+  // Closing a game goes back to the screen it was opened from (Home, Apps or Stickers).
+  const goHome = () => { setScreen({ kind: "tab" }); };
 
-  const allowed = (path: string) => path === "/eye-gaze-games" ? (pathAllowed(path, controls) || pathAllowed("/library", controls)) : pathAllowed(path, controls);
+  // Each tile follows the same permission its page checks (a game: Games; Quizzes and Books: the library).
+  const allowed = (path: string) => pathAllowed(path, controls);
   const shelves = useMemo(() => visibleShelves(allowed), [controls]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const firstName = user?.displayName?.split(" ")[0] || user?.username || "Friend";
@@ -114,7 +120,10 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
   const have = won.length, total = STICKERS.length;
 
   let body: ReactNode;
-  if (screen.kind === "cards") {
+  if (screen.kind === "extra") {
+    const Extra = EXTRAS[screen.game];
+    body = <Extra key={screen.game} onClose={goHome} onWin={win} say={say} go={(path) => { setScreen({ kind: "tab" }); navigate(path); }} openTab={(t) => { setScreen({ kind: "tab" }); navigate(KIDS_TAB_PATHS[t as KidsTab] ?? KIDS_TAB_PATHS.home); }} />;
+  } else if (screen.kind === "cards") {
     const deck = DECKS[screen.deck];
     const card = deck.cards[screen.index % deck.cards.length];
     const step = (done: boolean) => { const r = cardStep(screen.deck, screen.index, done); setTraced(false); setScreen({ ...screen, index: r.index }); if (r.win) win(); };

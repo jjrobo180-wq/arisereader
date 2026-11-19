@@ -20,7 +20,7 @@ export function useStageSettings(uid: unknown) {
 }
 
 export const STAGE_CSS = `
-.sg-font{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
+.sg-font{font-family:Lexend,ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
 .sg-title{text-shadow:0 3px 0 rgba(15,23,42,.55),0 10px 26px rgba(0,0,0,.35)}
 .sg-pop{animation:sgPop .45s cubic-bezier(.2,1.6,.4,1) both}@keyframes sgPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 .sg-up{animation:sgUp .45s cubic-bezier(.2,1.2,.4,1) both}@keyframes sgUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
@@ -47,12 +47,13 @@ export default function StageShell({ title, badge, accent = "#38bdf8", hostRef, 
       <style>{STAGE_CSS}</style>
       <div ref={hostRef} className="absolute inset-0" />
       <header data-stage-ui className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>
-        <GazeButton dwell={D} onSelect={back} className="pointer-events-auto flex min-h-12 shrink-0 items-center gap-2 rounded-2xl bg-white/90 px-3 font-black shadow-lg backdrop-blur sm:px-4" label="Back to games"><ArrowLeft className="h-5 w-5" /><span className="hidden sm:inline">Games</span></GazeButton>
-        <div className="pointer-events-auto mx-auto flex min-w-0 items-center gap-2.5 rounded-2xl bg-white/90 px-3 py-1.5 shadow-lg backdrop-blur">
-          <span className="text-2xl">{badge}</span><h1 className="hidden truncate text-lg font-black sm:block">{title}</h1>{progress}
+        {/* Arise Kids' look: the yellow Back button, its word always showing (it was hidden on phones). */}
+        <GazeButton dwell={D} onSelect={back} className="pointer-events-auto flex min-h-12 shrink-0 items-center gap-1.5 rounded-full bg-[#ffd34d] pl-2.5 pr-4 text-[17px] font-extrabold text-[#14102a] shadow-lg" label="Back"><ArrowLeft className="h-5 w-5" strokeWidth={3} /><span>Back</span></GazeButton>
+        <div className="pointer-events-auto mx-auto flex min-h-12 min-w-0 items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[#14102a] shadow-lg">
+          <span className="text-2xl">{badge}</span><h1 className="truncate text-[17px] font-extrabold">{title}</h1>{progress}
         </div>
-        <GazeButton dwell={D} onSelect={() => onSettings({ ...settings, voice: !settings.voice })} className="pointer-events-auto hidden h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/90 shadow-lg backdrop-blur sm:grid" label={settings.voice ? "Turn voice off" : "Turn voice on"}>{settings.voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</GazeButton>
-        <GazeButton dwell={D} onSelect={() => setOpen(true)} className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/90 shadow-lg backdrop-blur" label="Settings"><Settings className="h-5 w-5" /></GazeButton>
+        <GazeButton dwell={D} onSelect={() => onSettings({ ...settings, voice: !settings.voice })} className="pointer-events-auto hidden h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-[#14102a] shadow-lg sm:grid" label={settings.voice ? "Turn voice off" : "Turn voice on"}>{settings.voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</GazeButton>
+        <GazeButton dwell={D} onSelect={() => setOpen(true)} className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-[#14102a] shadow-lg" label="Settings"><Settings className="h-5 w-5" /></GazeButton>
       </header>
       {bubble && <div className="pointer-events-none absolute inset-x-0 top-[4.4rem] z-10 flex justify-center px-3 sm:top-20">{bubble}</div>}
       {children}

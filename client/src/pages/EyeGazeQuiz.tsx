@@ -2,6 +2,7 @@
 // then the quiz. Teachers and the admin see the whole lesson with its answers and can try it.
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
+import { isEyeGazerApp } from "@/lib/nativeApp";
 import { ArrowLeft, Check, Play } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -124,7 +125,8 @@ export default function EyeGazeQuiz() {
     return () => { active = false; };
   }, [quizId, token]);
 
-  const back = () => navigate("/eye-gaze-lessons");
+  // In the Arise AAC app a quiz is opened from the Quizzes app, so Back goes there.
+  const back = () => navigate(isEyeGazerApp() ? "/eye-gaze-quizzes" : "/eye-gaze-lessons");
 
   if (error) {
     return (

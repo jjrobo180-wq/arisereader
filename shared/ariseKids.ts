@@ -150,22 +150,46 @@ export function cardStep(deck: DeckId, index: number, done: boolean): { index: n
 
 /** Everything that was in Arise AAC before, as tiles on the Apps shelves (each still opens its own page,
  *  and a grown-up's choices still decide which ones show). */
-export type KidsTile = { name: string; bg: string; d: string; path?: string; game?: "cards" | "pick" | "stickers" | "update"; deck?: DeckId; allow?: string };
+/** The built-in apps drawn by Arise Kids itself (no page of their own to open). */
+export type KidsGame = "cards" | "pick" | "stickers" | "update" | "hunt" | "firstthen" | "timer" | "breathe" | "sounds";
+export type KidsTile = { name: string; bg: string; d: string; path?: string; game?: KidsGame; deck?: DeckId; allow?: string };
 export type KidsShelf = { name: string; tiles: KidsTile[] };
+/** Each game that used to sit inside "Eye-gaze games" opens on its own page (/eye-gaze-play/<id>). */
+export const PLAY_GAMES = ["animal-splash", "word-pop", "match-pairs", "sentence-train", "reading-runner", "reading-ninja"] as const;
+export type PlayGame = typeof PLAY_GAMES[number];
+export const isPlayGame = (id: string): id is PlayGame => (PLAY_GAMES as readonly string[]).includes(id);
+const G = "/eye-gaze-games";
 export const SHELVES: KidsShelf[] = [
   { name: "Games", tiles: [
     { name: "Card Quest", bg: "#ffd34d", d: "M4 6h12v14H4zM8 2h12v14", game: "cards", deck: "letters" },
     { name: "Pick It!", bg: "#9de0f5", d: "M4 4h16v7H4zM4 13h16v7H4z", game: "pick" },
+    { name: "Color Hunt", bg: "#ffc9de", d: "M12 21a9 9 0 1 1 9-9c0 2-1.5 3-3.5 3H15a2 2 0 0 0-1 3.7c.6.5.4 2.3-2 2.3zM7.5 11h.01M10 7h.01M15 7.5h.01", game: "hunt" },
+    { name: "Animal Splash", bg: "#9de0f5", d: "M3 15c2 2 4 2 6 0s4-2 6 0 4 2 6 0M7 11a3 3 0 0 1 3-3h1l3-3v3a3 3 0 0 1-3 3H7z", path: "/eye-gaze-play/animal-splash", allow: G },
+    { name: "Fidget Lab", bg: "#d9cfff", d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", path: "/eye-gaze-fidgets", allow: G },
+    { name: "Farm World", bg: "#c7f09a", d: "M3 21V10l9-6 9 6v11zM9 21v-6h6v6", path: "/eye-gaze-farm", allow: G },
+    { name: "Word Pop", bg: "#b8ecd8", d: "M8 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM17 21a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM6 8a2 2 0 0 1 2-2", path: "/eye-gaze-play/word-pop", allow: G },
+    { name: "Match Pairs", bg: "#ffe3a1", d: "M3 5h8v14H3zM13 5h8v14h-8zM7 12h.01M17 12h.01", path: "/eye-gaze-play/match-pairs", allow: G },
+    { name: "Sentence Train", bg: "#ffb3a1", d: "M4 16V7a3 3 0 0 1 3-3h6v12M13 9h5l2 4v3H4M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", path: "/eye-gaze-play/sentence-train", allow: G },
+    { name: "Reading Runner", bg: "#d9cfff", d: "M13 4a2 2 0 1 0 0 .01M7 21l3-6 3 2v4M10 15l1-5 4 2 3-1M8 10l3-1", path: "/eye-gaze-play/reading-runner", allow: G },
+    { name: "Reading Ninja", bg: "#ffc9de", d: "M4 20 20 4M14 4h6v6M6 8l3 3M13 15l3 3", path: "/eye-gaze-play/reading-ninja", allow: G },
+    { name: "Animal Sounds", bg: "#f1dcc4", d: "M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13", game: "sounds" },
     { name: "Sticker Album", bg: "#c7f09a", d: "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z", game: "stickers" },
-    { name: "Eye-gaze games", bg: "#ffb3a1", d: "M4 9h16v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3zM8 13h3M9.5 11.5v3M15 13h.01M17 15h.01", path: "/eye-gaze-games" },
-    { name: "Fidget Lab", bg: "#d9cfff", d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", path: "/eye-gaze-fidgets", allow: "/eye-gaze-games" },
-    { name: "Farm World", bg: "#c7f09a", d: "M3 21V10l9-6 9 6v11zM9 21v-6h6v6", path: "/eye-gaze-farm", allow: "/eye-gaze-games" },
-    { name: "Reading Level Up", bg: "#ffe3a1", d: "M4 19.5V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2.5zM12 7v6M9 10l3-3 3 3", path: "/reading-level-up", allow: "/eye-gaze-games" },
+  ] },
+  { name: "Quizzes & books", tiles: [
+    { name: "Quizzes", bg: "#ffd34d", d: "M9 9a3 3 0 1 1 4 2.8c-.6.3-1 .9-1 1.6V15M12 18h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", path: "/eye-gaze-quizzes", allow: "/library" },
+    { name: "Books", bg: "#9de0f5", d: "M4 19.5V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2.5zM8 7h6", path: "/eye-gaze-books", allow: "/library" },
+    { name: "Lessons", bg: "#c7f09a", d: "M3 7l9-4 9 4-9 4zM7 9v5c0 1.5 2.5 3 5 3s5-1.5 5-3V9", path: "/eye-gaze-lessons", allow: "/library" },
+    { name: "Reading Level Up", bg: "#ffe3a1", d: "M4 19.5V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2.5zM12 7v6M9 10l3-3 3 3", path: "/reading-level-up", allow: G },
+  ] },
+  { name: "Calm & my day", tiles: [
+    { name: "First / Then", bg: "#ffd34d", d: "M3 5h8v14H3zM13 5h8v14h-8zM6 12h2M15 12h3m-1.5-1.5L18 12l-1.5 1.5", game: "firstthen" },
+    { name: "Timer", bg: "#9de0f5", d: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2 2M10 2h4", game: "timer" },
+    { name: "Breathe", bg: "#b8ecd8", d: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", game: "breathe" },
+    { name: "Calm Moves", bg: "#d9cfff", d: "M3 12h4l3-8 4 16 3-8h4", game: "cards", deck: "moves" },
   ] },
   { name: "Card decks", tiles: [
     { name: "Letters", bg: "#d9cfff", d: "M5 21 12 3l7 18M8 14h8", game: "cards", deck: "letters" },
     { name: "Numbers", bg: "#ffb3a1", d: "M5 12h14M12 5v14", game: "cards", deck: "numbers" },
-    { name: "Calm Moves", bg: "#b8ecd8", d: "M3 12h4l3-8 4 16 3-8h4", game: "cards", deck: "moves" },
   ] },
   { name: "Talk", tiles: [
     { name: "My Talker", bg: "#d9cfff", d: "M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z", path: "/eye-gaze-talker" },
@@ -176,7 +200,6 @@ export const SHELVES: KidsShelf[] = [
     { name: "Shorts", bg: "#9de0f5", d: "M3 6h18v12H3zM10 9.5v5l4.5-2.5z", path: "/eye-gaze-tv" },
   ] },
   { name: "Learn", tiles: [
-    { name: "Lessons & books", bg: "#9de0f5", d: "M4 19.5V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2.5z", path: "/eye-gaze-lessons", allow: "/library" },
     { name: "Flash Cards", bg: "#ffd34d", d: "M3 7h14v12H3zM7 3h14v12", path: "/eye-gaze-flashcards" },
     { name: "Life Skills", bg: "#c7f09a", d: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9", path: "/eye-gaze-life-skills" },
     { name: "Potty Coach", bg: "#b8ecd8", d: "M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z", path: "/eye-gaze-potty", allow: "/eye-gaze-life-skills" },
@@ -195,3 +218,91 @@ export const SHELVES: KidsShelf[] = [
 export function visibleShelves(allowed: (path: string) => boolean): KidsShelf[] {
   return SHELVES.map((s) => ({ ...s, tiles: s.tiles.filter((t) => !t.path || allowed(t.allow ?? t.path)) })).filter((s) => s.tiles.length);
 }
+
+// ---- Color Hunt: "Find the red one!" Four big shapes; five right answers win a sticker. ----
+export const COLORS = [
+  { name: "red", hex: "#e8352b" }, { name: "blue", hex: "#2f6fe0" }, { name: "yellow", hex: "#ffd34d" },
+  { name: "green", hex: "#2fa84f" }, { name: "orange", hex: "#ff7a2f" }, { name: "purple", hex: "#7b4ee0" },
+] as const;
+export const SHAPES = [
+  { name: "circle", d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" },
+  { name: "square", d: "M4 4h16v16H4z" },
+  { name: "star", d: "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" },
+  { name: "heart", d: "M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z" },
+] as const;
+export const HUNT_GOAL = 5;
+export type HuntOption = { color: number; shape: number };
+/** Round n: four different colors (one of them the color to find), each on a shape; the same n is always the same round. */
+export function huntRound(n: number): { target: number; options: HuntOption[] } {
+  const r = (k: number) => { const x = Math.sin((n + 1) * 9301 + k * 49297) * 233280; return x - Math.floor(x); };
+  const pool = COLORS.map((_, i) => i).sort((a, b) => r(a + 1) - r(b + 1)).slice(0, 4);
+  const target = pool[Math.floor(r(11) * 4)];
+  return { target, options: pool.map((color, i) => ({ color, shape: Math.floor(r(20 + i) * SHAPES.length) })) };
+}
+/** A pick: right goes on (the fifth right wins), wrong stays on the same round. */
+export function huntStep(state: { round: number; score: number }, picked: number): { round: number; score: number; right: boolean; win: boolean } {
+  const right = huntRound(state.round).target === picked;
+  if (!right) return { ...state, right, win: false };
+  const score = state.score + 1;
+  return score >= HUNT_GOAL ? { round: state.round + 1, score: 0, right, win: true } : { round: state.round + 1, score, right, win: false };
+}
+
+// ---- First / Then: a picture schedule. First the job, then the fun thing. ----
+export type FTItem = { name: string; bg: string; d: string; path?: string; tab?: string };
+export const FIRSTS: FTItem[] = [
+  { name: "Potty", bg: "#b8ecd8", d: "M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" },
+  { name: "Brush teeth", bg: "#9de0f5", d: "M4 20 14 10M14 10l3-7 4 4-7 3M6 18l-2 2" },
+  { name: "Eat", bg: "#ffe3a1", d: "M7 3v8a2 2 0 0 0 4 0V3M9 11v10M17 3c-2 0-3 3-3 6s1 4 3 4v8" },
+  { name: "Get dressed", bg: "#ffc9de", d: "M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3c0 2-2 3-4 3S8 5 8 3z" },
+  { name: "Clean up", bg: "#c7f09a", d: "M4 20h16M6 20l2-10h8l2 10M9 10V5h6v5" },
+  { name: "Shoes on", bg: "#f1dcc4", d: "M3 17h18v3H3zM3 17V9l5 2 3-3 4 5 6 1v3" },
+  { name: "Bath", bg: "#d9cfff", d: "M3 12h18v3a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM6 12V5a2 2 0 0 1 4 0" },
+  { name: "Work time", bg: "#ffd34d", d: "M4 19.5V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2.5z" },
+];
+export const THENS: FTItem[] = [
+  { name: "Shorts", bg: "#9de0f5", d: "M3 6h18v12H3zM10 9.5v5l4.5-2.5z", path: "/eye-gaze-tv" },
+  { name: "Fidget Lab", bg: "#d9cfff", d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", path: "/eye-gaze-fidgets" },
+  { name: "Farm World", bg: "#c7f09a", d: "M3 21V10l9-6 9 6v11zM9 21v-6h6v6", path: "/eye-gaze-farm" },
+  { name: "Stickers", bg: "#ffe3a1", d: "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z", tab: "stickers" },
+  { name: "Snack", bg: "#ffb3a1", d: "M12 7c-4-2-8 1-8 6s3 9 5 9c1 0 2-.5 3-.5s2 .5 3 .5c2 0 5-4 5-9s-4-8-8-6zM12 7c0-2 1-4 3-5" },
+  { name: "Play outside", bg: "#b8ecd8", d: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3" },
+  { name: "Hug", bg: "#ffc9de", d: "M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z" },
+  { name: "Music", bg: "#f1dcc4", d: "M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" },
+];
+export const firstThenSentence = (first: string, then: string) => `First ${first.toLowerCase()}, then ${then.toLowerCase()}.`;
+
+// ---- Timer: a shrinking circle, so "how long" can be seen. ----
+export const TIMER_MINUTES = [1, 2, 5, 10] as const;
+/** What's left (0 to 1) and the time shown, for a timer of `total` ms started at `start`. */
+export function timerLeft(start: number, total: number, now: number): { left: number; ms: number; done: boolean } {
+  const ms = Math.max(0, total - (now - start));
+  return { left: total > 0 ? ms / total : 0, ms, done: ms === 0 };
+}
+export const clock = (ms: number) => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+// ---- Breathe: in for 4 seconds, out for 4; five breaths win a sticker. ----
+export const BREATH_MS = 4000;
+export const BREATHS = 5;
+/** Where the breathing is `ms` after starting: in or out, which breath (from 1), and how big the bubble is (0 to 1). */
+export function breathAt(ms: number): { phase: "in" | "out"; breath: number; size: number; done: boolean } {
+  const cycle = BREATH_MS * 2;
+  if (ms >= cycle * BREATHS) return { phase: "out", breath: BREATHS, size: 0, done: true };
+  const breath = Math.floor(ms / cycle) + 1, t = ms % cycle;
+  const phase = t < BREATH_MS ? "in" : "out";
+  const p = phase === "in" ? t / BREATH_MS : 1 - (t - BREATH_MS) / BREATH_MS;
+  return { phase, breath, size: Math.max(0, Math.min(1, p)), done: false };
+}
+
+// ---- Animal Sounds: tap an animal, hear what it says. ----
+const pic = (name: string) => { const s = STICKERS.find((x) => x.name === name)!; return { d: s.d, bg: s.bg }; };
+export const ANIMAL_SOUNDS: { name: string; sound: string; d: string; bg: string }[] = [
+  { name: "Cat", sound: "meow, meow", ...pic("Cat") },
+  { name: "Dog", sound: "woof, woof", d: "M5 8 3 4l5 1M19 8l2-4-5 1M6 9a6 6 0 0 1 12 0v4a6 6 0 0 1-12 0zM10 11h.01M14 11h.01M11 15h2", bg: "#ffe3a1" },
+  { name: "Bird", sound: "tweet, tweet", ...pic("Bird") },
+  { name: "Frog", sound: "ribbit, ribbit", ...pic("Frog") },
+  { name: "Fish", sound: "blub, blub", ...pic("Fish") },
+  { name: "Bear", sound: "grrr", ...pic("Bear") },
+  { name: "Bee", sound: "buzz, buzz", ...pic("Bug") },
+  { name: "Cow", sound: "moooo", d: "M4 8 2 5l4 1M20 8l2-3-4 1M5 9h14v6a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5zM9 12h.01M15 12h.01M10 17h4", bg: "#e4e4de" },
+];
+export const animalLine = (name: string, sound: string) => `${name}! The ${name.toLowerCase()} says ${sound}!`;

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { DECKS, QUESTIONS, SHELVES, STICKERS, cardStep, nextSticker, pickStep, streak, streakMarks, visibleShelves, winSticker, wordOfDay } from "../shared/ariseKids";
+import { ANIMAL_SOUNDS, BREATHS, BREATH_MS, COLORS, DECKS, FIRSTS, HUNT_GOAL, PLAY_GAMES, QUESTIONS, SHELVES, STICKERS, THENS, breathAt, cardStep, clock, firstThenSentence, huntRound, huntStep, nextSticker, pickStep, streak, streakMarks, timerLeft, visibleShelves, winSticker, wordOfDay } from "../shared/ariseKids";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -47,17 +47,19 @@ test("Pick It!: a tap picks the lit box, a right answer goes on, the third right
 
 test("everything Arise AAC had is on the Apps shelves, and a grown-up's choices still hide what's not allowed", () => {
   const paths = SHELVES.flatMap((s) => s.tiles).map((t) => t.path).filter(Boolean);
-  for (const p of ["/eye-gaze-talker", "/eye-gaze-games", "/eye-gaze-lessons", "/eye-gaze-life-skills", "/my-world", "/eye-gaze-wren", "/eye-gaze-tv", "/eye-gaze-flashcards", "/eye-gaze-buddy", "/leaderboard", "/eye-gaze-fidgets", "/eye-gaze-farm", "/eye-gaze-potty", "/reading-level-up", "/profile"])
+  for (const p of ["/eye-gaze-talker", "/eye-gaze-lessons", "/eye-gaze-life-skills", "/my-world", "/eye-gaze-wren", "/eye-gaze-tv", "/eye-gaze-flashcards", "/eye-gaze-buddy", "/leaderboard", "/eye-gaze-fidgets", "/eye-gaze-farm", "/eye-gaze-potty", "/reading-level-up", "/profile"])
     assert.ok(paths.includes(p), p);
   // Every page the old home linked to is still reachable.
   const oldHome = read("client/src/pages/EyeGazeHome.tsx");
-  for (const m of oldHome.matchAll(/path: "([^"]+)"/g)) assert.ok(paths.includes(m[1]), `old home link ${m[1]}`);
+  // (The old Games page's games each have their own tile now, so it has none of its own.)
+  for (const m of oldHome.matchAll(/path: "([^"]+)"/g)) if (m[1] !== "/eye-gaze-games") assert.ok(paths.includes(m[1]), `old home link ${m[1]}`);
+  for (const id of ["animal-splash", "word-pop", "match-pairs", "sentence-train", "reading-runner", "reading-ninja"]) assert.ok(paths.includes(`/eye-gaze-play/${id}`), `every game from the old Games page: ${id}`);
   const noTalk = visibleShelves((p) => p !== "/eye-gaze-talker");
   const names = noTalk.flatMap((s) => s.tiles).map((t) => t.name);
   assert.ok(!names.includes("My Talker") && !names.includes("Wren"), "Wren follows My Talker's permission");
   assert.ok(names.includes("Card Quest") && names.includes("Pick It!"), "the built-in games always show");
   const none = visibleShelves(() => false);
-  assert.deepEqual(none.map((s) => s.name), ["Games", "Card decks", "Me"]);
+  assert.deepEqual(none.map((s) => s.name), ["Games", "Calm & my day", "Card decks", "Me"]);
 });
 
 test("the word of the day changes each day", () => {
@@ -136,4 +138,68 @@ test("Apps → Me has Update app, which gets the newest version now and says wha
   assert.ok(me.tiles.some((t) => t.name === "Update app" && t.game === "update"));
   assert.ok(visibleShelves(() => false).some((s) => s.tiles.some((t) => t.game === "update")), "always shown");
   assert.match(read("client/src/pages/arise-kids/KidsApp.tsx"), /m\.checkForUpdateNow\(\)/);
+});
+
+test("every game has its own app on the Apps page, and Quizzes and Books do too", () => {
+  const tiles = SHELVES.flatMap((s) => s.tiles);
+  const names = new Set<string>();
+  for (const t of tiles) { assert.ok(!names.has(t.name), `one tile per app: ${t.name}`); names.add(t.name); }
+  for (const id of PLAY_GAMES) assert.ok(tiles.some((t) => t.path === `/eye-gaze-play/${id}`), id);
+  for (const p of ["/eye-gaze-fidgets", "/eye-gaze-farm", "/eye-gaze-quizzes", "/eye-gaze-books"]) assert.ok(tiles.some((t) => t.path === p), p);
+  const app = read("client/src/App.tsx");
+  assert.match(app, /<Route path="\/eye-gaze-play\/:game">\s*\{\(params\) => <ProtectedRoute><EyeGazeAccessGate path="\/eye-gaze-games"><KidsPlay game=\{params\.game\} \/>/);
+  assert.match(app, /<KidsLibrary mode="quizzes" \/>/);
+  assert.match(app, /<KidsLibrary mode="books" \/>/);
+  const play = read("client/src/pages/arise-kids/KidsPlay.tsx");
+  assert.match(play, /onBack=\{\(\) => navigate\(KIDS_TAB_PATHS\.apps\)\}/, "Back from a game goes to Apps");
+  for (const f of ["client/src/pages/EyeGazeFidgetLab.tsx", "client/src/pages/EyeGazeFarmWorld.tsx"]) assert.match(read(f), /isEyeGazerApp\(\) \? "\/eye-gaze-apps"/, f);
+  assert.match(read("client/src/pages/EyeGazeQuiz.tsx"), /isEyeGazerApp\(\) \? "\/eye-gaze-quizzes"/);
+});
+
+test("the games' Back button and name can be read on a phone, in Arise Kids' look", () => {
+  const shell = read("client/src/components/eye-gaze/StageShell.tsx");
+  assert.ok(!shell.includes('hidden sm:inline">Games'), "Back's word shows on phones");
+  assert.ok(!shell.includes('hidden truncate text-lg font-black sm:block">{title}'), "the game's name shows on phones");
+  assert.match(shell, /bg-\[#ffd34d\][^"]*text-\[#14102a\][^"]*" label="Back"><ArrowLeft[^>]*\/><span>Back<\/span>/);
+  assert.match(shell, /font-family:Lexend/);
+  for (const f of ["client/src/pages/AnimalSplashGame.tsx", "client/src/pages/ReadingRunnerPro.tsx", "client/src/pages/ReadingNinja.tsx"]) assert.match(read(f), /bg-\[#ffd34d\][^"]*" label="Back">/, f);
+  // Words that were hidden on phones now show.
+  assert.ok(!read("client/src/pages/AnimalSplashGame.tsx").includes('<div className="hidden min-w-0 sm:block">'), "Animal Splash's name");
+  const farm = read("client/src/pages/eye-gaze/FarmWorldGame.tsx");
+  assert.ok(farm.includes("📍<span>Places</span>") && farm.includes("🥕<span>Feed</span>"), "Farm World's Places and Feed");
+  assert.ok(!read("client/src/pages/eye-gaze/FidgetLabGame.tsx").includes("hidden text-sm font-bold leading-tight text-slate-500 sm:block"), "Fidget Lab's hints");
+});
+
+test("Color Hunt: four different colors with the one to find among them; five right answers win; a wrong one stays", () => {
+  for (let n = 0; n < 50; n++) {
+    const r = huntRound(n);
+    assert.equal(new Set(r.options.map((o) => o.color)).size, 4);
+    assert.ok(r.options.some((o) => o.color === r.target));
+  }
+  assert.deepEqual(huntRound(7), huntRound(7), "the same round each time");
+  let st = { round: 0, score: 0 };
+  const wrong = huntRound(0).options.find((o) => o.color !== huntRound(0).target)!.color;
+  assert.deepEqual(huntStep(st, wrong), { round: 0, score: 0, right: false, win: false });
+  let wins = 0;
+  for (let i = 0; i < HUNT_GOAL; i++) { const r = huntStep(st, huntRound(st.round).target); st = { round: r.round, score: r.score }; if (r.win) wins++; }
+  assert.equal(wins, 1); assert.equal(st.score, 0);
+  assert.equal(COLORS.length, 6);
+});
+
+test("First / Then, the timer, breathing and animal sounds", () => {
+  assert.equal(firstThenSentence("Brush teeth", "Fidget Lab"), "First brush teeth, then fidget lab.");
+  assert.ok(FIRSTS.length >= 6 && THENS.length >= 6);
+  for (const t of THENS) if (t.path) assert.ok(SHELVES.flatMap((s) => s.tiles).some((x) => x.path === t.path), `Then opens a real app: ${t.path}`);
+  assert.deepEqual(timerLeft(1000, 60_000, 31_000), { left: 0.5, ms: 30_000, done: false });
+  assert.equal(timerLeft(0, 60_000, 90_000).done, true);
+  assert.equal(clock(65_000), "1:05"); assert.equal(clock(59_001), "1:00");
+  assert.deepEqual(breathAt(0), { phase: "in", breath: 1, size: 0, done: false });
+  assert.equal(breathAt(BREATH_MS).phase, "out");
+  assert.equal(breathAt(BREATH_MS * 2 + 10).breath, 2);
+  assert.equal(breathAt(BREATH_MS * 2 * BREATHS).done, true);
+  assert.equal(ANIMAL_SOUNDS.length, 8);
+  for (const a of ANIMAL_SOUNDS) assert.ok(a.d && a.bg && a.sound, a.name);
+  const kids = read("client/src/pages/arise-kids/KidsApp.tsx");
+  assert.match(kids, /const EXTRAS: Record<Extra, ComponentType<ExtraProps>> = \{ hunt: ColorHunt, firstthen: FirstThen, timer: KidsTimer, breathe: Breathe, sounds: AnimalSounds \}/);
+  assert.match(kids, /const goHome = \(\) => \{ setScreen\(\{ kind: "tab" \}\); \};/, "closing a game goes back where it was opened");
 });

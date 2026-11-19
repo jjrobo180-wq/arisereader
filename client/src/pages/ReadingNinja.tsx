@@ -87,7 +87,7 @@ export default function ReadingNinja({ onBack }: { onBack: () => void }) {
       {view === "title" && <section data-ninja-ui className="absolute inset-0">
         <Backdrop level={LEVELS[level]} quality={settings.quality} audio={audio} />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent" />
-        <div className="absolute left-3 top-3 z-10 sm:left-5 sm:top-5"><GazeButton dwell={D} onHover={hover} onSelect={exit} className="flex min-h-12 items-center gap-2 rounded-2xl bg-black/40 px-4 font-black backdrop-blur" label="Back to games"><ArrowLeft className="h-5 w-5" />Games</GazeButton></div>
+        <div className="absolute left-3 top-3 z-10 sm:left-5 sm:top-5"><GazeButton dwell={D} onHover={hover} onSelect={exit} className="flex min-h-12 items-center gap-1.5 rounded-full bg-[#ffd34d] pl-2.5 pr-4 text-[17px] font-extrabold text-[#14102a] shadow-lg" label="Back"><ArrowLeft className="h-5 w-5" strokeWidth={3} />Back</GazeButton></div>
         <div className="absolute right-3 top-3 z-10 flex gap-2 sm:right-5 sm:top-5">
           <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setPanel("how"); }} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="How to play"><HelpCircle className="h-6 w-6" /></GazeButton>
           <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setPanel("settings"); }} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="Settings"><Settings className="h-6 w-6" /></GazeButton>

@@ -183,6 +183,8 @@ const EyeGazeGames = lazyPage(() => import("./pages/EyeGazeGames"));
 const EyeGazeHome = lazyPage(() => import("./pages/EyeGazeHome"));
 // Arise Kids: the Arise AAC app's Home, Apps and Stickers (the prototype the owner chose, Nov 18, 2026).
 const KidsApp = lazyPage(() => import("./pages/arise-kids/KidsApp"));
+const KidsPlay = lazyPage(() => import("./pages/arise-kids/KidsPlay"));
+const KidsLibrary = lazyPage(() => import("./pages/arise-kids/KidsLibrary"));
 const EyeGazeLessons = lazyPage(() => import("./pages/EyeGazeLessons"));
 const EyeGazeProgress = lazyPage(() => import("./pages/EyeGazeProgress"));
 const EyeGazeAccount = lazyPage(() => import("./pages/EyeGazeAccount"));
@@ -1051,6 +1053,16 @@ function AppRoutes() {
       </Route>
       <Route path="/eye-gaze-stickers">
         <ProtectedRoute><KidsApp tab="stickers" /></ProtectedRoute>
+      </Route>
+      {/* Each game on its own page, from its own tile on the Apps page (Back goes to Apps). */}
+      <Route path="/eye-gaze-play/:game">
+        {(params) => <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games"><KidsPlay game={params.game} /></EyeGazeAccessGate></ProtectedRoute>}
+      </Route>
+      <Route path="/eye-gaze-quizzes">
+        <ProtectedRoute><EyeGazeAccessGate path="/library"><KidsLibrary mode="quizzes" /></EyeGazeAccessGate></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-books">
+        <ProtectedRoute><EyeGazeAccessGate path="/library"><KidsLibrary mode="books" /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       {/* The earlier Arise AAC home, kept at its own address. */}
       <Route path="/eye-gaze-classic-home">

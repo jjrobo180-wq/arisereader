@@ -59,7 +59,7 @@ export default function FidgetLabGame({ onBack }: { onBack: () => void }) {
               className="min-h-[6.5rem] rounded-[1.4rem] border-4 border-white/70 bg-white/88 p-2 text-center shadow-xl backdrop-blur sm:min-h-36 sm:p-3">
               <div className="text-4xl sm:text-6xl">{x.emoji}</div>
               <div className="mt-1 text-sm font-black leading-tight sm:text-xl">{x.name}</div>
-              <div className="mt-0.5 hidden text-sm font-bold leading-tight text-slate-500 sm:block">{x.hint}</div>
+              <div className="mt-0.5 text-[13px] font-bold leading-tight text-slate-600 sm:text-sm">{x.hint}</div>
             </GazeButton>)}
           </div>
         </div>

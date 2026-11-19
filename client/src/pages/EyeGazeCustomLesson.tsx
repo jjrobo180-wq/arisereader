@@ -2,6 +2,7 @@
 // built-in lessons, so it reads, looks and works the same way. Other accounts keep CustomEyeGazeQuiz.
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
+import { isEyeGazerApp } from "@/lib/nativeApp";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -42,7 +43,7 @@ export default function EyeGazeCustomLesson() {
     return () => { active = false; };
   }, [quizId, token]);
 
-  const back = () => navigate("/eye-gaze-lessons");
+  const back = () => navigate(isEyeGazerApp() ? "/eye-gaze-quizzes" : "/eye-gaze-lessons");
 
   if (error) {
     return (
