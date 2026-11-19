@@ -1,0 +1,10 @@
+iphone light: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+iphone dark: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+iphone sand: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+iphone mist: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+iphone: page errors: none
+desktop light: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+desktop dark: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+desktop sand: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+desktop mist: name "Jermaine Robinson", icons 4, links 8, title "Jermaine Robinson", sideways scroll none
+desktop: page errors: none
