@@ -88,6 +88,7 @@ import { ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTic
 import { ACCOUNTABILITY_SHARE } from "../shared/profileLinks";
 import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
+import { chooseTalkerChild } from "./talkerChild";
 import { registerContentCatalog } from "./contentCatalog";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { podscrollAllowed, registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
@@ -8665,18 +8666,17 @@ export async function registerRoutes(
   // private talker state. Photos and progress never pass through public URLs.
   async function talkerStudent(req: any): Promise<{ id: number; displayName: string } | null> {
     if (req.user.role === 'student' && req.user.is_eye_gaze_user) return req.user;
-    // The site owner can open every Arise AAC page (Shorts, My World, Flash Cards, the talker...) to try
-    // it: their own account stands in for the child, so what they set up is kept under their own id.
-    if (req.user.isAdmin) return { id: req.user.id, displayName: req.user.displayName || req.user.username || 'Me' };
-    if (req.user.role !== 'parent' || req.user.accountApproved === false) return null;
-    const linkedIds = await getParentStudentIds(req.user.id);
-    const requestedId = requestedParentStudentId(req);
-    const candidates = requestedId ? [requestedId] : linkedIds;
-    for (const id of candidates) {
-      if (!linkedIds.includes(id)) continue;
-      const child = await storage.getUser(id);
-      if (child?.role === 'student' && child.is_eye_gaze_user) return child;
+    // Who the data belongs to: server/talkerChild.ts (a parent's linked child; anyone else, themselves).
+    const linked: { id: number; eyeGaze: boolean; user: any }[] = [];
+    if (req.user.role === 'parent' && req.user.accountApproved !== false) {
+      for (const id of await getParentStudentIds(req.user.id)) {
+        const child: any = await storage.getUser(id).catch(() => null);
+        if (child) linked.push({ id, eyeGaze: child.role === 'student' && !!child.is_eye_gaze_user, user: child });
+      }
     }
+    const choice = chooseTalkerChild(req.user, !!req.realUser?.isAdmin, linked, requestedParentStudentId(req));
+    if (choice.kind === 'self') return { id: req.user.id, displayName: req.user.displayName || req.user.username || 'Me' };
+    if (choice.kind === 'child') return linked.find((c) => c.id === choice.id)?.user ?? null;
     return null;
   }
 

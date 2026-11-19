@@ -110,7 +110,7 @@ test("Card Quest's tracing card waits for the tracing, and every card can be hea
 
 test("Shorts open for anyone signed in, and the site owner can use every Arise AAC page", () => {
   const routes = read("server/routes.ts");
-  assert.match(routes, /if \(req\.user\.isAdmin\) return \{ id: req\.user\.id/);
+  assert.match(routes, /if \(choice\.kind === 'self'\) return \{ id: req\.user\.id/);
   const shorts = routes.slice(routes.indexOf("app.get('/api/eye-gaze/youtube-shorts'"), routes.indexOf("app.get('/api/eye-gaze/youtube-shorts'") + 900);
   assert.ok(!shorts.includes("A linked Arise AAC account is required"), "Shorts no longer refuse a grown-up");
   assert.match(shorts, /const raw = child \? await storage\.getSetting/);
