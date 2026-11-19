@@ -234,3 +234,10 @@ test("Shorts in the iPhone app play through an https page (YouTube refuses capac
   assert.match(page, /vars\.origin = window\.location\.origin/);
   assert.match(page, /e\.source !== window\.parent/);
 });
+
+test("Wren's word board is pinned inside its box so it can't overlap the rail and Words/Keys bar on iPhone", () => {
+  const w = read("client/public/eyegaze/wren/index.html");
+  assert.match(w, /main\.stage \{ position: relative; \}/);
+  assert.match(w, /main\.stage > \.board \{ position: absolute; top: 0; left: 0; right: 0; bottom: 12px; height: auto; \}/);
+  assert.match(w, /@media \(max-width: 719px\) \{ main\.stage > \.board \{ bottom: 6px; \} \}/);
+});
