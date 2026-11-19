@@ -98,6 +98,11 @@ export function AdvisoryChallengeBanner({ onOpen }: { onOpen: () => void }) {
       <div className="grid gap-3 p-3 sm:grid-cols-[1fr_minmax(0,18rem)] sm:p-4">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-black text-[#ffc93c]"><span className="text-lg" aria-hidden="true">🍕</span>Advisory Challenge</p>
+          {/* The big clock on the last day (it ticks every second: lib/advisoryChallenge.ts). */}
+          {v.challenge.phase === "live" && v.challenge.daysLeft === 0 && v.challenge.endsAt && (v.challenge as any).endMs && <div className="mt-2 inline-flex items-center gap-3 rounded-2xl bg-[#f2542d] px-4 py-2 shadow-lg" role="timer" aria-live="off" data-testid="challenge-timer">
+            <span className="text-xs font-black uppercase tracking-[.14em] text-white/85">Ends at {endTimeLabel(v.challenge.endsAt)}</span>
+            <span className="font-mono text-3xl font-black tabular-nums leading-none text-white sm:text-4xl">{countdownText((v.challenge as any).endMs)}</span>
+          </div>}
           <p className="mt-1 text-lg font-black leading-tight sm:text-xl">
             {mine?.advisory && mine.rank && v.standings.some((s) => s.points > 0) ? <>{mine.advisory} is {placeText(v.standings, mine.rank)} <span className="text-white/50">of {v.standings.length}</span></> : headline(v)}
           </p>

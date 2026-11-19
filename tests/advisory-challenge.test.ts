@@ -364,3 +364,8 @@ test("admins can delete accounts in bulk, but never admins, themselves or sample
   assert.match(routes, /String\(req\.body\?\.confirm \|\| ""\)\.trim\(\) !== `DELETE \$\{list\.length\}`/);
   assert.match(read("client/src/pages/Admin.tsx"), /<AdminDeleteAccounts \/>/);
 });
+
+test("the students' library banner shows a big countdown clock on the last day", () => {
+  const banner = readFileSync(new URL("../client/src/components/AdvisoryChallenge.tsx", import.meta.url), "utf8");
+  assert.ok(banner.includes('data-testid="challenge-timer"') && banner.includes("countdownText((v.challenge as any).endMs)"));
+});
