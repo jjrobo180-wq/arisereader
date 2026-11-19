@@ -164,33 +164,37 @@ export default function DriveApp({ files, setFiles, say, token, onReadWithAI }: 
   };
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDragging(false); void upload(e.dataTransfer.files); };
 
-  // ───────── File actions ─────────
-  const del = async (ids: string[]) => {
+  // ───────── File actions (asked in the page: the iPhone app and blocked pop-ups answer browser prompts "no") ─────────
+  const [ask, setAsk] = useState<null | { kind: "rename" | "move" | "delete" | "folder"; ids: string[]; value: string }>(null);
+  const [madeFolders, setMadeFolders] = useState<string[]>([]);
+  const allFolders = [...new Set([...folders, ...madeFolders])];
+  const reallyDelete = async (ids: string[]) => {
     const gone = files.filter((f) => ids.includes(f.id));
-    if (!gone.length || !window.confirm(gone.length > 1 ? `Delete ${gone.length} files? This can't be undone.` : `Delete "${gone[0].name}"? This can't be undone.`)) return;
+    if (!gone.length) return;
     setFiles((all) => ids.reduce((acc, id) => removeDriveFile(acc, id), all));
     setPicked(new Set()); setOpen(null);
     if (token) for (const f of gone) await fetch(`${API_BASE}/api/lifehub/drive/delete`, { method: "POST", headers: { "Content-Type": "application/json", ...auth }, body: JSON.stringify({ path: f.path }) }).catch(() => {});
     say(gone.length > 1 ? `${gone.length} files deleted.` : "Deleted.");
   };
+  const del = (ids: string[]) => { if (ids.length) setAsk({ kind: "delete", ids, value: "" }); };
   const star = (f: DriveFile) => setFiles((all) => updateDriveFile(all, f.id, { starred: !f.starred }));
-  const rename = (f: DriveFile) => {
-    const next = window.prompt("Rename file", f.name)?.trim();
-    if (next && next !== f.name) setFiles((all) => updateDriveFile(all, f.id, { name: next }));
-  };
-  const move = (ids: string[]) => {
-    const to = window.prompt(`Move to which folder?${folders.length ? `\nYour folders: ${folders.join(", ")}` : ""}\n(Leave empty to take out of a folder)`, folder || "");
-    if (to === null) return;
+  const rename = (f: DriveFile) => setAsk({ kind: "rename", ids: [f.id], value: f.name });
+  const move = (ids: string[]) => setAsk({ kind: "move", ids, value: "" });
+  const moveTo = (ids: string[], to: string) => {
     const name = to.trim().slice(0, 60);
     setFiles((all) => ids.reduce((acc, id) => updateDriveFile(acc, id, { folder: name }), all));
-    setPicked(new Set());
+    if (name) setMadeFolders((m) => (m.includes(name) ? m : [...m, name]));
+    setPicked(new Set()); setAsk(null);
     say(name ? `Moved to ${name}.` : "Taken out of the folder.");
   };
-  const newFolder = () => {
-    const name = window.prompt("New folder name")?.trim().slice(0, 60);
-    if (!name) return;
-    setFolder(name);
-    say(`Folder "${name}" ready. Files you upload now go in it.`);
+  const newFolder = () => setAsk({ kind: "folder", ids: [], value: "" });
+  const answer = () => {
+    if (!ask) return;
+    const v = ask.value.trim();
+    if (ask.kind === "rename") { const f = files.find((x) => x.id === ask.ids[0]); if (f && v && v !== f.name) setFiles((all) => updateDriveFile(all, f.id, { name: v.slice(0, 200) })); setAsk(null); }
+    else if (ask.kind === "folder") { const name = v.slice(0, 60); if (name) { setMadeFolders((m) => (m.includes(name) ? m : [...m, name])); setFolder(name); setFilter("all"); say(`Folder "${name}" made. Upload or move files into it.`); } setAsk(null); }
+    else if (ask.kind === "move") moveTo(ask.ids, v);
+    else if (ask.kind === "delete") { const ids = ask.ids; setAsk(null); void reallyDelete(ids); }
   };
   const download = async (f: DriveFile) => {
     const res = await fetch(`${API_BASE}/api/lifehub/drive/download`, { method: "POST", headers: { "Content-Type": "application/json", ...auth }, body: JSON.stringify({ path: f.path, name: f.name }) }).catch(() => null);
@@ -224,137 +228,130 @@ export default function DriveApp({ files, setFiles, say, token, onReadWithAI }: 
   const opened = open ? shown.find((f) => f.id === open) || files.find((f) => f.id === open) || null : null;
   const step = (d: number) => { if (!opened) return; const i = shown.findIndex((f) => f.id === opened.id); const n = shown[(i + d + shown.length) % shown.length]; if (n) setOpen(n.id); };
 
-  const thumb = (f: DriveFile, big = true) => {
+  const thumb = (f: DriveFile) => {
     const k = driveKind(f), look = KIND_LOOK[k];
     if (k === "photo" && urls[f.id]) return <img src={urls[f.id]} alt="" className="h-full w-full object-cover" loading="lazy" draggable={false} />;
-    return <span className="flex h-full w-full flex-col items-center justify-center gap-1.5" style={{ background: look.tint, color: look.ink }}>
-      {look.icon}{big && <span className="text-[10px] font-black tracking-[.14em]">{ext(f.name) || look.label.toUpperCase()}</span>}
-    </span>;
+    return <span className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-500">{look.icon}</span>;
   };
+  const tabBtn = (on: boolean) => `inline-flex min-h-9 flex-none items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition ${on ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`;
+  const count = (n: number, on: boolean) => <span className={on ? "text-white/60" : "text-slate-400"}>{n}</span>;
 
-  return <div className="space-y-4 pb-8" data-testid="drive-app" onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
+  return <div className="mx-auto max-w-5xl space-y-4 pb-8" data-testid="drive-app" onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
     {/* Header: name, storage, upload */}
-    <section className="overflow-hidden rounded-[1.6rem] bg-gradient-to-br from-[#1e1b3a] via-[#2b2556] to-[#3b2f7a] p-5 text-white shadow-[0_18px_40px_-24px_rgba(30,27,58,.8)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-[.18em] text-white/60">Arise Drive</p>
-          <h2 className="mt-1 text-[28px] font-black leading-none tracking-tight">Your files</h2>
-          <p className="mt-2 text-sm text-white/75">{files.length} {files.length === 1 ? "file" : "files"} · private to your account</p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => cameraRef.current?.click()} aria-label="Take a photo or video" className="grid h-11 w-11 place-items-center rounded-2xl bg-white/12 text-white ring-1 ring-white/20 hover:bg-white/20"><Camera className="h-5 w-5" /></button>
-          <button type="button" onClick={() => pickRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-[#1e1b3a] hover:bg-white/90" data-testid="drive-upload"><Upload className="h-4 w-4" />Upload</button>
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Drive</h1>
+        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500" data-testid="drive-meter">
+          <span className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-200" role="meter" aria-label="Drive storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={meter.percent}>
+            <span className={`block h-full rounded-full ${meter.nearlyFull ? "bg-amber-500" : "bg-slate-700"}`} style={{ width: `${meter.percent}%` }} /></span>
+          <span>{meter.used} of {meter.total}{meter.nearlyFull ? " · almost full" : ""}</span>
         </div>
       </div>
-      <div className="mt-5" data-testid="drive-meter">
-        <div className="flex items-baseline justify-between text-xs font-bold text-white/80"><span><b className="text-base font-black text-white">{meter.used}</b> used</span><span>{meter.left} free of {meter.total}</span></div>
-        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15" role="meter" aria-label="Drive storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={meter.percent}>
-          <div className={`h-full rounded-full transition-[width] ${meter.nearlyFull ? "bg-amber-300" : "bg-gradient-to-r from-sky-300 to-violet-300"}`} style={{ width: `${meter.percent}%` }} />
-        </div>
-        {meter.nearlyFull && <p className="mt-2 text-xs font-semibold text-amber-200">Almost full. Add more space in Billing.</p>}
+      <div className="flex shrink-0 gap-2">
+        <button type="button" onClick={() => cameraRef.current?.click()} aria-label="Take a photo or video" className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><Camera className="h-4 w-4" /></button>
+        <button type="button" onClick={() => pickRef.current?.click()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800" data-testid="drive-upload"><Upload className="h-4 w-4" />Upload</button>
       </div>
-    </section>
+    </div>
     <input ref={pickRef} type="file" multiple className="hidden" onChange={(e) => void upload(e.target.files)} />
     <input ref={cameraRef} type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={(e) => void upload(e.target.files)} />
 
     {/* Uploads in progress */}
     {jobs.length > 0 && <section className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3" aria-live="polite" data-testid="drive-uploads">
       {jobs.map((j) => { const pct = j.size ? Math.round((j.sent / j.size) * 100) : 0; return <div key={j.key} className="flex items-center gap-3">
-        <span className={`grid h-8 w-8 flex-none place-items-center rounded-xl ${j.state === "error" ? "bg-rose-50 text-rose-700" : j.state === "done" ? "bg-emerald-50 text-emerald-700" : "bg-violet-50 text-violet-700"}`}>
+        <span className={`grid h-7 w-7 flex-none place-items-center rounded-lg ${j.state === "error" ? "text-rose-600" : j.state === "done" ? "text-emerald-600" : "text-slate-500"}`}>
           {j.state === "up" ? <Loader2 className="h-4 w-4 animate-spin" /> : j.state === "done" ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}</span>
         <div className="min-w-0 flex-1">
-          <div className="flex justify-between gap-2 text-sm"><span className="truncate font-semibold text-slate-800">{j.name}</span><span className="flex-none text-xs font-bold tabular-nums text-slate-500">{j.state === "error" ? "" : `${pct}% · ${formatBytes(j.size)}`}</span></div>
-          {j.state === "error" ? <p className="text-xs font-semibold text-rose-700">{j.note}</p>
-            : <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-violet-600 transition-[width]" style={{ width: `${pct}%` }} /></div>}
+          <div className="flex justify-between gap-2 text-sm"><span className="truncate text-slate-800">{j.name}</span><span className="flex-none text-xs tabular-nums text-slate-400">{j.state === "error" ? "" : `${pct}%`}</span></div>
+          {j.state === "error" ? <p className="text-xs text-rose-700">{j.note}</p>
+            : <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-700 transition-[width]" style={{ width: `${pct}%` }} /></div>}
         </div>
-        {j.state === "up" && j.abort ? <button type="button" onClick={j.abort} className="text-xs font-bold text-slate-500 hover:text-slate-800">Cancel</button>
+        {j.state === "up" && j.abort ? <button type="button" onClick={j.abort} className="text-xs font-semibold text-slate-500 hover:text-slate-800">Cancel</button>
           : j.state === "error" && <button type="button" onClick={() => setJobs((all) => all.filter((x) => x.key !== j.key))} aria-label="Dismiss" className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>}
       </div>; })}
     </section>}
 
-    {/* Search, sort, view */}
+    {/* Folders (and Starred), search, view */}
     <div className="flex items-center gap-2">
-      <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 focus-within:border-violet-400">
-        <Search className="h-4 w-4 flex-none text-slate-400" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your files" aria-label="Search your files" className="min-w-0 flex-1 bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400" />
-        {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="text-slate-400"><X className="h-4 w-4" /></button>}
-      </label>
-      <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort files" className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
-        <option value="new">Newest</option><option value="old">Oldest</option><option value="name">Name</option><option value="size">Largest</option>
-      </select>
-      <button type="button" onClick={() => setView(view === "grid" ? "list" : "grid")} aria-label={view === "grid" ? "Show as a list" : "Show as a grid"} className="grid h-11 w-11 flex-none place-items-center rounded-2xl border border-slate-200 bg-white text-slate-700">
+      <div className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none]" role="group" aria-label="Folders">
+        <button type="button" onClick={() => { setFolder(""); setFilter("all"); }} aria-pressed={!folder && filter === "all"} className={tabBtn(!folder && filter === "all")}>All{count(files.length, !folder && filter === "all")}</button>
+        <button type="button" onClick={() => { setFolder(""); setFilter("starred"); }} aria-pressed={filter === "starred"} className={tabBtn(filter === "starred")}><Star className="h-3.5 w-3.5" />Starred</button>
+        {allFolders.map((name) => <button key={name} type="button" onClick={() => { setFolder(name); setFilter("all"); }} aria-pressed={folder === name} className={tabBtn(folder === name)}><Folder className="h-3.5 w-3.5" />{name}{count(files.filter((f) => f.folder === name).length, folder === name)}</button>)}
+        <button type="button" onClick={newFolder} className="inline-flex min-h-9 flex-none items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-500 hover:bg-slate-100" data-testid="drive-new-folder"><FolderPlus className="h-4 w-4" />New folder</button>
+      </div>
+      <button type="button" onClick={() => setView(view === "grid" ? "list" : "grid")} aria-label={view === "grid" ? "Show as a list" : "Show as a grid"} className="grid h-9 w-9 flex-none place-items-center rounded-xl text-slate-500 hover:bg-slate-100">
         {view === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}</button>
     </div>
-
-    {/* Kinds */}
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" role="tablist" aria-label="Kinds of files">
-      {FILTERS.map((f) => { const n = files.filter((x) => (f.id !== "starred" || x.starred) && inFilter(driveKind(x), f.id)).length;
-        return <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)}
-          className={`inline-flex h-9 flex-none items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition ${filter === f.id ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}>
-          {f.id === "starred" && <Star className="h-3.5 w-3.5" />}{f.label}<span className={`text-xs ${filter === f.id ? "text-white/70" : "text-slate-400"}`}>{n}</span></button>; })}
-    </div>
-
-    {/* Folders */}
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-      <button type="button" onClick={() => setFolder("")} className={`inline-flex h-10 flex-none items-center gap-2 rounded-xl px-3 text-sm font-bold ${!folder ? "bg-violet-100 text-violet-800" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}><Folder className="h-4 w-4" />All folders</button>
-      {[...new Set([...folders, ...(folder && !folders.includes(folder) ? [folder] : [])])].map((name) =>
-        <button key={name} type="button" onClick={() => setFolder(name)} className={`inline-flex h-10 flex-none items-center gap-2 rounded-xl px-3 text-sm font-bold ${folder === name ? "bg-violet-100 text-violet-800" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
-          <Folder className="h-4 w-4" />{name}<span className="text-xs text-slate-400">{files.filter((f) => f.folder === name).length}</span></button>)}
-      <button type="button" onClick={newFolder} className="inline-flex h-10 flex-none items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 text-sm font-bold text-slate-600 hover:bg-slate-50"><FolderPlus className="h-4 w-4" />New folder</button>
-    </div>
+    {files.length > 6 && <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-slate-400">
+      <Search className="h-4 w-4 flex-none text-slate-400" />
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search your files" className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400" />
+      {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="text-slate-400"><X className="h-4 w-4" /></button>}
+    </label>}
 
     {/* Select-many bar */}
-    {selecting && <div className="sticky top-2 z-20 flex items-center gap-2 rounded-2xl bg-slate-900 p-2 pl-4 text-white shadow-lg">
-      <span className="flex-1 text-sm font-bold">{picked.size} selected</span>
-      <button type="button" onClick={() => move([...picked])} className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-bold hover:bg-white/10"><Folder className="h-4 w-4" />Move</button>
-      <button type="button" onClick={() => void del([...picked])} className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-rose-300 hover:bg-white/10"><Trash2 className="h-4 w-4" />Delete</button>
+    {selecting && <div className="sticky top-2 z-20 flex items-center gap-1 rounded-2xl bg-slate-900 p-1.5 pl-4 text-white shadow-lg">
+      <span className="flex-1 text-sm font-semibold">{picked.size} selected</span>
+      <button type="button" onClick={() => move([...picked])} className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold hover:bg-white/10"><Folder className="h-4 w-4" />Move</button>
+      <button type="button" onClick={() => del([...picked])} className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-rose-300 hover:bg-white/10"><Trash2 className="h-4 w-4" />Delete</button>
       <button type="button" onClick={() => setPicked(new Set())} aria-label="Stop selecting" className="grid h-9 w-9 place-items-center rounded-xl hover:bg-white/10"><X className="h-4 w-4" /></button>
     </div>}
 
     {/* Files */}
     {files.length === 0
-      ? <button type="button" onClick={() => pickRef.current?.click()} className={`flex w-full flex-col items-center gap-3 rounded-[1.6rem] border-2 border-dashed px-6 py-12 text-center transition ${dragging ? "border-violet-500 bg-violet-50" : "border-slate-200 bg-white hover:border-violet-300"}`}>
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-100 text-violet-700"><Upload className="h-6 w-6" /></span>
-          <span className="text-lg font-black text-slate-900">Drop files here or tap to upload</span>
-          <span className="max-w-xs text-sm text-slate-500">Photos, videos, PDFs, documents, anything. Up to 5 GB a file.</span>
+      ? <button type="button" onClick={() => pickRef.current?.click()} className={`flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed px-6 py-14 text-center transition ${dragging ? "border-slate-500 bg-slate-50" : "border-slate-300 bg-white hover:bg-slate-50"}`}>
+          <Upload className="h-6 w-6 text-slate-400" />
+          <span className="text-sm font-semibold text-slate-800">Drop files here, or tap to upload</span>
+          <span className="text-xs text-slate-500">Photos, videos, PDFs, documents. Up to 5 GB a file.</span>
         </button>
       : shown.length === 0
-        ? <p className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">No files match. Try another search or kind.</p>
+        ? <p className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">{folder ? "Nothing in this folder yet. Upload here, or move files in." : filter === "starred" ? "Star a file to keep it here." : "No files match."}</p>
         : view === "grid"
-          ? <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" data-testid="drive-grid">
-              {shown.map((f) => <li key={f.id} className="relative">
-                <button type="button" onClick={() => tap(f)} onContextMenu={(e) => { e.preventDefault(); toggle(f.id); }}
-                  className={`group block w-full overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:shadow-md ${picked.has(f.id) ? "border-violet-500 ring-2 ring-violet-500" : "border-slate-200"}`}>
-                  <span className="block aspect-[4/3] overflow-hidden bg-slate-50">{thumb(f)}</span>
-                  <span className="block px-3 py-2.5">
-                    <span className="block truncate text-sm font-bold text-slate-900">{f.name}</span>
-                    <span className="mt-0.5 block truncate text-xs text-slate-500">{formatBytes(f.size)}{f.uploadedAt ? ` · ${when(f.uploadedAt)}` : ""}{f.folder ? ` · ${f.folder}` : ""}</span>
-                  </span>
+          ? <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" data-testid="drive-grid">
+              {shown.map((f) => <li key={f.id} className="group relative">
+                <button type="button" onClick={() => tap(f)} onContextMenu={(e) => { e.preventDefault(); toggle(f.id); }} className="block w-full text-left">
+                  <span className={`block aspect-square overflow-hidden rounded-xl ${picked.has(f.id) ? "ring-2 ring-slate-900" : ""}`}>{thumb(f)}</span>
+                  <span className="mt-1.5 block truncate text-sm text-slate-800">{f.name}</span>
+                  <span className="block truncate text-xs text-slate-400">{formatBytes(f.size)}{f.uploadedAt ? ` · ${when(f.uploadedAt)}` : ""}</span>
                 </button>
                 <button type="button" onClick={() => toggle(f.id)} aria-label={picked.has(f.id) ? `Unselect ${f.name}` : `Select ${f.name}`} aria-pressed={picked.has(f.id)}
-                  className={`absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border-2 transition ${picked.has(f.id) ? "border-violet-600 bg-violet-600 text-white" : "border-white/90 bg-black/25 text-transparent hover:text-white"}`}><Check className="h-4 w-4" /></button>
-                {f.starred && <Star className="absolute right-2 top-2 h-5 w-5 fill-amber-400 text-amber-400 drop-shadow" />}
+                  className={`absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full border-2 transition ${picked.has(f.id) ? "border-slate-900 bg-slate-900 text-white" : "border-white bg-black/20 text-transparent opacity-0 group-hover:opacity-100"}`}><Check className="h-3.5 w-3.5" /></button>
+                {f.starred && <Star className="absolute right-2 top-2 h-4 w-4 fill-amber-400 text-amber-400 drop-shadow" />}
               </li>)}
             </ul>
           : <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="drive-list">
-              {shown.map((f) => <li key={f.id} className={`flex items-center gap-3 px-3 py-2.5 ${picked.has(f.id) ? "bg-violet-50" : ""}`}>
+              {shown.map((f) => <li key={f.id} className={`group flex items-center gap-3 px-3 py-2 ${picked.has(f.id) ? "bg-slate-50" : ""}`}>
                 <button type="button" onClick={() => toggle(f.id)} aria-label={picked.has(f.id) ? `Unselect ${f.name}` : `Select ${f.name}`} aria-pressed={picked.has(f.id)}
-                  className={`grid h-6 w-6 flex-none place-items-center rounded-full border-2 ${picked.has(f.id) ? "border-violet-600 bg-violet-600 text-white" : "border-slate-300 text-transparent"}`}><Check className="h-3.5 w-3.5" /></button>
+                  className={`grid h-5 w-5 flex-none place-items-center rounded-full border-2 ${picked.has(f.id) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-transparent"}`}><Check className="h-3 w-3" /></button>
                 <button type="button" onClick={() => tap(f)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                  <span className="block h-11 w-11 flex-none overflow-hidden rounded-xl">{thumb(f, false)}</span>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold text-slate-900">{f.name}</span>
-                    <span className="block truncate text-xs text-slate-500">{KIND_LOOK[driveKind(f)].label} · {formatBytes(f.size)}{f.uploadedAt ? ` · ${when(f.uploadedAt)}` : ""}{f.folder ? ` · ${f.folder}` : ""}</span></span>
+                  <span className="block h-9 w-9 flex-none overflow-hidden rounded-lg">{thumb(f)}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm text-slate-900">{f.name}</span>
+                    <span className="block truncate text-xs text-slate-400">{formatBytes(f.size)}{f.uploadedAt ? ` · ${when(f.uploadedAt)}` : ""}{!folder && f.folder ? ` · ${f.folder}` : ""}</span></span>
                 </button>
-                <button type="button" onClick={() => star(f)} aria-label={f.starred ? "Unstar" : "Star"} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><Star className={`h-4 w-4 ${f.starred ? "fill-amber-400 text-amber-400" : ""}`} /></button>
+                <button type="button" onClick={() => star(f)} aria-label={f.starred ? "Unstar" : "Star"} className="grid h-8 w-8 place-items-center rounded-lg text-slate-300 hover:bg-slate-100 hover:text-slate-600"><Star className={`h-4 w-4 ${f.starred ? "fill-amber-400 text-amber-400" : ""}`} /></button>
               </li>)}
             </ul>}
-    {files.length > 0 && <p className="text-center text-xs text-slate-400">Drag files anywhere here to upload. Long-press or right-click a file to select it.</p>}
 
     {/* Viewer */}
     {opened && <Viewer f={opened} url={urls[opened.id]} ensure={() => void linkFor(opened)} close={() => setOpen(null)} prev={() => step(-1)} next={() => step(1)} many={shown.length > 1}
-      star={() => star(opened)} rename={() => rename(opened)} move={() => move([opened.id])} remove={() => void del([opened.id])} download={() => void download(opened)} share={() => void share(opened)}
+      star={() => star(opened)} rename={() => rename(opened)} move={() => move([opened.id])} remove={() => del([opened.id])} download={() => void download(opened)} share={() => void share(opened)}
       readWithAI={onReadWithAI ? () => void readWithAI(opened) : undefined} reading={reading === opened.id} />}
-    {dragging && <div className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-violet-900/30 backdrop-blur-sm"><span className="rounded-3xl bg-white px-6 py-4 text-lg font-black text-violet-800 shadow-2xl">Drop to upload</span></div>}
+    {dragging && <div className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-slate-900/20 backdrop-blur-sm"><span className="rounded-2xl bg-white px-5 py-3 text-base font-semibold text-slate-800 shadow-xl">Drop to upload</span></div>}
+
+    {/* Rename, move, new folder, delete: asked here */}
+    {ask && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/40 p-4 sm:items-center" role="dialog" aria-modal="true" data-testid="drive-ask" onClick={() => setAsk(null)}>
+      <form className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); answer(); }}>
+        <h2 className="text-base font-bold text-slate-900">{ask.kind === "rename" ? "Rename" : ask.kind === "folder" ? "New folder" : ask.kind === "move" ? (ask.ids.length > 1 ? `Move ${ask.ids.length} files` : "Move to") : ask.ids.length > 1 ? `Delete ${ask.ids.length} files?` : `Delete "${files.find((f) => f.id === ask.ids[0])?.name ?? "this file"}"?`}</h2>
+        {ask.kind === "delete" ? <p className="mt-1.5 text-sm text-slate-600">This can't be undone.</p>
+          : ask.kind === "move" ? <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+              {["", ...allFolders].map((g) => <button key={g || "none"} type="button" onClick={() => moveTo(ask.ids, g)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm hover:bg-slate-50"><Folder className="h-4 w-4 text-slate-400" />{g || "No folder"}</button>)}
+              <div className="flex gap-1.5 pt-1"><input value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="Or a new folder" maxLength={60} aria-label="New folder name" className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400" /><button type="submit" disabled={!ask.value.trim()} className="min-h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white disabled:opacity-40">Move</button></div>
+            </div>
+          : <input autoFocus value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} maxLength={ask.kind === "folder" ? 60 : 200} aria-label={ask.kind === "folder" ? "Folder name" : "File name"} placeholder={ask.kind === "folder" ? "Folder name" : ""} className="mt-3 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400" />}
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={() => setAsk(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          {ask.kind !== "move" && <button type="submit" data-testid="drive-ask-ok" className={`min-h-11 rounded-xl px-4 text-sm font-semibold text-white ${ask.kind === "delete" ? "bg-rose-600 hover:bg-rose-700" : "bg-slate-900 hover:bg-slate-800"}`}>{ask.kind === "delete" ? "Delete" : ask.kind === "folder" ? "Make folder" : "Save"}</button>}
+        </div>
+      </form>
+    </div>}
   </div>;
 }
 

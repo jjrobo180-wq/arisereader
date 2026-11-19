@@ -33,3 +33,9 @@ test("Drive uploads big files straight to storage with progress, not capped at 2
   assert.ok(server.includes("createSignedUploadUrl"));
   assert.ok(server.includes("fileSizeLimit: MAX_DIRECT_BYTES"));
 });
+
+test("Drive asks in the page (rename, move, new folder, delete), not with browser pop-ups that can be silently blocked", () => {
+  const app = readFileSync(new URL("../client/src/components/family-hub/DriveApp.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(app, /window\.(prompt|confirm)\(/);
+  for (const t of ['data-testid="drive-ask"', 'data-testid="drive-new-folder"', 'data-testid="drive-meter"', 'data-testid="drive-upload"', "setMadeFolders("]) assert.ok(app.includes(t), t);
+});
