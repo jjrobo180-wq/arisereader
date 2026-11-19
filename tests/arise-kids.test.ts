@@ -203,3 +203,15 @@ test("First / Then, the timer, breathing and animal sounds", () => {
   assert.match(kids, /const EXTRAS: Record<Extra, ComponentType<ExtraProps>> = \{ hunt: ColorHunt, firstthen: FirstThen, timer: KidsTimer, breathe: Breathe, sounds: AnimalSounds \}/);
   assert.match(kids, /const goHome = \(\) => \{ setScreen\(\{ kind: "tab" \}\); \};/, "closing a game goes back where it was opened");
 });
+
+test("Update app: one shared download per version (taps don't start it over), an earlier download is reused, and the percent shows", () => {
+  const n = read("client/src/lib/nativeApp.ts");
+  assert.match(n, /if \(inflight && inflight\.version === version\) return inflight\.promise;/);
+  assert.equal((n.match(/await downloadOnce\(u, latest\)/g) || []).length, 2, "the automatic check and Update app both use it");
+  assert.equal((n.match(/u\.download\(/g) || []).length, 1, "only one place downloads");
+  assert.match(n, /String\(b\?\.status\) === "success"/);
+  assert.match(n, /u\.addListener\("download"/);
+  const kids = read("client/src/pages/arise-kids/KidsApp.tsx");
+  assert.match(kids, /if \(updating\.current\) return;/);
+  assert.match(kids, /Downloading the update… \$\{p\}%/);
+});

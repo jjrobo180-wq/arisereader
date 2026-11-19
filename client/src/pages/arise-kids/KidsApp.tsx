@@ -102,10 +102,26 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
     if (t.game === "pick") { setReward(null); return setScreen({ kind: "pick", q: 0, on: 0, picked: null }); }
     if (t.game === "stickers") return navigate(KIDS_TAB_PATHS.stickers);
     if (t.game && t.game in EXTRAS) { setReward(null); say(t.name); return setScreen({ kind: "extra", game: t.game as Extra }); }
-    if (t.game === "update") { setToast("Checking for the newest version…"); void import("@/lib/nativeApp").then((m) => m.checkForUpdateNow()).catch(() => "Couldn't check for updates.").then((msg) => { setToast(msg); window.clearTimeout(toastTimer.current); toastTimer.current = window.setTimeout(() => setToast(""), 8000); }); return; }
+    if (t.game === "update") { void runUpdate(); return; }
     if (t.path) { say(t.name); navigate(t.path); }
   };
   // Closing a game goes back to the screen it was opened from (Home, Apps or Stickers).
+  // Update app: one check at a time, the download's progress on screen the whole time, and a second tap
+  // shows how far it is instead of starting the download again.
+  const updating = useRef(false);
+  const runUpdate = async () => {
+    window.clearTimeout(toastTimer.current);
+    if (updating.current) return;
+    updating.current = true;
+    const m = await import("@/lib/nativeApp");
+    const show = (p: number | null) => setToast(p === null ? "Checking for the newest version…" : `Downloading the update… ${p}%. Keep the app open.`);
+    show(m.updateDownloadPercent());
+    const off = m.onUpdateProgress((p) => show(p));
+    const msg = await m.checkForUpdateNow().catch(() => "Couldn't check for updates.");
+    off(); updating.current = false;
+    setToast(msg);
+    toastTimer.current = window.setTimeout(() => setToast(""), 8000);
+  };
   const goHome = () => { setScreen({ kind: "tab" }); };
 
   // Each tile follows the same permission its page checks (a game: Games; Quizzes and Books: the library).
