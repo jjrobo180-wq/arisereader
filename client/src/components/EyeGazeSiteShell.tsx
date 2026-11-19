@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { BookOpen, Gamepad2, Home, LogOut, MessageCircle, UserRound } from "lucide-react";
+import { KidsTabBar } from "@/pages/arise-kids/kidsUi";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
@@ -15,7 +16,9 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const [parentControls, setParentControls] = useState<ParentControls>(cachedParentControls());
 
   const isEyeGazer = !!user && !!user.is_eye_gaze_user && !user.isAdmin && user.role !== "teacher" && user.role !== "parent";
-  const immersiveRoute = location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
+  // Arise Kids (Home, Apps, Stickers) draws its own screens edge to edge, with its own tab bar.
+  const kidsScreen = location === "/eye-gaze-home" || location === "/eye-gaze-apps" || location === "/eye-gaze-stickers";
+  const immersiveRoute = kidsScreen || location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
   const immersive = immersiveRoute || (location === "/eye-gaze-games" && gameImmersive);
 
   useEffect(() => {
@@ -79,12 +82,6 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     { label: "Learn", icon: BookOpen, path: "/eye-gaze-lessons", tint: "#6d28d9" },
     { label: "Me", icon: UserRound, path: "/profile", tint: "#6d28d9" },
   ];
-  const visibleNav = nav.filter(item =>
-    item.path === "/eye-gaze-home"
-    || (item.path === "/eye-gaze-games" && (pathAllowed("/eye-gaze-games", parentControls) || pathAllowed("/library", parentControls)))
-    || (item.path === "/eye-gaze-lessons" && pathAllowed("/library", parentControls))
-    || (item.path !== "/eye-gaze-games" && item.path !== "/eye-gaze-lessons" && pathAllowed(item.path, parentControls))
-  );
   const here = nav.find(item => item.path === location);
   const firstName = user.displayName?.split(" ")[0] || "Friend";
   // Signing out is for grown-ups: it asks first, so a tap by mistake doesn't end the child's session.
@@ -132,18 +129,8 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
       <div className={immersive ? "w-full min-w-0" : "mx-auto min-w-0 max-w-[1200px]"}>
         <div className={immersive ? "flex-1 min-w-0" : "eye-gaze-page min-w-0 pb-28"}>{children}</div>
       </div>
-      {!immersive && <nav aria-label="Tabs" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#e5e8f4] bg-white/90 backdrop-blur-xl" style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
-        <div className="mx-auto grid max-w-[720px] gap-1 px-2 pt-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, visibleNav.length)}, minmax(0, 1fr))` }}>
-          {visibleNav.map(item => {
-            const Icon = item.icon; const active = location === item.path;
-            return <button key={item.path} type="button" onClick={() => navigate(item.path)} aria-current={active ? "page" : undefined}
-              className="eg-press flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl text-[12px] font-bold"
-              style={{ color: active ? item.tint : "#7c8299", background: active ? "#f5f3ff" : "transparent" }}>
-              <Icon className="h-[26px] w-[26px]" strokeWidth={active ? 2.4 : 2} />{item.label}
-            </button>;
-          })}
-        </div>
-      </nav>}
+      {/* The same tab bar as Arise Kids' Home, Apps and Stickers, so every page leads back to them. */}
+      {!immersive && <div className="fixed inset-x-0 bottom-0 z-[70]" style={{ height: 92 }}><KidsTabBar tab={null} /></div>}
     </div>
   );
 }

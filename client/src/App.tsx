@@ -181,6 +181,8 @@ const GrowthCheck = lazyPage(() => import("./pages/GrowthCheck"));
 const EyeGazeQuiz = lazyPage(() => import("./pages/EyeGazeQuiz"));
 const EyeGazeGames = lazyPage(() => import("./pages/EyeGazeGames"));
 const EyeGazeHome = lazyPage(() => import("./pages/EyeGazeHome"));
+// Arise Kids: the Arise AAC app's Home, Apps and Stickers (the prototype the owner chose, Nov 18, 2026).
+const KidsApp = lazyPage(() => import("./pages/arise-kids/KidsApp"));
 const EyeGazeLessons = lazyPage(() => import("./pages/EyeGazeLessons"));
 const EyeGazeProgress = lazyPage(() => import("./pages/EyeGazeProgress"));
 const EyeGazeAccount = lazyPage(() => import("./pages/EyeGazeAccount"));
@@ -1042,6 +1044,16 @@ function AppRoutes() {
         <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-home">
+        <ProtectedRoute><KidsApp tab="home" /></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-apps">
+        <ProtectedRoute><KidsApp tab="apps" /></ProtectedRoute>
+      </Route>
+      <Route path="/eye-gaze-stickers">
+        <ProtectedRoute><KidsApp tab="stickers" /></ProtectedRoute>
+      </Route>
+      {/* The earlier Arise AAC home, kept at its own address. */}
+      <Route path="/eye-gaze-classic-home">
         <ProtectedRoute><EyeGazeHome /></ProtectedRoute>
       </Route>
       {/* Wren, the AI-voice talker, inside the Arise AAC app (same grown-up permission as My Talker). */}
