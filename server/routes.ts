@@ -8661,6 +8661,9 @@ export async function registerRoutes(
   // private talker state. Photos and progress never pass through public URLs.
   async function talkerStudent(req: any): Promise<{ id: number; displayName: string } | null> {
     if (req.user.role === 'student' && req.user.is_eye_gaze_user) return req.user;
+    // The site owner can open every Arise AAC page (Shorts, My World, Flash Cards, the talker...) to try
+    // it: their own account stands in for the child, so what they set up is kept under their own id.
+    if (req.user.isAdmin) return { id: req.user.id, displayName: req.user.displayName || req.user.username || 'Me' };
     if (req.user.role !== 'parent' || req.user.accountApproved === false) return null;
     const linkedIds = await getParentStudentIds(req.user.id);
     const requestedId = requestedParentStudentId(req);
@@ -9421,10 +9424,10 @@ Important:
 
   app.get('/api/eye-gaze/youtube-shorts', authMiddleware, async (req: any, res) => {
     try {
+      // Shorts are the trusted, grown-up-checked channels: anyone signed in can watch them. A child (or a
+      // parent's linked child) gets the topics and channels their grown-up chose; anyone else the defaults.
       const child = await talkerStudent(req);
-      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
-
-      const raw = await storage.getSetting(`eye_gaze_family_settings_${child.id}`);
+      const raw = child ? await storage.getSetting(`eye_gaze_family_settings_${child.id}`) : null;
       let parsed: any = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch {} }
       const settings = normalizeEyeGazeFamilySettings(parsed || defaultEyeGazeFamilySettings());

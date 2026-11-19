@@ -4,7 +4,9 @@
 // highlight, so one tap or one switch press picks). The data and rules live here so they can be tested.
 
 export type KidsSticker = { name: string; bg: string; d: string };
-export type KidsCard = { kicker: string; title: string; hint: string; d: string };
+export type KidsCard = { kicker: string; title: string; hint: string; d: string;
+  /** A letter to trace with a finger on the card (TRACE_LETTERS). */ trace?: keyof typeof TRACE_LETTERS;
+  /** What the sound button says, when it isn't the title and hint. */ say?: string };
 export type KidsDeck = { id: string; name: string; bg: string; cards: KidsCard[] };
 export type KidsOption = { label: string; fill: string; d: string };
 export type KidsQuestion = { q: string; right: number; opts: [KidsOption, KidsOption] };
@@ -24,10 +26,46 @@ export const STICKERS: KidsSticker[] = [
   { name: "Crown", bg: "#ffe08a", d: "M3 8l4 4 5-7 5 7 4-4-2 11H5z" },
 ];
 
+/** Letters to trace: their strokes as lines on a 24 by 24 grid (the same grid as the card's pictures). */
+export const TRACE_LETTERS = {
+  A: [[5, 21, 12, 3], [12, 3, 19, 21], [8, 14, 16, 14]] as [number, number, number, number][],
+};
+export type TracePoint = { x: number; y: number };
+
+const segDist = (p: TracePoint, [x1, y1, x2, y2]: [number, number, number, number]) => {
+  const dx = x2 - x1, dy = y2 - y1;
+  const t = Math.max(0, Math.min(1, ((p.x - x1) * dx + (p.y - y1) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p.x - (x1 + t * dx), p.y - (y1 + t * dy));
+};
+
+/** How well a finger followed a letter: how much of the letter it went over (coverage), how much of the
+ *  drawing stayed on the letter (accuracy), and whether that's enough to count. Generous, for small hands
+ *  and children who find fine movement hard: within about 2.5 squares of the line counts. */
+export function traceScore(points: TracePoint[], letter: keyof typeof TRACE_LETTERS): { coverage: number; accuracy: number; done: boolean } {
+  const segs = TRACE_LETTERS[letter];
+  if (!points.length) return { coverage: 0, accuracy: 0, done: false };
+  const near = (a: TracePoint, b: TracePoint, r: number) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= r * r;
+  // Every stroke has to be traced (a short one like A's bar too), so each is checked on its own.
+  let samples = 0, covered = 0, everyStroke = true;
+  for (const [x1, y1, x2, y2] of segs) {
+    const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 0.75));
+    let hit = 0;
+    for (let i = 0; i <= n; i++) {
+      const s = { x: x1 + (x2 - x1) * i / n, y: y1 + (y2 - y1) * i / n };
+      if (points.some((p) => near(s, p, 2.5))) hit++;
+    }
+    samples += n + 1; covered += hit;
+    if (hit / (n + 1) < 0.7) everyStroke = false;
+  }
+  const onLetter = points.filter((p) => segs.some((seg) => segDist(p, seg) <= 3)).length;
+  const coverage = covered / samples, accuracy = onLetter / points.length;
+  return { coverage, accuracy, done: everyStroke && coverage >= 0.8 && accuracy >= 0.65 };
+}
+
 export const DECKS: Record<"letters" | "numbers" | "moves", KidsDeck> = {
   letters: { id: "letters", name: "Letters", bg: "#6e5ce1", cards: [
-    { kicker: "WRITE", title: "Trace the letter A", hint: "Use your finger in the air", d: "M5 21 12 3l7 18M8 14h8" },
-    { kicker: "SAY", title: "Say “b… b… ball”", hint: "Tap the sound button to hear it", d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c-4 3-4 15 0 18" },
+    { kicker: "WRITE", title: "Trace the letter A", hint: "Start at the yellow dot and follow the dots", d: "M5 21 12 3l7 18M8 14h8", trace: "A" },
+    { kicker: "SAY", title: "Say “b… b… ball”", hint: "Tap the sound button to hear it", say: "b… b… ball. Now you say it: ball!", d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c-4 3-4 15 0 18" },
     { kicker: "FIND", title: "Find something red", hint: "Show a grown-up", d: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3" },
   ] },
   numbers: { id: "numbers", name: "Numbers", bg: "#e0663a", cards: [

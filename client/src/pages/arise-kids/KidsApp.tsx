@@ -5,6 +5,7 @@
 // Data and rules: shared/ariseKids.ts.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
+import TracePad from "./TracePad";
 import { Icon, KIDS_TAB_PATHS, KidsTabBar, css, type KidsTab } from "./kidsUi";
 import { useAuth } from "@/context/AuthContext";
 import { sayAI } from "@/lib/aiVoice";
@@ -46,6 +47,7 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
   const [albumTab, setAlbumTab] = useState(0);
   const [reward, setReward] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+  const [traced, setTraced] = useState(false);
   const toastTimer = useRef<number>();
   const [controls, setControls] = useState<ParentControls>(cachedParentControls());
 
@@ -66,6 +68,17 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
     const t = window.setInterval(() => setScreen((s) => s.kind === "pick" && s.picked === null ? { ...s, on: 1 - s.on } : s), 1500);
     return () => window.clearInterval(t);
   }, [screen.kind, screen.kind === "pick" ? screen.picked : null, reward]);
+  // A switch (most send Space or Enter) or a keyboard picks in Pick It!, the same as a tap anywhere.
+  const pickRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (screen.kind !== "pick") return;
+    const key = (e: KeyboardEvent) => {
+      if ((e.key !== " " && e.key !== "Enter") || (e.target as HTMLElement | null)?.closest?.("[data-close]")) return;
+      e.preventDefault(); pickRef.current();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [screen.kind]);
   // Card and question are said out loud as they come up.
   const spoken = screen.kind === "cards" ? DECKS[screen.deck].cards[screen.index % DECKS[screen.deck].cards.length].title : screen.kind === "pick" ? QUESTIONS[screen.q % QUESTIONS.length].q : "";
   useEffect(() => { if (spoken) say(spoken); }, [spoken]);
@@ -80,7 +93,7 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
     setWon(r.won); setReward(r.sticker); setAlbumTab(r.sticker < 6 ? 0 : 1);
     say(`New sticker! ${STICKERS[r.sticker].name}!`);
   };
-  const openCards = (deck: DeckId) => { setReward(null); setScreen({ kind: "cards", deck, index: 0 }); };
+  const openCards = (deck: DeckId) => { setReward(null); setTraced(false); setScreen({ kind: "cards", deck, index: 0 }); };
   const openTile = (t: KidsTile) => {
     if (t.game === "cards") return openCards(t.deck ?? "letters");
     if (t.game === "pick") { setReward(null); return setScreen({ kind: "pick", q: 0, on: 0, picked: null }); }
@@ -103,7 +116,11 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
   if (screen.kind === "cards") {
     const deck = DECKS[screen.deck];
     const card = deck.cards[screen.index % deck.cards.length];
-    const step = (done: boolean) => { const r = cardStep(screen.deck, screen.index, done); setScreen({ ...screen, index: r.index }); if (r.win) win(); };
+    const step = (done: boolean) => { const r = cardStep(screen.deck, screen.index, done); setTraced(false); setScreen({ ...screen, index: r.index }); if (r.win) win(); };
+    // A tracing card counts once the letter is traced; "Later" always moves on.
+    const needsTrace = !!card.trace && !traced;
+    const didIt = () => { if (needsTrace) { showToast("Trace the letter first, or tap Later."); return; } step(true); };
+    const hear = () => say(card.say ?? `${card.title}. ${card.hint}.`);
     body = (
       <div style={css("position: absolute; inset: 0; background: #111827; color: #ffffff; padding: 52px 20px 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px")} data-screen="cards">
         <div style={{ ...css("display: flex; align-items: center; gap: 12px"), marginTop: `calc(${TOP(52)} - 52px)` }}>
@@ -115,21 +132,25 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
           <div style={css("position: absolute; left: 24px; right: 24px; top: 28px; bottom: 0; border-radius: 34px; background: #2a3450")} />
           <div style={css("position: absolute; left: 12px; right: 12px; top: 14px; bottom: 10px; border-radius: 34px; background: #3b4770")} />
           <div style={css("position: absolute; left: 0; right: 0; top: 0; bottom: 20px; border-radius: 34px; background: " + deck.bg + "; padding: 28px 22px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; box-shadow: 0 20px 40px rgba(0,0,0,.35)")}>
+            <button type="button" onClick={hear} aria-label="Hear it" data-testid="card-hear" style={css("position: absolute; right: 16px; top: 16px; width: 48px; height: 48px; border-radius: 24px; border: 0; background: rgba(255,255,255,.22); color: #ffffff; display: flex; align-items: center; justify-content: center")}><Icon d={SPEAKER} size={24} width={2.2} /></button>
             <span style={css("font-size: 14px; font-weight: 800; letter-spacing: .1em; opacity: .85")}>{card.kicker}</span>
-            <Icon d={card.d} size={150} stroke="#ffffff" width={1.5} />
+            {card.trace
+              ? <TracePad key={`${screen.deck}-${screen.index}`} letter={card.trace} size={220} onChange={(done) => { if (done && !traced) say("Great tracing!"); setTraced(done); }} />
+              : <Icon d={card.d} size={150} stroke="#ffffff" width={1.5} />}
             <span style={css("font-size: 32px; font-weight: 800; line-height: 1.15; text-align: center")}>{card.title}</span>
-            <span style={css("font-size: 17px; opacity: .9; text-align: center")}>{card.hint}</span>
+            <span style={css("font-size: 17px; opacity: .9; text-align: center")}>{card.trace && traced ? "You traced it! Tap “I did it”." : card.hint}</span>
           </div>
         </div>
         <div style={css("display: flex; gap: 12px")}>
           <button type="button" onClick={() => step(false)} style={css("flex-grow: 1; min-height: 70px; border-radius: 35px; border: 2px solid #4a5675; background: transparent; color: #ffffff; font-family: inherit; font-size: 18px; font-weight: 600")}>Later</button>
-          <button type="button" onClick={() => step(true)} style={css("flex-grow: 2; min-height: 70px; border-radius: 35px; border: 0; background: #ffd34d; color: #111827; font-family: inherit; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px")}><Icon d={CHECK} size={24} width={3} />I did it</button>
+          <button type="button" onClick={didIt} aria-disabled={needsTrace} data-testid="card-done" style={{ ...css("flex-grow: 2; min-height: 70px; border-radius: 35px; border: 0; background: #ffd34d; color: #111827; font-family: inherit; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px"), opacity: needsTrace ? 0.45 : 1 }}><Icon d={CHECK} size={24} width={3} />I did it</button>
         </div>
       </div>
     );
   } else if (screen.kind === "pick") {
     const q = QUESTIONS[screen.q % QUESTIONS.length];
-    const pick = () => { const r = pickStep(screen); setScreen({ kind: "pick", q: r.q, on: r.on, picked: r.picked }); if (r.win) win(); };
+    const pick = () => { if (reward !== null) return; const r = pickStep(screen); setScreen({ kind: "pick", q: r.q, on: r.on, picked: r.picked }); if (r.win) win(); };
+    pickRef.current = pick;
     const boxStyle = (i: number) => {
       const lit = screen.picked === null ? screen.on === i : screen.picked === i;
       const color = screen.picked !== null && lit ? (i === q.right ? "#2ee88a" : "#ff8a3d") : lit ? "#ffe600" : "#3a3a3a";
@@ -137,15 +158,15 @@ export default function KidsApp({ tab }: { tab: KidsTab }) {
     };
     const status = screen.picked === null ? "Watching the yellow box…" : screen.picked === q.right ? "Yes! Tap to go on." : "Good try! Tap to try again.";
     body = (
-      <div style={css("position: absolute; inset: 0; background: #0d0d0d; color: #ffffff; padding: 52px 14px 22px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px")} data-screen="pick">
+      <div onClick={(e) => { if (!(e.target as HTMLElement).closest("[data-close]")) pick(); }} style={css("position: absolute; inset: 0; background: #0d0d0d; color: #ffffff; padding: 52px 14px 22px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px")} data-screen="pick">
         <div style={{ ...css("display: flex; align-items: center; gap: 12px"), marginTop: `calc(${TOP(52)} - 52px)` }}>
-          <button type="button" onClick={goHome} aria-label="Close the game" style={css("width: 48px; height: 48px; border-radius: 24px; border: 2px solid #3a3a3a; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center")}><Icon d={CLOSE} size={22} width={2.6} /></button>
+          <button type="button" data-close onClick={goHome} aria-label="Close the game" style={css("width: 48px; height: 48px; border-radius: 24px; border: 2px solid #3a3a3a; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center")}><Icon d={CLOSE} size={22} width={2.6} /></button>
           <span style={css("font-size: 22px; font-weight: 800; flex-grow: 1")}>{q.q}</span>
           <span style={css("font-size: 16px; color: #d4d4d4")}>{(screen.q % QUESTIONS.length) + 1} of {QUESTIONS.length}</span>
         </div>
         <span style={css("font-size: 15px; color: #d4d4d4")}>The yellow box moves by itself. Tap anywhere, or press a switch, to pick it.</span>
         {q.opts.map((o, i) => (
-          <button key={o.label} type="button" onClick={pick} style={boxStyle(i)}>
+          <button key={o.label} type="button" style={boxStyle(i)}>
             <Icon d={o.d} size={140} stroke="#ffffff" width={1.3} fill={o.fill} />
             <span style={css("font-size: 36px; font-weight: 800")}>{o.label}</span>
           </button>

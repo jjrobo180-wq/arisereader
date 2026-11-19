@@ -83,3 +83,35 @@ test("Arise AAC opens on Arise Kids: Home, Apps and Stickers, edge to edge, with
     "flex-grow: 2; min-height: 70px; border-radius: 35px; border: 0; background: #ffd34d",
   ]) assert.ok(kids.includes(s), s);
 });
+
+test("tracing the A: the whole letter counts, part of it or a scribble doesn't", async () => {
+  const { traceScore } = await import("../shared/ariseKids");
+  const line = (x1: number, y1: number, x2: number, y2: number, n = 12) => Array.from({ length: n + 1 }, (_, i) => ({ x: x1 + (x2 - x1) * i / n, y: y1 + (y2 - y1) * i / n }));
+  const left = line(5, 21, 12, 3), right = line(12, 3, 19, 21), bar = line(8, 14, 16, 14, 6);
+  assert.equal(traceScore([], "A").done, false);
+  assert.equal(traceScore([...left, ...right], "A").done, false, "both sides but not the bar");
+  assert.equal(traceScore([...left, ...right, ...bar], "A").done, true);
+  // A wobbly hand (up to 1.5 squares off) still counts.
+  const wobble = [...left, ...right, ...bar].map((p, i) => ({ x: p.x + (i % 2 ? 1.5 : -1.5), y: p.y }));
+  assert.equal(traceScore(wobble, "A").done, true, "wobbly but on the letter");
+  const scribble = Array.from({ length: 200 }, (_, i) => ({ x: (i * 7) % 24, y: (i * 11) % 24 }));
+  assert.equal(traceScore(scribble, "A").done, false, "scribbling all over the pad doesn't count");
+});
+
+test("Card Quest's tracing card waits for the tracing, and every card can be heard; Pick It! takes a tap anywhere or a switch", () => {
+  const kids = read("client/src/pages/arise-kids/KidsApp.tsx");
+  assert.match(kids, /const needsTrace = !!card\.trace && !traced/);
+  assert.match(kids, /if \(needsTrace\) \{ showToast\("Trace the letter first, or tap Later\."\); return; \}/);
+  assert.match(kids, /aria-label="Hear it"/);
+  assert.match(kids, /e\.key === " " && e\.key !== "Enter"|e\.key !== " " && e\.key !== "Enter"/);
+  assert.match(kids, /closest\("\[data-close\]"\)\) pick\(\)/);
+  assert.match(read("client/src/pages/arise-kids/TracePad.tsx"), /touchAction: "none"/);
+});
+
+test("Shorts open for anyone signed in, and the site owner can use every Arise AAC page", () => {
+  const routes = read("server/routes.ts");
+  assert.match(routes, /if \(req\.user\.isAdmin\) return \{ id: req\.user\.id/);
+  const shorts = routes.slice(routes.indexOf("app.get('/api/eye-gaze/youtube-shorts'"), routes.indexOf("app.get('/api/eye-gaze/youtube-shorts'") + 900);
+  assert.ok(!shorts.includes("A linked Arise AAC account is required"), "Shorts no longer refuse a grown-up");
+  assert.match(shorts, /const raw = child \? await storage\.getSetting/);
+});
