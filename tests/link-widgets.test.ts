@@ -90,6 +90,6 @@ test("both hubs give their own link page to the widgets, and use the same editor
   assert.match(editor, /data-testid="link-theme"/);
   assert.match(editor, /data-testid="link-style"/);
   // Only the LifeHub's page has a public share link (the public page reads the LifeHub's links only).
-  assert.match(editor, /action=\{where === "life" \? <ShareButton/);
+  assert.match(editor, /\{where === "life" && <ShareButton /, "sharing is under Public page, in LifeHub");
   assert.match(read("client/src/components/widgets/WidgetFace.tsx"), /case "links-page": case "links-list": case "links-tiles": case "links-icons": return <LinksFace/);
 });

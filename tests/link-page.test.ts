@@ -70,3 +70,17 @@ test("the public page is the minimal page, full screen; Home shows a Link page c
   assert.match(read("client/src/components/family-hub/FamilyHome.tsx"), /<LinkPageCard page=\{family\.linkPage\} say=\{say\} onEdit=\{\(\) => go\("links"\)\} \/>/);
   assert.match(read("client/src/components/family-hub/LinkPage.tsx"), /data-testid="link-theme"/);
 });
+
+test("Links is a simple list: paste a link, file it in folders (saved even when empty), names made from the address", async () => {
+  const { fixUrl, nameFromUrl, foldersOf } = await import("../shared/linkList");
+  const { cleanLinkPage } = await import("../shared/familyHub");
+  assert.equal(fixUrl("docs.google.com/x"), "https://docs.google.com/x");
+  assert.equal(fixUrl("not a link"), "");
+  assert.equal(nameFromUrl("https://docs.google.com/spreadsheets/d/1"), "Docs Google");
+  assert.equal(nameFromUrl("https://www.instagram.com/me"), "Instagram");
+  const page = cleanLinkPage({ title: "", bio: "", folders: ["School", "Bills", "School", ""], links: [{ id: "a", title: "Portal", url: "https://x.org", emoji: "", group: "Health" }] });
+  assert.deepEqual(page.folders, ["School", "Bills"]);
+  assert.deepEqual(foldersOf(page), ["School", "Bills", "Health"]);
+  const editor = read("client/src/components/family-hub/LinkPage.tsx");
+  for (const t of ['data-testid="links-add"', 'data-testid="links-new-folder"', 'data-testid="links-public"', "openOutside(l.url)"]) assert.ok(editor.includes(t), t);
+});

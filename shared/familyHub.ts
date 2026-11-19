@@ -176,7 +176,7 @@ export type PageLink = { id: string; title: string; url: string; emoji: string; 
 export type LinkPageStyle = "buttons" | "directory";
 /** Your own link page: a minimal profile page, shareable with a link, a card on Home and an iPhone widget.
  *  `theme` is its colours (shared/linkPageLook.ts); no theme is Paper (white). */
-export type LinkPage = { title: string; bio: string; links: PageLink[]; style?: LinkPageStyle; theme?: LinkPageTheme };
+export type LinkPage = { title: string; bio: string; links: PageLink[]; style?: LinkPageStyle; theme?: LinkPageTheme; /** Folders, in order (a folder can be empty). */ folders?: string[] };
 export type Habit = { id: string; name: string; emoji: string; color: string; days: string[] };
 export type GratitudeDay = { id: string; date: string; items: string[] };
 export type FocusLog = { id: string; date: string; minutes: number };
@@ -428,6 +428,7 @@ export function cleanLinkPage(input: unknown): LinkPage {
     title: str(lp.title, 80), bio: str(lp.bio, 300),
     ...(lp.style === "directory" ? { style: "directory" as const } : {}),
     ...(isLinkTheme(lp.theme) && lp.theme !== "light" ? { theme: lp.theme } : {}),
+    ...(Array.isArray(lp.folders) && lp.folders.length ? { folders: [...new Set((lp.folders as unknown[]).map((f) => str(f, 30).replace(/[\u0000-\u001f]/g, " ").trim()).filter(Boolean))].slice(0, 40) } : {}),
     links: rows(lp.links, LIMITS.links, (r) => {
       const title = typedEnd(str(r.title, 80)), url = typedEnd(str(r.url, 1000));
       const group = str(r.group, 30).replace(/[\u0000-\u001f]/g, " ").trim();
