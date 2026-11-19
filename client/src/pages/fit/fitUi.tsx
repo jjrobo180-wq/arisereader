@@ -381,7 +381,7 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
   </div>;
   // Inside To Duo: To Duo's own box (from the bottom on a phone, centered on a computer) over a dimmed page,
   // not a screen sliding over everything, so the menu and the app stay where they were.
-  if (duo) return <Layer><div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  if (duo) return <Layer><div className="fixed inset-0 z-[80] flex items-end justify-center bg-[#16152a]/65 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-label={title} data-testid={testId} data-fit-duo-modal className="flex max-h-[94dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-[1.5rem] sm:max-w-2xl sm:rounded-[1.5rem]" style={{ background: C.bg, color: C.text, ...font, boxShadow: "0 24px 60px rgba(0,0,0,.25)" }}>
       <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-5">
         <h2 className="min-w-0 flex-1 truncate text-xl font-black">{title}</h2>

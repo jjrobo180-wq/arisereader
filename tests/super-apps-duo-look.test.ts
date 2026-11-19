@@ -19,3 +19,9 @@ test("Podster's greys and Notes' serif and gradients become To Duo's colors, typ
   const notes = read("../client/src/components/super-apps/notes-duo.css");
   assert.ok(notes.includes("--an-serif: 'Barlow'") && notes.includes(".an-root.an-in-duo .an-primary { background: #6e5ae0"));
 });
+
+test("a Cooked box inside To Duo sits at the same level as Cooked's own sheets, so what opens from it (Preview, the account screen) shows on top", () => {
+  const ui = read("../client/src/pages/fit/fitUi.tsx");
+  assert.ok(ui.includes('fixed inset-0 z-[80] flex items-end justify-center bg-[#16152a]/65'));
+  assert.ok(!ui.includes("z-[500] flex items-end justify-center bg-[#16152a]"));
+});
