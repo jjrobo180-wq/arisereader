@@ -1,3 +1,4 @@
+import RewardStore from "@/components/rewards/RewardStore";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -244,6 +245,9 @@ export default function StudentProgress() {
             </CardContent>
           </Card>
         )}
+
+        {/* The Reward Store: Reward Points from passed quizzes, cashed in for gift cards, food, money (to a parent) or family perks. */}
+        {tab === "rewards" && <RewardStore token={authToken} />}
 
         {/* Prizes from the reader's family, teacher and school sit with both the rewards and the rankings. */}
         {(tab === "rewards" || tab === "leaderboard") && (

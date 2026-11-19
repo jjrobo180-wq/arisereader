@@ -1,3 +1,4 @@
+import AdminRewards from "@/components/rewards/AdminRewards";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import QuizCheckPanel, { needsBookCheck } from "@/components/QuizCheckPanel";
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
@@ -3740,6 +3741,9 @@ Generate exactly 10 questions.`;
         <h1 className="text-xl font-black sm:text-2xl">Schools & plans</h1>
         <p className="mt-1 text-sm text-muted-foreground">Schools, classes and Premium plans.</p>
       </div>
+      <AdminSection id="reward-store" icon={Gift} tone="violet" title="Reader Reward Store">
+        <AdminRewards token={token} />
+      </AdminSection>
       <AdminSection id="schools" icon={Building} tone="blue" title={`Schools & classes (${schools.length})`}>
         {/* Create school */}
         <div className="flex flex-col sm:flex-row gap-2 mb-4">

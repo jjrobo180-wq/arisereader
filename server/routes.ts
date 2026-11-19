@@ -35,6 +35,7 @@ import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTe
 import { advisorAccount, advisoriesForSchool, advisoryLabel, advisoryName } from "../shared/advisories";
 import { schoolYearOf } from "../shared/classTeachers";
 import { registerPrizeRoutes } from "./prizes";
+import { registerRewardStoreRoutes, tremendousSender } from "./rewardStore";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
 import { checkSchoolEmail } from "../shared/schoolEmail";
@@ -2112,6 +2113,28 @@ export async function registerRoutes(
       ...(await beginnersPassTimes(studentId)),
     ],
     notify: async (studentId, text) => { await storage.createMessage(studentId, "system", text); },
+  });
+
+  // The Reward Store: Reward Points from quiz passes, cashed in for gift cards, food, money (to a parent) or a
+  // parent's own perks (shared/rewardStore.ts).
+  registerRewardStoreRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
+    getUser: (id) => storage.getUser(id),
+    attempts: async (studentId) => (await storage.getUserAttempts(studentId)).map((a: any) => ({ bookId: Number(a.bookId), pointsEarned: Number(a.pointsEarned || 0), completedAt: String(a.completedAt || "") })),
+    beginnersPasses: (studentId) => beginnersPassTimes(studentId),
+    bookTitle: async (bookId) => String((await storage.getBook(bookId))?.title || "a book"),
+    parentStudentIds: getParentStudentIds,
+    studentParentIds: getStudentParentIds,
+    // Paid rewards are for students whose family pays for Arise Reader (and the admin's test accounts).
+    paidFamily: async (student) => { const a = await plans.readerAccess(student as any); return a.access && (a.via === "family-plan" || a.via === "admin"); },
+    notify: async (userId, text) => { await storage.createMessage(userId, "system", text); },
+    tremendous: tremendousSender(process.env.TREMENDOUS_API_KEY, process.env.TREMENDOUS_FUNDING_SOURCE || "balance"),
   });
 
   const isDemoStudent = (user: any) => {

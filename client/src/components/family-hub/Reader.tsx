@@ -3,6 +3,7 @@
 // Everything the old parent portal did is here: linking children, each child's points, quizzes,
 // certificates, camera quizzes and growth check, the family proctor code, game controls (regular
 // and eye gaze), play time, prizes, Reading Club and add-ons.
+import ParentRewards from "@/components/rewards/ParentRewards";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Award, BookOpen, Brain, Clock3, Copy, Eye, Gamepad2, Gift, Home, KeyRound, Lock, MessageSquareText, Settings2, ShieldCheck, Sparkles, Trophy, Unlock, UserPlus, Users,
@@ -129,7 +130,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
           </button>;
         })}</div>
         {child && <div className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-bold" role="tablist" aria-label="Reader view">
-          {([["progress", "Progress", Trophy], ["controls", "Controls", ShieldCheck], ["prizes", "Prizes", Gift]] as const).map(([id, label, Icon]) =>
+          {([["progress", "Progress", Trophy], ["controls", "Controls", ShieldCheck], ["prizes", "Rewards", Gift]] as const).map(([id, label, Icon]) =>
             <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 sm:px-4 ${view === id ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}><Icon size={16} />{label}</button>)}
         </div>}
       </div>}
@@ -235,6 +236,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
             <Panel eyebrow="Every child" title="Play time"><HubPlayTime which="life" /></Panel>
           </>}
 
+          {view === "prizes" && <Panel eyebrow="Reward Store" title="Reward Points" className="mb-6"><ParentRewards token={token} /></Panel>}
           {view === "prizes" && <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Panel eyebrow="From you" title="Family prizes"><HubPrizeManager which="life" token={token} role="parent" /></Panel>
             <Panel eyebrow="From school" title={`Up for ${child!.displayName} at school`}><HubPrizeBoard which="life" token={token} studentId={child!.id} childName={child!.displayName} scopes={["class", "school"]} /></Panel>
