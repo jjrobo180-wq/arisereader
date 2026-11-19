@@ -13,7 +13,7 @@ import { normalizeWorkspace } from "../shared/teacherHub";
 const base: Incident = {
   id: "i1", student: "Jorge Ramirez", date: "2026-11-16", time: "", type: "Bullying", severity: "high", where: "Lunch",
   summary: "Other students took his lunch and teased him.", others: "", actions: "Talked with him; told the counselor.", reportedTo: "Counselor",
-  parentContacted: true, status: "open", checkWith: ["Student", "Math 7", "Parent/guardian"], checkDays: [1, 3, 5], checkUntil: "2026-11-30", checkIns: [], createdAt: "", updatedAt: "",
+  parentContacted: true, status: "open", checkWith: ["Student", "Math 7", "Parent/guardian"], checkDays: [1, 3, 5], checkUntil: "2026-11-30", checkIns: [], notes: [], createdAt: "", updatedAt: "",
 };
 
 test("check-ins fall on the picked days, from the report's day to its end, and not once it's closed", () => {
@@ -62,4 +62,12 @@ test("Incident reports is a WorkHub plugin with its own page, linked from the pr
   assert.match(profile, /<Part title="Incident reports" count=\{profile\.incidents\.length\} tab="incidents"/);
   const page = readFileSync(new URL("../client/src/components/teacher-hub/HubIncidents.tsx", import.meta.url), "utf8");
   assert.match(page, /repeat: "Days", days: i\.checkDays/, "the check-ins go on the calendar with its certain-days repeat");
+});
+
+test("reports keep running notes, and every check-in (missed or logged) takes a note", () => {
+  const out = cleanIncidents([{ ...base, notes: [{ id: "n1", at: "2026-11-18T17:00:00Z", text: "Called mom; she'll talk with him tonight." }, { id: "", text: "x" }, { id: "n2", text: "" }] }]);
+  assert.deepEqual(out[0].notes.map((n) => n.id), ["n1"]);
+  assert.deepEqual(cleanIncidents([{ ...base, notes: undefined }])[0].notes, [], "older reports without notes still load");
+  const page = readFileSync(new URL("../client/src/components/teacher-hub/HubIncidents.tsx", import.meta.url), "utf8");
+  for (const t of ['data-testid="incident-missed"', 'data-testid="incident-check-note"', 'data-testid="incident-note-new"', "const editCheckNote = "]) assert.ok(page.includes(t), t);
 });

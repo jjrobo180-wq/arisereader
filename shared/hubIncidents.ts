@@ -20,6 +20,8 @@ export const CHECK_WITH_PRESETS = ["Student", "Parent/guardian", "Counselor", "A
 export const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 export type CheckIn = { id: string; date: string; with: string; result: CheckResult; note: string };
+/** A dated note on the report: what happened next, a call, anything to remember. */
+export type IncidentNote = { id: string; at: string; text: string };
 export type Incident = {
   id: string;
   student: string;
@@ -43,6 +45,8 @@ export type Incident = {
   checkDays: number[];
   checkUntil: string;
   checkIns: CheckIn[];
+  /** Running notes on the report, oldest first. */
+  notes: IncidentNote[];
   /** The repeating calendar event made for the check-ins, when the teacher asked for one. */
   eventId?: string;
   createdAt: string;
@@ -79,6 +83,7 @@ export function cleanIncidents(raw: unknown): Incident[] {
       where: str(x.where, 120), summary: str(x.summary, 4000), others: str(x.others, 600), actions: str(x.actions, 2000), reportedTo: str(x.reportedTo, 200),
       parentContacted: x.parentContacted === true, status: oneOf(x.status, INCIDENT_STATUSES, "open"),
       checkWith, checkDays, checkUntil: DAY.test(String(x.checkUntil)) ? String(x.checkUntil) : "", checkIns,
+      notes: Array.isArray(x.notes) ? x.notes.slice(0, 500).map((n: any) => ({ id: str(n?.id, 80), at: str(n?.at, 40), text: str(n?.text, 4000) })).filter((n: IncidentNote) => n.id && n.text) : [],
       ...(str(x.eventId, 80) ? { eventId: str(x.eventId, 80) } : {}),
       createdAt: str(x.createdAt, 40), updatedAt: str(x.updatedAt, 40),
     });

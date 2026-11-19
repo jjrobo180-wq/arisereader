@@ -179,6 +179,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words font-medium text-slate-900">{i.type}{i.where ? ` · ${i.where}` : ""}</span><span className="text-xs font-semibold text-slate-700">{day(i.date)} · {STATUS_LABEL[i.status]}</span></div>
                 <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-xs text-slate-700">{i.summary}</p>
                 {planWords(i) && i.status !== "closed" && <p className="mt-1 text-xs text-violet-800">{planWords(i)}{next ? ` · next ${next === today ? "today" : day(next)}` : ""}</p>}
+                {i.notes.length > 0 && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-700">Latest note: {i.notes[i.notes.length - 1].text}</p>}
                 <p className="mt-1 text-xs text-slate-500">{i.checkIns.length} {i.checkIns.length === 1 ? "check-in" : "check-ins"}{last ? ` · last ${day(last.date)} with ${last.with}: ${CHECK_RESULT_LABEL[last.result]}${last.note ? ` (${last.note})` : ""}` : ""}</p>
               </li>
             );

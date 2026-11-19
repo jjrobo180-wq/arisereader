@@ -19,7 +19,7 @@ const RESULT_LOOK: Record<CheckResult, string> = { good: "bg-emerald-600 text-wh
 const chip = (on: boolean) => `inline-flex min-h-10 items-center gap-1 rounded-full border px-3 text-sm font-semibold transition ${on ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
-type Draft = Omit<Incident, "id" | "createdAt" | "updatedAt" | "checkIns"> & { addToCalendar: boolean };
+type Draft = Omit<Incident, "id" | "createdAt" | "updatedAt" | "checkIns" | "notes"> & { addToCalendar: boolean };
 const blank = (today: string, student = ""): Draft => ({
   student, date: today, time: "", type: "Bullying", severity: "medium", where: "", summary: "", others: "", actions: "", reportedTo: "", parentContacted: false,
   status: "open", checkWith: ["Student"], checkDays: [1, 3, 5], checkUntil: addDaysTo(today, 14), addToCalendar: true,
@@ -67,7 +67,7 @@ export default function HubIncidents({ workspace, setWorkspace, today, makeId, s
       say("Incident report updated.");
     } else {
       const id = makeId(), evId = wantsEvent ? makeId() : "";
-      const incident: Incident = { ...fields, id, checkIns: [], ...(evId ? { eventId: evId } : {}), createdAt: now, updatedAt: now };
+      const incident: Incident = { ...fields, id, checkIns: [], notes: [], ...(evId ? { eventId: evId } : {}), createdAt: now, updatedAt: now };
       setIncidents((list) => [incident, ...list], (w) => (evId ? { events: [...w.events, eventFor(fields, evId)] } : {}));
       setOpenId(id);
       say(wantsEvent ? "Incident report saved. The check-ins are on your calendar too." : "Incident report saved.");
@@ -84,6 +84,8 @@ export default function HubIncidents({ workspace, setWorkspace, today, makeId, s
     })));
     setNotes((n) => { const { [key]: _, ...rest } = n; return rest; });
   }
+  const editCheckNote = (incidentId: string, checkId: string, note: string) =>
+    setIncidents((list) => list.map((i) => (i.id !== incidentId ? i : { ...i, checkIns: i.checkIns.map((c) => (c.id === checkId ? { ...c, note: note.slice(0, 1000) } : c)) })));
   // Closing a report takes its check-ins off the calendar.
   const setStatus = (id: string, status: IncidentStatus) => setWorkspace((w) => {
     const list = cleanIncidents((w as any).incidents);
@@ -102,6 +104,7 @@ ${i.where ? `<h2>Where</h2><p>${esc(i.where)}</p>` : ""}<h2>What happened</h2><p
 ${i.others ? `<h2>Others involved</h2><p>${esc(i.others)}</p>` : ""}${i.actions ? `<h2>Actions taken</h2><p>${esc(i.actions)}</p>` : ""}
 ${i.reportedTo ? `<h2>Reported to</h2><p>${esc(i.reportedTo)}</p>` : ""}<h2>Parent/guardian contacted</h2><p>${i.parentContacted ? "Yes" : "No"}</p>
 ${planWords(i) ? `<h2>Check-in plan</h2><p>${esc(planWords(i))}</p>` : ""}
+${i.notes.length ? `<h2>Notes</h2>${i.notes.map((n) => `<p><b>${esc(n.at ? new Date(n.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "")}</b> ${esc(n.text)}</p>`).join("")}` : ""}
 ${i.checkIns.length ? `<h2>Check-ins</h2><table><tr><th>Date</th><th>With</th><th>How it went</th><th>Notes</th></tr>${[...i.checkIns].sort((a, b) => a.date.localeCompare(b.date)).map((c) => `<tr><td>${esc(day(c.date))}</td><td>${esc(c.with)}</td><td>${esc(CHECK_RESULT_LABEL[c.result])}</td><td>${esc(c.note)}</td></tr>`).join("")}</table>` : ""}
 </body></html>`);
 
@@ -225,14 +228,38 @@ ${i.checkIns.length ? `<h2>Check-ins</h2><table><tr><th>Date</th><th>With</th><t
                       {missed.length > 0 && i.status !== "closed" && (
                         <div className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900">
                           <p className="font-bold">Missed check-ins</p>
-                          <ul className="mt-1 space-y-1">{missed.slice(-6).map((m) => <li key={`${m.date}${m.with}`} className="flex flex-wrap items-center gap-1.5">{day(m.date)} · {m.with}{CHECK_RESULTS.map((r) => <button key={r} type="button" onClick={() => logCheck(i.id, m.with, r, m.date)} className="rounded-full bg-white px-2 py-0.5 font-semibold ring-1 ring-amber-200 hover:bg-amber-100">{CHECK_RESULT_LABEL[r]}</button>)}</li>)}</ul>
+                          <ul className="mt-1 space-y-2">{missed.slice(-10).map((m) => { const key = `${i.id}|${m.with}|${m.date}`; return (
+                            <li key={key} className="space-y-1" data-testid="incident-missed">
+                              <span className="font-semibold">{day(m.date)} · {m.with}</span>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Field value={notes[key] || ""} onChange={(e) => setNotes((n) => ({ ...n, [key]: e.target.value }))} placeholder="Note (optional)" aria-label={`Note for ${m.with} on ${day(m.date)}`} className="min-w-[10rem] flex-1 !min-h-9 !text-xs" />
+                                {CHECK_RESULTS.map((r) => <button key={r} type="button" onClick={() => logCheck(i.id, m.with, r, m.date)} className="min-h-9 rounded-full bg-white px-2.5 font-semibold ring-1 ring-amber-200 hover:bg-amber-100">{CHECK_RESULT_LABEL[r]}</button>)}
+                              </div>
+                            </li>); })}</ul>
                         </div>
                       )}
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Check-ins ({i.checkIns.length})</p>
                         {i.checkIns.length ? <ul className="mt-1 space-y-1">{[...i.checkIns].sort((a, b) => b.date.localeCompare(a.date)).map((c) => (
-                          <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs"><span className="font-semibold text-slate-800">{day(c.date)}</span><span>{c.with}</span><span className={`rounded-full px-2 py-0.5 font-bold ${RESULT_LOOK[c.result]}`}>{CHECK_RESULT_LABEL[c.result]}</span>{c.note && <span className="text-slate-600">{c.note}</span>}</li>
+                          <li key={c.id} className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs">
+                            <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-slate-800">{day(c.date)}</span><span>{c.with}</span><span className={`rounded-full px-2 py-0.5 font-bold ${RESULT_LOOK[c.result]}`}>{CHECK_RESULT_LABEL[c.result]}</span></div>
+                            <TextArea value={c.note} onChange={(e) => editCheckNote(i.id, c.id, e.target.value)} rows={1} placeholder="Add a note" aria-label={`Note for ${c.with} on ${day(c.date)}`} className="mt-1 !min-h-9 !text-xs" data-testid="incident-check-note" />
+                          </li>
                         ))}</ul> : <p className="mt-1 text-xs text-slate-500">None logged yet.</p>}
+                      </div>
+                      <div data-testid="incident-notes">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Notes ({i.notes.length})</p>
+                        {i.notes.length > 0 && <ul className="mt-1 space-y-1">{i.notes.map((n) => (
+                          <li key={n.id} className="group rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs">
+                            <div className="flex items-center gap-2"><span className="font-semibold text-slate-700">{n.at ? new Date(n.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}</span><span className="flex-1" />
+                              <button type="button" onClick={() => setIncidents((list) => list.map((x) => (x.id === i.id ? { ...x, notes: x.notes.filter((y) => y.id !== n.id) } : x)))} aria-label="Delete note" className="text-slate-300 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></div>
+                            <TextArea value={n.text} onChange={(e) => setIncidents((list) => list.map((x) => (x.id === i.id ? { ...x, notes: x.notes.map((y) => (y.id === n.id ? { ...y, text: e.target.value } : y)) } : x)))} rows={2} aria-label="Note" className="mt-1 !text-sm" />
+                          </li>
+                        ))}</ul>}
+                        <form className="mt-1.5 flex flex-col gap-1.5 sm:flex-row" onSubmit={(e) => { e.preventDefault(); const t = (notes[`note|${i.id}`] || "").trim(); if (!t) return; setIncidents((list) => list.map((x) => (x.id === i.id ? { ...x, notes: [...x.notes, { id: makeId(), at: new Date().toISOString(), text: t }], updatedAt: new Date().toISOString() } : x))); setNotes((n) => ({ ...n, [`note|${i.id}`]: "" })); }}>
+                          <TextArea value={notes[`note|${i.id}`] || ""} onChange={(e) => setNotes((n) => ({ ...n, [`note|${i.id}`]: e.target.value }))} rows={2} placeholder="Add a note: a call home, what a teacher saw, what happened next…" aria-label="New note" className="flex-1" data-testid="incident-note-new" />
+                          <button type="submit" className="inline-flex min-h-11 items-center justify-center gap-1 self-start rounded-xl bg-slate-950 px-3 text-sm font-bold text-white hover:bg-slate-800"><Plus className="h-4 w-4" /> Add note</button>
+                        </form>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-xs font-semibold text-slate-500">Status:</span>
@@ -240,7 +267,7 @@ ${i.checkIns.length ? `<h2>Check-ins</h2><table><tr><th>Date</th><th>With</th><t
                         <span className="flex-1" />
                         {openStudent && <button type="button" onClick={() => openStudent(i.student)} className="min-h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">Student profile</button>}
                         <button type="button" onClick={() => print(i)} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"><Printer className="h-3.5 w-3.5" /> Print</button>
-                        <button type="button" onClick={() => { const { id: _id, checkIns: _c, createdAt: _a, updatedAt: _u, eventId, ...rest } = i; setDraft({ ...rest, addToCalendar: !!eventId }); setEditId(i.id); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                        <button type="button" onClick={() => { const { id: _id, checkIns: _c, notes: _n, createdAt: _a, updatedAt: _u, eventId, ...rest } = i; setDraft({ ...rest, addToCalendar: !!eventId }); setEditId(i.id); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"><Pencil className="h-3.5 w-3.5" /> Edit</button>
                         <button type="button" onClick={() => remove(i)} aria-label="Delete report" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
