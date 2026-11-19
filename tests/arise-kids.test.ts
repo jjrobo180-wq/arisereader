@@ -221,3 +221,16 @@ test("Wren Talker frame names its file (iPhone app answers a folder address with
   assert.match(w, /<iframe src="\/eyegaze\/wren\/index\.html"/);
   assert.doesNotMatch(w, /<iframe src="\/eyegaze\/wren\/"/);
 });
+
+test("Shorts in the iPhone app play through an https page (YouTube refuses capacitor://localhost: error 153)", () => {
+  const tv = read("client/src/pages/EyeGazeTV.tsx");
+  assert.match(tv, /const viaBridge = isNativeApp\(\);/);
+  assert.match(tv, /createBridgePlayer\(host, o\)/);
+  assert.match(tv, /if \(viaBridge \|\| window\.YT\?\.Player\) createPlayer\(\);/);
+  const b = read("client/src/lib/ytBridge.ts");
+  assert.match(b, /https:\/\/arisetodo\.com\/yt-bridge\.html/);
+  for (const fn of ["mute", "unMute", "playVideo", "pauseVideo", "loadVideoById", "destroy", "getVideoData", "getIframe"]) assert.match(b, new RegExp(fn + ":"), fn);
+  const page = read("client/public/yt-bridge.html");
+  assert.match(page, /vars\.origin = window\.location\.origin/);
+  assert.match(page, /e\.source !== window\.parent/);
+});

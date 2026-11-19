@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Player</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#p,#p iframe{width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<!--
+  Hosts the YouTube player on a real https page (arisetodo.com). The iPhone apps run from
+  capacitor://localhost, which YouTube refuses to play in ("Video player configuration error",
+  error 153). The app embeds this page and drives it with postMessage (client/src/lib/ytBridge.ts).
+-->
+<div id="p"></div>
+<script>
+(function () {
+  var player = null, pending = null;
+  function send(msg) { msg.ytb = 1; try { window.parent.postMessage(msg, "*"); } catch (e) {} }
+  function create(init) {
+    var vars = init.playerVars || {};
+    vars.origin = window.location.origin;
+    player = new YT.Player("p", {
+      videoId: init.videoId, width: "100%", height: "100%", playerVars: vars,
+      events: {
+        onReady: function () { send({ ev: "ready" }); },
+        onAutoplayBlocked: function () { send({ ev: "autoplay" }); },
+        onStateChange: function (e) { send({ ev: "state", data: e.data }); },
+        onError: function (e) {
+          var id = ""; try { id = player.getVideoData().video_id || ""; } catch (x) {}
+          send({ ev: "error", data: e.data, videoId: id });
+        }
+      }
+    });
+    try { player.getIframe().setAttribute("allow", "autoplay; encrypted-media; picture-in-picture"); } catch (e) {}
+  }
+  window.onYouTubeIframeAPIReady = function () { if (pending) { create(pending); pending = null; } };
+  window.addEventListener("message", function (e) {
+    if (e.source !== window.parent) return;
+    var m = e.data; if (!m || m.ytb !== 1) return;
+    if (m.cmd === "init") {
+      if (window.YT && YT.Player) create(m); else pending = m;
+    } else if (m.cmd === "call" && player) {
+      var allowed = { mute: 1, unMute: 1, playVideo: 1, pauseVideo: 1, seekTo: 1, loadVideoById: 1 };
+      if (allowed[m.fn] && typeof player[m.fn] === "function") { try { player[m.fn].apply(player, m.args || []); } catch (x) { send({ ev: "error", data: -1, videoId: "" }); } }
+    }
+  });
+  var s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; s.async = true;
+  s.onerror = function () { send({ ev: "error", data: -2, videoId: "" }); };
+  document.head.appendChild(s);
+  send({ ev: "loaded" });
+})();
+</script>
+</body>
+</html>

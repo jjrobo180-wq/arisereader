@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { ArrowLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { isNativeApp } from "@/lib/nativeApp";
+import { createBridgePlayer } from "@/lib/ytBridge";
 import { addTvUsage, fetchFamilySettings, getTvUsage, type FamilyVideo, type ParentControls } from "@/lib/parentControls";
 
 type ShortItem = FamilyVideo & { source?: "youtube" | "youtube-rss" | "curated" | "parent"; feedKey?: string };
@@ -156,6 +158,8 @@ export default function EyeGazeTV() {
     const host = playerHostRef.current;
     if (!host) return;
     let player: any = null;
+    // In the iPhone apps YouTube refuses capacitor://localhost, so the player runs on an https page (lib/ytBridge.ts).
+    const viaBridge = isNativeApp();
     let retriedMutedAutoplay = false;
     let apiPoll: number | undefined;
     const timeout = window.setTimeout(() => {
@@ -163,16 +167,17 @@ export default function EyeGazeTV() {
     }, 15000);
 
     const createPlayer = () => {
-      if (cancelled || !window.YT?.Player || player) return;
+      if (cancelled || (!viaBridge && !window.YT?.Player) || player) return;
       // YouTube replaces its target node. React must own only the outer host,
       // otherwise swiping/removing a failed clip throws removeChild NotFoundError.
       const target = document.createElement("div");
-      host.replaceChildren(target);
+      if (!viaBridge) host.replaceChildren(target);
       try {
         const initial = feedStateRef.current.current;
         if (!initial) return;
         loadedEntryRef.current = initial.feedKey;
-        player = new window.YT.Player(target, {
+        const makePlayer = viaBridge ? (_t: HTMLElement, o: any) => createBridgePlayer(host, o) : (t: HTMLElement, o: any) => new window.YT.Player(t, o);
+        player = makePlayer(target, {
           videoId: initial.id,
           width: "100%",
           height: "100%",
@@ -263,7 +268,7 @@ export default function EyeGazeTV() {
       }
     };
 
-    if (window.YT?.Player) createPlayer();
+    if (viaBridge || window.YT?.Player) createPlayer();
     else {
       if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
         const script = document.createElement("script");
