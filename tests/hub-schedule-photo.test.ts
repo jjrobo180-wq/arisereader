@@ -58,3 +58,13 @@ test("the prompt names the student and guards against instructions in the photo;
   assert.ok(page.includes("/api/teacher-hub/import/schedule") && page.includes("Authorization: `Bearer ${token}`") && page.includes("addScheduleRows("));
   assert.match(readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8"), /\{tab === "schedules" && <><HubSchedulePhoto /);
 });
+
+test("a schedule can be a PDF or a Word, Excel or text file too, not only a photo", () => {
+  const server = readFileSync(new URL("../server/teacherHubImport.ts", import.meta.url), "utf8");
+  const route = server.slice(server.indexOf('app.post("/api/teacher-hub/import/schedule"'), server.indexOf("const readLink"));
+  assert.ok(route.includes('fileParts.push({ type: "pdf", name, base64') && route.includes("hubFileText({ name, data }"), "PDFs go to the AI as PDFs; documents as their text");
+  assert.ok(route.includes("parts: [...fileParts,"));
+  const page = readFileSync(new URL("../client/src/components/teacher-hub/HubSchedulePhoto.tsx", import.meta.url), "utf8");
+  assert.ok(page.includes('accept="image/*,.pdf,application/pdf,.docx'));
+  assert.ok(page.includes("files: await Promise.all(docs.map("));
+});

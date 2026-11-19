@@ -12,7 +12,7 @@ export type ScheduleRow = { day: ScheduleDay; start: string; end: string; label:
 
 /** What the AI is told: read the schedule into one row per block per day. */
 export function schedulePhotoPrompt(student: string): string {
-  return `You read a photo or screenshot of a school student's class schedule for their special education teacher.${student ? ` The schedule is ${JSON.stringify(student)}'s.` : ""}
+  return `You read a school student's class schedule (a photo, a screenshot, a PDF or a document) for their special education teacher.${student ? ` The schedule is ${JSON.stringify(student)}'s.` : ""}
 
 Write one row for every class or block on every school day (Monday to Friday) it meets:
 - day (one of "Monday", "Tuesday", "Wednesday", "Thursday", "Friday").

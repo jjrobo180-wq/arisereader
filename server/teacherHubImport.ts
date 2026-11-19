@@ -313,23 +313,44 @@ export function registerTeacherHubImportRoutes(app: Express, authMiddleware: Req
     res.set("Cache-Control", "no-store");
     try {
       const images: unknown[] = Array.isArray(req.body?.images) ? req.body.images : [];
-      if (!images.length) return res.status(400).json({ message: "Add a photo or a screenshot of the schedule." });
+      // A schedule can also be a PDF, a Word or Excel file, or a text file (one at a time), not only photos.
+      const filesIn: unknown[] = Array.isArray(req.body?.files) ? req.body.files.slice(0, 5) : req.body?.file ? [req.body.file] : [];
+      if (!images.length && !filesIn.length) return res.status(400).json({ message: "Add a photo, a screenshot, a PDF or a document of the schedule." });
       if (images.length > HUB_IMPORT_LIMITS.images) return res.status(400).json({ message: `Add up to ${HUB_IMPORT_LIMITS.images} photos at a time.` });
       if (!photosOk(images)) return res.status(400).json({ message: "That photo could not be read. Try a screenshot or a JPEG photo." });
-      if (!aiConfigured()) return res.status(503).json({ message: "AI is not set up on this site yet, so a photo can't be read. You can still add blocks yourself." });
+      const fileParts: AiPart[] = [];
+      for (const file of filesIn) {
+        if (!file || typeof file !== "object") continue;
+        const name = String((file as any).name || "").slice(0, 160);
+        const base64 = typeof (file as any).data === "string" ? (file as any).data : "";
+        if (!name || !base64 || !/^[A-Za-z0-9+/=\s]+$/.test(base64.slice(0, 4000))) return res.status(400).json({ message: "That file could not be read. Try uploading it again." });
+        const data = Buffer.from(base64, "base64");
+        if (data.length > HUB_IMPORT_LIMITS.fileBytes) return res.status(413).json({ message: "That file is too large. The most this page can read is 8 MB." });
+        let kind;
+        try { kind = hubFileKind(name); } catch (e: any) { return res.status(400).json({ message: e?.message || "That kind of file can't be read here." }); }
+        if (kind === "pdf") fileParts.push({ type: "pdf", name, base64: data.toString("base64") });
+        else if (kind === "text") {
+          const inside = hubFileText({ name, data }, HUB_IMPORT_LIMITS.textChars);
+          if (!inside) return res.status(400).json({ message: `"${name}" is empty.` });
+          fileParts.push({ type: "text", text: `The schedule file "${name}":\n${inside}` });
+        } else if (kind === "image") fileParts.push({ type: "image", dataUrl: `data:${IMAGE_TYPES[name.split(".").pop()!.toLowerCase()] || "image/jpeg"};base64,${data.toString("base64")}` });
+        else return res.status(400).json({ message: "A calendar file isn't a schedule. Use a photo, a PDF or a Word or Excel file." });
+      }
+      if (!aiConfigured()) return res.status(503).json({ message: "AI is not set up on this site yet, so a schedule can't be read. You can still add blocks yourself." });
 
       const key = String(req.user.id);
       if (asks.retryAfter(key) > 0) return res.status(429).json({ message: `You have used AI ${HUB_IMPORT_LIMITS.perDay} times today. You can use it again tomorrow.` });
       asks.fail(key);
 
       const student = typeof req.body?.student === "string" ? req.body.student.trim().slice(0, 80) : "";
-      const reply = parseAiReply(await askAI({ system: schedulePhotoPrompt(student), parts: (images as string[]).map((dataUrl): AiPart => ({ type: "image", dataUrl })) }));
+      const reply = parseAiReply(await askAI({ system: schedulePhotoPrompt(student), parts: [...fileParts, ...(images as string[]).map((dataUrl): AiPart => ({ type: "image", dataUrl }))] }));
       if (!reply) return res.status(502).json({ message: "The AI's answer could not be understood. Try again." });
       const rows = cleanScheduleRows(reply.rows);
       const summary = typeof reply.summary === "string" ? reply.summary.replace(/\s+/g, " ").trim().slice(0, 240) : "";
       return res.json({ rows, summary });
     } catch (error: any) {
       if (error instanceof HubAiError) return res.status(502).json({ message: error.message });
+      if (error instanceof HubFileError) return res.status(400).json({ message: error.message });
       console.error("[teacher-hub] schedule read failed:", error?.name || "error");
       return res.status(500).json({ message: "That could not be read right now. Try again in a moment." });
     }

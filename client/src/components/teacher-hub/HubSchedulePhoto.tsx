@@ -7,7 +7,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { HUB_IMPORT_LIMITS } from "@shared/teacherHub";
 import { SCHEDULE_DAYS, addScheduleRows, cleanScheduleRows, type ScheduleRow } from "@shared/hubSchedulePhoto";
 import type { Workspace } from "@shared/teacherHub";
-import { shrinkImage } from "./HubImport";
+import { shrinkImage, toBase64 } from "./HubImport";
 import { Card, Field, Labeled, Select } from "./ui";
 import { AddStudentButton } from "./HubQuickAddStudent";
 
@@ -24,8 +24,14 @@ export default function HubSchedulePhoto({ workspace, setWorkspace, token, stude
   const had = student ? workspace.schedules.filter((s) => s.student.trim().toLowerCase() === student.trim().toLowerCase()).length : 0;
 
   async function read(list: FileList | null) {
-    const files = Array.from(list || []).filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic)$/i.test(f.name));
-    if (reading || !files.length) { if (list?.length && !files.length) setError("Choose a photo or a screenshot."); return; }
+    const all = Array.from(list || []);
+    const isPic = (f: File) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic)$/i.test(f.name);
+    // PDFs and Word, Excel and text files are read too, not only photos (the server reads what's inside).
+    const isDoc = (f: File) => /\.(pdf|docx|doc|xlsx|xlsm|xls|csv|tsv|txt|pages|numbers)$/i.test(f.name) || f.type === "application/pdf";
+    const files = all.filter(isPic);
+    const docs = all.filter((f) => !isPic(f) && isDoc(f)).slice(0, 5);
+    if (reading || (!files.length && !docs.length)) { if (all.length) setError("Choose a photo, a screenshot, a PDF or a Word document."); return; }
+    if (docs.some((f) => f.size > 8 * 1024 * 1024)) { setError("That file is too large. The most this can read is 8 MB."); return; }
     if (!student) { setError("Choose the student first."); return; }
     setReading(true); setError(""); setRows(null);
     try {
@@ -35,12 +41,12 @@ export default function HubSchedulePhoto({ workspace, setWorkspace, token, stude
       }
       const response = await fetch(`${API_BASE}/api/teacher-hub/import/schedule`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ images, student }),
+        body: JSON.stringify({ images, student, files: await Promise.all(docs.map(async (f) => ({ name: f.name, data: await toBase64(f) }))) }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "That could not be read right now. Try again in a moment.");
       const found = cleanScheduleRows(data.rows);
-      if (!found.length) throw new Error("No class times were found in that photo. Try a clearer photo, or add the blocks yourself below.");
+      if (!found.length) throw new Error("No class times were found in that schedule. Try a clearer photo, or add the blocks yourself below.");
       setRows(found.map((r) => ({ ...r, on: true })));
       setSummary(typeof data.summary === "string" ? data.summary : "");
     } catch (e: any) {
@@ -58,8 +64,8 @@ export default function HubSchedulePhoto({ workspace, setWorkspace, token, stude
   }
 
   return (
-    <Card title="Read a schedule photo with AI">
-      <p className="-mt-1 mb-4 text-sm text-slate-600">Pick the student, then add a photo or screenshot of their schedule. Check the blocks the AI finds, then add them. They show here and on the student's profile.</p>
+    <Card title="Read a schedule with AI">
+      <p className="-mt-1 mb-4 text-sm text-slate-600">Pick the student, then add a photo, screenshot, PDF or Word document of their schedule. Check the blocks the AI finds, then add them. They show here and on the student's profile.</p>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
         <Labeled label="Student">
           <Select value={student} onChange={(e) => { setStudent(e.target.value); setRows(null); setError(""); }} data-testid="schedule-photo-student">
@@ -67,11 +73,11 @@ export default function HubSchedulePhoto({ workspace, setWorkspace, token, stude
             {students.map((s) => <option key={s} value={s}>{s}</option>)}
           </Select>
         </Labeled>
-        <div className="flex items-end"><AddStudentButton workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} label="New student" onAdded={(name) => { setStudent(name); setRows(null); setError(""); say(`${name} added. Now add their schedule photo.`); }} /></div>
+        <div className="flex items-end"><AddStudentButton workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} label="New student" onAdded={(name) => { setStudent(name); setRows(null); setError(""); say(`${name} added. Now add their schedule.`); }} /></div>
         <div className="flex items-end">
           <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white ${student && !reading ? "bg-slate-950 hover:bg-slate-800" : "pointer-events-none bg-slate-300"}`} aria-disabled={!student || reading}>
-            {reading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}{reading ? "Reading…" : "Add a schedule photo"}
-            <input type="file" accept="image/*" multiple className="sr-only" disabled={!student || reading} data-testid="schedule-photo-file" onChange={(e) => { void read(e.target.files); e.target.value = ""; }} />
+            {reading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}{reading ? "Reading…" : "Add a schedule"}
+            <input type="file" accept="image/*,.pdf,application/pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" multiple className="sr-only" disabled={!student || reading} data-testid="schedule-photo-file" onChange={(e) => { void read(e.target.files); e.target.value = ""; }} />
           </label>
         </div>
       </div>
