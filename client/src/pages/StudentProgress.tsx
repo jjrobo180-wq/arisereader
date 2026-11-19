@@ -72,6 +72,16 @@ export default function StudentProgress() {
   const [message, setMessage] = useState("");
 
   const authToken = token || getTokenFromCookie();
+  // The students' board: this month's race, or the whole school year (Aug–Jul), loaded when it's first opened.
+  const [span, setSpan] = useState<"month" | "year">("month");
+  const [yearBoard, setYearBoard] = useState<any[] | null>(null);
+  const schoolYearStart = (() => { const [y, m] = schoolYearMonth().split("-").map(Number); return m >= 8 ? y : y - 1; })();
+  useEffect(() => {
+    if (span !== "year" || yearBoard || !authToken) return;
+    fetch(`${API_BASE}/api/leaderboard?schoolYear=${schoolYearStart}`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : [])).then((d) => setYearBoard(Array.isArray(d) ? d : [])).catch(() => setYearBoard([]));
+  }, [span, yearBoard, authToken, schoolYearStart]);
+  const board_ = span === "year" ? (yearBoard ?? []) : null;
 
   const load = async () => {
     if (!authToken) return;
@@ -325,16 +335,24 @@ export default function StudentProgress() {
         {tab === "leaderboard" && (board === "students" || !challenge?.challenge) && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> {monthLabel(month)} leaderboard</CardTitle>
-              <p className="text-sm text-muted-foreground">The reader with the most points this month is the monthly winner.</p>
+              <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> {span === "year" ? `${schoolYearStart}–${String(schoolYearStart + 1).slice(2)} school year` : `${monthLabel(month)} leaderboard`}</CardTitle>
+              <p className="text-sm text-muted-foreground">{span === "year" ? "Every point since August 1: the top readers of the year." : "The reader with the most points this month is the monthly winner."}</p>
+              <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-muted/50 p-1" role="tablist" aria-label="Leaderboard time" data-testid="leaderboard-span">
+                {([["month", "This month"], ["year", "This year"]] as const).map(([id, label]) => (
+                  <button key={id} type="button" role="tab" aria-selected={span === id} onClick={() => setSpan(id)}
+                    className={`rounded-lg px-3 py-2 text-sm font-bold ${span === id ? "bg-card shadow text-primary" : "text-muted-foreground"}`}>{label}</button>
+                ))}
+              </div>
             </CardHeader>
             <CardContent>
-              <MonthCountdown onNewMonth={(fresh) => { setMonth(fresh); load(); }} className="mb-4" />
-              {leaderboard.length === 0 ? (
-                <p className="text-center py-10 text-sm text-muted-foreground">No points yet this month. Pass a quiz to get on the board.</p>
+              {span === "month" && <MonthCountdown onNewMonth={(fresh) => { setMonth(fresh); load(); }} className="mb-4" />}
+              {span === "year" && yearBoard === null ? (
+                <p className="text-center py-10 text-sm text-muted-foreground">Loading the year…</p>
+              ) : (board_ ?? leaderboard).length === 0 ? (
+                <p className="text-center py-10 text-sm text-muted-foreground">No points yet this {span === "year" ? "school year" : "month"}. Pass a quiz to get on the board.</p>
               ) : (
-                <div className="space-y-2" data-testid="monthly-leaderboard">
-                  {leaderboard.map((entry, index) => {
+                <div className="space-y-2" data-testid={span === "year" ? "year-leaderboard" : "monthly-leaderboard"}>
+                  {(board_ ?? leaderboard).map((entry, index) => {
                     const uid = entry.userId || entry.id;
                     const mine = uid === user?.id;
                     return (

@@ -5852,9 +5852,13 @@ export async function registerRoutes(
   app.get("/api/leaderboard", authMiddleware, async (req: any, res) => {
     const month = req.query.month as string;
     const bandParam = req.query.band as string;
-    let leaderboard = month
-      ? await storage.getMonthlyLeaderboard(month)
-      : await storage.getLeaderboard();
+    // ?schoolYear=2026: the school year that starts in August 2026 (Aug 1 to Aug 1, Mountain Time).
+    const schoolYear = /^\d{4}$/.test(String(req.query.schoolYear || "")) ? Number(req.query.schoolYear) : 0;
+    let leaderboard = schoolYear
+      ? await storage.getRangeLeaderboard(`${schoolYear}-08`, `${schoolYear + 1}-08`)
+      : month && /^\d{4}-\d{2}$/.test(month)
+        ? await storage.getMonthlyLeaderboard(month)
+        : await storage.getLeaderboard();
 
     // Exclude sample/demo account from leaderboard
     leaderboard = leaderboard.filter((entry: any) => !isSampleAccount(entry));

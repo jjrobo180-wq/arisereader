@@ -412,6 +412,8 @@ export interface IStorage {
   getClassStats(schoolId: number): Promise<any[]>;
   // Monthly leaderboard
   getMonthlyLeaderboard(yearMonth: string): Promise<any[]>;
+  /** The board from the first of one month up to (not including) the first of another: a school year is Aug–Aug. */
+  getRangeLeaderboard(fromYearMonth: string, toYearMonth: string): Promise<any[]>;
   getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   // Advisory leaderboard (grouped by teacher)
@@ -1384,11 +1386,16 @@ export class DatabaseStorage implements IStorage {
   // ─── Monthly Leaderboard ──────────────────────────────────────────────
 
   async getMonthlyLeaderboard(yearMonth: string) {
-    return cached('monthlyLeaderboard_' + yearMonth, 300000, async () => {
+    return this.getRangeLeaderboard(yearMonth, nextYearMonth(yearMonth));
+  }
+
+  async getRangeLeaderboard(yearMonth: string, toYearMonth: string) {
+    // Same cache family as the monthly board ("monthlyLeaderboard_"), so a new quiz pass clears both.
+    return cached('monthlyLeaderboard_' + yearMonth + (toYearMonth === nextYearMonth(yearMonth) ? "" : `_to_${toYearMonth}`), 300000, async () => {
       // the month runs from midnight Mountain Time on the 1st, not midnight in London
       const startMs = monthStartMs(yearMonth);
-      const endMs = monthStartMs(nextYearMonth(yearMonth));
-      const nextMonth = `${nextYearMonth(yearMonth)}-01`;
+      const endMs = monthStartMs(toYearMonth);
+      const nextMonth = `${toYearMonth}-01`;
 
       const allUsers = await fetchList(
         supabase.from("users").select(
