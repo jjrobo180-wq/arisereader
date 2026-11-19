@@ -1,0 +1,282 @@
+/* Arise Reader's "Neon Coast" theme (TeacherReader.tsx, chosen with the header's Theme button).
+   A sunset beach-city crime-caper look: a dusk sky with a striped sun, palms and a skyline behind
+   everything, glassy angled panels, condensed italic display type, a pause-menu style menu with a
+   slanted hot-pink highlight, and a game-HUD clock. Its own art and names: no game's logo, font,
+   characters or places. The page's colors are written inline, so these rules use !important. */
+
+.reader-coast {
+  --coast-ink: #fff4fa;
+  --coast-soft: #f6c9e4;
+  --coast-mute: #c79bc0;
+  --coast-pink: #ff3d8b;
+  --coast-orange: #ff9a3c;
+  --coast-sun: #ffd166;
+  --coast-teal: #2ee6d6;
+  --coast-night: #12061f;
+  --coast-panel: rgba(24, 8, 38, 0.62);
+  --coast-panel-2: rgba(38, 12, 58, 0.82);
+  --coast-line: rgba(255, 61, 139, 0.38);
+  --coast-display: "Anton", "Oswald", "Impact", "Arial Narrow", sans-serif;
+  --coast-body: "Barlow", "Figtree", system-ui, sans-serif;
+  --coast-cond: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  background: var(--coast-night) !important;
+  color: var(--coast-ink) !important;
+  font-family: var(--coast-body) !important;
+  position: relative;
+  isolation: isolate;
+}
+
+/* ---------- The scenery (fixed, behind the page) ---------- */
+/* Behind everything on the page (the page is its own stacking context: isolation above). */
+.coast-scene { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.coast-scene svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.coast-scene::after { /* fine scanlines and a dark wash so text always reads */
+  content: ""; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(18, 6, 31, 0) 0%, rgba(18, 6, 31, 0.18) 45%, rgba(18, 6, 31, 0.7) 100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .coast-scene .coast-sun { animation: coast-sun 14s ease-in-out infinite alternate; transform-origin: center; }
+  .coast-scene .coast-palms { animation: coast-sway 7s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+}
+@keyframes coast-sun { from { transform: translateY(0); } to { transform: translateY(10px); } }
+@keyframes coast-sway { from { transform: skewX(-0.6deg); } to { transform: skewX(0.8deg); } }
+
+/* ---------- Top bar ---------- */
+.reader-coast > header {
+  background: linear-gradient(90deg, rgba(18, 6, 31, 0.92), rgba(42, 10, 52, 0.88)) !important;
+  border-bottom: 2px solid transparent !important;
+  border-image: linear-gradient(90deg, var(--coast-pink), var(--coast-orange), var(--coast-teal)) 1 !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.reader-coast [data-r="mark"] {
+  background: linear-gradient(135deg, var(--coast-pink), var(--coast-orange)) !important;
+  border-radius: 6px !important;
+  transform: skewX(-10deg);
+  box-shadow: 0 0 18px rgba(255, 61, 139, 0.55);
+}
+.reader-coast [data-r="wordmark"] {
+  font-family: var(--coast-display) !important;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.02em !important;
+  font-style: italic;
+  white-space: nowrap;
+  font-size: 18px !important;
+}
+@media (min-width: 640px) { .reader-coast [data-r="wordmark"] { font-size: 22px !important; } }
+.reader-coast [data-r="wordmark"] > span {
+  font-family: "Yellowtail", "Brush Script MT", cursive;
+  text-transform: none;
+  font-style: normal;
+  font-size: 1.15em;
+  margin-left: 2px;
+  background: linear-gradient(90deg, var(--coast-pink), var(--coast-orange));
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent !important;
+  filter: drop-shadow(0 0 8px rgba(255, 61, 139, 0.6));
+}
+.reader-coast [data-r="pill"] {
+  background: var(--coast-teal) !important;
+  color: #062b27 !important;
+  border-radius: 3px !important;
+  font-family: var(--coast-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transform: skewX(-10deg);
+}
+.reader-coast > header button, .reader-coast > header a {
+  border-radius: 4px !important;
+  border-color: rgba(46, 230, 214, 0.5) !important;
+  color: var(--coast-ink) !important;
+  font-family: var(--coast-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(18, 6, 31, 0.5);
+}
+.reader-coast > header button:hover, .reader-coast > header a:hover { background: rgba(46, 230, 214, 0.14); }
+
+/* ---------- Menus: a pause menu with a slanted highlight ---------- */
+.reader-coast nav[aria-label="Reader menu"] {
+  background: rgba(14, 4, 26, 0.78) !important;
+  border-color: var(--coast-line) !important;
+  border-radius: 4px !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.reader-coast nav[aria-label="Reader menu"] button {
+  border-radius: 2px !important;
+  font-family: var(--coast-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--coast-soft) !important;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.reader-coast nav[aria-label="Reader menu"] button:hover { background: rgba(255, 61, 139, 0.12) !important; transform: translateX(3px); }
+.reader-coast nav[aria-label="Reader menu"] button[aria-current="page"] {
+  background: linear-gradient(90deg, var(--coast-pink), var(--coast-orange)) !important;
+  color: #1a0620 !important;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 22px rgba(255, 61, 139, 0.45);
+}
+.reader-coast nav[aria-label="Reader menu"] button[aria-current="page"] svg { color: #1a0620; }
+.reader-coast nav[aria-label="Reader menu"] p { color: var(--coast-teal) !important; font-family: var(--coast-cond); border-color: var(--coast-line) !important; }
+.reader-coast [data-r="badge"] { background: var(--coast-teal) !important; color: #062b27 !important; border-radius: 3px !important; }
+
+/* ---------- Titles ---------- */
+.reader-coast main h1 {
+  font-family: var(--coast-display) !important;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+  font-style: italic;
+  letter-spacing: 0.01em !important;
+  font-size: clamp(30px, 5.4vw, 52px) !important;
+  line-height: 0.98;
+  text-wrap: balance;
+  background: linear-gradient(180deg, #ffe6a8 0%, var(--coast-orange) 45%, var(--coast-pink) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent !important;
+  filter: drop-shadow(0 3px 0 rgba(18, 6, 31, 0.9)) drop-shadow(0 0 18px rgba(255, 61, 139, 0.35));
+}
+.reader-coast main h2, .reader-coast main h3 {
+  font-family: var(--coast-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ---------- Panels: glass postcards with a clipped corner ---------- */
+.reader-coast main section, .reader-coast main [data-r="stat"], .reader-coast [data-r="promo"] {
+  background: var(--coast-panel) !important;
+  border-color: var(--coast-line) !important;
+  border-radius: 4px !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.reader-coast main section section { clip-path: none; backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(255, 255, 255, 0.04) !important; }
+.reader-coast [data-r="promo"] h2 { font-family: var(--coast-cond); text-transform: uppercase; letter-spacing: 0.04em; }
+.reader-coast [data-r="promo"] a { border-radius: 3px !important; }
+
+/* The four counts: game stat tiles. */
+.reader-coast main [data-r="stat"] {
+  color: var(--coast-ink) !important;
+  border-left: 4px solid var(--coast-teal) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.reader-coast main [data-r="stat"]:nth-child(2) { border-left-color: var(--coast-pink) !important; }
+.reader-coast main [data-r="stat"]:nth-child(3) { border-left-color: var(--coast-orange) !important; }
+.reader-coast main [data-r="stat"]:nth-child(4) { border-left-color: var(--coast-sun) !important; }
+.reader-coast main [data-r="stat"]:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255, 61, 139, 0.25); }
+.reader-coast main [data-r="stat"] > span:first-child {
+  font-family: var(--coast-display) !important;
+  font-weight: 400 !important;
+  font-size: 40px !important;
+  line-height: 1;
+  font-style: italic;
+}
+.reader-coast main [data-r="stat"] > span:last-child {
+  font-family: var(--coast-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--coast-mute) !important;
+}
+
+/* Buttons that go somewhere: a slanted teal tag. */
+.reader-coast main [data-r="go"] {
+  background: var(--coast-teal) !important;
+  color: #062b27 !important;
+  border: 0 !important;
+  border-radius: 2px !important;
+  font-family: var(--coast-cond);
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  padding-inline: 18px !important;
+}
+.reader-coast main [data-r="go"]:hover { background: #7af3e8 !important; }
+
+/* The Advisory Challenge card: a "job board" card in hot sunset colors. */
+.reader-coast [data-testid="reader-challenge-card"], .reader-coast [data-testid="parent-challenge-card"] {
+  background: linear-gradient(110deg, rgba(255, 61, 139, 0.28), rgba(255, 154, 60, 0.18) 60%, rgba(24, 8, 38, 0.8)) !important;
+  border-color: rgba(255, 154, 60, 0.6) !important;
+}
+.reader-coast [data-testid="reader-challenge-card"] button, .reader-coast [data-testid="parent-challenge-card"] button {
+  background: var(--coast-sun) !important; color: #2a1206 !important; border-radius: 2px !important;
+  font-family: var(--coast-cond); text-transform: uppercase; letter-spacing: 0.08em;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+/* ---------- The HUD on the Overview ---------- */
+.coast-hud {
+  display: flex; flex-wrap: wrap; align-items: stretch; justify-content: space-between; gap: 12px;
+}
+.coast-hud__kicker {
+  font-family: var(--coast-cond); font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em;
+  font-size: 13px; color: var(--coast-teal);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.coast-hud__kicker::before { content: ""; width: 26px; height: 3px; background: var(--coast-teal); transform: skewX(-30deg); }
+.coast-hud__clock {
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  padding: 8px 14px; min-width: 150px;
+  background: rgba(10, 2, 18, 0.7); border: 1px solid var(--coast-line); border-radius: 3px;
+  transform: skewX(-8deg);
+}
+.coast-hud__clock > * { transform: skewX(8deg); }
+.coast-hud__time { font-family: var(--coast-display); font-size: 32px; line-height: 1; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 14px rgba(46, 230, 214, 0.6); }
+.coast-hud__day { font-family: var(--coast-cond); font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--coast-soft); }
+.coast-hud__meter { display: flex; gap: 4px; margin-top: 6px; }
+.coast-hud__meter i { width: 14px; height: 6px; background: rgba(255, 255, 255, 0.16); transform: skewX(-30deg); }
+.coast-hud__meter i[data-on] { background: var(--coast-pink); box-shadow: 0 0 8px var(--coast-pink); }
+
+/* Today's objectives: numbered tags instead of plain rows. */
+.reader-coast [data-r="objective"] { border-color: rgba(255, 61, 139, 0.22) !important; }
+.reader-coast [data-r="objective"] > span:first-child { display: inline-flex; align-items: center; gap: 10px; }
+.reader-coast [data-r="objective"] > span:first-child::before {
+  content: attr(data-n); flex: none;
+  display: inline-grid; place-items: center; width: 28px; height: 24px;
+  background: var(--coast-orange); color: #2a1206;
+  font-family: var(--coast-display); font-size: 14px;
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+
+/* ---------- The Reader's own screens inside (the hub night colors, swapped for the coast's) ---------- */
+.reader-coast.hub-night .bg-white, .reader-coast.hub-night .bg-white\/95,
+.reader-coast.hub-night .bg-white\/80, .reader-coast.hub-night .bg-white\/90 { background-color: var(--coast-panel) !important; }
+.reader-coast.hub-night .bg-slate-100, .reader-coast.hub-night .bg-slate-100\/95 { background-color: rgba(18, 6, 31, 0.7) !important; }
+.reader-coast.hub-night [class*="bg-[#f"], .reader-coast.hub-night [class*="bg-[#e"],
+.reader-coast.hub-night .bg-gray-50, .reader-coast.hub-night .bg-gray-100,
+.reader-coast.hub-night .bg-slate-50, .reader-coast.hub-night .hover\:bg-slate-50:hover,
+.reader-coast.hub-night .hover\:bg-slate-100:hover { background-color: var(--coast-panel-2) !important; }
+.reader-coast.hub-night .bg-slate-950 { background: linear-gradient(90deg, var(--coast-pink), var(--coast-orange)) !important; color: #1a0620 !important; }
+.reader-coast.hub-night .hover\:bg-slate-800:hover { background: var(--coast-pink) !important; }
+.reader-coast.hub-night .rounded-2xl, .reader-coast.hub-night .rounded-3xl, .reader-coast.hub-night .rounded-xl { border-radius: 6px; }
+.reader-coast.hub-night input, .reader-coast.hub-night select, .reader-coast.hub-night textarea {
+  background-color: rgba(10, 2, 18, 0.8) !important; color: var(--coast-ink) !important; border-color: rgba(46, 230, 214, 0.35) !important; border-radius: 3px;
+}
+.reader-coast.hub-night input:focus, .reader-coast.hub-night select:focus, .reader-coast.hub-night textarea:focus { outline: 2px solid var(--coast-teal); outline-offset: 1px; }
+.reader-coast.hub-night .border-slate-200, .reader-coast.hub-night .border-slate-100, .reader-coast.hub-night .border-gray-200 { border-color: var(--coast-line) !important; }
+
+/* ---------- The Theme picker ---------- */
+.reader-theme-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 80; width: min(320px, calc(100vw - 24px));
+  padding: 10px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #151326; color: #ece9f7; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column; gap: 8px; text-transform: none !important; letter-spacing: normal !important;
+}
+.reader-coast .reader-theme-menu { background: #1a0a2a; border-color: var(--coast-line); border-radius: 4px; font-family: var(--coast-body); }
+.reader-theme-menu button {
+  display: flex !important; align-items: center; gap: 12px; width: 100%; padding: 8px !important; min-height: 64px;
+  border-radius: 10px !important; border: 2px solid transparent !important; text-align: left; background: rgba(255, 255, 255, 0.04) !important;
+  text-transform: none !important; letter-spacing: normal !important; font-family: inherit !important;
+}
+.reader-theme-menu button[aria-checked="true"] { border-color: #c4b5fd !important; }
+.reader-coast .reader-theme-menu button[aria-checked="true"] { border-color: var(--coast-teal) !important; }
+.reader-theme-swatch { width: 64px; height: 46px; flex: none; border-radius: 6px; overflow: hidden; position: relative; }
+.reader-theme-swatch--classic { background: linear-gradient(135deg, #0d0b1a 0 55%, #7c3aed 55% 70%, #151326 70%); }
+.reader-theme-swatch--coast { background: linear-gradient(180deg, #2a0b4a 0%, #ff3d8b 55%, #ff9a3c 72%, #12061f 72%); }
+.reader-theme-swatch--coast::after { content: ""; position: absolute; left: 50%; top: 34%; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: #ffd166; box-shadow: 0 0 10px #ffd166; }

@@ -6,7 +6,7 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BellRing, ChevronLeft, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, ChevronLeft, Palette, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, goToSignIn, isReaderHost } from "@/lib/hubs";
@@ -24,6 +24,8 @@ import { ADMIN_SECTIONS, type AdminSection, type SettingsSection } from "@/lib/a
 import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
+import "./readerCoast.css";
+import CoastScene from "@/components/reader/CoastScene";
 
 type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 /** Admin menu items that leave the Reader (or jump into a setting) rather than show a console section. */
@@ -81,6 +83,84 @@ export const READER_SIGN_IN = `${READER_APP}#/signin`;
 /** "Conservatory Green Middle School (Denver, CO)" → "Conservatory Green MS". */
 export const shortSchool = (name: string) => name.replace(/\s*\(.*\)\s*$/, "").replace(/\bMiddle School\b/, "MS").replace(/\bHigh School\b/, "HS").replace(/\bElementary School\b/, "ES").trim();
 
+/** The Reader's look, chosen with the Theme button and remembered on this device: the approved dark
+ *  look, or "Neon Coast" (readerCoast.css): a sunset beach-city caper look, with its own scenery and type. */
+export type ReaderTheme = "classic" | "coast";
+export const READER_THEMES: Array<{ id: ReaderTheme; name: string; line: string }> = [
+  { id: "classic", name: "Classic", line: "Deep purple, calm and simple." },
+  { id: "coast", name: "Neon Coast", line: "Sunset city, palms and neon. A whole new look." },
+];
+const THEME_KEY = "reader_theme";
+export const readTheme = (v: string | null | undefined): ReaderTheme => (v === "coast" ? "coast" : "classic");
+function useReaderTheme(): [ReaderTheme, (t: ReaderTheme) => void] {
+  const [theme, setTheme] = useState<ReaderTheme>(() => { try { return readTheme(localStorage.getItem(THEME_KEY)); } catch { return "classic"; } });
+  const set = (t: ReaderTheme) => { setTheme(t); try { localStorage.setItem(THEME_KEY, t); } catch { /* this visit only */ } };
+  // Neon Coast's type: a condensed display face, a condensed and a regular body face, and a script for the wordmark.
+  useEffect(() => {
+    if (theme !== "coast" || document.getElementById("reader-coast-font")) return;
+    const link = document.createElement("link");
+    link.id = "reader-coast-font";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;700;800&family=Barlow:wght@400;500;600;700&family=Yellowtail&display=swap";
+    document.head.appendChild(link);
+  }, [theme]);
+  return [theme, set];
+}
+
+/** The Theme button in the top bar, and its list of looks. */
+function ThemeButton({ theme, setTheme }: { theme: ReaderTheme; setTheme: (t: ReaderTheme) => void }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="true" aria-label="Theme" data-testid="reader-theme"
+        className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>
+        <Palette className="h-4 w-4" /><span className="hidden sm:inline">Theme</span>
+      </button>
+      {open && <>
+        <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} />
+        <div role="radiogroup" aria-label="Reader theme" className="reader-theme-menu">
+          {READER_THEMES.map((t) => (
+            <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => { setTheme(t.id); setOpen(false); }} data-testid={`reader-theme-${t.id}`}>
+              <span className={`reader-theme-swatch reader-theme-swatch--${t.id}`} />
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[15px] font-extrabold">{t.name}</span>
+                <span className="text-[12px] leading-snug" style={{ color: "#bdb6d6" }}>{t.line}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+/** Neon Coast's HUD over the Overview: a kicker line, and a game-style clock with a meter of what's waiting. */
+function CoastHud({ waiting }: { waiting: number }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(t); }, []);
+  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const day = now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  const bars = Math.min(5, Math.max(0, Math.ceil(waiting / 3)));
+  return (
+    <div className="coast-hud" data-testid="reader-coast-hud">
+      <div className="flex flex-col justify-end gap-1">
+        <span className="coast-hud__kicker">Today’s run</span>
+      </div>
+      <div className="coast-hud__clock" aria-label={`${time}, ${day}. ${waiting} waiting on you.`}>
+        <span className="coast-hud__time">{time}</span>
+        <span className="coast-hud__day">{day}</span>
+        <span className="coast-hud__meter" aria-hidden="true">{[0, 1, 2, 3, 4].map((i) => <i key={i} data-on={i < bars ? "" : undefined} />)}</span>
+      </div>
+    </div>
+  );
+}
+
 const greeting = (h = new Date().getHours()) => (h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening");
 
 /** The banner across the top: WorkHub for teachers and the administrator, LifeHub for parents. */
@@ -130,6 +210,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const [adminSettings, setAdminSettings] = useState<SettingsSection>("programs");
   const [hubIntroDone, setHubIntroDone] = useState(() => (user ? hubIntroSeen(user.id) : true));
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem(RAIL_KEY) !== "closed"; } catch { return true; } });
+  const [theme, setTheme] = useReaderTheme();
+  const coast = theme === "coast";
   const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem(RAIL_KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
 
   // Opening the hub: on arisereader.com the sign-in has to be carried over to arisetodo.com. Doing
@@ -233,8 +315,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const dim = "rgba(255,255,255,0.08)";
 
   return (
-    <div className="teacher-reader hub-paper hub-night min-h-screen w-full max-w-[100vw] overflow-x-clip" data-testid="arise-reader-page"
+    <div className={`teacher-reader hub-paper hub-night min-h-screen w-full max-w-[100vw] overflow-x-clip${coast ? " reader-coast" : ""}`} data-testid="arise-reader-page" data-reader-theme={theme}
       style={{ background: "#0d0b1a", color: "#ece9f7", fontFamily: "'Figtree', system-ui, sans-serif" }}>
+      {coast && <CoastScene />}
 
       <header data-own-sat="" className="sticky top-0 z-50 flex h-[calc(4rem+var(--sat,0px))] items-center pt-[var(--sat,0px)] justify-between gap-2 border-b px-3 sm:gap-3 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
@@ -245,12 +328,13 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             className="flex h-10 shrink-0 items-center gap-1 rounded-[10px] border px-2 text-[12px] font-bold lg:hidden" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>
             {rail ? <PanelLeftClose className="h-4 w-4" /> : <MenuIcon className="h-4 w-4" />}{rail ? "Hide" : "Menu"}
           </button>
-          <span className="hidden h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] sm:flex" style={{ background: "#7c3aed" }}><BookOpen className="h-[18px] w-[18px] text-white" /></span>
-          <span className="whitespace-nowrap text-[16px] font-black tracking-[-0.02em] sm:text-[19px]">Arise <span style={{ color: "#c4b5fd" }}>Reader</span></span>
-          <span className="hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-extrabold min-[430px]:inline" style={{ background: "#c4b5fd", color: "#0d0b1a" }}>{user.isAdmin ? "Admin" : isParent ? "Parent" : "Teacher"}</span>
+          <span data-r="mark" className="hidden h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] sm:flex" style={{ background: "#7c3aed" }}><BookOpen className="h-[18px] w-[18px] text-white" /></span>
+          <span data-r="wordmark" className="whitespace-nowrap text-[16px] font-black tracking-[-0.02em] sm:text-[19px]">Arise <span style={{ color: "#c4b5fd" }}>Reader</span></span>
+          <span data-r="pill" className="hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-extrabold min-[430px]:inline" style={{ background: "#c4b5fd", color: "#0d0b1a" }}>{user.isAdmin ? "Admin" : isParent ? "Parent" : "Teacher"}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {(isParent || user.isAdmin) && <SupportButton isAdmin={!!user.isAdmin} />}
+          <ThemeButton theme={theme} setTheme={setTheme} />
           <span className="hidden text-sm sm:inline" style={{ color: "#c9c5dc" }}>{user.displayName}{school ? ` · ${school}` : ""}</span>
           {isReaderApp() && <button type="button" onClick={() => setPrivacy(true)} className="min-h-10 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }} data-testid="reader-account">Account</button>}
           <button type="button" onClick={() => { logout(); if (isReaderApp()) goToSignIn(); else window.location.assign(READER_SIGN_IN); }} className="min-h-10 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>Sign out</button>
@@ -261,7 +345,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
       {/* The hub banner and the donation line. Both always show (neither can be hidden), kept slim. */}
       <div className={`flex flex-col gap-2 px-6 pt-4 ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
         {/* Not in the iPhone apps: it links out to the website's hub and the paid add-ons (App Review 3.1.1). */}
-        {!isReaderApp() && <section aria-label={`Open your ${hub.name}`} data-testid="reader-workhub-banner"
+        {!isReaderApp() && <section aria-label={`Open your ${hub.name}`} data-testid="reader-workhub-banner" data-r="promo"
           className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3" style={{ borderColor: "#2c6f69", background: "#0f2624" }}>
           <div className="min-w-0 flex-[1_1_320px]">
             <h2 className="text-[17px] font-black leading-tight text-white">{hub.title}</h2>
@@ -296,7 +380,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
                 style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
                 <Icon className="h-5 w-5" />
                 <span className="line-clamp-2">{m.label}</span>
-                {n > 0 && <span className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
+                {n > 0 && <span data-r="badge" className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
               </button>
             );
           })}
@@ -320,7 +404,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
                 className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-left text-[15px]"
                 style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
                 <span>{m.label}</span>
-                {n > 0 && <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
+                {n > 0 && <span data-r="badge" className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
               </button>
             );
           })}
@@ -352,25 +436,26 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
           </>}
 
           {!isParent && view === "reader" && <>
+            {coast && <CoastHud waiting={toApprove + (counts?.books || 0) + (counts?.toGrade || 0)} />}
             <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {user.displayName}</h1>
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
               {([["My Students", counts?.students, "readerStudents"], ["To approve", toApprove, "readerApprovals"], ["To grade", counts?.toGrade, "readerQuizzes"], ["Book requests", counts?.books, "readerApprovals"]] as const).map(([label, value, to]) => (
-                <button key={label} type="button" onClick={() => go(to)} className="flex flex-col gap-1 rounded-2xl border p-4 text-left" style={{ background: "#151326", borderColor: dim, color: "#ece9f7" }}>
+                <button key={label} type="button" onClick={() => go(to)} data-r="stat" className="flex flex-col gap-1 rounded-2xl border p-4 text-left" style={{ background: "#151326", borderColor: dim, color: "#ece9f7" }}>
                   <span className="text-[30px] font-black">{counts ? value ?? 0 : "…"}</span>
                   <span className="text-sm font-bold" style={{ color: "#a29fb8" }}>{label}</span>
                 </button>
               ))}
             </div>
             <section className="flex flex-col gap-2.5 rounded-[18px] border px-5 py-[18px]" style={{ background: "#151326", borderColor: dim }}>
-              <h2 className="text-lg font-extrabold">Needs you today</h2>
+              <h2 className="text-lg font-extrabold">{coast ? "Today’s objectives" : "Needs you today"}</h2>
               {([
                 [`${toApprove + (counts?.books || 0)} students and requests waiting for a yes or no`, "readerApprovals"],
                 [`${counts?.toGrade || 0} written responses to grade`, "readerQuizzes"],
                 ["Run a live quiz with your class", "readerLive"],
-              ] as const).map(([label, to]) => (
-                <div key={to} className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <span className="text-[15px]">{label}</span>
-                  <button type="button" onClick={() => go(to)} className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>Open</button>
+              ] as const).map(([label, to], i) => (
+                <div key={to} data-r="objective" className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <span className="text-[15px]" data-n={String(i + 1).padStart(2, "0")}>{label}</span>
+                  <button type="button" onClick={() => go(to)} data-r="go" className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>{coast ? "Go" : "Open"}</button>
                 </div>
               ))}
             </section>
@@ -555,7 +640,7 @@ function ParentOverview({ name, token, challenge, go }: { name: string; token: s
     <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {name}</h1>
     <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
       {([["Readers", kids?.length, "children"], ["Total points", sum("points"), "children"], ["Quizzes passed", sum("passed"), "children"], ["Points this month", sum("month"), "leaderboard"]] as const).map(([label, value, to]) => (
-        <button key={label} type="button" onClick={() => go(to)} className="flex flex-col gap-1 rounded-2xl border p-4 text-left" style={{ background: "#151326", borderColor: dim, color: "#ece9f7" }}>
+        <button key={label} type="button" onClick={() => go(to)} data-r="stat" className="flex flex-col gap-1 rounded-2xl border p-4 text-left" style={{ background: "#151326", borderColor: dim, color: "#ece9f7" }}>
           <span className="text-[30px] font-black">{kids ? Number(value ?? 0).toLocaleString() : "…"}</span>
           <span className="text-sm font-bold" style={{ color: "#a29fb8" }}>{label}</span>
         </button>
