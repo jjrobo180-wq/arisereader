@@ -62,7 +62,7 @@ export function registerAdvisoryChallengeRoutes(app: Express, deps: ChallengeDep
         const row = name ? standings.find((s) => s.name === name || s.advisories?.includes(name)) : undefined;
         mine = { advisory: row ? row.name : null, rank: row ? row.rank : null, points: Math.round((points.get(me) || 0) * 10) / 10 };
       }
-      const view: ChallengeView = { challenge: { ...challenge, phase, daysLeft: daysLeft(challenge, now) }, standings, mine };
+      const view: ChallengeView = { challenge: { ...challenge, phase, daysLeft: daysLeft(challenge, now), endMs: challengeWindow(challenge).endMs }, standings, mine };
       res.json(view);
     } catch (e: any) {
       console.error("Advisory challenge error:", e?.message || e);

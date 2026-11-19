@@ -36,6 +36,19 @@ export function useAdvisoryChallenge(token: string | null | undefined): Challeng
     window.addEventListener("arise-points-updated", refresh);
     return () => { alive = false; window.removeEventListener("arise-points-updated", refresh); };
   }, [token]);
+  // The last day of a challenge that ends at a set time counts down every second, and the moment it ends the
+  // standings are fetched again so every screen shows it's over.
+  const [, tick] = useState(0);
+  const endMs = view?.challenge?.phase === "live" && view.challenge.daysLeft === 0 && view.challenge.endsAt ? view.challenge.endMs ?? 0 : 0;
+  useEffect(() => {
+    if (!endMs) return;
+    let done = false;
+    const id = window.setInterval(() => {
+      tick((n) => n + 1);
+      if (!done && Date.now() >= endMs) { done = true; void loadAdvisoryChallenge(token, true).then((v) => setView(v && v.challenge ? v : null)); }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [endMs, token]);
   return view;
 }
 

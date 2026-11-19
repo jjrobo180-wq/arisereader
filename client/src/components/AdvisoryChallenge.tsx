@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useAdvisoryChallenge, useGamesBegin } from "@/lib/advisoryChallenge";
-import { dayLabel, ordinal, type ChallengeView, type Standing } from "@shared/advisoryChallenge";
+import { countdownText, dayLabel, endTimeLabel, ordinal, type ChallengeView, type Standing } from "@shared/advisoryChallenge";
 import LeaderboardPopup from "./LeaderboardPopup";
 
 type View = ChallengeView & { challenge: NonNullable<ChallengeView["challenge"]> };
@@ -21,7 +21,12 @@ export function datesText(v: View): string {
   // Points from before the start only count when the challenge says so (countsFrom earlier than starts).
   const early = c.countsFrom < c.starts ? ` Points earned since ${dayLabel(c.countsFrom, true)} already count.` : "";
   if (c.phase === "soon") return `Starts ${dayLabel(c.starts)} and ends ${dayLabel(c.lastDay)}. Every advisory starts at 0 points. ${party}${early}`;
-  if (c.phase === "live") return `${c.daysLeft === 0 ? "Last day!" : `${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.`} Ends ${dayLabel(c.lastDay)}. ${party}${early}`;
+  if (c.phase === "live") {
+    const at = c.endsAt ? ` at ${endTimeLabel(c.endsAt)}` : "";
+    // The last day counts down to the minute (and second) when it ends at a set time.
+    if (c.daysLeft === 0 && c.endsAt && c.endMs) return `Last day! Ends today${at}: ${countdownText(c.endMs)} left. ${party}${early}`;
+    return `${c.daysLeft === 0 ? "Last day!" : `${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.`} Ends ${dayLabel(c.lastDay)}${at}. ${party}${early}`;
+  }
   const winners = v.standings.filter((s) => s.rank === 1 && s.points > 0).map((s) => s.name);
   return winners.length
     ? `The challenge is over. ${winners.join(" and ")} ${winners.length > 1 ? "win" : "wins"} ${c.prize} on ${dayLabel(c.prizeDay)}!`

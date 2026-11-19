@@ -14,6 +14,8 @@ export type Challenge = {
   starts: string;
   /** The last day points count; the challenge ends at midnight after it. */
   lastDay: string;
+  /** The time on the last day it ends ("16:00", school time). Left out: the end of that day. */
+  endsAt?: string;
   /** The day the winning advisory gets its prize. */
   prizeDay: string;
   prize: string;
@@ -31,6 +33,7 @@ export const CGMS_FALL_2026: Challenge = {
   countsFrom: "2026-10-20",
   starts: "2026-10-20",
   lastDay: "2026-11-19",
+  endsAt: "16:00",
   prizeDay: "2026-11-20",
   prize: "a pizza party",
   combinedGrades: [{ grade: "6", name: "Ms. Garcia's Lit Lab" }],
@@ -64,7 +67,9 @@ export function nextDay(day: string): string {
 
 /** When points start and stop counting. */
 export function challengeWindow(c: Challenge) {
-  return { fromMs: dayStartMs(c.countsFrom), endMs: dayStartMs(nextDay(c.lastDay)), fromDay: c.countsFrom, endDayExclusive: nextDay(c.lastDay) };
+  const t = /^(\d{1,2}):(\d{2})$/.exec(c.endsAt || "");
+  const endMs = t ? dayStartMs(c.lastDay) + (Number(t[1]) * 60 + Number(t[2])) * 60_000 : dayStartMs(nextDay(c.lastDay));
+  return { fromMs: dayStartMs(c.countsFrom), endMs, fromDay: c.countsFrom, endDayExclusive: nextDay(c.lastDay) };
 }
 
 export type ChallengePhase = "soon" | "live" | "over" | "done";
@@ -140,8 +145,20 @@ export function ordinal(n: number): string {
 
 /** What the challenge payload looks like to the site. */
 export type ChallengeView = {
-  challenge: (Challenge & { phase: ChallengePhase; daysLeft: number }) | null;
+  challenge: (Challenge & { phase: ChallengePhase; daysLeft: number; endMs?: number }) | null;
   standings: Standing[];
   /** The viewer's advisory and their own points in the challenge (students only). */
   mine: { advisory: string | null; rank: number | null; points: number } | null;
 };
+
+/** "4:00 pm" for "16:00". */
+export function endTimeLabel(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h >= 12 ? "pm" : "am"}`;
+}
+/** "1:23:45" (or "23:45") until `endMs`. */
+export function countdownText(endMs: number, now = Date.now()): string {
+  const left = Math.max(0, Math.floor((endMs - now) / 1000));
+  const h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
+}

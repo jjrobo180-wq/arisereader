@@ -34,7 +34,8 @@ test("days start at midnight in Denver, on both sides of the clocks changing", (
   assert.equal(nextDay("2026-12-31"), "2027-01-01");
   const w = challengeWindow(CGMS_FALL_2026);
   assert.equal(new Date(w.fromMs).toISOString(), "2026-10-20T06:00:00.000Z"); // everyone starts at 0 on Oct 20
-  assert.equal(new Date(w.endMs).toISOString(), "2026-11-20T07:00:00.000Z"); // the end of Nov 19 in Denver
+  assert.equal(new Date(w.endMs).toISOString(), "2026-11-19T23:00:00.000Z"); // 4:00 pm Nov 19 in Denver (endsAt)
+  assert.equal(new Date(challengeWindow({ ...CGMS_FALL_2026, endsAt: undefined }).endMs).toISOString(), "2026-11-20T07:00:00.000Z"); // no endsAt: the end of the day
   assert.deepEqual([w.fromDay, w.endDayExclusive], ["2026-10-20", "2026-11-20"]);
 });
 
@@ -42,8 +43,8 @@ test("the phases: coming up, running, over through pizza day, then done", () => 
   const at = (iso: string) => challengePhase(CGMS_FALL_2026, Date.parse(iso));
   assert.equal(at("2026-10-19T22:00:00Z"), "soon"); // Monday afternoon in Denver
   assert.equal(at("2026-10-20T06:00:00Z"), "live");
-  assert.equal(at("2026-11-20T06:59:00Z"), "live"); // 11:59 pm Nov 19 in Denver
-  assert.equal(at("2026-11-20T07:00:00Z"), "over");
+  assert.equal(at("2026-11-19T22:59:00Z"), "live"); // 3:59 pm Nov 19 in Denver
+  assert.equal(at("2026-11-19T23:00:00Z"), "over"); // 4:00 pm: over
   assert.equal(at("2026-11-21T06:59:00Z"), "over");
   assert.equal(at("2026-11-21T07:00:00Z"), "done");
   assert.equal(daysLeft(CGMS_FALL_2026, Date.parse("2026-11-19T18:00:00Z")), 0);
