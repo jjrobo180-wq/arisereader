@@ -1,0 +1,38 @@
+iphone: gallery open: true; count "14 premium · 409 mini"
+iphone: tier buttons: All / Premium · 14 / Mini · 409
+iphone: premium heading: true, mini heading: true
+iphone: premium rail: Cooked | Cooked PT | Arise Notes | Podster | Para Team | A.R.I.S.E. Sheets | A.R.I.S.E. Docs | A.R.I.S.E. Slides | Drive | Sheets | Drop | Work Notes | A.R.I.S.E. Standby | Arise Buddy
+iphone: mini shelves: Family54 | Everyday tools34 | Health & wellness18 | Kitchen1 | Money & home30 | School & study16 | Work & planning31 | Checklists90 | Fun & inspiration36 | Teaching98 | Connections1
+iphone: Premium shelves: Super apps5 | Office & files7 | Sleep & Standby1 | Learning apps1; chips: Super apps, Office & files, Sleep & Standby, Learning apps
+iphone: Mini chips: Family, Everyday tools, Health & wellness, Kitchen, Money & home, School & study, Work & planning, Checklists, Fun & inspiration, Teaching, Connections
+iphone: School & study: School & study16
+iphone: search "final grade": Results1 · “final grade” · premium [] · mini [Final Grade Calculator]
+iphone: search "gift dates": Results1 · “gift dates” · premium [] · mini [Gifts & Dates]
+iphone: search "docs": Results1 · “docs” · premium [A.R.I.S.E. Docs] · mini []
+iphone: search "podcast": Results1 · “podcast” · premium [Podster] · mini []
+iphone: search "health lite": Results0 · “health lite” · premium [] · mini []
+iphone: search "period": Results2 · “period” · premium [] · mini [Periodic Table | New grading period]
+iphone: cleared: search empty true, back to browsing true
+iphone: detail: Final Grade Calculator · Mini plugin•School & study
+iphone: Escape: detail closed true, search cleared true, gallery still open true
+iphone: sideways scroll: none
+iphone: page errors: none
+desktop: gallery open: true; count "14 premium · 409 mini"
+desktop: tier buttons: All / Premium · 14 / Mini · 409
+desktop: premium heading: true, mini heading: true
+desktop: premium rail: Cooked | Cooked PT | Arise Notes | Podster | Para Team | A.R.I.S.E. Sheets | A.R.I.S.E. Docs | A.R.I.S.E. Slides | Drive | Sheets | Drop | Work Notes | A.R.I.S.E. Standby | Arise Buddy
+desktop: mini shelves: Family54 | Everyday tools34 | Health & wellness18 | Kitchen1 | Money & home30 | School & study16 | Work & planning31 | Checklists90 | Fun & inspiration36 | Teaching98 | Connections1
+desktop: Premium shelves: Super apps5 | Office & files7 | Sleep & Standby1 | Learning apps1; chips: Super apps, Office & files, Sleep & Standby, Learning apps
+desktop: Mini chips: Family, Everyday tools, Health & wellness, Kitchen, Money & home, School & study, Work & planning, Checklists, Fun & inspiration, Teaching, Connections
+desktop: School & study: School & study16
+desktop: search "final grade": Results1 · “final grade” · premium [] · mini [Final Grade Calculator]
+desktop: search "gift dates": Results1 · “gift dates” · premium [] · mini [Gifts & Dates]
+desktop: search "docs": Results1 · “docs” · premium [A.R.I.S.E. Docs] · mini []
+desktop: search "podcast": Results1 · “podcast” · premium [Podster] · mini []
+desktop: search "health lite": Results0 · “health lite” · premium [] · mini []
+desktop: search "period": Results2 · “period” · premium [] · mini [Periodic Table | New grading period]
+desktop: cleared: search empty true, back to browsing true
+desktop: detail: Final Grade Calculator · Mini plugin•School & study
+desktop: Escape: detail closed true, search cleared true, gallery still open true
+desktop: sideways scroll: none
+desktop: page errors: none
