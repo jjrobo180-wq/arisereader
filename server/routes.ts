@@ -31,6 +31,7 @@ import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
 import { registerAdvisoryChallengeRoutes } from "./advisoryChallenge";
+import { registerReaderTotalsRoutes } from "./readerTotals";
 import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTeachers";
 import { advisorAccount, advisoriesForSchool, advisoryLabel, advisoryName } from "../shared/advisories";
 import { schoolYearOf } from "../shared/classTeachers";
@@ -1451,6 +1452,14 @@ export async function registerRoutes(
       if (!data || data.length < 1000) return rows;
     }
   };
+  // All-time quizzes taken and points earned on Arise Reader, for the home page and the sign-in screen (public, totals only).
+  registerReaderTotalsRoutes(app, {
+    async attemptsPage(from, to) {
+      const { data, error } = await supabase.from("attempts").select("points_earned, completed_at").order("id", { ascending: true }).range(from, to);
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+  });
   registerAdvisoryChallengeRoutes(app, {
     auth: authMiddleware,
     getSchool: classTeacherStore.getSchool,

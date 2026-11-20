@@ -166,6 +166,7 @@
 @media(max-width:900px){.arise-updates{padding:70px 0}.arise-updates .wu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.arise-updates{padding:55px 0}.arise-updates .wu-wrap{width:calc(100% - 32px)}.arise-updates .wu-head{align-items:stretch;flex-direction:column;gap:19px}.arise-updates .wu-grid{grid-template-columns:1fr;gap:12px}.arise-updates .wu-card{padding:23px}.arise-updates .wu-all{width:100%}.arise-updates h2{font-size:32px;letter-spacing:-1.3px}}
 
+.reader-totals{margin-top:26px;max-width:510px}.reader-totals[hidden]{display:none}.reader-totals .tot-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.reader-totals .tot{background:#fff;border:1px solid #e1e6f5;border-radius:16px;padding:13px 16px 12px;box-shadow:0 10px 26px -18px rgba(70,60,160,.5)}.reader-totals .tot b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(28px,3.4vw,38px);font-weight:800;line-height:1.1;letter-spacing:-.04em;color:var(--purple);font-variant-numeric:tabular-nums}.reader-totals .tot span{display:block;margin-top:3px;font-size:13px;font-weight:700;color:#58627b}.reader-totals small{display:block;margin-top:9px;font-size:12px;font-weight:600;color:#6f7a93}
 .egz-pill{display:inline-flex;align-items:center;gap:9px;max-width:100%;text-align:left;margin-top:22px;padding:8px 14px 8px 8px;border-radius:999px;background:#e8f7f5;border:1px solid #c8ebe6;color:#0b5f5a;font-size:13px;font-weight:700;line-height:1.4;text-decoration:none;transition:background .2s}.egz-pill:hover{background:#d9f2ee}.egz-pill:focus-visible{outline:3px solid #0f9c94;outline-offset:3px}.egz-txt{min-width:0}.egz-new{flex:none;padding:3px 9px;border-radius:999px;background:#0f9c94;color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 /* Arise AAC band: points to the Arise AAC home page at /eyegaze/ */
 .egz{padding:0 0 96px}
@@ -242,6 +243,7 @@
     <p class="hero-lead">Discover books, take fun comprehension quizzes, and celebrate every milestone. A reading experience built for curious kids, supportive families, and inspiring educators.</p>
     <div class="hero-buttons"><button class="btn btn-primary" data-start>Start your reading journey <svg class="ico"><use href="#i-arrow"/></svg></button><button class="btn btn-outline" data-quiz><svg class="ico"><use href="#i-play"/></svg> Try a sample quiz</button><a class="appbtn" data-app-link href="#" target="_blank" rel="noopener" hidden aria-label="Download Arise Reader on the App Store"><svg class="apl" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg><span><small>Download on the</small><b>App Store</b></span></a></div>
     <ul class="promise-list"><li><svg class="ico small"><use href="#i-check"/></svg> $7/month covers a parent and up to 3 kids</li><li><svg class="ico small"><use href="#i-check"/></svg> School & independent readers</li><li><svg class="ico small"><use href="#i-check"/></svg> Multiple ways to learn</li></ul>
+    <div class="reader-totals" id="reader-totals" hidden aria-label="Arise Reader so far"><div class="tot-row"><div class="tot"><b id="totalQuizzes" aria-live="off">0</b><span>quizzes taken</span></div><div class="tot"><b id="totalPoints" aria-live="off">0</b><span>points earned</span></div></div><small id="totalsSince">Across every reader, all time.</small></div>
     <a class="egz-pill" href="/eyegaze/" target="_top"><span class="egz-new">New</span><span class="egz-txt">Arise AAC for non-verbal &amp; eye-gaze learners</span><span aria-hidden="true">→</span></a>
   </div>
   <div class="hero-art" aria-label="Preview of the Arise Reader app: a student's book list and a live book quiz"><div class="ambient a"></div><div class="ambient b"></div><span class="spark a">✦</span><span class="spark b">✧</span><span class="spark c">✳</span>
@@ -374,6 +376,26 @@
   function pickAnswer(index){if(answered)return;answered=true;const q=questions[questionIndex],correct=index===q.correct;if(correct)score++;$$('#quizBody [data-answer]').forEach(b=>{const i=+b.dataset.answer;b.disabled=true;if(i===q.correct)b.classList.add('correct');else if(i===index)b.classList.add('incorrect');});const feedback=$('#quizFeedback');feedback.classList.add(correct?'good':'bad');feedback.textContent=(correct?'✓ Great job! ':'Not quite! ')+q.why;$('#nextQuestion').disabled=false;}
   function renderResults(){const body=$('#quizBody');body.innerHTML=`<div class="quiz-result"><div class="result-emoji">${score===3?'🏆':score>=1?'🌟':'📚'}</div><h3>You got ${score} out of ${questions.length}!</h3><p>${score===3?'Perfect run! You really know this story.':'Every try is a step forward. You can revisit the story and try again.'}<br><strong>This was a demo — no points or results were saved.</strong></p><div class="quiz-result-actions"><button class="btn btn-outline" id="quizAgain">Try again</button><button class="btn btn-primary" id="quizFinish">Done <svg class="ico small"><use href="#i-check"/></svg></button></div></div>`;$('#quizAgain').addEventListener('click',resetQuiz);$('#quizFinish').addEventListener('click',()=>closeModal(quiz));}
   $('#year').textContent=new Date().getFullYear();
+})();
+</script>
+
+<script>
+// All-time quizzes taken and points earned on Arise Reader (public totals, nothing about any one reader).
+(function(){
+var box=document.getElementById('reader-totals');if(!box)return;
+var qEl=document.getElementById('totalQuizzes'),pEl=document.getElementById('totalPoints');
+function fmt(n){return Math.round(n).toLocaleString('en-US');}
+function count(el,to){
+  if(!window.requestAnimationFrame||(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)){el.textContent=fmt(to);return;}
+  var t0=null;function step(t){if(t0===null)t0=t;var k=Math.min(1,(t-t0)/900);el.textContent=fmt(to*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);
+}
+fetch('/api/public/reader-totals').then(function(r){if(!r.ok)throw Error('fetch');return r.json();}).then(function(d){
+  if(!d||!(d.quizzes>0))return;
+  if(d.since){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d.since);if(m){var names=['January','February','March','April','May','June','July','August','September','October','November','December'];document.getElementById('totalsSince').textContent='Across every reader, all time since '+names[Number(m[2])-1]+' '+Number(m[3])+', '+m[1]+'.';}}
+  qEl.textContent=fmt(d.quizzes);pEl.textContent=fmt(d.points);box.hidden=false;
+  count(qEl,d.quizzes);count(pEl,d.points);
+}).catch(function(){});
 })();
 </script>
 
