@@ -13,6 +13,7 @@ import {
 import { cleanMakeups, type Makeup } from "@shared/hubMakeups";
 import type { HubEvent, Task, Workspace } from "@shared/teacherHub";
 import { API_BASE } from "@/lib/queryClient";
+import { pdfsForAi } from "@/lib/pdfPages";
 import { Card, Empty } from "./ui";
 
 type Props = { workspace: Workspace; setWorkspace: Dispatch<SetStateAction<Workspace>>; token: string | null; today: string; makeId: () => string; say: (text: string) => void };
@@ -88,7 +89,9 @@ export default function HubGradePlans({ workspace, setWorkspace, token, today, m
   async function read() {
     setReading(true); setError(""); setFound(null);
     try {
-      const data = await askGradeAi(token, { mode: "read", text, links, files, images: photos.map((x) => x.data) });
+      // PDFs are read here in the browser (the same reader as the Exemplar Maker): words as text, a scan as pictures.
+      const ready = await pdfsForAi(files, Math.max(0, 6 - photos.length)).catch(() => ({ files, images: [] as string[] }));
+      const data = await askGradeAi(token, { mode: "read", text, links, files: ready.files, images: [...photos.map((x) => x.data), ...ready.images] });
       const list: Concern[] = (data.concerns || []).map((c: Concern, i: number) => ({ ...c, id: `${Date.now()}-${i}`, student: matchStudent(c.student, roster) || c.student }));
       setFound(list);
       setPicked(new Set(list.filter((c) => c.kind !== "low").map((c) => c.id)));

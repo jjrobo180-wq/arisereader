@@ -10,6 +10,7 @@ import { cleanWorksheet, GRADES, LESSON_SUBJECTS, type GenWorksheet, type Worksh
 import { answerKeyText, cutSheetsHtml, downloadWorksheetDoc, printHtml, worksheetHtml } from "@/lib/lessonExport";
 import { groupByLevel, levelInstruction, levelLabel, parseLevel, type LeveledStudent } from "@shared/levelWorksheets";
 import { HubModal } from "./HubModal";
+import { pdfsForAi } from "@/lib/pdfPages";
 import { Segmented, Spinner, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
 
 type View = "student" | "key" | "edit";
@@ -209,7 +210,8 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
     if (!f.topic.trim() && !hasExample) { setError("Type what the worksheet is about, or add an example to copy."); return; }
     setBusy(true); setError("");
     try {
-      const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade: f.grade, subject: f.subject, state, kind: f.kind, count: f.count, level: f.level, notes: f.notes, ...(hasExample ? { exampleText: exText, links: exLinks, files: exFiles, images: exPhotos.map((p) => p.data) } : {}) });
+      const ready = await pdfsForAi(exFiles, Math.max(0, 6 - exPhotos.length)).catch(() => ({ files: exFiles, images: [] as string[] }));
+      const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade: f.grade, subject: f.subject, state, kind: f.kind, count: f.count, level: f.level, notes: f.notes, ...(hasExample ? { exampleText: exText, links: exLinks, files: ready.files, images: [...exPhotos.map((p) => p.data), ...ready.images] } : {}) });
       setWs({ ...data.worksheet, grade: f.grade || undefined, subject: f.subject || undefined });
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   }
@@ -356,14 +358,17 @@ export function StudentCopiesMaker({ token, state, className, students, classes,
     if (!hasOriginal) { setError("Add the assignment first: upload it, paste it, or link it."); return; }
     if (!chosen.length) { setError("Pick at least one student."); return; }
     const classGrade = classes.find((c) => c.id === classPick)?.grade || "";
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setProgress("Reading the assignment…");
+    // PDFs are read here in the browser: words as text, a scan as pictures of its pages.
+    const ready = await pdfsForAi(exFiles, Math.max(0, 6 - exPhotos.length)).catch(() => ({ files: exFiles, images: [] as string[] }));
+    const images = [...exPhotos.map((p) => p.data), ...ready.images];
     const made: { ws: GenWorksheet; level: string; students: string[] }[] = [];
     try {
       for (const [i, g] of groups.entries()) {
         setProgress(`Writing ${i + 1} of ${groups.length}: ${g.level ? levelLabel(g.level) : "original level"} (${g.students.length} student${g.students.length === 1 ? "" : "s"})…`);
         const data = await askLessonAi(token, {
           mode: "modify", subject: kind === "math" ? "Math" : "ELA", state, grade: g.level || classGrade, level: g.level ? levelInstruction(g.level, kind, classGrade) : "",
-          exampleText: exText, links: exLinks, files: exFiles, images: exPhotos.map((p) => p.data),
+          exampleText: exText, links: exLinks, files: ready.files, images,
         });
         made.push({ ws: { ...data.worksheet, grade: g.level || undefined }, level: g.level ? levelLabel(g.level) : "", students: g.students });
       }
