@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { SPED_LIMITS, SPED_REQUIREMENTS, exemplarHtml, practiceHtml, type SpedPack } from "@shared/spedExemplar";
 import UploadPicker from "@/components/UploadPicker";
 import type { UploadedFile } from "@shared/uploads";
+import { AI_MAX_PICTURES, pdfsForAi } from "@/lib/pdfPages";
 
 type Mine = { id: string; title: string; status: string; createdAt: string };
 type Job = { id: string; status: "working" | "done" | "failed"; stage: string; error?: string; pack?: SpedPack };
@@ -117,7 +118,9 @@ export default function SpedExemplarMaker() {
     if (!images.length && !files.length && !links.trim() && text.trim().length < 20) { setError("Paste a link to the lesson, paste the lesson (at least a few lines), add a file, or add photos of it."); return; }
     setBusy(true);
     try {
-      const { id } = await (await apiRequest("POST", "/api/sped-exemplar", { title, grade, text, links, files, images: images.map((i) => i.data) })).json();
+      // PDFs are read here first: their words go as text, a scan as pictures of its pages (the AI can't open PDFs).
+      const ready = await pdfsForAi(files, Math.min(SPED_LIMITS.images, AI_MAX_PICTURES) - images.length);
+      const { id } = await (await apiRequest("POST", "/api/sped-exemplar", { title, grade, text, links, files: ready.files, images: [...images.map((i) => i.data), ...ready.images] })).json();
       try { localStorage.setItem(JOB_KEY, id); } catch { /* fine */ }
       poll(id);
     } catch (e) { setBusy(false); setError(messageOf(e)); }

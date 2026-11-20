@@ -274,7 +274,10 @@ export async function onGroq<T>(models: string[], run: (model: string) => Promis
   lastStrain = Date.now();
   throw new Error("busy");
 }
-const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/llama-4-maverick-17b-128e-instruct", "qwen/qwen3-32b"]);
+// Ad-finding reads long transcripts all day, so it runs on the models with the biggest free allowance
+// (Llama 4 Scout: 30,000 tokens a minute, 500,000 a day) and leaves gpt-oss-120b, the best one for teacher
+// tools like the exemplar maker, as the very last choice, so podcasts can't use up its daily allowance.
+export const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "meta-llama/llama-4-scout-17b-16e-instruct", "openai/gpt-oss-20b", "qwen/qwen3-32b", "meta-llama/llama-4-maverick-17b-128e-instruct", "openai/gpt-oss-120b"]);
 const GROQ_STT = () => uniq([process.env.EARSHOT_GROQ_MODEL, "whisper-large-v3-turbo", "whisper-large-v3"]);
 /** Groq's hosted models (OpenAI-compatible), used when OpenAI is out of credit. */
 /** Groq first (free); when every Groq model is out for now, Perplexity reads it, so ads are still

@@ -90,8 +90,8 @@ for (const [name, route, register] of [["SPED Exemplar Maker", "/api/sped-exempl
 
 test("both makers have a link box that is sent with the build", () => {
   const sped = read("client/src/pages/SpedExemplarMaker.tsx"), kha = read("client/src/pages/KhaElaMaker.tsx");
-  assert.match(sped, /\{ title, grade, text, links, files, images:/);
+  assert.match(sped, /\{ title, grade, text, links, files: ready\.files, images:/);
   assert.match(sped, /data-testid="sped-links"/);
-  assert.match(kha, /\{ settings: s, text, links, files, images:/);
+  assert.match(kha, /\{ settings: s, text, links, files: ready\.files, images:/);
   assert.match(kha, /data-testid="kha-links"/);
 });

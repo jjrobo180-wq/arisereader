@@ -385,3 +385,43 @@ test("Math Lessons has a separate SPED Exemplar Maker button and view, wired to 
   assert.match(read("server/routes.ts"), /registerSpedExemplarRoutes\(app, authMiddleware/);
   assert.match(read("shared/pluginStore.ts"), /SPED Exemplar Maker/, "the store listing mentions it");
 });
+
+// ─── Built in small steps (so each ask fits the free AI's per-minute allowance) ───
+test("buildPack: an outline first, then the problems a few at a time, each ask small, and the same documents come out", async () => {
+  const strip = (secs: any[]) => secs.map((s) => ({ ...s, problems: s.problems.map((p: any) => ({ id: p.id, title: p.title, story: p.story })) }));
+  const byId = new Map<string, any>([...GOLDEN_EXEMPLAR.sections, ...GOLDEN_PRACTICE.book].flatMap((s: any) => s.problems.map((p: any) => [p.id, p] as const)));
+  const log: SpedAsk[] = [];
+  const stages: string[] = [];
+  const ai = async (a: SpedAsk): Promise<string> => {
+    log.push(a);
+    if (a.system === SOLVE_PROMPT) return solver()(JSON.parse(a.text));
+    if (a.system.includes("PRACTICE PACK")) return JSON.stringify({ ...clone(GOLDEN_PRACTICE), book: strip(GOLDEN_PRACTICE.book) });
+    if (a.system.includes("EXEMPLAR")) return JSON.stringify({ ...clone(GOLDEN_EXEMPLAR), sections: strip(GOLDEN_EXEMPLAR.sections) });
+    // A solving ask: send back the problems it lists (out of order, to prove they're matched by id).
+    const ids = [...a.system.matchAll(/^- id (\S+) \(/gm)].map((m) => m[1]);
+    return JSON.stringify({ problems: ids.map((id) => clone(byId.get(id))).reverse() });
+  };
+  const out = await buildPack({ title: "", grade: "7", text: "Lesson 8: Percent increase and decrease ..." }, [], ai, { setStage: async (s) => { stages.push(s); } });
+  const guideN = GOLDEN_EXEMPLAR.sections.reduce((n: number, s: any) => n + s.problems.length, 0);
+  assert.equal(out.exemplar.sections.reduce((n, s) => n + s.problems.length, 0), guideN);
+  assert.deepEqual(out.exemplar.sections.flatMap((s) => s.problems.map((p) => p.id)), GOLDEN_EXEMPLAR.sections.flatMap((s: any) => s.problems.map((p: any) => p.id)), "the lesson's order is kept");
+  assert.equal(out.check.flagged, 0);
+  assert.ok(stages.some((s) => /^Solving the guide’s problems 1–3 of /.test(s)), stages.join(" | "));
+  // The outline asks for no worked problems; every solving ask is small and lists at most 3 problems.
+  assert.ok(log[0].system.includes("NOT solved yet") && !log[0].system.includes('"hints"'));
+  const solving = log.filter((a) => /^- id /m.test(a.system));
+  assert.ok(solving.length >= Math.ceil(guideN / 3));
+  for (const a of solving) { assert.ok([...a.system.matchAll(/^- id /gm)].length <= 3); assert.equal(a.maxTokens, 5000); assert.deepEqual(a.images, []); }
+});
+
+test("a solving reply that leaves a problem out is asked again for exactly that one", async () => {
+  const { cleanSolvedBatch } = await import("../shared/spedExemplar");
+  const want = [{ id: "1", title: "A", story: "2 + 2?" }, { id: "2", title: "B", story: "3 + 3?" }];
+  const full = (id: string, ans: string) => ({ id, hints: ["h1", "h2"], steps: ["s1", "s2"], why: "w", check: "c", answer: ans, finalAnswer: ans });
+  const c = cleanSolvedBatch(want)({ problems: [full("1", "4")] });
+  assert.equal(c.ok, false);
+  assert.match((c as any).errors.join(" "), /Problem 2 is missing/);
+  const ok = cleanSolvedBatch(want)({ problems: [full("2", "6"), full("1", "4")] });
+  assert.ok(ok.ok);
+  assert.deepEqual((ok as any).value.map((p: any) => [p.id, p.story, p.finalAnswer]), [["1", "2 + 2?", "4"], ["2", "3 + 3?", "6"]]);
+});

@@ -157,10 +157,74 @@ function cleanSections(v: unknown, where: string, errors: string[]): XSection[] 
   return out;
 }
 
-const countProblems = (s: XSection[]) => s.reduce((n, x) => n + x.problems.length, 0);
+const countProblems = (s: { problems: unknown[] }[]) => s.reduce((n, x) => n + x.problems.length, 0);
 
 /** The exemplar reply, checked. A reply that is missing something comes back with exactly what is missing. */
 export function cleanExemplar(raw: unknown): Cleaned<XExemplar> {
+  return cleanExemplarCore(raw, (v, errors) => cleanSections(v, "Problem", errors), "fully solved problems");
+}
+
+// ─── Building it in small steps ──────────────────────────────────────────────────────────────────
+// The free AI (Groq) allows only so many words a minute, far fewer than a whole guide with every problem
+// worked out. So the guide is built in pieces: first an OUTLINE (the ideas, the recipe, the mistakes, the
+// supports, and every problem copied out but not solved), then the problems are solved a few at a time,
+// then it's put together and checked exactly like a guide written in one go. A problem the outline already
+// solved fully is kept as it is.
+export type XOutlineProblem = { id: string; title: string; story: string; solved: XProblem | null };
+export type XOutlineSection = { title: string; intro: string; problems: XOutlineProblem[] };
+export type XExemplarFrame = Omit<XExemplar, "sections"> & { sections: XOutlineSection[] };
+export type XPracticeFrame = Omit<XPractice, "book"> & { book: XOutlineSection[] };
+/** How many problems are solved in one ask. */
+export const SOLVE_BATCH = 3;
+
+function cleanOutline(v: unknown, where: string, errors: string[]): XOutlineSection[] {
+  const out: XOutlineSection[] = [];
+  const seen = new Set<string>();
+  for (const s of Array.isArray(v) ? v : []) {
+    const problems: XOutlineProblem[] = [];
+    for (const p of Array.isArray((s as any)?.problems) ? (s as any).problems : []) {
+      const id = clip(p?.id, 12), story = clip(p?.story ?? p?.q ?? p?.problem, 700);
+      if (!id || !story) { errors.push(`${where} ${id || "(no id)"} needs an id and the problem text (story).`); continue; }
+      if (seen.has(id)) { errors.push(`${where} id ${id} is used twice. Every problem needs its own id.`); continue; }
+      seen.add(id);
+      problems.push({ id, title: clip(p?.title, 90) || id, story, solved: cleanProblem(p, where, []) });
+    }
+    if (problems.length) out.push({ title: clip((s as any)?.title, 120) || "Problems", intro: clip((s as any)?.intro, 500), problems });
+  }
+  return out;
+}
+/** The outline reply, checked like the guide, except the problems only need an id and their text. */
+export const cleanExemplarFrame = (raw: unknown): Cleaned<XExemplarFrame> => cleanExemplarCore(raw, (v, errors) => cleanOutline(v, "Problem", errors), "problems");
+/** The practice outline: the sheet in full, the lesson's own practice problems only listed. */
+export const cleanPracticeFrame = (raw: unknown): Cleaned<XPracticeFrame> => cleanPracticeCore(raw, (v, errors) => cleanOutline(v, "Book practice", errors));
+
+/** Every problem in an outline that still needs solving, in order. */
+export const unsolved = (sections: XOutlineSection[]): XOutlineProblem[] => sections.flatMap((s) => s.problems).filter((p) => !p.solved);
+
+/** A reply of solved problems, checked: every problem asked for must come back, fully worked. */
+export function cleanSolvedBatch(want: { id: string; title: string; story: string }[]): (raw: unknown) => Cleaned<XProblem[]> {
+  return (raw) => {
+    const r: any = raw && typeof raw === "object" ? raw : {};
+    const got: any[] = Array.isArray(r.problems) ? r.problems : Array.isArray(raw) ? (raw as any[]) : [];
+    const errors: string[] = [];
+    const out: XProblem[] = [];
+    want.forEach((w, i) => {
+      const hit = got.find((g) => clip(g?.id, 12) === w.id) ?? (got.length === want.length ? got[i] : undefined);
+      if (!hit) { errors.push(`Problem ${w.id} is missing. Send every problem you were given.`); return; }
+      // The problem text and id stay as the outline had them (the AI may shorten them).
+      const c = cleanProblem({ ...hit, id: w.id, title: hit?.title || w.title, story: w.story }, "Problem", errors);
+      if (c) out.push(c);
+    });
+    return errors.length ? { ok: false, errors: errors.slice(0, 12) } : { ok: true, value: out };
+  };
+}
+
+/** The outline's sections with the solved problems put in (the problem's own outline text kept). */
+export function fillOutline(sections: XOutlineSection[], solved: Map<string, XProblem>): XSection[] {
+  return sections.map((s) => ({ title: s.title, intro: s.intro, problems: s.problems.map((p) => p.solved ?? solved.get(p.id)).filter((x): x is XProblem => !!x) })).filter((s) => s.problems.length);
+}
+
+function cleanExemplarCore<S extends { problems: unknown[] }>(raw: unknown, cleanSecs: (v: unknown, errors: string[]) => S[], what: string): Cleaned<Omit<XExemplar, "sections"> & { sections: S[] }> {
   const r: any = raw && typeof raw === "object" ? raw : {};
   const errors: string[] = [];
   const title = clip(r.title, SPED_LIMITS.title);
@@ -178,9 +242,9 @@ export function cleanExemplar(raw: unknown): Cleaned<XExemplar> {
   const rec = r.recipe && typeof r.recipe === "object" ? r.recipe : {};
   const rsteps: XRecipeStep[] = (Array.isArray(rec.steps) ? rec.steps : []).map((s: any) => ({ head: clip(s?.head ?? s?.title, 40), text: clip(s?.text ?? s?.work, 300) })).filter((s: XRecipeStep) => s.head && s.text).slice(0, 7);
   if (rsteps.length < 3) errors.push("recipe.steps needs 3 to 7 steps, each with a short head and a text.");
-  const sections = cleanSections(r.sections, "Problem", errors);
+  const sections = cleanSecs(r.sections, errors);
   const n = countProblems(sections);
-  if (n < SPED_LIMITS.problemsMin) errors.push(`sections needs at least ${SPED_LIMITS.problemsMin} fully solved problems (found ${n}).`);
+  if (n < SPED_LIMITS.problemsMin) errors.push(`sections needs at least ${SPED_LIMITS.problemsMin} ${what} (found ${n}).`);
   if (n > SPED_LIMITS.problemsMax) errors.push(`sections has ${n} problems; keep it to ${SPED_LIMITS.problemsMax} by merging look-alike problems.`);
   const mistakes = (Array.isArray(r.mistakes) ? r.mistakes : []).map((m: any) => ({ wrong: clip(m?.wrong, 300), fix: clip(m?.fix, 400) })).filter((m: { wrong: string; fix: string }) => m.wrong && m.fix).slice(0, 6);
   if (!mistakes.length) errors.push("mistakes needs at least 1 common mistake with how to fix it.");
@@ -200,6 +264,9 @@ export function cleanExemplar(raw: unknown): Cleaned<XExemplar> {
 
 /** The practice reply, checked the same way. */
 export function cleanPractice(raw: unknown): Cleaned<XPractice> {
+  return cleanPracticeCore(raw, (v, errors) => cleanSections(v, "Book practice", errors));
+}
+function cleanPracticeCore<S>(raw: unknown, cleanBook: (v: unknown, errors: string[]) => S[]): Cleaned<Omit<XPractice, "book"> & { book: S[] }> {
   const r: any = raw && typeof raw === "object" ? raw : {};
   const errors: string[] = [];
   const sheet: XPracticeItem[] = [];
@@ -211,7 +278,7 @@ export function cleanPractice(raw: unknown): Cleaned<XPractice> {
     seen.add(id); sheet.push({ id, q, steps, answer, finalAnswer, accept: [...new Set([finalAnswer, ...list(it?.accept, 8, 80)])], verified: false });
   }
   if (sheet.length < SPED_LIMITS.sheetMin) errors.push(`sheet needs at least ${SPED_LIMITS.sheetMin} practice questions (found ${sheet.length}).`);
-  const book = cleanSections(r.book, "Book practice", errors);
+  const book = cleanBook(r.book, errors);
   const quickRef = (Array.isArray(r.quickRef) ? r.quickRef : []).map((x: any) => ({ label: clip(x?.label, 40), text: clip(x?.text, 400) })).filter((x: { label: string; text: string }) => x.label && x.text).slice(0, 24);
   if (errors.length) return { ok: false, errors: errors.slice(0, 12) };
   return { ok: true, value: { sheetTitle: clip(r.sheetTitle, 80) || "Practice sheet", instructions: clip(r.instructions, 300) || "Use the recipe card. Show your steps.", sheet: sheet.slice(0, SPED_LIMITS.sheetMax), book, quickRef } };
@@ -237,8 +304,27 @@ const WORKED = `{ "id": "8.4c", "title": "The T-shirt", "story": "After a 25% di
   "answer": "Equation **0.75t = 12**. The old price was **$16**.", "finalAnswer": "16", "accept": ["$16", "16 dollars"],
   "say": "A discount takes some off the old price. The $12 is what is left, so we are working backward. Backward means divide.", "picture": null }`;
 
+const OUTLINE_PROBLEM = `{ "id": "8.2a", "title": "short title", "story": "the problem exactly as a student sees it, with every number, table, choice or description it needs" }`;
+
+/** Solving a few of the outline's problems, in the guide's voice and with its recipe. */
+export function solveBatchPrompt(ask: { title: string; grade: string }, guide: { title: string; recipe: XExemplar["recipe"] }, problems: { id: string; title: string; story: string }[]): string {
+  return `You are an expert special-education math coach solving problems for a teacher guide on "${guide.title || ask.title || "this lesson"}"${ask.grade ? ` (grade ${ask.grade})` : ""}. The reader is a special education teacher who has never taught this lesson and may have no math background.
+Use the guide's recipe, the same steps every time: ${guide.recipe.steps.map((s) => `${s.head}: ${s.text}`).join(" | ")}
+
+Solve each of these ${problems.length} problem${problems.length === 1 ? "" : "s"} fully:
+${problems.map((p) => `- id ${p.id} (${p.title}): ${p.story}`).join("\n")}
+
+Reply with one JSON object and nothing else: { "problems": [ <problem>, ... ] }, one for each problem above, same ids, same order.
+<problem> is exactly this shape (this one is fully worked; copy its depth, order and voice):
+${WORKED}
+"picture" is null, or { "kind": "tape", "label": "text", "pieces": 4, "filled": 4, "extra": 1, "note": "" } or { "kind": "grid100", "label": "text", "shaded": 6 }.
+- Every problem: 2 or 3 hints that go from a small nudge to nearly the answer, 3 to 7 numbered steps that show how you get the answer, why it works, a check that puts the answer back, the answer in words, finalAnswer (only the short answer, like "16"), and what to say.
+${VOICE}`;
+}
+
 /** The instructions for the exemplar document. */
-export function exemplarPrompt(ask: { title: string; grade: string }): string {
+export function exemplarPrompt(ask: { title: string; grade: string }, mode: "whole" | "outline" = "whole"): string {
+  const outline = mode === "outline";
   return `You are an expert special-education math coach writing a teacher guide called an EXEMPLAR. The reader is a special education teacher who has NEVER taught this lesson and may have no math background. You will be given one math lesson (typed text and/or photos of it${ask.title ? `: "${ask.title}"` : ""}${ask.grade ? `, grade ${ask.grade}` : ""}).
 
 The teacher's requirements. Follow every one:
@@ -254,33 +340,34 @@ Reply with one JSON object and nothing else, in exactly this shape:
   "howToUse": ["3 to 6 short steps telling the teacher how to use this guide: read the ideas first, teach one box at a time, tape up the recipe card, give hints one at a time, then use the practice pack"],
   "ideas": [ { "title": "Idea 1. short title", "text": ["1 to 3 short paragraphs, as if explaining to a third grader"], "tryIt": "something to do with pennies, paper or the board", "say": "what to say to the student", "picture": null } ],
   "recipe": { "name": "The PERCENT recipe", "steps": [ { "head": "START", "text": "one short instruction" } ], "examples": [ { "label": "UP 6%", "value": "100% + 6% = 106% = 1.06" } ] },
-  "sections": [ { "title": "8.2 Interest and depreciation", "intro": "one or two sentences", "problems": [ <problem> ] } ],
+  "sections": [ { "title": "8.2 Interest and depreciation", "intro": "one or two sentences", "problems": [ ${outline ? OUTLINE_PROBLEM : "<problem>"} ] } ],
   "mistakes": [ { "wrong": "the most common wrong answer or move", "fix": "the question to ask, and how to show it is wrong" } ],
   "supports": { "simplified": ["2 to 4 ideas: same goal, less load"], "modified": ["2 to 4 ideas: different way to show learning"], "extension": ["2 to 4 ideas for students who are ready for more"] }
 }
-<problem> is exactly this shape (this one is fully worked; copy its depth, order and voice):
+${outline ? "" : `<problem> is exactly this shape (this one is fully worked; copy its depth, order and voice):
 ${WORKED}
-"picture" is null, or { "kind": "tape", "label": "text", "pieces": 4, "filled": 4, "extra": 1, "note": "" } (a bar cut into equal pieces, "filled" shaded, "extra" dashed pieces added on the end) or { "kind": "grid100", "label": "text", "shaded": 6 }. Use pictures where a picture makes it easier.
+`}"picture" is null, or { "kind": "tape", "label": "text", "pieces": 4, "filled": 4, "extra": 1, "note": "" } (a bar cut into equal pieces, "filled" shaded, "extra" dashed pieces added on the end) or { "kind": "grid100", "label": "text", "shaded": 6 }. Use pictures where a picture makes it easier.
 
 How to build it:
 - ideas: 4 to 6 tiny ideas, in the order a learner needs them (words and meaning first, then the skill, then why it works).
 - recipe: 3 to 6 steps, the same every time, short enough for a desk card; include 3 to 6 examples.
-- sections: put EVERY problem from the lesson (warm-up, activities, cool-down), solved, in the lesson's order. Number ids like the lesson does. Merge look-alike problems if there are more than ${SPED_LIMITS.problemsMax}. Do NOT include the lesson's separate practice set here (that goes in the practice pack).
-- Every problem: 2 or 3 hints that go from a small nudge to nearly the answer, 3 to 7 numbered steps that show how you get the answer, why it works, a check that puts the answer back, the answer in words, finalAnswer (only the short answer, like "16"), and what to say.
+- sections: put EVERY problem from the lesson (warm-up, activities, cool-down), ${outline ? "NOT solved yet (they are solved in the next step), each copied out completely so it stands on its own" : "solved"}, in the lesson's order. Number ids like the lesson does. Merge look-alike problems if there are more than ${SPED_LIMITS.problemsMax}. Do NOT include the lesson's separate practice set here (that goes in the practice pack).
+${outline ? "" : `- Every problem: 2 or 3 hints that go from a small nudge to nearly the answer, 3 to 7 numbered steps that show how you get the answer, why it works, a check that puts the answer back, the answer in words, finalAnswer (only the short answer, like "16"), and what to say.
 - If the lesson itself gives an answer, use it only if it agrees with your own work; if they disagree, trust your arithmetic and say so in the step.
-${VOICE}`;
+`}${VOICE}`;
 }
 
 const SHEET_ITEM = `{ "id": "1", "q": "A $40 backpack goes up 10%. What is the new price?", "steps": ["UP 10%: 100% + 10% = 110% = 1.10.", "Equation: \`1.10 × 40 = new price\`.", "\`1.10 × 40 = 44\`."], "answer": "**$44**", "finalAnswer": "44", "accept": ["$44"] }`;
 
 /** The instructions for the practice pack. It gets the finished exemplar's recipe so the practice matches. */
-export function practicePrompt(ask: { title: string; grade: string }, ex: Pick<XExemplar, "title" | "recipe" | "sections">): string {
+export function practicePrompt(ask: { title: string; grade: string }, ex: Pick<XExemplar, "title" | "recipe"> & { sections: { problems: { id: string; title: string }[] }[] }, mode: "whole" | "outline" = "whole"): string {
+  const outline = mode === "outline";
   const skills = ex.sections.flatMap((s) => s.problems.map((p) => `${p.id} ${p.title}`)).slice(0, 30).join("; ");
   return `You are an expert special-education math coach writing the PRACTICE PACK that goes with a teacher guide for "${ex.title}"${ask.grade ? ` (grade ${ask.grade})` : ""}. The practice pack is a SEPARATE document from the guide.
 
 The teacher's requirements for the practice pack:
 - A student practice sheet with NO answers on it (4 to 8 new questions, easy to harder, using the same recipe as the guide: ${ex.recipe.steps.map((s) => s.head).join(" → ")}).
-- The lesson's OWN practice problems, solved with hints, steps, why, a check and the answer (the "book" part). If the lesson text you were given has no practice problems, use an empty list.
+- The lesson's OWN practice problems, ${outline ? "listed but NOT solved yet (they are solved in the next step), each copied out completely so it stands on its own" : "solved with hints, steps, why, a check and the answer"} (the "book" part). If the lesson text you were given has no practice problems, use an empty list.
 - An answer key with the steps for every sheet question, and a quick reference list of every answer in the lesson.
 ${SPED_REQUIREMENTS.filter((r) => ["zero", "correct", "simplest"].includes(r.id)).map((r) => `- ${r.text}`).join("\n")}
 
@@ -291,12 +378,12 @@ Reply with one JSON object and nothing else:
   "sheetTitle": "Practice sheet",
   "instructions": "one short line for the student, like 'Use the recipe card. Show your steps.'",
   "sheet": [ ${SHEET_ITEM} ],
-  "book": [ { "title": "The lesson's practice problems", "intro": "", "problems": [ <problem, same shape as in the guide, with ids like P1> ] } ],
+  "book": [ { "title": "The lesson's practice problems", "intro": "", "problems": [ ${outline ? OUTLINE_PROBLEM.replace('"8.2a"', '"P1"') : "<problem, same shape as in the guide, with ids like P1>"} ] } ],
   "quickRef": [ { "label": "8.2", "text": "$106 · $53 · $212 · $132.50 · 1.06x" } ]
 }
-<problem> shape (fully worked; copy its depth and voice):
+${outline ? "" : `<problem> shape (fully worked; copy its depth and voice):
 ${WORKED}
-For a multiple-choice or select-all problem, copy the choices into "story" so it stands alone. If a book problem needs a drawing, say what to draw in the steps ("picture": null or the tape/grid100 shapes are allowed).
+`}For a multiple-choice or select-all problem, copy the choices into "story" so it stands alone. If a book problem needs a drawing, say what to draw in the steps ("picture": null or the tape/grid100 shapes are allowed).
 ${VOICE}`;
 }
 

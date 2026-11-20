@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { KHA_DEFAULTS, KHA_LIMITS, KHA_REQUIREMENTS, comicHtml, keyHtml, worksheetHtml, type KhaPack, type KhaSettings } from "@shared/khaEla";
 import UploadPicker from "@/components/UploadPicker";
 import type { UploadedFile } from "@shared/uploads";
+import { AI_MAX_PICTURES, pdfsForAi } from "@/lib/pdfPages";
 
 type Mine = { id: string; title: string; status: string; createdAt: string };
 type Job = { id: string; status: "working" | "done" | "failed"; stage: string; error?: string; pack?: KhaPack };
@@ -139,7 +140,10 @@ export default function KhaElaMaker() {
   const build = async () => {
     setError(""); setJob(null);
     if (s.source === "asis" && !text.trim() && !links.trim() && !files.length && !images.length) { setError("Paste the poems or worksheet to use (or add a link, a file or photos), or switch to “Write new poems.”"); return; }
-    await send({ settings: s, text, links, files, images: images.map((i) => i.data) });
+    // PDFs are read here first: their words go as text, a scan as pictures of its pages (the AI can't open PDFs).
+    setBusy(true);
+    const ready = await pdfsForAi(files, Math.min(KHA_LIMITS.images, AI_MAX_PICTURES) - images.length).catch(() => ({ files, images: [] as string[] }));
+    await send({ settings: s, text, links, files: ready.files, images: [...images.map((i) => i.data), ...ready.images] });
   };
   const applyChange = async () => {
     if (!job?.pack) return;

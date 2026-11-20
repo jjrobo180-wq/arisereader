@@ -132,6 +132,9 @@ test("the server accepts big uploads on both routes, the buttons are wired, and 
   assert.ok(index.indexOf("sped-exemplar|kha-ela") < index.indexOf("  express.json({"), "the big limit is registered before the 100 kb default");
   assert.match(read("client/src/pages/SpedExemplarMaker.tsx"), /testId="sped-files"/);
   assert.match(read("client/src/pages/KhaElaMaker.tsx"), /testId="kha-files"/);
-  assert.match(read("client/src/pages/SpedExemplarMaker.tsx"), /\{ title, grade, text, links, files, images:/);
+  assert.match(read("client/src/pages/SpedExemplarMaker.tsx"), /\{ title, grade, text, links, files: ready\.files, images:/);
+  // PDFs are read in the browser first (words as text, a scan as page pictures): the site's AI can't open PDFs.
+  assert.match(read("client/src/pages/SpedExemplarMaker.tsx"), /pdfsForAi\(files/);
+  assert.match(read("client/src/pages/KhaElaMaker.tsx"), /pdfsForAi\(files/);
   assert.match(read("server/spedExemplar.ts"), /type: "file"[\s\S]{0,120}data:application\/pdf|application\/pdf[\s\S]{0,200}type: "file"/);
 });

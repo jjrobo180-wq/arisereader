@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { findBackup, findGrokKey, grokFetch, pickModel, shouldFallBack } from "../server/aiProvider";
+import { findBackup, findGrokKey, grokFetch, groqWaitMs, pickModel, planGroq, shouldFallBack } from "../server/aiProvider";
 
 const OPENAI = "https://api.openai.com/v1/chat/completions";
 function fakeBase(openai: { status: number; body: string }) {
@@ -128,4 +128,60 @@ test("when Groq can't answer, the same chat goes to Perplexity and comes back in
   const j = JSON.parse(toPerplexity({ body: JSON.stringify({ messages: [{ role: "user", content: "a" }, { role: "user", content: "b" }] }) })!);
   assert.equal(j.messages.filter((m: any) => m.role === "user").length, 1);
   setPerplexityKey(async () => "");
+});
+
+// ---- Fitting requests to Groq's free allowance ----
+const IDS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/llama-4-scout-17b-16e-instruct", "qwen/qwen3-32b", "whisper-large-v3"];
+const ask = (chars: number, max?: number, image = false) => ({ max_tokens: max, messages: [{ role: "system", content: "x".repeat(chars) }, { role: "user", content: image ? [{ type: "text", text: "read this" }, { type: "image_url", image_url: { url: "data:image/png;base64,AA" } }] : "go" }] });
+
+test("Groq: a small request stays on gpt-oss-120b, with the reply cut to what fits a minute", () => {
+  assert.deepEqual(planGroq(ask(3200, 4000), "openai/gpt-oss-120b", IDS), { model: "openai/gpt-oss-120b", maxTokens: 4000 });
+  // Asking for 16,000 tokens from a model allowed 8,000 a minute is refused every time; the ask is cut.
+  const p = planGroq(ask(3200, 16000), "openai/gpt-oss-120b", IDS)!;
+  assert.ok(p.maxTokens <= 8000 - 1000, `asked for ${p.maxTokens}`);
+});
+
+test("Groq: a request too big for gpt-oss-120b goes to the model with the most room (Llama 4 Scout)", () => {
+  const p = planGroq(ask(24_000, 16000), "openai/gpt-oss-120b", IDS)!;
+  assert.equal(p.model, "meta-llama/llama-4-scout-17b-16e-instruct");
+  assert.ok(p.maxTokens <= 8192 && p.maxTokens > 6000);
+});
+
+test("Groq: pictures go to a model that can see them; a model that's out is skipped", () => {
+  assert.equal(planGroq(ask(500, 2000, true), "openai/gpt-oss-120b", IDS)!.model, "meta-llama/llama-4-scout-17b-16e-instruct");
+  assert.equal(planGroq(ask(500, 2000, true), "openai/gpt-oss-120b", IDS, (id) => /scout/.test(id))!.model, "openai/gpt-oss-120b");
+  assert.equal(planGroq(ask(10, 100), "some-new-model", IDS), null);
+});
+
+test("Groq: how long a model is out: what Groq says, at least a minute, ten for a daily limit", () => {
+  assert.equal(groqWaitMs("Rate limit reached ... on tokens per minute (TPM): Limit 8000. Please try again in 7.5s."), 60_000);
+  assert.equal(groqWaitMs("Rate limit reached ... on tokens per day (TPD): Limit 200000. Please try again in 1h2m3s."), 3_723_000);
+  assert.equal(groqWaitMs("Rate limit reached on requests per day (RPD). Please try again in 30s"), 600_000);
+});
+
+test("Groq: a big exemplar request is sent to Scout with a reply that fits, and a daily limit sends the next one elsewhere", async () => {
+  const calls: { url: string; body: any }[] = [];
+  let firstRefused = false;
+  const base = (async (url: any, init?: RequestInit) => {
+    const body = init?.body ? JSON.parse(String(init.body)) : null;
+    calls.push({ url: String(url), body });
+    if (String(url).endsWith("/models")) return new Response(JSON.stringify({ data: IDS.map((id) => ({ id })) }), { status: 200 });
+    if (!firstRefused && body?.model === "openai/gpt-oss-20b") { firstRefused = true; return new Response(JSON.stringify({ error: { message: "Rate limit reached for model `openai/gpt-oss-20b` on tokens per day (TPD): Limit 200000, Used 199990. Please try again in 3h." } }), { status: 429 }); }
+    return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }), { status: 200 });
+  }) as typeof fetch;
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_fit", XAI_MODEL: "openai/gpt-oss-20b", AI_PROVIDER: "grok", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  const big = { method: "POST", body: JSON.stringify({ model: "gpt-4.1", max_tokens: 16000, messages: [{ role: "user", content: "y".repeat(30_000) }] }) };
+  const r1 = await f(OPENAI, big);
+  assert.equal(r1.status, 200);
+  const sent = calls.filter((c) => c.url.endsWith("/chat/completions"));
+  assert.equal(sent[0].body.model, "meta-llama/llama-4-scout-17b-16e-instruct");
+  assert.ok(sent[0].body.max_tokens <= 8192);
+  // A small one tries gpt-oss-20b, which is out for the day; it goes to another model, and 20b is skipped after.
+  const small = { method: "POST", body: JSON.stringify({ model: "gpt-4.1", max_tokens: 500, messages: [{ role: "user", content: "hi" }] }) };
+  assert.equal((await f(OPENAI, small)).status, 200);
+  calls.length = 0;
+  assert.equal((await f(OPENAI, small)).status, 200);
+  const next = calls.filter((c) => c.url.endsWith("/chat/completions"));
+  assert.equal(next.length, 1);
+  assert.notEqual(next[0].body.model, "openai/gpt-oss-20b");
 });

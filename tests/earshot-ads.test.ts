@@ -149,3 +149,10 @@ test("trailers and short previews are left out of the feed and show pages", asyn
   assert.equal(realEpisodes(list, false).length, 2);
   assert.equal(realEpisodes([{ title: "Trailer", secs: 100 }], true).length, 1, "kept when it's all there is");
 });
+
+test("ad-finding runs on the models with the biggest free allowance and tries gpt-oss-120b last", async () => {
+  const { GROQ_AI } = await import("../server/podcastDirectory");
+  const order = GROQ_AI();
+  assert.match(order[0], /llama-4-scout/);
+  assert.equal(order[order.length - 1], "openai/gpt-oss-120b");
+});

@@ -25,11 +25,12 @@ import { UploadError, readUploads } from "./uploadText";
 import type { KV } from "./podcastDirectory";
 import { SOLVE_PROMPT, judge, solveText, type SolveItem } from "../shared/ariseMathVerify";
 import {
-  REPAIR_SYSTEM, SPED_LIMITS, allProblems, cleanExemplar, cleanPractice, cleanProblemForRepair, exemplarPrompt, fixText, lessonText, parseJsonLoose, plainText, practicePrompt,
-  type Cleaned, type SpedPack, type XExemplar, type XPractice, type XProblem,
+  REPAIR_SYSTEM, SOLVE_BATCH, SPED_LIMITS, allProblems, cleanExemplarFrame, cleanPracticeFrame, cleanProblemForRepair, cleanSolvedBatch, exemplarPrompt, fillOutline, fixText, lessonText, parseJsonLoose, plainText, practicePrompt, solveBatchPrompt, unsolved,
+  type Cleaned, type SpedPack, type XExemplar, type XOutlineProblem, type XPractice, type XProblem,
 } from "../shared/spedExemplar";
 
-export type SpedAsk = { system: string; text: string; images: string[] };
+/** maxTokens: the longest reply to ask for (a small one fits the free AI's per-minute allowance; see server/aiProvider.ts). */
+export type SpedAsk = { system: string; text: string; images: string[]; maxTokens?: number };
 export type SpedDeps = {
   kv: KV;
   /** Asks the AI and returns its reply (JSON text). */
@@ -53,7 +54,7 @@ export async function askOpenAI(ask: SpedAsk): Promise<string> {
   let response: Response;
   try {
     // Rate limits are waited out and retried; an account out of credit says so (server/openaiFetch.ts).
-    response = await postChat({ model: MODEL(), temperature: 0, max_tokens: 16000, response_format: { type: "json_object" }, messages: [{ role: "system", content: ask.system }, { role: "user", content: ask.images.length ? content : ask.text }] }, { label: "sped-exemplar", timeoutMs: 170_000, maxWaitMs: 120_000 });
+    response = await postChat({ model: MODEL(), temperature: 0, max_tokens: ask.maxTokens ?? 16000, response_format: { type: "json_object" }, messages: [{ role: "system", content: ask.system }, { role: "user", content: ask.images.length ? content : ask.text }] }, { label: "sped-exemplar", timeoutMs: 170_000, maxWaitMs: 120_000 });
   } catch (error: any) {
     if (error instanceof OpenAIQuotaError || error instanceof OpenAIBusyError) throw new SpedAiError(error.message);
     throw new SpedAiError(error?.name === "TimeoutError" ? "That took too long. Try pasting fewer problems at a time." : "The AI can’t be reached right now. Try again in a moment.");
@@ -74,10 +75,10 @@ const ID = /^[a-f0-9-]{36}$/;
 const STALE_MS = 8 * 60_000;
 
 /** Asks, cleans, and if the reply is missing things, tells the AI exactly what and asks again. */
-export async function askClean<T>(askAI: (a: SpedAsk) => Promise<string>, system: string, text: string, images: string[], clean: (raw: unknown) => Cleaned<T>, tries = 3): Promise<T> {
+export async function askClean<T>(askAI: (a: SpedAsk) => Promise<string>, system: string, text: string, images: string[], clean: (raw: unknown) => Cleaned<T>, tries = 3, maxTokens?: number): Promise<T> {
   let errors: string[] = [];
   for (let i = 0; i < tries; i++) {
-    const raw = await askAI({ system, text: i ? `${text}\n\n${fixText(errors)}` : text, images });
+    const raw = await askAI({ system, text: i ? `${text}\n\n${fixText(errors)}` : text, images, ...(maxTokens ? { maxTokens } : {}) });
     const parsed = parseJsonLoose(raw);
     if (!parsed) { errors = ["Your reply was not valid JSON. Send one JSON object and nothing else."]; continue; }
     const c = clean(parsed);
@@ -113,7 +114,7 @@ async function judgeAll(list: Check[], askAI: (a: SpedAsk) => Promise<string>): 
   // The solver sees only the problem, in batches so a long lesson fits.
   const results: unknown[] = [];
   for (let i = 0; i < solveItems.length; i += 12) {
-    const raw = await askAI({ system: SOLVE_PROMPT, text: solveText(solveItems.slice(i, i + 12)), images: [] });
+    const raw = await askAI({ system: SOLVE_PROMPT, text: solveText(solveItems.slice(i, i + 12)), images: [], maxTokens: 6000 });
     const r: any = parseJsonLoose(raw);
     if (Array.isArray(r?.results)) results.push(...r.results);
   }
@@ -168,15 +169,32 @@ const SHEET_REPAIR_SYSTEM = `You are fixing student practice questions that fail
 Reply with one JSON object and nothing else: { "items": [ { "id": "same id", "q": "the question", "steps": ["the worked steps"], "answer": "the answer", "finalAnswer": "the short answer only", "accept": ["other correct ways to write it"] } ] }
 Plain-text math only: × ÷ − ² ³ √ π, fractions like 3/4.`;
 
-/** The whole build: the guide, the practice pack, the check. */
+/** Solves the outline's problems a few at a time (each ask small enough for the free AI's per-minute allowance). */
+async function solveAll(ask: { title: string; grade: string }, guide: Pick<XExemplar, "title" | "recipe">, todo: XOutlineProblem[], askAI: (a: SpedAsk) => Promise<string>, setStage: (s: string) => Promise<void>, label: string): Promise<Map<string, XProblem>> {
+  const out = new Map<string, XProblem>();
+  for (let i = 0; i < todo.length; i += SOLVE_BATCH) {
+    const batch = todo.slice(i, i + SOLVE_BATCH);
+    await setStage(`${label} ${i + 1}${batch.length > 1 ? `–${i + batch.length}` : ""} of ${todo.length}`);
+    const got = await askClean(askAI, solveBatchPrompt(ask, guide, batch), "Solve every problem listed, and send the JSON object.", [], cleanSolvedBatch(batch), 3, 5000);
+    for (const p of got) out.set(p.id, p);
+  }
+  return out;
+}
+
+/** The whole build: the guide, the practice pack, the check. Each is outlined first, then its problems are
+ *  solved a few at a time (see "Building it in small steps" in shared/spedExemplar.ts). */
 export async function buildPack(ask: { title: string; grade: string; text: string }, images: string[], askAI: (a: SpedAsk) => Promise<string>, opts: { skipCheck?: boolean; setStage?: (s: string) => Promise<void> } = {}) {
   const setStage = opts.setStage ?? (async () => {});
   const input = lessonText(ask, images.length);
   await setStage("Writing the teacher guide");
-  const exemplar = await askClean(askAI, exemplarPrompt(ask), input, images, cleanExemplar);
+  const frame = await askClean(askAI, exemplarPrompt(ask, "outline"), input, images, cleanExemplarFrame, 3, 8000);
+  const guideSolved = await solveAll(ask, frame, unsolved(frame.sections), askAI, setStage, "Solving the guide’s problems");
+  const exemplar: XExemplar = { ...frame, sections: fillOutline(frame.sections, guideSolved) };
   await setStage("Writing the practice pack");
   // The practice pack is told the guide's recipe and problems, so it practices the same skills with new numbers.
-  const practice = await askClean(askAI, practicePrompt(ask, exemplar), input, images, cleanPractice);
+  const pframe = await askClean(askAI, practicePrompt(ask, exemplar, "outline"), input, images, cleanPracticeFrame, 3, 8000);
+  const bookSolved = await solveAll(ask, exemplar, unsolved(pframe.book), askAI, setStage, "Solving the lesson’s practice problems");
+  const practice: XPractice = { ...pframe, book: fillOutline(pframe.book, bookSolved) };
   const check = opts.skipCheck ? { checked: 0, flagged: 0 } : await checkPack(exemplar, practice, askAI, setStage);
   if (opts.skipCheck) for (const x of allProblems(exemplar, practice)) x.verified = true;
   if (opts.skipCheck) for (const x of practice.sheet) x.verified = true;

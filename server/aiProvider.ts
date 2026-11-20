@@ -53,6 +53,80 @@ export function pickModel(ids: string[]): string | null {
   return usable[0] || null;
 }
 const busyUntil = new Map<string, number>();
+const isBusy = (id: string) => (busyUntil.get(id) ?? 0) > Date.now();
+
+// ---- Fitting a request to Groq's free allowance ----
+// Groq's free plan gives each model a number of tokens a minute, and it counts the words sent PLUS the
+// longest reply asked for (max_tokens). A request asking for a 16,000-token reply from a model allowed
+// 8,000 a minute is turned down every time ("Request too large"), however long you wait. So before each
+// request: the reply asked for is cut to what fits, a request too big for the model (or one with pictures,
+// which only some models can see) goes to the model with the most room, and a model that has used up its
+// allowance for the day is skipped until Groq says it's back.
+export const GROQ_FREE: { re: RegExp; tpm: number; maxOut: number; vision?: boolean }[] = [
+  { re: /llama-4-scout/, tpm: 30_000, maxOut: 8192, vision: true },
+  { re: /llama-4-maverick/, tpm: 6_000, maxOut: 8192, vision: true },
+  { re: /gpt-oss-(120|20)b/, tpm: 8_000, maxOut: 32_768 },
+  { re: /kimi-k2/, tpm: 10_000, maxOut: 16_384 },
+  { re: /qwen3?-32b/, tpm: 6_000, maxOut: 40_960 },
+  { re: /llama-3\.3-70b/, tpm: 12_000, maxOut: 32_768 },
+  { re: /llama-3\.1-8b/, tpm: 6_000, maxOut: 8192 },
+];
+const learnedTpm = new Map<string, number>();
+/** What Groq allows this model on the free plan (a limit Groq reported wins), or null for an unknown model. */
+export function groqLimit(model: string): { tpm: number; maxOut: number; vision: boolean } | null {
+  const l = GROQ_FREE.find((x) => x.re.test(model.toLowerCase()));
+  const tpm = learnedTpm.get(model) ?? l?.tpm;
+  return tpm ? { tpm, maxOut: l?.maxOut ?? 8192, vision: !!l?.vision } : null;
+}
+/** About how many tokens a request's messages are (a little high on purpose), and how many pictures it has. */
+export function estimateTokens(messages: unknown): { tokens: number; images: number } {
+  let chars = 0, images = 0;
+  for (const m of Array.isArray(messages) ? messages : []) {
+    chars += 16;
+    const c = (m as any)?.content;
+    if (typeof c === "string") chars += c.length;
+    else if (Array.isArray(c)) for (const p of c) { if (p?.type === "text") chars += String(p.text ?? "").length; else if (p?.type === "image_url") images++; }
+  }
+  return { tokens: Math.ceil(chars / 3.2) + images * 1500, images };
+}
+const NOT_CHAT = /whisper|guard|tts|orpheus|playai|compound|embed|speech|audio|distil/i;
+/** The model to use and the longest reply to ask for, so this request fits that model's per-minute allowance.
+ *  null when the model isn't one we know (the request is sent as it is). */
+export function planGroq(body: any, model: string, ids: string[], busy: (id: string) => boolean = () => false): { model: string; maxTokens: number } | null {
+  const lim = groqLimit(model);
+  if (!lim || !Array.isArray(body?.messages)) return null;
+  const { tokens, images } = estimateTokens(body.messages);
+  const want = Math.max(1, Number(body.max_completion_tokens ?? body.max_tokens) || 4096);
+  const roomOf = (m: string) => { const l = groqLimit(m); return l ? Math.min(l.maxOut, l.tpm - tokens - 300) : -1; };
+  const sees = (m: string) => !images || !!groqLimit(m)?.vision;
+  // Enough room for this model to be kept: the whole reply asked for, or 6,000 tokens for a long one.
+  const enough = Math.min(want, 6000);
+  if (sees(model) && roomOf(model) >= enough) return { model, maxTokens: Math.min(want, roomOf(model)) };
+  const best = ids.filter((id) => id !== model && !busy(id) && !NOT_CHAT.test(id) && sees(id) && groqLimit(id)).sort((a, b) => roomOf(b) - roomOf(a))[0];
+  if (best && (!sees(model) || roomOf(best) > roomOf(model)) && roomOf(best) >= 256) return { model: best, maxTokens: Math.min(want, roomOf(best)) };
+  // Nothing fits better: send it on this model with as much room as there is (Perplexity answers if Groq can't).
+  return { model, maxTokens: roomOf(model) >= 256 ? Math.min(want, roomOf(model)) : Math.min(want, lim.maxOut) };
+}
+/** The request with the planned model and reply length written in. */
+export function fitGroq(init: RequestInit, model: string, ids: string[], busy: (id: string) => boolean = () => false): { init: RequestInit; model: string } {
+  if (typeof init.body !== "string") return { init, model };
+  let j: any;
+  try { j = JSON.parse(init.body); } catch { return { init, model }; }
+  const plan = planGroq(j, model, ids, busy);
+  if (!plan) return { init, model };
+  j.model = plan.model;
+  if (j.max_completion_tokens != null) j.max_completion_tokens = plan.maxTokens; else j.max_tokens = plan.maxTokens;
+  return { init: { ...init, body: JSON.stringify(j) }, model: plan.model };
+}
+/** How long Groq says to wait ("Please try again in 7m12.5s"); at least a minute, and ten for a daily limit. */
+export function groqWaitMs(message: string): number {
+  const m = /try again in ((?:[\d.]+(?:ms|h|m|s))+)/i.exec(message);
+  let ms = 0;
+  if (m) for (const [, n, unit] of m[1].matchAll(/([\d.]+)(ms|h|m|s)/g)) ms += Number(n) * (unit === "ms" ? 1 : unit === "s" ? 1000 : unit === "m" ? 60_000 : 3_600_000);
+  const daily = /per day|\(TPD\)|\(RPD\)/i.test(message);
+  return Math.max(daily ? 10 * 60_000 : 60_000, Math.ceil(ms));
+}
+const GROQ_DEFAULT_IDS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct", "moonshotai/kimi-k2-instruct-0905", "qwen/qwen3-32b", "llama-3.3-70b-versatile"];
 
 // ---- Last resort: Perplexity ----
 // When Groq can't answer (its free per-minute or per-day allowance is used up, or it's down), the
@@ -113,16 +187,22 @@ async function askPerplexity(base: Fetch, init: RequestInit | undefined): Promis
     return new Response(JSON.stringify(out), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (e: any) { console.error("[ai] backup failed:", e?.message); return null; }
 }
-let modelList: { at: number; ids: string[] } | null = null;
-async function bestModel(base: Fetch, env: AiProviderEnv, skip: (id: string) => boolean = () => false): Promise<string | null> {
-  if (modelList && Date.now() - modelList.at < 30 * 60_000) return pickModel(modelList.ids.filter((id) => !skip(id)));
+let modelList: { at: number; ids: string[]; who: string } | null = null;
+/** The models this key can use (asked once every half hour), or null if the service won't say. */
+async function modelIds(base: Fetch, env: AiProviderEnv): Promise<string[] | null> {
   const url = (env.BACKUP_URL || XAI_CHAT).replace(/\/chat\/completions$/, "/models");
+  const who = `${url}|${env.XAI_API_KEY}`;
+  if (modelList && modelList.who === who && Date.now() - modelList.at < 30 * 60_000) return modelList.ids;
   const res = await base(url, { headers: { Authorization: `Bearer ${env.XAI_API_KEY}` } });
   if (!res.ok) return null;
   const data: any = await res.json().catch(() => null);
   const ids: string[] = (Array.isArray(data?.data) ? data.data : []).filter((m: any) => m?.active !== false).map((m: any) => String(m.id || "")).filter(Boolean);
-  modelList = { at: Date.now(), ids };
-  return pickModel(ids.filter((id) => !skip(id)));
+  modelList = { at: Date.now(), ids, who };
+  return ids;
+}
+async function bestModel(base: Fetch, env: AiProviderEnv, skip: (id: string) => boolean = () => false): Promise<string | null> {
+  const ids = await modelIds(base, env);
+  return ids ? pickModel(ids.filter((id) => !skip(id))) : null;
 }
 
 /** A fetch that routes OpenAI chat requests to Grok as described above; everything else is untouched. */
@@ -132,30 +212,56 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
   const grokFirst = env.AI_PROVIDER !== "openai";
   return (async (input: Parameters<Fetch>[0], init?: RequestInit) => {
     if (!env.XAI_API_KEY || !urlOf(input).startsWith(OPENAI_CHAT)) return base(input, init);
+    const isGroq = /groq\.com/i.test(env.BACKUP_URL || "");
     const askGrok = async () => {
-      let res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, env));
+      let used = env.XAI_MODEL || "";
+      // One request to the backup on this model; on Groq it's first fitted to the model's allowance.
+      const send = async (model: string, plain = false) => {
+        let req = toGrok(init, model ? { ...env, XAI_MODEL: model } : env);
+        if (isGroq && model) {
+          // The models this key can use, if the service was asked already (no extra request just for this).
+          const known = modelList && modelList.who === `${(env.BACKUP_URL || "").replace(/\/chat\/completions$/, "/models")}|${env.XAI_API_KEY}` ? modelList.ids : [];
+          const ids = known.length ? known : GROQ_DEFAULT_IDS;
+          const fit = fitGroq(req, model, ids, isBusy);
+          if (fit.model !== model) console.log(`[ai] Groq: ${model} has no room for this request; using ${fit.model}`);
+          req = fit.init; model = fit.model;
+        }
+        if (plain) try { const j = JSON.parse(String(req.body)); delete j.response_format; req = { ...req, body: JSON.stringify(j) }; } catch { /* keep */ }
+        used = model;
+        return base(env.BACKUP_URL || XAI_CHAT, req);
+      };
+      // A model that has used up its allowance (for the minute, or the day) is skipped until it's back.
+      let first = env.XAI_MODEL || "";
+      if (first && isBusy(first)) first = (await bestModel(base, env, isBusy).catch(() => null)) || first;
+      let res = await send(first);
       if (!res.ok) {
         const why = await res.clone().text().catch(() => "");
         // Models get retired. Ask the service which ones this key can use, pick the best, and try once more.
-        if (/model_not_found|does not exist|decommissioned|deprecated/i.test(why)) {
+        if (/model_not_found|does not exist|decommissioned|deprecated/i.test(why) && used && used !== env.XAI_MODEL) {
+          // A model picked for room is gone: skip it for a day and send it on the usual model.
+          busyUntil.set(used, Date.now() + 24 * 3600_000);
+          res = await send(env.XAI_MODEL || "");
+        } else if (/model_not_found|does not exist|decommissioned|deprecated/i.test(why)) {
           const better = await bestModel(base, env).catch(() => null);
           if (better && better !== env.XAI_MODEL) {
             console.warn(`[ai] ${env.BACKUP_NAME || "Grok"} model ${env.XAI_MODEL} is gone; switching to ${better}`);
             env.XAI_MODEL = better;
-            res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, env));
+            res = await send(better);
           }
         }
         // Some models don't take JSON mode; the prompts already ask for JSON, so try without it.
         if (!res.ok && res.status === 400 && /response_format|json/i.test(await res.clone().text().catch(() => ""))) {
-          const plain = toGrok(init, env);
-          try { const j = JSON.parse(String(plain.body)); delete j.response_format; plain.body = JSON.stringify(j); } catch { /* keep */ }
-          res = await base(env.BACKUP_URL || XAI_CHAT, plain);
+          res = await send(used, true);
         }
-        // A model's free per-minute allowance is used up: try the next good model (each has its own).
-        if (!res.ok && res.status === 429 && /rate limit|tokens per minute|requests per/i.test(await res.clone().text().catch(() => ""))) {
-          busyUntil.set(String(env.XAI_MODEL), Date.now() + 60_000);
-          const other = await bestModel(base, env, (id) => (busyUntil.get(id) ?? 0) > Date.now()).catch(() => null);
-          if (other) res = await base(env.BACKUP_URL || XAI_CHAT, toGrok(init, { ...env, XAI_MODEL: other }));
+        // A model's free allowance is used up (429), or the request is too big for it (413): remember that,
+        // and try the next good model (each has its own allowance).
+        const limited = !res.ok && (res.status === 429 || res.status === 413) ? await res.clone().text().catch(() => "") : "";
+        if (limited && /rate limit|tokens per (minute|day)|requests per|too large/i.test(limited)) {
+          if (res.status === 413) { const n = Number(/Limit (\d+)/i.exec(limited)?.[1]); if (n > 0) learnedTpm.set(used, n); }
+          else busyUntil.set(used, Date.now() + groqWaitMs(limited));
+          const tried = used;
+          const other = await bestModel(base, env, (id) => isBusy(id) || id === tried).catch(() => null);
+          if (other) res = await send(other);
         }
         if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
         // Out of allowance, too big for its per-minute limit, or down: Perplexity answers instead.
