@@ -1,5 +1,6 @@
 // Arise WorkHub: one student's whole picture. Opened from the Caseload: everything the Hub holds
 // for that student in one place, each part with a way to jump to the tab where it is kept.
+import { cleanHelpLogs, logsFor, whatWorks, whatWorksSentence } from "@shared/hubCoach";
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 import { ConnectedPanel, useHubLinks } from "./HubLinks";
@@ -151,6 +152,15 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
       {links && <ConnectedPanel workspace={workspace} kind="student" id={s.id} onOpen={links.openLink} title={`Everything connected to ${s.name.split(" ")[0]}`} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {/* Coach's help tracker: what gets this student going (shared/hubCoach.ts). */}
+        {(() => { const helps = logsFor(cleanHelpLogs((workspace as any).helpLogs), s.name); const ranked = whatWorks(helps, s.name).slice(0, 4); return (
+          <Part title="What works" count={helps.length} tab="coach" tabLabel="Coach" onOpenTab={onOpenTab}>
+            {helps.length ? <div className="space-y-2" data-testid="profile-what-works">
+              <p className="text-sm text-slate-800">{whatWorksSentence(helps, s.name)}</p>
+              <ul className="space-y-1">{ranked.map((w) => <li key={w.strategy} className="flex items-center justify-between gap-2 text-xs text-slate-600"><span>{w.label}</span><span className="tabular-nums">{w.worked} of {w.tries} worked</span></li>)}</ul>
+            </div> : <p className="text-sm text-slate-500">Nothing logged yet. In Coach, tap what you tried with {s.name.split(" ")[0]} and whether it worked.</p>}
+          </Part>); })()}
+
         <Part title="Makeup tests" count={profile.makeups.length} tab="makeups" tabLabel="Makeup tests" onOpenTab={onOpenTab}>
           <Rows rows={profile.makeups} empty="No makeup tests." render={(m) => (
             <li key={m.id} className={row} data-testid="profile-makeup">

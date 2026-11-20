@@ -11,7 +11,7 @@ import { inAppBack } from "@/lib/inAppBack";
 import "./pluginStore.css";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Rocket, ShieldAlert, MessagesSquare, FileCheck, Podcast as PodcastTile3, BadgeCheck as BadgeCheckTile4, AudioLines as AudioLinesTile } from "lucide-react";
+import { Rocket, ShieldAlert, MessagesSquare, FileCheck, Lightbulb as LightbulbCoach, Podcast as PodcastTile3, BadgeCheck as BadgeCheckTile4, AudioLines as AudioLinesTile } from "lucide-react";
 import { BookCopy as BookCopyTile, FileClock as FileClockTile, FileText as FileTextTile, Presentation as PresentationTile, QrCode as QrCodeTile, Table as TableTile, Contact as ContactTile } from "lucide-react";
 import {
   Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare, ChevronLeft,
@@ -37,7 +37,7 @@ import {
 const nativeBlurb = (text: string) => text.replace(/\s*The full browser, with every site, comes with the Arise To Duo iPhone app, coming soon to the App Store\./, "");
 
 export const ICONS: Record<string, LucideIcon> = {
-  ShieldAlert, MessagesSquare, FileCheck,
+  ShieldAlert, MessagesSquare, FileCheck, Lightbulb: LightbulbCoach,
   AudioLines: AudioLinesTile, Podcast: PodcastTile3, Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
   Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun, Trophy,

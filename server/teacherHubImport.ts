@@ -7,6 +7,7 @@
 // Nothing a teacher uploads is kept or logged here. Photos, PDFs and text go to
 // the AI service to be read; calendar files and calendar links are read on this
 // server without AI.
+import { cleanLessonPrep, cleanLiveAsk, cleanLiveCoach, lessonPrepPrompt, lessonText, liveCoachPrompt } from "../shared/hubCoach";
 import { cleanScheduleRows, schedulePhotoPrompt } from "../shared/hubSchedulePhoto";
 import type { Express, RequestHandler } from "express";
 import {
@@ -373,6 +374,39 @@ export function registerTeacherHubImportRoutes(app: Express, authMiddleware: Req
       console.error("[teacher-hub] schedule read failed:", error?.name || "error");
       return res.status(500).json({ message: "That could not be read right now. Try again in a moment." });
     }
+  });
+
+  // Coach (shared/hubCoach.ts): help explaining in the moment, and lesson prep. Words only, nothing saved here.
+  const coachFail = (res: any, error: any, what: string) => {
+    if (error instanceof HubAiError) return res.status(502).json({ message: error.message });
+    console.error(`[teacher-hub] coach ${what} failed:`, error?.name || "error");
+    return res.status(500).json({ message: "The coach couldn't answer right now. Try again in a moment." });
+  };
+  app.post("/api/teacher-hub/coach/live", authMiddleware, async (req: any, res) => {
+    if (!(await deps.gate(req, res))) return;
+    res.set("Cache-Control", "no-store");
+    const ask = cleanLiveAsk(req.body);
+    if (!ask) return res.status(400).json({ message: "Pick a student and say what they're working on." });
+    if (!aiConfigured()) return res.status(503).json({ message: "AI is not set up on this site yet." });
+    try {
+      const coach = cleanLiveCoach(parseAiReply(await askAI({ system: liveCoachPrompt(ask), parts: [{ type: "text", text: `Coach me now: ${ask.student.name.split(" ")[0]}, ${ask.topic}.` }] })));
+      if (!coach) return res.status(502).json({ message: "The coach's answer didn't come through. Try again." });
+      return res.json({ coach });
+    } catch (error: any) { return coachFail(res, error, "live"); }
+  });
+  app.post("/api/teacher-hub/coach/lesson", authMiddleware, async (req: any, res) => {
+    if (!(await deps.gate(req, res))) return;
+    res.set("Cache-Control", "no-store");
+    const lesson = lessonText(req.body?.lesson && typeof req.body.lesson === "object" ? req.body.lesson : {});
+    if (!lesson) return res.status(400).json({ message: "Pick a lesson first." });
+    if (!aiConfigured()) return res.status(503).json({ message: "AI is not set up on this site yet." });
+    const students = typeof req.body?.students === "string" ? req.body.students.slice(0, 800) : "";
+    const extra = typeof req.body?.extra === "string" ? req.body.extra.slice(0, 2000) : "";
+    try {
+      const prep = cleanLessonPrep(parseAiReply(await askAI({ system: lessonPrepPrompt(lesson, students, extra), parts: [{ type: "text", text: "Prepare me to explain this lesson." }] })));
+      if (!prep) return res.status(502).json({ message: "The coach's answer didn't come through. Try again." });
+      return res.json({ prep });
+    } catch (error: any) { return coachFail(res, error, "lesson"); }
   });
 
   // A connected calendar: the page sends the link, and gets back the events to show. LifeHub uses the
