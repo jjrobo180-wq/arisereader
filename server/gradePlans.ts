@@ -13,6 +13,7 @@ import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
 import { UploadError, readUploads } from "./uploadText";
 import { pdfToText } from "./pdfText";
 import { ASSIGNMENTS_SLOT, RETAKE_SLOT, cleanConcern } from "../shared/gradePlans";
+import { pronounRule } from "../shared/pronouns";
 
 export type GradePlanDeps = { gate(req: any, res: any): Promise<unknown | null>; ask?: LessonAsk; seePhoto?: (dataUrl: string) => Promise<string> };
 
@@ -94,6 +95,7 @@ export function registerGradePlanRoutes(app: Express, authMiddleware: RequestHan
       const lines = concerns.map((c) => `- ${c.assignment}${c.subject ? ` (${c.subject})` : ""}${c.teacher ? `, teacher ${c.teacher}` : ""}: ${c.kind === "missing" ? "missing" : `${c.kind === "low" ? "low score" : "failed"}${c.score ? ` (${c.score})` : ""}`}${c.due ? `, due ${c.due}` : ""}`).join("\n");
       const user = [
         `Student's first name: ${first}`,
+        pronounRule(s(req.body?.pronouns, 10), first),
         s(req.body?.grade, 20) && `Grade: ${s(req.body?.grade, 20)}`,
         s(req.body?.accommodations, 400) && `Accommodations: ${s(req.body?.accommodations, 400)}`,
         `Work to fix:\n${lines}`,

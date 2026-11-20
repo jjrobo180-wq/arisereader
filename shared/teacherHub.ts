@@ -27,6 +27,8 @@ export type Student = {
   readingLevel: string;
   mathLevel: string;
   notes: string;
+  /** "he", "she" or "they". Anything the AI writes about the student uses these; not set, it uses their name and never guesses. */
+  pronouns?: string;
   /** The disabilities on the student's IEP: the first one, and a second if there is one. */
   disability1?: string;
   disability2?: string;

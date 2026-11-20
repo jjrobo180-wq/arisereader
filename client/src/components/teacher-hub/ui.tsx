@@ -125,6 +125,18 @@ export function Empty({ children }: { children: ReactNode }) {
   return <p className="py-4 text-sm text-slate-500">{children}</p>;
 }
 
+/** A student's pronouns: what the AI uses when it writes about them (emails, plans). */
+export const PRONOUNS = [{ id: "he", label: "He / him" }, { id: "she", label: "She / her" }, { id: "they", label: "They / them" }] as const;
+export function PronounSelect({ value, onChange, ...rest }: { value: string; onChange: (next: string) => void } & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "value" | "onChange">) {
+  return (
+    <select {...rest} value={value} onChange={(e) => onChange(e.target.value)}
+      className={`w-full min-w-0 max-w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${rest.className || ""}`}>
+      <option value="">Pronouns: not set (AI uses their name)</option>
+      {PRONOUNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+    </select>
+  );
+}
+
 /**
  * A reading or math level picked from a list of grades (shared/levelWorksheets.ts). A level typed
  * before the list existed ("2nd grade, DRA 18") stays as its own choice, so nothing is lost.

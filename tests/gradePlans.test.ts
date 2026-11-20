@@ -70,3 +70,12 @@ test("every email lists the assignments, whether or not the AI wrote them in", a
   const named = "Argument Essay and Unit 2 Test need redoing.";
   assert.equal(fillEmail(named, mine), named);
 });
+
+test("the AI never guesses a student's gender: it uses their pronouns, or their name", async () => {
+  const { pronounRule } = await import("../shared/pronouns");
+  assert.match(pronounRule("he", "Emani"), /he\/him\/his/);
+  assert.match(pronounRule("", "Emani"), /NOT GIVEN\. Never use he, him, his, she, her or hers for Emani/);
+  const { liveCoachPrompt } = await import("../shared/hubCoach");
+  assert.match(liveCoachPrompt({ student: { name: "Emani Kast", pronouns: "he" }, topic: "fractions" }), /Pronouns for Emani: he\/him\/his/);
+  assert.match(liveCoachPrompt({ student: { name: "Emani Kast" }, topic: "fractions" }), /never guess from the name/);
+});

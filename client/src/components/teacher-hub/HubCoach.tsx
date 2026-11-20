@@ -106,7 +106,7 @@ function Live({ workspace, students, logs, token, addLog, undoLast, initialStude
       const { coach } = await post<{ coach: LiveCoach }>(token, "live", {
         topic: topic.trim(), situation, detail: detail.trim(), subject: workspace.profile?.subject || "",
         student: {
-          name: student.name, grade: student.grade, disability: [student.disability1, student.disability2].filter(Boolean).join(", "),
+          name: student.name, pronouns: student.pronouns || "", grade: student.grade, disability: [student.disability1, student.disability2].filter(Boolean).join(", "),
           readingLevel: student.readingLevel, mathLevel: student.mathLevel, accommodations: student.accommodations, notes: student.notes,
           whatWorks: whatWorksSentence(logs, student.name),
         },

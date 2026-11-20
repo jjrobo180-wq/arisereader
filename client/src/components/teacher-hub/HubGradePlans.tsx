@@ -105,7 +105,7 @@ export default function HubGradePlans({ workspace, setWorkspace, token, today, m
     const s = workspace.students.find((x) => x.name === student);
     const parents = parentEmailsFor(student, workspace.guides || []);
     const data = await askGradeAi(token, {
-      mode: "plan", firstName: student.split(/[\s,]+/)[0], grade: s?.grade || "", accommodations: s?.accommodations || "",
+      mode: "plan", firstName: student.split(/[\s,]+/)[0], pronouns: s?.pronouns || "", grade: s?.grade || "", accommodations: s?.accommodations || "",
       concerns: concerns.map(({ assignment, subject, teacher, score, kind, due }) => ({ assignment, subject, teacher, score, kind, due })),
       sender: workspace.profile.senderName || "", senderRole: workspace.profile.role || "", parentNames: parents.names, advisorName: settings.advisorName,
     });

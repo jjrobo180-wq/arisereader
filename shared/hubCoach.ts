@@ -12,6 +12,7 @@
 
 // ── What a teacher can try (the help tracker's buttons), least help first ─────────────────────────────────────
 
+import { pronounRule } from "./pronouns";
 export type StrategyId =
   | "choice" | "easy-first" | "one-at-a-time" | "first-step" | "hint" | "visual" | "hands-on" | "interest"
   | "model" | "partial" | "timer" | "break" | "less-writing" | "partner" | "praise";
@@ -136,7 +137,7 @@ export function progressNote(logs: HelpLog[], student: string, from: string, to:
 // ── Live Coach: what goes to the AI and what comes back ─────────────────────────────────────────────────────────
 
 /** What the coach knows about the student (from their profile and the tracker). */
-export type CoachStudent = { name: string; grade?: string; disability?: string; readingLevel?: string; mathLevel?: string; accommodations?: string; notes?: string; whatWorks?: string };
+export type CoachStudent = { name: string; pronouns?: string; grade?: string; disability?: string; readingLevel?: string; mathLevel?: string; accommodations?: string; notes?: string; whatWorks?: string };
 export type LiveAsk = { student: CoachStudent; topic: string; situation?: SituationId; subject?: string; detail?: string };
 
 export function cleanLiveAsk(v: unknown): LiveAsk | null {
@@ -146,7 +147,7 @@ export function cleanLiveAsk(v: unknown): LiveAsk | null {
   const name = str(s.name, 80);
   if (!topic || !name) return null;
   return {
-    student: { name, grade: str(s.grade, 20), disability: str(s.disability, 80), readingLevel: str(s.readingLevel, 40), mathLevel: str(s.mathLevel, 40), accommodations: str(s.accommodations, 400), notes: str(s.notes, COACH_LIMITS.studentNotes), whatWorks: str(s.whatWorks, 400) },
+    student: { name, pronouns: str(s.pronouns, 10), grade: str(s.grade, 20), disability: str(s.disability, 80), readingLevel: str(s.readingLevel, 40), mathLevel: str(s.mathLevel, 40), accommodations: str(s.accommodations, 400), notes: str(s.notes, COACH_LIMITS.studentNotes), whatWorks: str(s.whatWorks, 400) },
     topic, ...(SITUATION_IDS.has(String(o.situation)) ? { situation: o.situation as SituationId } : {}), subject: str(o.subject, 40), detail: str(o.detail, 300),
   };
 }
@@ -156,6 +157,7 @@ export function liveCoachPrompt(ask: LiveAsk): string {
   const first = s.name.split(" ")[0];
   const situation = SITUATIONS.find((x) => x.id === ask.situation)?.label ?? "Needs help with it";
   const facts = [
+    pronounRule(s.pronouns, first),
     s.grade && `Grade: ${s.grade}`, s.disability && `Disability on the IEP: ${s.disability}`, s.readingLevel && `Reading level: ${s.readingLevel}`, s.mathLevel && `Math level: ${s.mathLevel}`,
     s.accommodations && `Accommodations: ${s.accommodations}`, s.notes && `What the teacher knows about them (use their interests): ${s.notes}`, s.whatWorks && `What has worked before (lean on this): ${s.whatWorks}`,
   ].filter(Boolean).join("\n");

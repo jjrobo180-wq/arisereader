@@ -4,7 +4,7 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import { Plus } from "lucide-react";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, type StudentDetails } from "@shared/hubStudentTeam";
 import { StudentTeamFields } from "./HubStudentTeam";
-import { Field, LevelSelect, PrimaryButton, TextArea } from "./ui";
+import { Field, LevelSelect, PronounSelect, PrimaryButton, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 import type { Workspace } from "@shared/teacherHub";
 
@@ -74,6 +74,9 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
       </label>
       <label className="text-xs font-bold text-slate-700">Math level (optional)
         <LevelSelect value={form.mathLevel} onChange={(v) => update({ mathLevel: v })} aria-label="Math level" />
+      </label>
+      <label className="text-xs font-bold text-slate-700">Pronouns (optional)
+        <PronounSelect value={form.pronouns || ""} onChange={(v) => update({ pronouns: v || undefined })} aria-label="Pronouns" />
       </label>
       <label className="text-xs font-bold text-slate-700 sm:col-span-2">Accommodations (optional)
         <Field value={form.accommodations} onChange={(e) => update({ accommodations: e.target.value })} />

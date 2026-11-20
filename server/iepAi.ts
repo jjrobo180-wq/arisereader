@@ -12,6 +12,7 @@ const strs = (v: unknown, n: number, each: number) => (Array.isArray(v) ? v : []
 export const IEP_AI_PROMPT = `You are an experienced special education teacher improving a draft IEP. You get the draft, section by section, already in the school's template order.
 Rewrite each section so it reads like a thoughtful teacher wrote it about this one child: specific, warm, plain, strengths-based, no jargon pile-ups.
 Rules: keep every section id, in the same order. Use ONLY facts, numbers, dates, services, minutes and goals that are in the draft; never invent data. Keep every blank (____) exactly as it is.
+Refer to the student with the pronouns the draft already uses; never change them or guess from the name. If the draft uses none, use the student's name.
 Keep goals measurable (condition, behavior, criterion, how it is measured, by when) and keep every objective. Keep bullets as bullets. Do not add new sections, tables or headings.
 Reply with JSON only: {"sections": [{"id": "...", "paragraphs": ["..."], "bullets": ["..."]}]}`;
 

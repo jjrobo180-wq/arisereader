@@ -141,7 +141,7 @@ import { ConflictDialog, HubDataPanel, SaveBadge, SaveNotice, SizeNotice, downlo
 import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
 import { Tasks, TaskRow, NewChip } from "@/components/teacher-hub/HubTasks";
-import { Card, Empty, Field, GhostButton, Labeled, LevelSelect, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
+import { Card, Empty, Field, GhostButton, Labeled, LevelSelect, PronounSelect, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import HubQuickAddStudent, { AddStudentButton } from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
@@ -2314,6 +2314,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           <Field placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
           <LevelSelect placeholder="Reading level" value={form.readingLevel} onChange={(v) => setForm({ ...form, readingLevel: v })} aria-label="Reading level" />
           <LevelSelect placeholder="Math level" value={form.mathLevel} onChange={(v) => setForm({ ...form, mathLevel: v })} aria-label="Math level" />
+          <PronounSelect value={form.pronouns || ""} onChange={(v) => setForm({ ...form, pronouns: v || undefined })} aria-label="Pronouns" />
           <Labeled label="IEP deadline"><Field type="date" value={form.iepDate} onChange={(e) => setForm({ ...form, iepDate: e.target.value })} /></Labeled>
           <Labeled label="Reevaluation deadline"><Field type="date" value={form.reevalDate} onChange={(e) => setForm({ ...form, reevalDate: e.target.value })} /></Labeled>
           <Field placeholder="Accommodations" value={form.accommodations} onChange={(e) => setForm({ ...form, accommodations: e.target.value })} className="md:col-span-2" />
@@ -2343,6 +2344,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <Labeled label="Grade"><Field value={editing.form.grade} onChange={(e) => typed({ grade: e.target.value })} /></Labeled>
               <Labeled label="Reading level"><LevelSelect value={editing.form.readingLevel} onChange={(v) => typed({ readingLevel: v })} /></Labeled>
               <Labeled label="Math level"><LevelSelect value={editing.form.mathLevel} onChange={(v) => typed({ mathLevel: v })} /></Labeled>
+              <Labeled label="Pronouns"><PronounSelect value={editing.form.pronouns || ""} onChange={(v) => typed({ pronouns: v || undefined })} /></Labeled>
               <Labeled label="IEP deadline"><Field type="date" value={editing.form.iepDate} onChange={(e) => typed({ iepDate: e.target.value })} /></Labeled>
               <Labeled label="Reevaluation deadline"><Field type="date" value={editing.form.reevalDate} onChange={(e) => typed({ reevalDate: e.target.value })} /></Labeled>
               <Labeled label="Accommodations" className="sm:col-span-2"><Field value={editing.form.accommodations} onChange={(e) => typed({ accommodations: e.target.value })} /></Labeled>
