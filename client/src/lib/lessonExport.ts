@@ -309,6 +309,32 @@ export function cutSheetsHtml(packets: { ws: GenWorksheet; level: string; studen
   return `<!doctype html><html><head><meta charset="utf-8"><title>${h(title)}</title>${katexCss}<style>${WS_CSS}${cutCss}</style></head><body>${copies}${keys}</body></html>`;
 }
 
+/**
+ * Modify for students: each student's rewording of the page (shared/levelWorksheets.ts), printed with
+ * their name. `strips` (the default): every piece of the page is its own dashed strip to cut out and
+ * hand over one at a time, labelled like the original ("Directions", "Evidence 2"); otherwise each
+ * student gets one sheet with every piece in order. One student per page. No grade or level printed.
+ */
+export function rewordHtml(packets: { doc: { title: string; parts: { label: string; text: string }[] }; students: string[] }[], opts: { strips?: boolean } = {}): string {
+  const strips = opts.strips !== false;
+  const text = (t: string) => mathHtml(t, "katex").replace(/\n/g, "<br>");
+  const one = (doc: { title: string; parts: { label: string; text: string }[] }, name: string) => strips
+    ? `<div class="student">${doc.parts.map((p) => `<div class="cut strip"><div class="strip-head"><span>&#9986; <b>${h(name)}</b></span><span>${h(p.label)}</span></div><div class="rw">${text(p.text)}</div></div>`).join("")}</div>`
+    : `<div class="student"><div class="top"><b>Name</b><span class="who-name">${h(name)}</span></div>${doc.title ? `<h1>${h(doc.title)}</h1>` : ""}${doc.parts.map((p) => `<div class="rw-row">${p.label ? `<div class="rw-label">${h(p.label)}</div>` : ""}<div class="rw">${text(p.text)}</div></div>`).join("")}</div>`;
+  const body = packets.flatMap((p) => p.students.map((n) => one(p.doc, n))).join("");
+  const css = `.cut{border:2px dashed #64748b;border-radius:6px;break-inside:avoid;page-break-inside:avoid}
+  .strip{padding:8px 14px 10px;margin:0 0 10px}
+  .strip-head{display:flex;justify-content:space-between;gap:12px;font-size:10pt;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:6px}
+  .rw{font-size:14pt;line-height:1.5}
+  .rw-row{margin:0 0 14px;break-inside:avoid}
+  .rw-label{font-size:9.5pt;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:2px}
+  .who-name{font-weight:700;font-size:13pt}
+  .student{break-after:page;page-break-after:always}
+  .student:last-child{break-after:auto;page-break-after:auto}`;
+  const katexCss = `<link rel="stylesheet" href="${typeof location !== "undefined" ? location.origin : ""}/vendor/katex/katex.min.css">`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${h(packets[0]?.doc.title || "Reworded")}</title>${katexCss}<style>${WS_CSS}${css}</style></head><body>${body}</body></html>`;
+}
+
 // ─── Saving and printing ────────────────────────────────────────────────────
 
 export const safeFileName = (s: string) => (s.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "lesson");

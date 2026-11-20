@@ -55,9 +55,24 @@ export function groupByLevel(students: LeveledStudent[], kind: "math" | "reading
  * class's; only the difficulty, reading level and supports change, so every student works on the same lesson.
  */
 export function levelInstruction(level: Level | "", kind: "math" | "reading", classGrade: string): string {
-  if (!level) return "on grade level";
+  if (!level) return "";
   const g = levelLabel(level);
-  const lower = classGrade && /^\d+$/.test(classGrade) && LEVELS.indexOf(level) < LEVELS.indexOf(classGrade as Level);
-  const what = kind === "math" ? "math" : "reading";
-  return `modified for a student who works at a ${g} ${what} level${classGrade ? ` (the class is in grade ${classGrade})` : ""}: the SAME topic, skill and kind of problems as the example or topic, rewritten so a ${g} ${what} student can do it on their own${kind === "reading" ? `: sentences, vocabulary and any passage at a ${g} reading level` : `: numbers, steps and wording at a ${g} level`}${lower ? ", with simpler language, a worked example first, a word bank, fewer answer choices and bigger spaces" : ""}`;
+  return `a ${g} ${kind === "math" ? "math" : "reading"} level${classGrade ? ` (the class itself is in grade ${classGrade})` : ""}: ${kind === "reading" ? `sentences and words a ${g} reader can read on their own` : `words a ${g} student can read, numbers and steps kept exactly as on the page`}`;
+}
+
+/**
+ * Modify for students makes a REWORDING, not a new worksheet: every piece of the original page (the
+ * directions, a claim, each statement, each question, a table's headings and rows) in the same order,
+ * said at the student's level. Nothing is added (no answer choices, no answer lines) and nothing is
+ * answered: the student reads their strip and writes on the real worksheet.
+ */
+export type RewordPart = { label: string; text: string };
+export type Reworded = { title: string; parts: RewordPart[] };
+
+const clip = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\u0000/g, "").trim().slice(0, max) : "");
+export function cleanReworded(raw: any): Reworded | null {
+  const parts = (Array.isArray(raw?.parts) ? raw.parts : []).slice(0, 80)
+    .map((p: any) => ({ label: clip(p?.label, 60), text: clip(p?.text, 2000) }))
+    .filter((p: RewordPart) => p.text);
+  return parts.length ? { title: clip(raw?.title, 160), parts } : null;
 }

@@ -7,8 +7,8 @@ import { useMemo, useState } from "react";
 import { UPLOAD_ACCEPT, UPLOAD_LIMITS, type UploadedFile } from "@shared/uploads";
 import { ArrowDown, ArrowUp, Copy, Download, FileText, Pencil, Plus, Printer, Scissors, Sparkles, Trash2, Upload } from "lucide-react";
 import { cleanWorksheet, GRADES, LESSON_SUBJECTS, type GenWorksheet, type WorksheetItem } from "@shared/lessonPlanner";
-import { answerKeyText, cutSheetsHtml, downloadWorksheetDoc, printHtml, worksheetHtml } from "@/lib/lessonExport";
-import { groupByLevel, levelInstruction, levelLabel, parseLevel, type LeveledStudent } from "@shared/levelWorksheets";
+import { answerKeyText, cutSheetsHtml, downloadWorksheetDoc, printHtml, rewordHtml, worksheetHtml } from "@/lib/lessonExport";
+import { groupByLevel, levelInstruction, levelLabel, parseLevel, type LeveledStudent, type Reworded } from "@shared/levelWorksheets";
 import { HubModal } from "./HubModal";
 import { pdfsForAi } from "@/lib/pdfPages";
 import { Segmented, Spinner, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
@@ -330,7 +330,7 @@ export function StudentCopiesMaker({ token, state, className, students, classes,
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
-  const [packets, setPackets] = useState<{ ws: GenWorksheet; level: string; students: string[] }[] | null>(null);
+  const [packets, setPackets] = useState<RewordPacket[] | null>(null);
   const hasOriginal = !!(exText.trim() || exLinks.trim() || exFiles.length || exPhotos.length);
   const listed = classPick ? students.filter((s) => classes.find((c) => c.id === classPick)?.students.includes(s.name)) : students;
   const levelOf = (s: LeveledStudent) => parseLevel(kind === "math" ? s.mathLevel : s.readingLevel) || parseLevel(s.grade);
@@ -362,15 +362,15 @@ export function StudentCopiesMaker({ token, state, className, students, classes,
     // PDFs are read here in the browser: words as text, a scan as pictures of its pages.
     const ready = await pdfsForAi(exFiles, Math.max(0, 6 - exPhotos.length)).catch(() => ({ files: exFiles, images: [] as string[] }));
     const images = [...exPhotos.map((p) => p.data), ...ready.images];
-    const made: { ws: GenWorksheet; level: string; students: string[] }[] = [];
+    const made: RewordPacket[] = [];
     try {
       for (const [i, g] of groups.entries()) {
-        setProgress(`Writing ${i + 1} of ${groups.length}: ${g.level ? levelLabel(g.level) : "original level"} (${g.students.length} student${g.students.length === 1 ? "" : "s"})…`);
+        setProgress(`Rewording ${i + 1} of ${groups.length}: ${g.level ? levelLabel(g.level) : "original level"} (${g.students.length} student${g.students.length === 1 ? "" : "s"})…`);
         const data = await askLessonAi(token, {
           mode: "modify", subject: kind === "math" ? "Math" : "ELA", state, grade: g.level || classGrade, level: g.level ? levelInstruction(g.level, kind, classGrade) : "",
           exampleText: exText, links: exLinks, files: ready.files, images,
         });
-        made.push({ ws: { ...data.worksheet, grade: g.level || undefined }, level: g.level ? levelLabel(g.level) : "", students: g.students });
+        made.push({ doc: data.reworded, level: g.level ? levelLabel(g.level) : "", students: g.students });
       }
       setPackets(made);
     } catch (e: any) {
@@ -379,7 +379,7 @@ export function StudentCopiesMaker({ token, state, className, students, classes,
     } finally { setBusy(false); setProgress(""); }
   }
 
-  if (packets) return <StudentPackets packets={packets} className={className} note={error} onChange={setPackets} onClose={onClose} />;
+  if (packets) return <RewordPackets packets={packets} note={error} onChange={setPackets} onClose={onClose} />;
   const field = "mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900";
   return (
     <HubModal title="Modify for students" onClose={onClose} size="lg" footer={
@@ -429,9 +429,40 @@ export function StudentCopiesMaker({ token, state, className, students, classes,
               </label></li>); })}
             {!listed.length && <li className="p-2 text-sm text-slate-500">No students here yet.</li>}
           </ul>
-          <p className="text-xs text-slate-500">Each student gets the assignment rewritten at their {kind} level, with their name on top. Set levels in Caseload → Edit. A student with no level gets the assignment at its own level, cleaned up.</p>
+          <p className="text-xs text-slate-500">Each student gets everything on the page (directions, statements, questions) reworded at their {kind} level, in the same order, cut into strips with their name. They still write on the real worksheet. Set levels in Caseload → Edit.</p>
         </section>
       </div>
+    </HubModal>
+  );
+}
+
+type RewordPacket = { doc: Reworded; level: string; students: string[] };
+
+/** The reworded page for each level: check or change any piece, then print strips (or whole sheets) with names. */
+function RewordPackets({ packets, note, onChange, onClose }: { packets: RewordPacket[]; note: string; onChange: (next: RewordPacket[]) => void; onClose: () => void }) {
+  const [open, setOpen] = useState(0);
+  const [msg, setMsg] = useState(note);
+  const total = packets.reduce((n, p) => n + p.students.length, 0);
+  const print = (strips: boolean) => { if (!printHtml(rewordHtml(packets, { strips }))) setMsg("Allow pop-ups for this site to print."); };
+  const p = packets[open] || packets[0];
+  const setPart = (i: number, text: string) => onChange(packets.map((x, k) => (k !== open ? x : { ...x, doc: { ...x.doc, parts: x.doc.parts.map((y, j) => (j === i ? { ...y, text } : y)) } })));
+  return (
+    <HubModal title="Reworded for each student" onClose={onClose} size="lg" footer={
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => print(true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white" data-testid="reword-print-strips"><Scissors className="h-4 w-4" /> Print cut-apart strips ({total} student{total === 1 ? "" : "s"})</button>
+        <button type="button" onClick={() => print(false)} className={smallBtn + " min-h-10 px-3"}><Printer className="h-4 w-4" /> Print whole sheets</button>
+        {msg && <span className="text-sm text-rose-700">{msg}</span>}
+      </div>
+    }>
+      <p className="mb-3 text-sm text-slate-600">Everything on the page, in order, said at each student's level. Students write their answers on the real worksheet. Change any wording below before you print.</p>
+      {packets.length > 1 && <div className="mb-3 flex flex-wrap gap-1">{packets.map((x, i) => <button key={i} type="button" onClick={() => setOpen(i)} className={`min-h-9 rounded-full px-3 text-sm font-semibold ${i === open ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{x.level || "Original level"} · {x.students.length}</button>)}</div>}
+      {p && <>
+        <div className="mb-2 flex flex-wrap gap-1">{p.students.map((n) => <span key={n} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800">{n}</span>)}</div>
+        <ol className="space-y-2">{p.doc.parts.map((part, i) => <li key={i} className="rounded-xl border border-dashed border-slate-300 p-2">
+          <div className="mb-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{part.label || `Part ${i + 1}`}</div>
+          <textarea value={part.text} onChange={(e) => setPart(i, e.target.value)} rows={Math.min(6, Math.max(2, Math.ceil(part.text.length / 80)))} className="block w-full resize-y rounded-lg border-0 bg-slate-50 p-2 text-[15px] leading-relaxed text-slate-900 outline-none focus:ring-2 focus:ring-violet-200" aria-label={part.label || `Part ${i + 1}`} />
+        </li>)}</ol>
+      </>}
     </HubModal>
   );
 }

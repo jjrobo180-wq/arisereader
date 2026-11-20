@@ -21,7 +21,7 @@ test("students are grouped by their level for the subject, easiest first", () =>
   assert.equal(levelKindFor("Math"), "math");
   assert.equal(levelKindFor("Reading"), "reading");
   assert.match(levelInstruction("3", "reading", "7"), /Grade 3 reading level/);
-  assert.equal(levelInstruction("", "math", "7"), "on grade level");
+  assert.equal(levelInstruction("", "math", "7"), "");
 });
 
 test("a PDF's words are read, letters placed one at a time included", () => {
@@ -46,18 +46,23 @@ test("Google Docs, Slides and Sheets links become their text exports", () => {
   assert.equal(googleExportUrl("https://example.com/page"), "https://example.com/page");
 });
 
-test("Modify for students keeps the original's questions and asks for the student's level", async () => {
+test("Modify for students rewords every piece of the page, adds nothing, and prints a strip per piece", async () => {
   const { cleanAsk, lessonPrompt, readAnswer } = await import("../server/lessonPlanner");
   const a = cleanAsk({ mode: "modify", subject: "ELA", grade: "3", level: levelInstruction("3", "reading", "7") });
-  assert.equal(a.mode, "modify");
-  const p = lessonPrompt(a, "EXAMPLE from the teacher's PDF:\n1. Write a body paragraph with two pieces of evidence.");
-  assert.match(p.system, /EXACTLY the same number of questions, in the SAME order/);
-  assert.match(p.system, /Never write a grade, a level/);
+  const p = lessonPrompt(a, "EXAMPLE from the teacher's PDF:\nDo Now: pick the RIGHT evidence.\nClaim: The USWNT deserves higher pay.");
+  assert.match(p.system, /reword EVERY piece of text on it, in the same order/);
+  assert.match(p.system, /NEVER add anything that is not on the page: no answer choices, no Yes\/No/);
   assert.match(p.user, /Grade 3 reading level/);
-  assert.match(p.user, /two pieces of evidence/);
-  assert.ok(p.maxTokens <= 6000, "small enough for the free AI's per-minute allowance");
-  const ws = readAnswer("modify", JSON.stringify({ title: "Body paragraphs", instructions: "", sections: [{ heading: "Write", directions: "", items: [{ kind: "short", prompt: "Write one sentence.", answer: "A sentence.", lines: 2 }] }] }));
-  assert.equal(ws.worksheet.title, "Body paragraphs");
+  assert.match(p.user, /Claim: The USWNT/);
+  assert.ok(p.maxTokens <= 6000);
+  const out = readAnswer("modify", JSON.stringify({ title: "Do Now", parts: [{ label: "Directions", text: "Pick the best facts." }, { label: "Claim", text: "The women's team should get more money." }, { label: "Evidence 1", text: "" }] }));
+  assert.equal(out.reworded.parts.length, 2);
+  const { rewordHtml } = await import("../client/src/lib/lessonExport");
+  const html = rewordHtml([{ doc: out.reworded, students: ["Amani Quintana", "Kha Nguyen"] }]);
+  assert.equal((html.match(/class="cut strip"/g) || []).length, 4);
+  assert.match(html, /Amani Quintana[\s\S]*Directions[\s\S]*Claim/);
+  assert.doesNotMatch(html.slice(html.indexOf("<body>")), /class="choices"|class="bub"/);
+  assert.equal((rewordHtml([{ doc: out.reworded, students: ["Amani"] }], { strips: false }).match(/class="cut strip"/g) || []).length, 0);
 });
 
 test("student copies print one strip per question with the student's name, and no grade", async () => {

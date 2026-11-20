@@ -21,6 +21,7 @@ import { BACKUPS, findBackup, perplexityKey } from "./aiProvider";
 import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
 import { UploadError, readUploads } from "./uploadText";
 import { pdfToText } from "./pdfText";
+import { cleanReworded } from "../shared/levelWorksheets";
 
 /** `attachments` are PDFs and photos (data URLs) the AI reads itself, e.g. an example problem page. */
 export type LessonAsk = (system: string, user: string, maxTokens: number, attachments?: string[]) => Promise<string>;
@@ -243,13 +244,12 @@ const SCAFFOLD_RULES = `Scaffolding rules:
 - Write for a student who is capable but needs a way in: respectful wording, never babyish.`;
 
 /** Rewriting the teacher's own assignment for one student's level (Modify for students). */
-const MODIFY_RULES = `Modifying rules: the teacher gave you their ORIGINAL assignment or test (below). Rewrite it for a student at the given level. This is a REWORDING, question for question, never a new worksheet:
-- First find the original's numbered questions (1, 2, 3…, including parts like 2a and 2b as their own questions). Your worksheet has EXACTLY the same number of questions, in the SAME order: your question 1 is the original's question 1 reworded, your question 2 is its question 2, and so on. Never add a question, never split one into two, never drop one, never merge two.
-- Each question asks the SAME thing as the original question, only in simpler words for the level: shorter sentences, easier vocabulary (a hard word that must stay gets a short meaning in brackets), fewer answer choices (keep the right one and the 1-2 most likely wrong ones), smaller numbers or fewer steps in maths. A question that asks for writing keeps asking for that writing, with a sentence starter written INSIDE the same question's prompt.
-- A reading passage the questions are about goes in the section's "passage", shortened and rewritten at the level, keeping every fact a question needs.
-- Keep the original's title and directions (simplified). Never write a grade, a level or "modified" anywhere a student would see it: not in the title, not in the instructions.
-- Use one section unless the original has clearly separate parts; keep its parts and their headings.
-- Give every question its correct answer for the answer key, from the rewritten question.`;
+const MODIFY_RULES = `Rewording rules: the teacher gave you their ORIGINAL page (below): a worksheet, test, Do Now or handout. Make a simplified REWORDING of it for a student at the given level. The student keeps the real page and writes their answers there; your rewording only helps them understand it.
+- Go through the original from top to bottom and reword EVERY piece of text on it, in the same order: the title, every direction and instruction, every claim, statement, fact, passage and evidence, every question, every table heading and every table row, every sentence starter. Nothing on the page is skipped, even when it is not a question.
+- One part for each piece, in the original's order. label says where it is on the page, the way the original names it ("Directions", "Claim", "Evidence 1", "Column: Would you use this evidence?", "Question 3", "Part B"); text is that piece reworded.
+- Reword ONLY: shorter sentences, easier words for the level (keep names, numbers and dates exactly; a hard word that must stay gets a short meaning in brackets). Keep the same meaning and the same task.
+- NEVER add anything that is not on the page: no answer choices, no Yes/No, no blanks or answer lines, no new questions, no examples, no hints. NEVER answer anything or say which choice is right.
+- Never write a grade, a level or "modified" anywhere.`;
 
 /** The system and user messages for each job, and how long the answer may be. */
 export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user: string; maxTokens: number } {
@@ -270,7 +270,7 @@ export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user:
     }
     case "modify": {
       const who = a.level ? `a student who works at this level: ${a.level}` : "a student who needs it a little easier to get into (keep the original's grade level; make the wording clearer and the layout easier)";
-      return { maxTokens: 5000, system: `${BASE}\n${WORKSHEET_RULES}\n${MODIFY_RULES}`, user: `Make the modified version of the teacher's assignment for ${who}.${a.grade ? ` Grade: ${a.grade}.` : ""}${a.subject ? ` Subject: ${a.subject}.` : ""}\n\n${example || "(The teacher gave no assignment.)"}\n\nReturn ${WORKSHEET_SHAPE}.` };
+      return { maxTokens: 5000, system: `${BASE}\n${MODIFY_RULES}`, user: `Reword the teacher's page for ${who}.${a.grade ? ` Grade: ${a.grade}.` : ""}${a.subject ? ` Subject: ${a.subject}.` : ""}\n\n${example || "(The teacher gave no page.)"}\n\nReturn {"title": string, "parts": [{"label": string, "text": string}]}.` };
     }
     case "scaffold": {
       const kind = a.kind || "practice worksheet";
@@ -293,7 +293,8 @@ export function readAnswer(mode: AiMode, rawText: string): any {
     case "ideas": { const ideas = cleanIdeas(raw); if (!ideas.length) break; return { ideas }; }
     case "build": case "reteach": { const plan = cleanPlanFields(raw); if (!Object.keys(plan).length) break; return { plan }; }
     case "standards": return { standards: cleanFoundStandards(raw) };
-    case "worksheet": case "scaffold": case "modify": { const worksheet = cleanWorksheet(raw); if (!worksheet) break; return { worksheet }; }
+    case "modify": { const reworded = cleanReworded(raw); if (!reworded) break; return { reworded }; }
+    case "worksheet": case "scaffold": { const worksheet = cleanWorksheet(raw); if (!worksheet) break; return { worksheet }; }
     case "slides": { const slides = cleanSlides(raw?.slides); if (!slides) break; return { slides }; }
     case "unit": { const unit = cleanUnit(raw); if (!unit.lessons.length) break; return unit; }
   }
