@@ -126,7 +126,8 @@ export function groqWaitMs(message: string): number {
   const daily = /per day|\(TPD\)|\(RPD\)/i.test(message);
   return Math.max(daily ? 10 * 60_000 : 60_000, Math.ceil(ms));
 }
-const GROQ_DEFAULT_IDS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct", "moonshotai/kimi-k2-instruct-0905", "qwen/qwen3-32b", "llama-3.3-70b-versatile"];
+/** Used only when Groq can't be asked which models it has. Llama 4 Scout and Maverick are left out: Groq retired them. */
+const GROQ_DEFAULT_IDS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "moonshotai/kimi-k2-instruct-0905", "qwen/qwen3-32b", "llama-3.3-70b-versatile"];
 
 // ---- Last resort: Perplexity ----
 // When Groq can't answer (its free per-minute or per-day allowance is used up, or it's down), the
@@ -199,6 +200,7 @@ async function modelIds(base: Fetch, env: AiProviderEnv): Promise<string[] | nul
   if (!res.ok) return null;
   const data: any = await res.json().catch(() => null);
   const ids: string[] = (Array.isArray(data?.data) ? data.data : []).filter((m: any) => m?.active !== false).map((m: any) => String(m.id || "")).filter(Boolean);
+  if (!ids.length) return null; // an empty or odd answer is not kept: ask again next time
   modelList = { at: Date.now(), ids, who };
   return ids;
 }
@@ -221,8 +223,9 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
       const send = async (model: string, plain = false) => {
         let req = toGrok(init, model ? { ...env, XAI_MODEL: model } : env);
         if (isGroq && model) {
-          // The models this key can use, if the service was asked already (no extra request just for this).
-          const known = modelList && modelList.who === `${(env.BACKUP_URL || "").replace(/\/chat\/completions$/, "/models")}|${env.XAI_API_KEY}` ? modelList.ids : [];
+          // The models this key can use right now (asked once and kept a while), so a model Groq has
+          // retired is never picked; the built-in list is only for when Groq can't be asked.
+          const known = (await modelIds(base, env).catch(() => null)) || [];
           const ids = known.length ? known : GROQ_DEFAULT_IDS;
           const fit = fitGroq(req, model, ids, isBusy);
           if (fit.model !== model) console.log(`[ai] Groq: ${model} has no room for this request; using ${fit.model}`);
@@ -239,11 +242,16 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
       if (!res.ok) {
         const why = await res.clone().text().catch(() => "");
         // Models get retired. Ask the service which ones this key can use, pick the best, and try once more.
-        if (/model_not_found|does not exist|decommissioned|deprecated/i.test(why) && used && used !== env.XAI_MODEL) {
-          // A model picked for room is gone: skip it for a day and send it on the usual model.
-          busyUntil.set(used, Date.now() + 24 * 3600_000);
-          res = await send(env.XAI_MODEL || "");
-        } else if (/model_not_found|does not exist|decommissioned|deprecated/i.test(why)) {
+        const gone = (r: Response, text: string) => r.status === 404 || /model_not_found|does not exist|decommissioned|deprecated/i.test(text);
+        if (gone(res, why) && used && used !== env.XAI_MODEL) {
+          // A model picked for room is gone: skip it for a day and send it again (up to three times,
+          // in case the next pick was retired too).
+          for (let tries = 0; tries < 3 && !res.ok && gone(res, await res.clone().text().catch(() => "")); tries++) {
+            busyUntil.set(used, Date.now() + 24 * 3600_000);
+            modelList = null;
+            res = await send(env.XAI_MODEL || "");
+          }
+        } else if (gone(res, why)) {
           const better = await bestModel(base, env).catch(() => null);
           if (better && better !== env.XAI_MODEL) {
             console.warn(`[ai] ${env.BACKUP_NAME || "Grok"} model ${env.XAI_MODEL} is gone; switching to ${better}`);
@@ -268,7 +276,7 @@ export function grokFetch(base: Fetch, env: AiProviderEnv): Fetch {
         if (!res.ok) console.error(`[ai] ${env.BACKUP_NAME || "Grok"} failed:`, res.status, (await res.clone().text().catch(() => "")).slice(0, 200));
         // Out of allowance, too big for its per-minute limit, or down: Perplexity answers instead.
         // (400 too: Groq's models sometimes fail to write valid JSON and answer "json_validate_failed".)
-        if (!res.ok && (res.status === 429 || res.status === 413 || res.status >= 500 || res.status === 401 || res.status === 403 || res.status === 400)) {
+        if (!res.ok && (res.status === 429 || res.status === 413 || res.status >= 500 || res.status === 401 || res.status === 403 || res.status === 400 || res.status === 404)) {
           const other = await askPerplexity(base, init);
           if (other) return other;
         }

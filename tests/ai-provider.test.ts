@@ -61,8 +61,10 @@ test("a Groq key (groq.com) works as the backup too, with Groq's address and mod
   const { base, calls } = fakeBase({ status: 429, body: "credit_balance_exhausted" });
   const f = grokFetch(base, { XAI_API_KEY: "gsk_1", XAI_MODEL: "llama-3.3-70b-versatile", OPENAI_API_KEY: "sk", AI_PROVIDER: "openai", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
   await f(OPENAI, req);
-  assert.equal(calls[1].url, "https://api.groq.com/openai/v1/chat/completions");
-  assert.equal(JSON.parse(String(calls[1].init!.body)).model, "llama-3.3-70b-versatile");
+  // (It may first ask Groq which models it has, so a retired one is never picked.)
+  const chat = calls.slice(1).find((c) => !c.url.endsWith("/models"))!;
+  assert.equal(chat.url, "https://api.groq.com/openai/v1/chat/completions");
+  assert.equal(JSON.parse(String(chat.init!.body)).model, "llama-3.3-70b-versatile");
 });
 
 test("a retired model: ask the service for its models, switch to the best one, and try again", async () => {
@@ -85,7 +87,7 @@ test("a retired model: ask the service for its models, switch to the best one, a
   // The next request goes straight to the new model.
   calls.length = 0;
   await f(OPENAI, req);
-  assert.ok(!calls.some((c) => c.endsWith("/models")));
+  assert.ok(calls.filter((c) => c.endsWith("/models")).length <= 1, "the model list is kept, not asked for again and again");
 });
 
 test("OpenAI is off by default: chat goes straight to the backup without calling OpenAI", async () => {
@@ -184,4 +186,22 @@ test("Groq: a big exemplar request is sent to Scout with a reply that fits, and 
   const next = calls.filter((c) => c.url.endsWith("/chat/completions"));
   assert.equal(next.length, 1);
   assert.notEqual(next[0].body.model, "openai/gpt-oss-20b");
+});
+
+test("a model picked for room that Groq retired (404) is skipped, and the request still gets an answer", async () => {
+  const sent: string[] = [];
+  const base = (async (url: any, init?: RequestInit) => {
+    if (String(url).endsWith("/models")) return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }, { id: "llama-3.3-70b-versatile" }, { id: "meta-llama/llama-4-scout-17b-16e-instruct" }] }), { status: 200 });
+    if (String(url) === OPENAI) return new Response("credit_balance_exhausted", { status: 429 });
+    const model = JSON.parse(String(init!.body)).model;
+    sent.push(model);
+    return /scout/.test(model) ? new Response('{"error":{"message":"The model does not exist","code":"model_not_found"}}', { status: 404 }) : new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  const f = grokFetch(base, { XAI_API_KEY: "gsk_room", XAI_MODEL: "openai/gpt-oss-120b", OPENAI_API_KEY: "sk", AI_PROVIDER: "grok", BACKUP_URL: "https://api.groq.com/openai/v1/chat/completions", BACKUP_NAME: "Groq" });
+  // A big request: too big for gpt-oss-120b's allowance, so the router first tries the model with the most room.
+  const big = { method: "POST", body: JSON.stringify({ model: "gpt-4.1", max_tokens: 5000, messages: [{ role: "user", content: "x".repeat(30_000) }] }) };
+  const res = await f(OPENAI, big);
+  assert.equal(res.status, 200);
+  assert.ok(sent.some((m) => /scout/.test(m)));
+  assert.ok(!/scout/.test(sent[sent.length - 1]));
 });
