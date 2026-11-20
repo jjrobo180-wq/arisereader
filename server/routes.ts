@@ -117,6 +117,7 @@ import { registerTodoNewsRoutes } from "./todoNews";
 import { registerLifehubPluginRoutes } from "./lifehubPlugins";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerLessonPlannerRoutes } from "./lessonPlanner";
+import { registerGradePlanRoutes } from "./gradePlans";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
 import { askOpenAiJson, registerTodoAsks } from "./todoAsks";
@@ -1959,6 +1960,7 @@ export async function registerRoutes(
     lookup: makeLookup({ search: (system, user) => perplexityChat(system, user, 30_000) }),
   });
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
+  registerGradePlanRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
