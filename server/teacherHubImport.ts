@@ -7,6 +7,7 @@
 // Nothing a teacher uploads is kept or logged here. Photos, PDFs and text go to
 // the AI service to be read; calendar files and calendar links are read on this
 // server without AI.
+import { OpenAIBusyError, OpenAIQuotaError, postChat } from "./openaiFetch";
 import { cleanLessonPrep, cleanLiveAsk, cleanLiveCoach, lessonPrepPrompt, lessonText, liveCoachPrompt } from "../shared/hubCoach";
 import { cleanScheduleRows, schedulePhotoPrompt } from "../shared/hubSchedulePhoto";
 import type { Express, RequestHandler } from "express";
@@ -59,19 +60,11 @@ async function askOpenAI(request: AiRequest): Promise<string> {
   });
   const send = async (model: string) => {
     try {
-      return await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          temperature: 0.1,
-          max_tokens: 9000,
-          response_format: { type: "json_object" },
-          messages: [{ role: "system", content: request.system }, { role: "user", content }],
-        }),
-        signal: AbortSignal.timeout(110_000),
-      });
+      // Rate limits are waited out and retried; an account out of credit says so (server/openaiFetch.ts).
+      return await postChat({ model, temperature: 0.1, max_tokens: 9000, response_format: { type: "json_object" }, messages: [{ role: "system", content: request.system }, { role: "user", content }] },
+        { label: "teacher-hub", timeoutMs: 110_000, maxWaitMs: 45_000 });
     } catch (error: any) {
+      if (error instanceof OpenAIQuotaError || error instanceof OpenAIBusyError) throw new HubAiError(error.message);
       throw new HubAiError(error?.name === "TimeoutError" ? "That took too long to read. Try a smaller piece." : "The AI could not be reached. Try again in a moment.");
     }
   };

@@ -16,6 +16,7 @@
 //  3. a second AI solves each problem cold, seeing only the problem, and its answer must match;
 //  4. whatever fails is rewritten once and checked again; if it still fails it is kept but marked
 //     "double-check this one", never presented as sure.
+import { OpenAIBusyError, OpenAIQuotaError, postChat, readOpenAIError } from "./openaiFetch";
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
@@ -51,19 +52,15 @@ export async function askOpenAI(ask: SpedAsk): Promise<string> {
   ask.images.forEach((url, i) => content.push(url.startsWith("data:application/pdf") ? { type: "file", file: { filename: `lesson-${i + 1}.pdf`, file_data: url } } : { type: "image_url", image_url: { url, detail: "high" } }));
   let response: Response;
   try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      // temperature 0: the same lesson should give the same guide.
-      body: JSON.stringify({ model: MODEL(), temperature: 0, max_tokens: 16000, response_format: { type: "json_object" }, messages: [{ role: "system", content: ask.system }, { role: "user", content: ask.images.length ? content : ask.text }] }),
-      signal: AbortSignal.timeout(170_000),
-    });
+    // Rate limits are waited out and retried; an account out of credit says so (server/openaiFetch.ts).
+    response = await postChat({ model: MODEL(), temperature: 0, max_tokens: 16000, response_format: { type: "json_object" }, messages: [{ role: "system", content: ask.system }, { role: "user", content: ask.images.length ? content : ask.text }] }, { label: "sped-exemplar", timeoutMs: 170_000, maxWaitMs: 120_000 });
   } catch (error: any) {
+    if (error instanceof OpenAIQuotaError || error instanceof OpenAIBusyError) throw new SpedAiError(error.message);
     throw new SpedAiError(error?.name === "TimeoutError" ? "That took too long. Try pasting fewer problems at a time." : "The AI can’t be reached right now. Try again in a moment.");
   }
   if (!response.ok) {
-    console.error("[sped-exemplar] AI request failed:", response.status);
-    throw new SpedAiError(response.status === 429 ? "The AI is busy. Try again in a minute." : ask.images.length ? "The AI couldn’t read those photos or files. Paste the lesson text instead, or try clearer photos." : "The AI couldn’t finish that. Try again in a moment.");
+    const why = await readOpenAIError(response);
+    throw new SpedAiError(ask.images.length ? `The AI couldn’t read those photos or files (${why.code || why.type || response.status}). Paste the lesson text instead, or try clearer photos.` : `The AI couldn’t do that (${why.code || why.type || response.status}${why.msg ? `: ${why.msg.slice(0, 120)}` : ""}). Try again.`);
   }
   const payload: any = await response.json().catch(() => null);
   return String(payload?.choices?.[0]?.message?.content || "");
