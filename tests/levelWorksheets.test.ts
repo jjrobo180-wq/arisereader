@@ -82,3 +82,14 @@ test("student copies print one strip per question with the student's name, and n
   const whole = cutSheetsHtml([{ ws, level: "Grade 2", students: ["Amani Quintana"] }], { strips: false });
   assert.equal((whole.match(/class="cut strip"/g) || []).length, 0);
 });
+
+test("cut-outs can be printed without the student's name", async () => {
+  const { rewordHtml } = await import("../client/src/lib/lessonExport");
+  const doc = { title: "Do Now", parts: [{ label: "Directions", text: "Pick the best facts." }, { label: "Claim", text: "Pay them more." }] };
+  const named = rewordHtml([{ doc, students: ["Amani Quintana"] }]);
+  const plain = rewordHtml([{ doc, students: ["Amani Quintana"] }], { names: false });
+  assert.match(named, /Amani Quintana/);
+  assert.doesNotMatch(plain, /Amani/);
+  assert.equal((plain.match(/class="cut strip"/g) || []).length, 2);
+  assert.doesNotMatch(rewordHtml([{ doc, students: ["Amani Quintana"] }], { strips: false, names: false }), /Amani/);
+});

@@ -443,7 +443,8 @@ function RewordPackets({ packets, note, onChange, onClose }: { packets: RewordPa
   const [open, setOpen] = useState(0);
   const [msg, setMsg] = useState(note);
   const total = packets.reduce((n, p) => n + p.students.length, 0);
-  const print = (strips: boolean) => { if (!printHtml(rewordHtml(packets, { strips }))) setMsg("Allow pop-ups for this site to print."); };
+  const [names, setNames] = useState(true);
+  const print = (strips: boolean) => { if (!printHtml(rewordHtml(packets, { strips, names }))) setMsg("Allow pop-ups for this site to print."); };
   const p = packets[open] || packets[0];
   const setPart = (i: number, text: string) => onChange(packets.map((x, k) => (k !== open ? x : { ...x, doc: { ...x.doc, parts: x.doc.parts.map((y, j) => (j === i ? { ...y, text } : y)) } })));
   return (
@@ -451,6 +452,7 @@ function RewordPackets({ packets, note, onChange, onClose }: { packets: RewordPa
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => print(true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white" data-testid="reword-print-strips"><Scissors className="h-4 w-4" /> Print cut-apart strips ({total} student{total === 1 ? "" : "s"})</button>
         <button type="button" onClick={() => print(false)} className={smallBtn + " min-h-10 px-3"}><Printer className="h-4 w-4" /> Print whole sheets</button>
+        <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 px-1 text-sm font-semibold text-slate-700"><input type="checkbox" className="h-4 w-4" checked={names} onChange={(e) => setNames(e.target.checked)} data-testid="reword-names" /> Show student names</label>
         {msg && <span className="text-sm text-rose-700">{msg}</span>}
       </div>
     }>

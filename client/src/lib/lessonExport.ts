@@ -315,12 +315,14 @@ export function cutSheetsHtml(packets: { ws: GenWorksheet; level: string; studen
  * hand over one at a time, labelled like the original ("Directions", "Evidence 2"); otherwise each
  * student gets one sheet with every piece in order. One student per page. No grade or level printed.
  */
-export function rewordHtml(packets: { doc: { title: string; parts: { label: string; text: string }[] }; students: string[] }[], opts: { strips?: boolean } = {}): string {
+export function rewordHtml(packets: { doc: { title: string; parts: { label: string; text: string }[] }; students: string[] }[], opts: { strips?: boolean; names?: boolean } = {}): string {
   const strips = opts.strips !== false;
+  // names: false leaves the student's name off (a blank Name line on whole sheets); each student's set still starts its own page.
+  const showNames = opts.names !== false;
   const text = (t: string) => mathHtml(t, "katex").replace(/\n/g, "<br>");
   const one = (doc: { title: string; parts: { label: string; text: string }[] }, name: string) => strips
-    ? `<div class="student">${doc.parts.map((p) => `<div class="cut strip"><div class="strip-head"><span>&#9986; <b>${h(name)}</b></span><span>${h(p.label)}</span></div><div class="rw">${text(p.text)}</div></div>`).join("")}</div>`
-    : `<div class="student"><div class="top"><b>Name</b><span class="who-name">${h(name)}</span></div>${doc.title ? `<h1>${h(doc.title)}</h1>` : ""}${doc.parts.map((p) => `<div class="rw-row">${p.label ? `<div class="rw-label">${h(p.label)}</div>` : ""}<div class="rw">${text(p.text)}</div></div>`).join("")}</div>`;
+    ? `<div class="student">${doc.parts.map((p) => `<div class="cut strip"><div class="strip-head"><span>&#9986;${showNames ? ` <b>${h(name)}</b>` : ""}</span><span>${h(p.label)}</span></div><div class="rw">${text(p.text)}</div></div>`).join("")}</div>`
+    : `<div class="student"><div class="top"><b>Name</b><span class="who-name">${showNames ? h(name) : ""}</span></div>${doc.title ? `<h1>${h(doc.title)}</h1>` : ""}${doc.parts.map((p) => `<div class="rw-row">${p.label ? `<div class="rw-label">${h(p.label)}</div>` : ""}<div class="rw">${text(p.text)}</div></div>`).join("")}</div>`;
   const body = packets.flatMap((p) => p.students.map((n) => one(p.doc, n))).join("");
   const css = `.cut{border:2px dashed #64748b;border-radius:6px;break-inside:avoid;page-break-inside:avoid}
   .strip{padding:8px 14px 10px;margin:0 0 10px}
