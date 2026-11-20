@@ -168,4 +168,36 @@ export const retakeWords = (r: Pick<Retake, "date" | "start" | "end" | "where">)
 /** An email with the retake time written in (or left as "a time I'll confirm" when none is picked yet). */
 export const fillRetake = (text: string, retake?: Retake) => text.split(RETAKE_SLOT).join(retake ? retakeWords(retake) : "a time I'll confirm soon");
 /** A mailto: link that opens the email ready to send. */
-export const mailto = (e: PlanEmail, retake?: Retake) => `mailto:${encodeURIComponent(e.to).replace(/%40/g, "@").replace(/%2C/g, ",")}?subject=${encodeURIComponent(fillRetake(e.subject, retake))}&body=${encodeURIComponent(fillRetake(e.body, retake))}`;
+export const mailto = (e: PlanEmail, retake?: Retake, concerns: Concern[] = []) => `mailto:${encodeURIComponent(e.to).replace(/%40/g, "@").replace(/%2C/g, ",")}?subject=${encodeURIComponent(fillRetake(e.subject, retake))}&body=${encodeURIComponent(concerns.length ? fillEmail(e.body, concerns, retake) : fillRetake(e.body, retake))}`;
+
+/** Where the list of assignments goes in an email. Filled in from the plan, never left to the AI. */
+export const ASSIGNMENTS_SLOT = "[ASSIGNMENTS]";
+
+/** "- Unit 3 Test (English 7): 45%" / "- Reading log (ELA): missing", one line each. */
+export const assignmentList = (concerns: Concern[]) => concerns.map((c) => `- ${c.assignment}${c.subject ? ` (${c.subject})` : ""}: ${c.kind === "missing" ? "missing" : c.score ? `${c.score}${c.kind === "failed" ? ", failed" : ", low"}` : c.kind === "failed" ? "failed" : "low score"}${c.due ? `, due ${c.due}` : ""}`).join("\n");
+
+/** The assignments a class teacher's email is about: theirs when the grades name them, else all. */
+export function concernsFor(teacher: string, concerns: Concern[]): Concern[] {
+  const last = norm(teacher.replace(/\b(mr|mrs|ms|miss|dr|mx)\b\.?/gi, "")).split(" ").pop() || "";
+  const mine = last ? concerns.filter((c) => norm(c.teacher).split(" ").includes(last)) : [];
+  return mine.length ? mine : concerns;
+}
+
+/**
+ * An email's text with the assignments listed: in place of [ASSIGNMENTS], or, when the AI left it out
+ * and the email doesn't already name every assignment, right after the line that mentions them
+ * ("listed below", "the following") or after the greeting. Then the retake time is filled in.
+ */
+export function fillEmail(text: string, concerns: Concern[], retake?: Retake): string {
+  const list = assignmentList(concerns);
+  let out = text;
+  if (out.includes(ASSIGNMENTS_SLOT)) out = out.split(ASSIGNMENTS_SLOT).join(list);
+  else if (list && !concerns.every((c) => out.toLowerCase().includes(c.assignment.toLowerCase()))) {
+    const lines = out.split("\n");
+    let at = lines.findIndex((l) => /\b(below|following|these (assignments|items)|listed)\b/i.test(l));
+    if (at < 0) at = lines.findIndex((l) => l.trim()) ; // the greeting
+    lines.splice(at + 1, 0, "", list, "");
+    out = lines.join("\n").replace(/\n{3,}/g, "\n\n");
+  }
+  return fillRetake(out, retake);
+}

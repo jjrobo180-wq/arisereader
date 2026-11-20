@@ -7,7 +7,7 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { CalendarPlus, Check, ClipboardCheck, Copy, FileText, ListTodo, Mail, Settings2, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { UPLOAD_ACCEPT, UPLOAD_LIMITS, type UploadedFile } from "@shared/uploads";
 import {
-  CONCERN_LABEL, byStudent, cleanGradePlans, cleanSettings, contactEmail, fillRetake, freeSlots, mailto, matchStudent, niceTime,
+  CONCERN_LABEL, byStudent, concernsFor, fillEmail, cleanGradePlans, cleanSettings, contactEmail, fillRetake, freeSlots, mailto, matchStudent, niceTime,
   parentEmailsFor, retakeWords, type Concern, type GradePlan, type GradePlanSettings, type PlanEmail, type Retake, type Slot,
 } from "@shared/gradePlans";
 import { cleanMakeups, type Makeup } from "@shared/hubMakeups";
@@ -228,10 +228,10 @@ function PlanCard({ plan, settings, workspace, setWorkspace, today, makeId, say,
   const [where, setWhere] = useState(settings.where);
   const patch = (p: Partial<GradePlan>) => savePlans((all) => all.map((x) => (x.id === plan.id ? { ...x, ...p } : x)));
   const slots = useMemo(() => freeSlots(workspace.events || [], today, settings, { days: 8, perDay: 3, nowTime: nowTime() }), [workspace.events, today, settings]);
-  const emails: { key: string; label: string; email: PlanEmail; set: (e: PlanEmail) => void }[] = [
-    ...plan.teacherEmails.map((e, i) => ({ key: `t${i}`, label: e.name ? `To ${e.name}` : "To the teacher", email: e, set: (n: PlanEmail) => patch({ teacherEmails: plan.teacherEmails.map((x, j) => (j === i ? n : x)) }) })),
-    { key: "parent", label: "To parents", email: plan.parentEmail, set: (n: PlanEmail) => patch({ parentEmail: n }) },
-    { key: "advisor", label: "To advisor", email: plan.advisorEmail, set: (n: PlanEmail) => patch({ advisorEmail: n }) },
+  const emails: { key: string; label: string; email: PlanEmail; about: Concern[]; set: (e: PlanEmail) => void }[] = [
+    ...plan.teacherEmails.map((e, i) => ({ key: `t${i}`, label: e.name ? `To ${e.name}` : "To the teacher", email: e, about: concernsFor(e.name, plan.concerns), set: (n: PlanEmail) => patch({ teacherEmails: plan.teacherEmails.map((x, j) => (j === i ? n : x)) }) })),
+    { key: "parent", label: "To parents", email: plan.parentEmail, about: plan.concerns, set: (n: PlanEmail) => patch({ parentEmail: n }) },
+    { key: "advisor", label: "To advisor", email: plan.advisorEmail, about: plan.concerns, set: (n: PlanEmail) => patch({ advisorEmail: n }) },
   ];
   const open = emails.find((e) => e.key === tab) || emails[0];
 
@@ -266,8 +266,8 @@ function PlanCard({ plan, settings, workspace, setWorkspace, today, makeId, say,
     setWorkspace((w) => ({ ...w, tasks: [...tasks, ...w.tasks], gradePlans: cleanGradePlans((w as any).gradePlans).map((x) => (x.id === plan.id ? { ...x, todos: at } : x)) } as Workspace));
     say(`${tasks.length} to-do${tasks.length === 1 ? "" : "s"} added to Tasks.`);
   }
-  async function copy(e: PlanEmail) {
-    const text = `${fillRetake(e.subject, plan.retake)}\n\n${fillRetake(e.body, plan.retake)}`;
+  async function copy(e: PlanEmail, about: Concern[]) {
+    const text = `${fillRetake(e.subject, plan.retake)}\n\n${fillEmail(e.body, about, plan.retake)}`;
     try { await navigator.clipboard.writeText(text); say("Email copied. Paste it into your email."); } catch { say("Couldn't copy on this device. Select the text and copy it."); }
   }
   const remove = () => {
@@ -313,10 +313,10 @@ function PlanCard({ plan, settings, workspace, setWorkspace, today, makeId, say,
           {open && <div className="space-y-2 rounded-2xl border border-slate-200 p-3">
             <input value={open.email.to} onChange={(e) => open.set({ ...open.email, to: e.target.value })} placeholder="To (email address)" className={field} aria-label="To" />
             <input value={fillRetake(open.email.subject, plan.retake)} onChange={(e) => open.set({ ...open.email, subject: e.target.value })} placeholder="Subject" className={field + " font-semibold"} aria-label="Subject" />
-            <textarea value={fillRetake(open.email.body, plan.retake)} onChange={(e) => open.set({ ...open.email, body: e.target.value })} rows={9} className={field + " py-2 leading-relaxed"} aria-label="Email" />
+            <textarea value={fillEmail(open.email.body, open.about, plan.retake)} onChange={(e) => open.set({ ...open.email, body: e.target.value })} rows={9} className={field + " py-2 leading-relaxed"} aria-label="Email" />
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={dark} onClick={() => void copy(open.email)}><Copy className="h-4 w-4" /> Copy email</button>
-              <a href={mailto(open.email, plan.retake)} className={light}><Mail className="h-4 w-4" /> Open in email</a>
+              <button type="button" className={dark} onClick={() => void copy(open.email, open.about)}><Copy className="h-4 w-4" /> Copy email</button>
+              <a href={mailto(open.email, plan.retake, open.about)} className={light}><Mail className="h-4 w-4" /> Open in email</a>
             </div>
           </div>}
         </section>

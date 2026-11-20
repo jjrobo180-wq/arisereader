@@ -12,7 +12,7 @@ import { LessonAiError, askOpenAI, seePhotoAnyAi, type LessonAsk } from "./lesso
 import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
 import { UploadError, readUploads } from "./uploadText";
 import { pdfToText } from "./pdfText";
-import { RETAKE_SLOT, cleanConcern } from "../shared/gradePlans";
+import { ASSIGNMENTS_SLOT, RETAKE_SLOT, cleanConcern } from "../shared/gradePlans";
 
 export type GradePlanDeps = { gate(req: any, res: any): Promise<unknown | null>; ask?: LessonAsk; seePhoto?: (dataUrl: string) => Promise<string> };
 
@@ -31,6 +31,7 @@ const PLAN_SYSTEM = `You help a special education teacher (or case manager) make
 - teacherEmails: ONE email for each class teacher involved. Ask, kindly, if the student may retake or redo the listed work, or turn in the missing work late; where the teacher keeps it (Google Classroom, a paper copy in the room, an online link) so the case manager can get it; whether there is a study guide; and say the case manager will pull the student to do it at ${RETAKE_SLOT}. Mention the student's accommodations only if given, in one short phrase.
 - parentEmail: to the student's parents or guardians: what is missing or low, the plan (the retake or make-up time is ${RETAKE_SLOT}), how they can help at home in one or two concrete ways, and an invitation to reply. Encouraging, never blaming.
 - advisorEmail: to the student's advisor: a short heads-up on the work and the plan, with the time ${RETAKE_SLOT}, and one way the advisor can help.
+- In every email, put the exact text ${ASSIGNMENTS_SLOT} on its own line where the list of assignments goes (right after the sentence that introduces them); the list is filled in later, so never write the list yourself.
 - Write the exact text ${RETAKE_SLOT} wherever the retake time goes; it is filled in later. Use only the student's first name. Sign every email with the sender's name given (or "Thank you," then a blank line if none).
 - steps: 3 to 6 short steps in order (contact the teacher, get the work, schedule the pull-out, prepare supports, check back after).
 - todos: 2 to 5 short to-dos for the case manager, each starting with a verb ("Get the Unit 3 test from Ms. Ruiz").

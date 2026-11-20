@@ -50,3 +50,23 @@ test("Grade Plans is a WorkHub plugin screen with its own menu item", () => {
   assert.ok(WORK_ADD_ON_TABS.includes("gradeplans"));
   assert.ok(HUB_GROUPS.some((g) => g.tabs.includes("gradeplans")));
 });
+
+test("every email lists the assignments, whether or not the AI wrote them in", async () => {
+  const { fillEmail, concernsFor, ASSIGNMENTS_SLOT } = await import("../shared/gradePlans");
+  const concerns = [
+    { id: "1", student: "Duran", assignment: "Argument Essay", subject: "English 7", teacher: "Marissa Kast", score: "", kind: "missing" as const, due: "" },
+    { id: "2", student: "Duran", assignment: "Unit 2 Test", subject: "English 7", teacher: "Marissa Kast", score: "48%", kind: "failed" as const, due: "" },
+    { id: "3", student: "Duran", assignment: "Lab 4", subject: "Science", teacher: "Mr. Ortiz", score: "", kind: "missing" as const, due: "" },
+  ];
+  // The AI left the list out, as in the email that went wrong.
+  const body = "Dear Ms. Kast,\nI am reaching out regarding Duran's missing and failed English 7 assignments listed below. Could Duran retake them?\nSincerely,\nJermaine";
+  const mine = concernsFor("Marissa Kast", concerns);
+  assert.deepEqual(mine.map((c) => c.assignment), ["Argument Essay", "Unit 2 Test"]);
+  const out = fillEmail(body, mine);
+  assert.match(out, /listed below\. Could Duran retake them\?\n\n- Argument Essay \(English 7\): missing\n- Unit 2 Test \(English 7\): 48%, failed\n\nSincerely/);
+  assert.doesNotMatch(out, /Lab 4/);
+  // With the slot, the list goes exactly there; an email that already names them all is left alone.
+  assert.match(fillEmail(`Hi,\nThese are missing:\n${ASSIGNMENTS_SLOT}\nThanks`, concerns), /missing:\n- Argument Essay[\s\S]*- Lab 4 \(Science\): missing\nThanks/);
+  const named = "Argument Essay and Unit 2 Test need redoing.";
+  assert.equal(fillEmail(named, mine), named);
+});
