@@ -11,7 +11,7 @@ export const KIT_LIFE_INDEX: readonly string[] = [
   "screen-time", "coffee-log", "reading-log", "practice-log", "energy-log", "no-spend", "alcohol-free",
   "veggie-log", "outdoor-log", "pages-log", "jokes", "fun-facts", "riddles", "would-you-rather",
   "dinner-questions", "parenting-tips", "money-tips", "cleaning-hacks", "kindness", "affirmations",
-  "kid-chores", "family-games", "rainy-day", "self-care", "cooking-tips", "organizing-tips", "age-calc",
+  "kid-chores", "family-games", "rainy-day", "self-care", "cooking-tips", "organizing-tips", "age-calc", "week-planner",
   "date-diff", "percent-calc", "recipe-scaler", "paint-calc", "discount-calc", "doctors", "vaccines",
   "allergies-list", "prescriptions", "insurance-policies", "passwords-hint", "bills-due", "debts",
   "credit-cards", "bank-accounts", "price-book", "coupons", "returns", "online-orders", "package-tracking",

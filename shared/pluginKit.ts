@@ -19,7 +19,9 @@ export type KitLog = Base & { type: "log"; unit: string; goal?: number; lower?: 
 export type KitCards = Base & { type: "cards"; noun: string; items: { t: string; a?: string }[]; reveal?: string };
 export type KitCalc = Base & { type: "calc"; calc: "age" | "datediff" | "percent" | "scale" | "paint" | "discount" | "grade" | "trials" | "groups" | "picker" | "wcpm"
   | "unitprice" | "fuel" | "payrate" | "savegoal" | "bedtime" | "average" | "weighted" | "attendance" | "services" | "needed" };
-export type KitDef = KitList | KitChecklist | KitLog | KitCards | KitCalc;
+/** The Week Planner: Monday to Friday tasks, drawn by its own screen (shared/weekPlanner.ts). */
+export type KitWeek = Base & { type: "week" };
+export type KitDef = KitList | KitChecklist | KitLog | KitCards | KitCalc | KitWeek;
 
 /** One saved thing for a kit plugin. `date` is set for logs (one record a day). */
 export type KitRecord = { id: string; plugin: string; date: string; data: Record<string, string | number | boolean> };
@@ -43,6 +45,7 @@ export const KIT_LIFE_IDS = [
   "water-log", "steps-log", "screen-time", "coffee-log", "reading-log", "practice-log", "energy-log", "no-spend", "alcohol-free", "veggie-log", "outdoor-log", "pages-log",
   "jokes", "fun-facts", "riddles", "would-you-rather", "dinner-questions", "parenting-tips", "money-tips", "cleaning-hacks", "kindness", "affirmations", "kid-chores", "family-games", "rainy-day", "self-care", "cooking-tips", "organizing-tips",
   "age-calc", "date-diff", "percent-calc", "recipe-scaler", "paint-calc", "discount-calc",
+  "week-planner",
   ...KIT_LIFE_IDS_2, ...KIT_LIFE_IDS_3,
 ] as const;
 export type KitLifeId = (typeof KIT_LIFE_IDS)[number];
@@ -51,6 +54,10 @@ const L = { hub: "life" as const };
 const W = { hub: "work" as const };
 
 const KIT_DEFS_1: readonly KitDef[] = [
+  // Planner
+  { ...L, id: "week-planner", type: "week", name: "Week Planner", tagline: "Monday to Friday, everything you need to get done", category: "Everyday", icon: "CalendarRange", color: "#6e5ae0", featured: true,
+    description: "Plan the work week day by day. Drag a task to another day when one gets away from you. Every week starts fresh, unless you carry the unfinished ones over, copy a week, or put in a saved template.",
+    features: ["Monday to Friday side by side", "Drag tasks between days", "Fresh week every Monday, or carry things over", "Save a week as a template and reuse it"] },
   // Lists
   { ...L, id: "babysitters", type: "list", name: "Babysitters", tagline: "Sitters you trust, one tap to call", category: "Family", icon: "Baby", color: "#ec4899", description: "Keep your go-to sitters with their number, rate and notes, and rate how it went.", features: ["Phone and rate", "Notes for each", "Star the favorites"],
     fields: [f("name", "Name"), f("phone", "Phone", "phone"), f("rate", "Rate per hour", "money"), f("rating", "How it went", "select", { options: ["", "⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"] }), f("notes", "Notes")] },

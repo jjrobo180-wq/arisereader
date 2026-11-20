@@ -1,7 +1,7 @@
 // The Plugin Kit's tools: one screen each for list, checklist, log, cards and calculator plugins,
 // drawn from the plugin's definition in shared/pluginKit.ts. Used by LifeHub sections and by
 // WorkHub's plugins (opened from the Plugin Gallery). Records are passed in and saved by the hub.
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Suspense, lazy, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Check, Copy, ExternalLink, Eye, Heart, Minus, Phone, Plus, RotateCcw, Shuffle, Trash2, X } from "lucide-react";
 import { addDaysTo, daysUntil, forDay, nextYearly } from "@shared/lifePlugins";
 import type { KitCalc, KitCards, KitChecklist, KitDef, KitList, KitLog, KitRecord } from "@shared/pluginKit";
@@ -18,6 +18,8 @@ export type KitProps = {
   say: (message: string) => void;
 };
 
+const WeekPlanner = lazy(() => import("./WeekPlanner"));
+
 const money = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 const niceDay = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "");
 const copyText = async (text: string, say: (m: string) => void) => { try { await navigator.clipboard.writeText(text); say("Copied."); } catch { say("Couldn't copy on this device."); } };
@@ -26,13 +28,14 @@ const salt = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0))
 export default function KitPlugin(props: KitProps) {
   const { def } = props;
   const Icon = kitIcon(def.icon);
-  const eyebrow = def.type === "checklist" ? "Checklist" : def.type === "log" ? "Tracker" : def.type === "calc" ? "Calculator" : def.type === "cards" ? "Daily pick" : "List";
+  const eyebrow = def.type === "week" ? "Planner" : def.type === "checklist" ? "Checklist" : def.type === "log" ? "Tracker" : def.type === "calc" ? "Calculator" : def.type === "cards" ? "Daily pick" : "List";
   return <div className="space-y-6">
     <div className="flex items-start gap-3">
       <span className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm" style={{ background: def.color }} aria-hidden><Icon size={24} /></span>
       <div className="min-w-0 flex-1"><PageHead eyebrow={eyebrow} title={def.name} blurb={def.description} /></div>
     </div>
-    {def.type === "list" ? <ListTool {...props} def={def} />
+    {def.type === "week" ? <Suspense fallback={null}><WeekPlanner {...props} /></Suspense>
+      : def.type === "list" ? <ListTool {...props} def={def} />
       : def.type === "checklist" ? <ChecklistTool {...props} def={def} />
       : def.type === "log" ? <LogTool {...props} def={def} />
       : def.type === "cards" ? <CardsTool {...props} def={def} />

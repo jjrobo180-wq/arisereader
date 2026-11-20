@@ -8,11 +8,11 @@ import { PLUGINS, PLUGIN_CATEGORIES, isAddable, setWorkKit, workInstalled } from
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("401 kit plugins: 240 LifeHub sections and 161 WorkHub tools, all well-formed", () => {
-  assert.equal(KIT_DEFS.length, 401);
-  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 401);
+test("402 kit plugins: 241 LifeHub sections and 161 WorkHub tools, all well-formed", () => {
+  assert.equal(KIT_DEFS.length, 402);
+  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 402);
   const life = KIT_DEFS.filter((d) => d.hub === "life"), work = KIT_DEFS.filter((d) => d.hub === "work");
-  assert.equal(life.length, 240);
+  assert.equal(life.length, 241);
   assert.equal(work.length, 161);
   assert.deepEqual([...KIT_LIFE_IDS].sort(), life.map((d) => d.id).sort());
   for (const d of KIT_DEFS) {
