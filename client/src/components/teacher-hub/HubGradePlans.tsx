@@ -52,6 +52,8 @@ export default function HubGradePlans({ workspace, setWorkspace, token, today, m
   const settings = useMemo(() => cleanSettings((workspace as any).gradePlanSettings), [(workspace as any).gradePlanSettings]);
   const roster = useMemo(() => workspace.students.map((s) => s.name), [workspace.students]);
   const [showSettings, setShowSettings] = useState(false);
+  /** The student these grades are for ("" = a report for several students). */
+  const [forStudent, setForStudent] = useState("");
   // Step 1: the grades.
   const [text, setText] = useState("");
   const [links, setLinks] = useState("");
@@ -91,8 +93,8 @@ export default function HubGradePlans({ workspace, setWorkspace, token, today, m
     try {
       // PDFs are read here in the browser (the same reader as the Exemplar Maker): words as text, a scan as pictures.
       const ready = await pdfsForAi(files, Math.max(0, 6 - photos.length)).catch(() => ({ files, images: [] as string[] }));
-      const data = await askGradeAi(token, { mode: "read", text, links, files: ready.files, images: [...photos.map((x) => x.data), ...ready.images] });
-      const list: Concern[] = (data.concerns || []).map((c: Concern, i: number) => ({ ...c, id: `${Date.now()}-${i}`, student: matchStudent(c.student, roster) || c.student }));
+      const data = await askGradeAi(token, { mode: "read", student: forStudent, text, links, files: ready.files, images: [...photos.map((x) => x.data), ...ready.images] });
+      const list: Concern[] = (data.concerns || []).map((c: Concern, i: number) => ({ ...c, id: `${Date.now()}-${i}`, student: forStudent || matchStudent(c.student, roster) || c.student }));
       setFound(list);
       setPicked(new Set(list.filter((c) => c.kind !== "low").map((c) => c.id)));
       if (!list.length) setError("Nothing missing or failing in those grades.");
@@ -155,8 +157,15 @@ export default function HubGradePlans({ workspace, setWorkspace, token, today, m
       </Card>}
 
       {/* 1. Grades */}
-      <Card title="1. Add grades">
+      <Card title="1. Pick a student, add their grades">
         <div className="space-y-3">
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Which student">
+            {roster.map((n) => <button key={n} type="button" role="radio" aria-checked={forStudent === n} onClick={() => setForStudent(forStudent === n ? "" : n)}
+              className={`min-h-10 rounded-full border px-3 text-sm font-semibold transition ${forStudent === n ? "border-violet-700 bg-violet-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-violet-400"}`}>{n}</button>)}
+            <button type="button" role="radio" aria-checked={!forStudent} onClick={() => setForStudent("")}
+              className={`min-h-10 rounded-full border px-3 text-sm font-semibold transition ${!forStudent ? "border-slate-900 bg-slate-900 text-white" : "border-dashed border-slate-300 bg-white text-slate-600 hover:border-slate-500"}`}>A report for several students</button>
+          </div>
+          <p className="text-sm font-semibold text-slate-800">{forStudent ? `Now upload ${forStudent.split(" ")[0]}'s grades:` : "Pick a student above, or upload a report with several students on it:"}</p>
           <div className="flex flex-wrap items-center gap-2">
             <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-bold text-white hover:bg-violet-800">
               <Upload className="h-4 w-4" /> Upload grades: export, PDF, screenshot, photo…
@@ -171,7 +180,7 @@ export default function HubGradePlans({ workspace, setWorkspace, token, today, m
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} maxLength={20000} placeholder="Paste a gradebook, a progress report or a missing-work list" className={field + " mt-2 py-2"} />
             <input value={links} onChange={(e) => setLinks(e.target.value)} inputMode="url" placeholder="https://docs.google.com/spreadsheets/… (Anyone with the link)" className={field + " mt-2"} />
           </details>
-          <button type="button" className={ai} disabled={!hasGrades || reading} onClick={() => void read()} data-testid="grades-read"><Sparkles className="h-4 w-4" />{reading ? "Reading the grades…" : "Find missing and failing work"}</button>
+          <button type="button" className={ai} disabled={!hasGrades || reading} onClick={() => void read()} data-testid="grades-read"><Sparkles className="h-4 w-4" />{reading ? "Reading the grades…" : forStudent ? `Find ${forStudent.split(" ")[0]}'s missing and failing work` : "Find missing and failing work"}</button>
           {error && <p className="text-sm text-rose-700" role="alert">{error}</p>}
         </div>
       </Card>

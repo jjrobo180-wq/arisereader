@@ -80,7 +80,9 @@ export function registerGradePlanRoutes(app: Express, authMiddleware: RequestHan
       if (mode === "read") {
         const text = await gradesText(req.body, see);
         if (text.replace(/\s+/g, "").length < 10) return res.status(400).json({ message: "Add the grades first: upload them, paste them, or link them." });
-        const raw = json(await ask(READ_SYSTEM, `The grades:\n\n${text}`, 4000));
+        const only = s(req.body?.student, 80);
+        const oneStudent = only ? `These grades are all for ONE student. Use the name "${only.split(/\s+/)[0]}" for every row, and list only this student's work.\n\n` : "";
+        const raw = json(await ask(READ_SYSTEM, `${oneStudent}The grades:\n\n${text}`, 4000));
         const concerns = (Array.isArray(raw?.concerns) ? raw.concerns : []).slice(0, 200).map((c: any, i: number) => cleanConcern(c, `c${i}`)).filter(Boolean);
         return res.json({ concerns });
       }
