@@ -45,3 +45,16 @@ test("Google Docs, Slides and Sheets links become their text exports", () => {
   assert.equal(googleExportUrl(`https://docs.google.com/spreadsheets/d/${id}/edit#gid=42`), `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=42`);
   assert.equal(googleExportUrl("https://example.com/page"), "https://example.com/page");
 });
+
+test("Modify for students keeps the original's questions and asks for the student's level", async () => {
+  const { cleanAsk, lessonPrompt, readAnswer } = await import("../server/lessonPlanner");
+  const a = cleanAsk({ mode: "modify", subject: "ELA", grade: "3", level: levelInstruction("3", "reading", "7") });
+  assert.equal(a.mode, "modify");
+  const p = lessonPrompt(a, "EXAMPLE from the teacher's PDF:\n1. Write a body paragraph with two pieces of evidence.");
+  assert.match(p.system, /Keep every task and question of the original/);
+  assert.match(p.user, /Grade 3 reading level/);
+  assert.match(p.user, /two pieces of evidence/);
+  assert.ok(p.maxTokens <= 6000, "small enough for the free AI's per-minute allowance");
+  const ws = readAnswer("modify", JSON.stringify({ title: "Body paragraphs", instructions: "", sections: [{ heading: "Write", directions: "", items: [{ kind: "short", prompt: "Write one sentence.", answer: "A sentence.", lines: 2 }] }] }));
+  assert.equal(ws.worksheet.title, "Body paragraphs");
+});

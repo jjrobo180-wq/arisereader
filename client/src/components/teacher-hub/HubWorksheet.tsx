@@ -5,10 +5,10 @@
 // Also the Worksheet Maker: make a worksheet on any topic, without a lesson first.
 import { useMemo, useState } from "react";
 import { UPLOAD_ACCEPT, UPLOAD_LIMITS, type UploadedFile } from "@shared/uploads";
-import { ArrowDown, ArrowUp, Copy, Download, FileText, Pencil, Plus, Printer, Scissors, Sparkles, Trash2, Upload, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Download, FileText, Pencil, Plus, Printer, Scissors, Sparkles, Trash2, Upload } from "lucide-react";
 import { cleanWorksheet, GRADES, LESSON_SUBJECTS, type GenWorksheet, type WorksheetItem } from "@shared/lessonPlanner";
 import { answerKeyText, cutSheetsHtml, downloadWorksheetDoc, printHtml, worksheetHtml } from "@/lib/lessonExport";
-import { groupByLevel, levelInstruction, levelKindFor, levelLabel, parseLevel, type LeveledStudent } from "@shared/levelWorksheets";
+import { groupByLevel, levelInstruction, levelLabel, parseLevel, type LeveledStudent } from "@shared/levelWorksheets";
 import { HubModal } from "./HubModal";
 import { Segmented, Spinner, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
 
@@ -167,12 +167,8 @@ async function shrinkPhoto(file: File): Promise<string> {
 const IS_PHOTO = /\.(png|jpe?g|webp)$/i;
 
 /** Make a worksheet on any topic, without making a lesson first. It can then be saved to a lesson. */
-export function WorksheetMaker({ token, state, className, lessons, onSave, onClose, start, students = [], classes = [] }: {
+export function WorksheetMaker({ token, state, className, lessons, onSave, onClose, start }: {
   token: string | null;
-  /** The teacher's students, with their reading and math levels, for leveled copies (one per student). */
-  students?: LeveledStudent[];
-  /** The teacher's classes and who is in each, to pick a whole class at once. */
-  classes?: { id: string; name: string; grade?: string; students: string[] }[];
   /** What the form starts with (a progress-monitoring probe for a goal, say). */
   start?: Partial<{ topic: string; grade: string; subject: string; kind: string; count: number; level: string; notes: string }>;
   state: string;
@@ -193,16 +189,6 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
   const [exFiles, setExFiles] = useState<UploadedFile[]>([]);
   const [exPhotos, setExPhotos] = useState<{ name: string; data: string }[]>([]);
   const hasExample = !!(exText.trim() || exLinks.trim() || exFiles.length || exPhotos.length);
-  // Leveled: each picked student gets the version for their own reading or math level.
-  const [forWho, setForWho] = useState<"all" | "students">("all");
-  const [classPick, setClassPick] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
-  const [levelBy, setLevelBy] = useState<"auto" | "math" | "reading">("auto");
-  const [packets, setPackets] = useState<{ ws: GenWorksheet; level: string; students: string[] }[] | null>(null);
-  const [progress, setProgress] = useState("");
-  const kind = levelBy === "auto" ? levelKindFor(f.subject) : levelBy;
-  const listed = classPick ? students.filter((s) => classes.find((c) => c.id === classPick)?.students.includes(s.name)) : students;
-  const levelOf = (s: LeveledStudent) => parseLevel(kind === "math" ? s.mathLevel : s.readingLevel) || parseLevel(s.grade);
   async function addExample(picked: FileList | null) {
     if (!picked?.length) return;
     setError("");
@@ -219,38 +205,14 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
     }
     setExFiles(files); setExPhotos(photos);
   }
-  const example = () => (hasExample ? { exampleText: exText, links: exLinks, files: exFiles, images: exPhotos.map((p) => p.data) } : {});
   async function make() {
     if (!f.topic.trim() && !hasExample) { setError("Type what the worksheet is about, or add an example to copy."); return; }
-    if (forWho === "students") return makeLeveled();
     setBusy(true); setError("");
     try {
-      const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade: f.grade, subject: f.subject, state, kind: f.kind, count: f.count, level: f.level, notes: f.notes, ...example() });
+      const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade: f.grade, subject: f.subject, state, kind: f.kind, count: f.count, level: f.level, notes: f.notes, ...(hasExample ? { exampleText: exText, links: exLinks, files: exFiles, images: exPhotos.map((p) => p.data) } : {}) });
       setWs({ ...data.worksheet, grade: f.grade || undefined, subject: f.subject || undefined });
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   }
-  /** One version per level among the picked students, made one after another (the AI has a per-minute limit). */
-  async function makeLeveled() {
-    const chosen = students.filter((s) => picked.includes(s.name));
-    if (!chosen.length) { setError("Pick at least one student."); return; }
-    const groups = groupByLevel(chosen, kind);
-    const classGrade = f.grade || classes.find((c) => c.id === classPick)?.grade || "";
-    setBusy(true); setError("");
-    const made: { ws: GenWorksheet; level: string; students: string[] }[] = [];
-    try {
-      for (const [i, g] of groups.entries()) {
-        setProgress(`Writing version ${i + 1} of ${groups.length} (${g.level ? levelLabel(g.level) : "on grade level"}, ${g.students.length} student${g.students.length === 1 ? "" : "s"})…`);
-        const grade = g.level && /^\d+$/.test(g.level) ? g.level : g.level === "K" ? "K" : f.grade;
-        const data = await askLessonAi(token, { mode: "worksheet", topic: f.topic, grade, subject: f.subject, state, kind: f.kind, count: f.count, level: levelInstruction(g.level, kind, classGrade), notes: f.notes, ...example() });
-        made.push({ ws: { ...data.worksheet, grade: grade || undefined, subject: f.subject || undefined }, level: g.level ? levelLabel(g.level) : "", students: g.students });
-      }
-      setPackets(made);
-    } catch (e: any) {
-      if (made.length) { setPackets(made); setError(`Only ${made.length} of ${groups.length} versions were made: ${e.message}`); }
-      else setError(e.message);
-    } finally { setBusy(false); setProgress(""); }
-  }
-  if (packets) return <StudentPackets packets={packets} className={className} note={error} onChange={setPackets} onClose={onClose} />;
   if (ws) return <WorksheetStudio ws={ws} className={className} onChange={setWs} onClose={onClose} extraFooter={lessons.length > 0 && (
     <span className="flex items-center gap-1.5">
       <select value={target} onChange={(e) => setTarget(e.target.value)} className="min-h-10 max-w-[12rem] rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-900" aria-label="Save to lesson"><option value="">Save to a lesson…</option>{lessons.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</select>
@@ -284,48 +246,16 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
             </ul>}
           </div>
         </fieldset>
-        {students.length > 0 && <fieldset className="space-y-2 rounded-2xl border border-teal-200 bg-teal-50/50 p-3" data-testid="ws-for-who">
-          <legend className="px-1 text-sm font-bold text-teal-900">Who is it for?</legend>
-          <Segmented label="Who is it for" value={forWho} onChange={(v) => setForWho(v as "all" | "students")} options={[
-            { id: "all", label: "One worksheet" },
-            { id: "students", label: <><Users className="h-3.5 w-3.5" /> Each student at their level</> },
-          ]} />
-          {forWho === "students" && <>
-            <p className="text-sm text-slate-700">Every student gets the same lesson, written at the {kind} level set in their profile, with their name on top. Print them as cut-apart sheets.</p>
-            <div className="flex flex-wrap items-end gap-2">
-              {classes.length > 0 && <label className="text-xs font-semibold text-slate-600">Class
-                <select value={classPick} onChange={(e) => { const id = e.target.value; setClassPick(id); const c = classes.find((x) => x.id === id); setPicked(c ? students.filter((s) => c.students.includes(s.name)).map((s) => s.name) : []); }} className={field + " min-w-[10rem]"}>
-                  <option value="">All my students</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select></label>}
-              <label className="text-xs font-semibold text-slate-600">Use each student's
-                <select value={levelBy} onChange={(e) => setLevelBy(e.target.value as typeof levelBy)} className={field + " min-w-[10rem]"}>
-                  <option value="auto">{levelKindFor(f.subject) === "math" ? "Math level (subject is math)" : "Reading level"}</option><option value="reading">Reading level</option><option value="math">Math level</option>
-                </select></label>
-              <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => setPicked(Array.from(new Set([...picked, ...listed.map((s) => s.name)])))}>Select all</button>
-              <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => setPicked(picked.filter((n) => !listed.some((s) => s.name === n)))}>Clear</button>
-            </div>
-            <ul className="grid max-h-60 grid-cols-1 gap-1 overflow-y-auto rounded-xl bg-white p-2 ring-1 ring-slate-200 sm:grid-cols-2">
-              {listed.map((s) => { const l = levelOf(s); return (
-                <li key={s.name}><label className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-slate-900 hover:bg-slate-50">
-                  <input type="checkbox" className="h-4 w-4" checked={picked.includes(s.name)} onChange={(e) => setPicked(e.target.checked ? [...picked, s.name] : picked.filter((n) => n !== s.name))} />
-                  <span className="flex-1 truncate">{s.name}</span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${l ? "bg-teal-100 text-teal-900" : "bg-amber-100 text-amber-900"}`}>{l ? levelLabel(l) : "no level set"}</span>
-                </label></li>); })}
-              {!listed.length && <li className="p-2 text-sm text-slate-500">No students in this class yet.</li>}
-            </ul>
-            <p className="text-xs text-slate-600">{picked.length} picked · {groupByLevel(students.filter((s) => picked.includes(s.name)), kind).length} version{groupByLevel(students.filter((s) => picked.includes(s.name)), kind).length === 1 ? "" : "s"} will be made. Set a student's level in their profile (Caseload → Edit). Students with no level get the worksheet's grade.</p>
-          </>}
-        </fieldset>}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <label className="text-xs font-semibold text-slate-500">Grade<select value={f.grade} onChange={(e) => setF({ ...f, grade: e.target.value })} className={field}><option value="">Any</option>{GRADES.map((g) => <option key={g} value={g}>Grade {g}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">Subject<select value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} className={field}>{LESSON_SUBJECTS.map((s) => <option key={s}>{s}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">How many questions<input type="number" min={1} max={30} value={f.count} onChange={(e) => setF({ ...f, count: Number(e.target.value) || 12 })} className={field} /></label>
           <label className="text-xs font-semibold text-slate-500">Kind<select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} className={field}>{["practice worksheet", "quiz", "unit test", "exit ticket", "homework", "warm-up", "graphing practice", "word problems", "reading comprehension with a passage", "vocabulary practice", "test review"].map((k) => <option key={k}>{k}</option>)}</select></label>
-          {forWho === "all" && <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Level<select value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} className={field}>{["on grade level", "below grade level (scaffolded, with examples and a word bank)", "above grade level (challenge)", "modified for students with IEPs (simplified language, fewer choices, bigger spaces)"].map((k) => <option key={k} value={k}>{k}</option>)}</select></label>}
+          <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Level<select value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} className={field}>{["on grade level", "below grade level (scaffolded, with examples and a word bank)", "above grade level (challenge)", "modified for students with IEPs (simplified language, fewer choices, bigger spaces)"].map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
         </div>
         <label className="block text-xs font-semibold text-slate-500">Anything else? <span className="font-normal">(optional)</span><input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Include a coordinate plane; use money; Halloween theme; numbers under 100…" className={field + " px-3"} /></label>
         {error && <p className="text-sm text-rose-700">{error}</p>}
-        <button type="button" disabled={busy} onClick={() => void make()} className={aiBtn + " min-h-11"}>{busy ? <Spinner label={progress || "Writing the worksheet and answer key…"} /> : forWho === "students" ? <><Sparkles className="h-4 w-4" /> Make {picked.length} student cop{picked.length === 1 ? "y" : "ies"}</> : <><Sparkles className="h-4 w-4" /> Make worksheet</>}</button>
+        <button type="button" disabled={busy} onClick={() => void make()} className={aiBtn + " min-h-11"}>{busy ? <Spinner label="Writing the worksheet and answer key…" /> : <><Sparkles className="h-4 w-4" /> Make worksheet</>}</button>
       </div>
     </HubModal>
   );
@@ -370,6 +300,133 @@ function StudentPackets({ packets, className, note, onChange, onClose }: {
           </li>
         ))}
       </ul>
+    </HubModal>
+  );
+}
+
+/**
+ * Modify for students: the teacher's own assignment (a photo, PDF, Word file, link or pasted text),
+ * rewritten for each picked student at their reading or math level from their profile. Nothing else
+ * to fill in: same tasks, same order, made easier to get into. Printed as cut-apart copies, one per
+ * student, with their name on top.
+ */
+export function StudentCopiesMaker({ token, state, className, students, classes, onClose }: {
+  token: string | null;
+  state: string;
+  className: string;
+  students: LeveledStudent[];
+  classes: { id: string; name: string; grade?: string; students: string[] }[];
+  onClose: () => void;
+}) {
+  const [exText, setExText] = useState("");
+  const [exLinks, setExLinks] = useState("");
+  const [exFiles, setExFiles] = useState<UploadedFile[]>([]);
+  const [exPhotos, setExPhotos] = useState<{ name: string; data: string }[]>([]);
+  const [classPick, setClassPick] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [kind, setKind] = useState<"reading" | "math">("reading");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [error, setError] = useState("");
+  const [packets, setPackets] = useState<{ ws: GenWorksheet; level: string; students: string[] }[] | null>(null);
+  const hasOriginal = !!(exText.trim() || exLinks.trim() || exFiles.length || exPhotos.length);
+  const listed = classPick ? students.filter((s) => classes.find((c) => c.id === classPick)?.students.includes(s.name)) : students;
+  const levelOf = (s: LeveledStudent) => parseLevel(kind === "math" ? s.mathLevel : s.readingLevel) || parseLevel(s.grade);
+  const chosen = students.filter((s) => picked.includes(s.name));
+  const groups = groupByLevel(chosen, kind);
+
+  async function addOriginal(list: FileList | null) {
+    if (!list?.length) return;
+    setError("");
+    const files = [...exFiles], photos = [...exPhotos];
+    for (const file of [...list]) {
+      if (IS_PHOTO.test(file.name) || file.type.startsWith("image/")) {
+        if (photos.length >= 6) { setError("Up to 6 photos."); continue; }
+        try { photos.push({ name: file.name, data: await shrinkPhoto(file) }); } catch { setError(`“${file.name}” couldn’t be read. Try another picture.`); }
+      } else {
+        if (files.length >= UPLOAD_LIMITS.files) { setError(`Up to ${UPLOAD_LIMITS.files} files at a time.`); continue; }
+        if (file.size > UPLOAD_LIMITS.fileBytes) { setError(`“${file.name}” is too big. The most for one file is ${Math.round(UPLOAD_LIMITS.fileBytes / 1_000_000)} MB.`); continue; }
+        try { files.push({ name: file.name, data: await fileBase64(file) }); } catch { setError(`“${file.name}” couldn’t be read. Try adding it again.`); }
+      }
+    }
+    setExFiles(files); setExPhotos(photos);
+  }
+
+  async function make() {
+    if (!hasOriginal) { setError("Add the assignment first: upload it, paste it, or link it."); return; }
+    if (!chosen.length) { setError("Pick at least one student."); return; }
+    const classGrade = classes.find((c) => c.id === classPick)?.grade || "";
+    setBusy(true); setError("");
+    const made: { ws: GenWorksheet; level: string; students: string[] }[] = [];
+    try {
+      for (const [i, g] of groups.entries()) {
+        setProgress(`Writing ${i + 1} of ${groups.length}: ${g.level ? levelLabel(g.level) : "original level"} (${g.students.length} student${g.students.length === 1 ? "" : "s"})…`);
+        const data = await askLessonAi(token, {
+          mode: "modify", subject: kind === "math" ? "Math" : "ELA", state, grade: g.level || classGrade, level: g.level ? levelInstruction(g.level, kind, classGrade) : "",
+          exampleText: exText, links: exLinks, files: exFiles, images: exPhotos.map((p) => p.data),
+        });
+        made.push({ ws: { ...data.worksheet, grade: g.level || undefined }, level: g.level ? levelLabel(g.level) : "", students: g.students });
+      }
+      setPackets(made);
+    } catch (e: any) {
+      if (made.length) { setPackets(made); setError(`Only ${made.length} of ${groups.length} versions were made: ${e.message}`); }
+      else setError(e.message);
+    } finally { setBusy(false); setProgress(""); }
+  }
+
+  if (packets) return <StudentPackets packets={packets} className={className} note={error} onChange={setPackets} onClose={onClose} />;
+  const field = "mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900";
+  return (
+    <HubModal title="Modify for students" onClose={onClose} size="lg" footer={
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" disabled={busy || !hasOriginal || !chosen.length} onClick={() => void make()} className={aiBtn + " min-h-11"} data-testid="copies-make">
+          {busy ? <Spinner label={progress || "Writing…"} /> : <><Scissors className="h-4 w-4" /> Make {chosen.length || ""} student cop{chosen.length === 1 ? "y" : "ies"}</>}
+        </button>
+        {!busy && chosen.length > 0 && <span className="text-sm text-slate-600">{groups.length} version{groups.length === 1 ? "" : "s"}: {groups.map((g) => g.level ? levelLabel(g.level) : "original level").join(", ")}</span>}
+        {error && <span className="w-full text-sm text-rose-700" role="alert">{error}</span>}
+      </div>
+    }>
+      <div className="space-y-4 text-slate-900">
+        <section className="space-y-2">
+          <h3 className="text-sm font-extrabold text-slate-900"><span className="mr-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-xs text-white">1</span>The assignment</h3>
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-bold text-white">
+            <Upload className="h-4 w-4" /> Upload: photo, screenshot, PDF, Word…
+            <input type="file" multiple hidden accept={UPLOAD_ACCEPT} onChange={(e) => { void addOriginal(e.target.files); e.target.value = ""; }} />
+          </label>
+          {(exFiles.length > 0 || exPhotos.length > 0) && <ul className="flex flex-wrap gap-2">
+            {exFiles.map((x, i) => <li key={`f${i}`} className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-300"><FileText className="h-3.5 w-3.5" />{x.name}<button type="button" aria-label={`Remove ${x.name}`} onClick={() => setExFiles(exFiles.filter((_, k) => k !== i))} className="ml-1 text-slate-500 hover:text-rose-600">×</button></li>)}
+            {exPhotos.map((x, i) => <li key={`p${i}`} className="flex items-center gap-1 rounded-full bg-white py-1 pl-1 pr-3 text-xs font-semibold text-slate-800 ring-1 ring-slate-300"><img src={x.data} alt="" className="h-6 w-6 rounded object-cover" />{x.name}<button type="button" aria-label={`Remove ${x.name}`} onClick={() => setExPhotos(exPhotos.filter((_, k) => k !== i))} className="ml-1 text-slate-500 hover:text-rose-600">×</button></li>)}
+          </ul>}
+          <details className="rounded-xl bg-slate-50 px-3 py-2 text-sm">
+            <summary className="cursor-pointer font-semibold text-slate-700">Or paste it, or link it (Google Doc, web page)</summary>
+            <textarea value={exText} onChange={(e) => setExText(e.target.value)} rows={4} maxLength={12000} placeholder="Paste the assignment or test here" className={field + " py-2"} />
+            <input value={exLinks} onChange={(e) => setExLinks(e.target.value)} inputMode="url" autoComplete="off" maxLength={600} placeholder="https://docs.google.com/… (set to Anyone with the link)" className={field + " mt-2"} />
+          </details>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="text-sm font-extrabold text-slate-900"><span className="mr-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-xs text-white">2</span>The students</h3>
+          <div className="flex flex-wrap items-end gap-2">
+            {classes.length > 0 && <label className="text-xs font-semibold text-slate-600">Class
+              <select value={classPick} onChange={(e) => { const id = e.target.value; setClassPick(id); const c = classes.find((x) => x.id === id); setPicked(c ? students.filter((s) => c.students.includes(s.name)).map((s) => s.name) : []); }} className={field + " min-w-[10rem]"}>
+                <option value="">All my students</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select></label>}
+            <Segmented label="Which level" value={kind} onChange={(v) => setKind(v as "reading" | "math")} options={[{ id: "reading", label: "Reading level" }, { id: "math", label: "Math level" }]} />
+            <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => setPicked(Array.from(new Set([...picked, ...listed.map((s) => s.name)])))}>Select all</button>
+            <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => setPicked(picked.filter((n) => !listed.some((s) => s.name === n)))}>Clear</button>
+          </div>
+          <ul className="grid max-h-72 grid-cols-1 gap-1 overflow-y-auto rounded-xl bg-white p-2 ring-1 ring-slate-200 sm:grid-cols-2">
+            {listed.map((s) => { const l = levelOf(s); return (
+              <li key={s.name}><label className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-slate-900 hover:bg-slate-50">
+                <input type="checkbox" className="h-4 w-4" checked={picked.includes(s.name)} onChange={(e) => setPicked(e.target.checked ? [...picked, s.name] : picked.filter((n) => n !== s.name))} />
+                <span className="flex-1 truncate">{s.name}</span>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${l ? "bg-teal-100 text-teal-900" : "bg-slate-100 text-slate-500"}`}>{l ? levelLabel(l) : "original level"}</span>
+              </label></li>); })}
+            {!listed.length && <li className="p-2 text-sm text-slate-500">No students here yet.</li>}
+          </ul>
+          <p className="text-xs text-slate-500">Each student gets the assignment rewritten at their {kind} level, with their name on top. Set levels in Caseload → Edit. A student with no level gets the assignment at its own level, cleaned up.</p>
+        </section>
+      </div>
     </HubModal>
   );
 }

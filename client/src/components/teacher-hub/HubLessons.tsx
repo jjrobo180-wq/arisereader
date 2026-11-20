@@ -8,6 +8,7 @@ import { Fragment, useMemo, useState } from "react";
 import {
   AlertTriangle, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, CloudSnow, FileStack, LayoutGrid, List, Plus, RotateCcw, Search,
   Settings2, Sparkles, Trash2, Users, X, BookCheck, CalendarClock, Link2,
+  Scissors,
 } from "lucide-react";
 import { LessonSharePanel } from "./LessonShare";
 import type { Workspace } from "@shared/teacherHub";
@@ -21,7 +22,7 @@ import {
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { HubModal } from "./HubModal";
 import HubLessonEditor from "./HubLessonEditor";
-import { WorksheetMaker } from "./HubWorksheet";
+import { StudentCopiesMaker, WorksheetMaker } from "./HubWorksheet";
 import HubExemplarModal, { type ExemplarTool } from "./HubExemplarModal";
 import { COLOR, NO_CLASS, STATUS_STYLE, Segmented, Spinner, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
 
@@ -61,6 +62,7 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
   const [unitOpen, setUnitOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
   const [makerOpen, setMakerOpen] = useState(false);
+  const [copiesOpen, setCopiesOpen] = useState(false);
   /** The SPED Exemplar Maker or the Kha ELA Worksheet Maker, when one is open. */
   const [exemplar, setExemplar] = useState<ExemplarTool | null>(null);
   const [search, setSearch] = useState("");
@@ -126,6 +128,7 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
         <button type="button" onClick={() => newLesson()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><Plus className="h-4 w-4" /> New lesson</button>
         <button type="button" onClick={() => setUnitOpen(true)} className={aiBtn + " min-h-11"}><Sparkles className="h-4 w-4" /> Plan a unit with AI</button>
         <button type="button" onClick={() => setMakerOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><FileStack className="h-4 w-4" /> Worksheet maker</button>
+        <button type="button" onClick={() => setCopiesOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="open-student-copies"><Scissors className="h-4 w-4" /> Modify for students</button>
         <button type="button" onClick={() => setExemplar("sped")} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="open-sped-exemplar"><BookCheck className="h-4 w-4" /> SPED Exemplar Maker</button>
         <button type="button" onClick={() => setExemplar("kha")} className={smallBtn + " min-h-11 px-3 text-sm"} data-testid="open-kha-ela"><Sparkles className="h-4 w-4" /> Kha ELA</button>
         <button type="button" onClick={() => setClassesOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><Settings2 className="h-4 w-4" /> Classes & periods</button>
@@ -213,7 +216,10 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
       {classesOpen && <ClassesManager classes={classes} setClasses={setClasses} caseload={caseload} blocks={blocks} makeId={makeId} lessons={lessons} onClose={() => setClassesOpen(false)} />}
       {unitOpen && <UnitPlanner token={token} classes={classes} lessons={lessons} state={state} onState={setState} defaultClass={activeClass?.id || classes[0]?.id || ""} today={today}
         onAdd={(made) => { setLessons((all) => [...made, ...all]); say(`${made.length} lessons added to your plan.`); setView("year"); }} onClose={() => setUnitOpen(false)} makeId={makeId} />}
-      {makerOpen && <WorksheetMaker token={token} state={state} className={activeClass?.name || ""} students={[...workspace.students, ...Array.from(new Set<string>(classes.flatMap((c) => c.students))).filter((n) => !workspace.students.some((s) => s.name === n)).map((name) => ({ name }))]} classes={classes}
+      {copiesOpen && <StudentCopiesMaker token={token} state={state} className={activeClass?.name || ""}
+        students={[...workspace.students, ...Array.from(new Set<string>(classes.flatMap((c) => c.students))).filter((n) => !workspace.students.some((s) => s.name === n)).map((name) => ({ name }))]}
+        classes={classes} onClose={() => setCopiesOpen(false)} />}
+      {makerOpen && <WorksheetMaker token={token} state={state} className={activeClass?.name || ""}
         lessons={[...lessons].filter((l) => !l.date || l.date >= addDays(today, -30)).sort((a, b) => (a.date || "9").localeCompare(b.date || "9")).slice(0, 200).map((l) => ({ id: l.id, label: `${l.date ? nice(l.date, { month: "short", day: "numeric" }) + " · " : ""}${l.title}${classOf(l, classes) ? ` (${classOf(l, classes)!.name})` : ""}` }))}
         onSave={(lessonId, ws) => { const pair = makeId(), at = new Date().toISOString(); setLessons((all) => all.map((l) => l.id !== lessonId ? l : { ...l, files: [...(l.files || []), { id: makeId(), kind: "worksheet", name: ws.title, worksheet: ws, addedAt: at, pair }, { id: makeId(), kind: "answerKey", name: `${ws.title} — answer key`, worksheet: ws, addedAt: at, pair }] })); say("Worksheet and answer key saved to the lesson."); }}
         onClose={() => setMakerOpen(false)} />}

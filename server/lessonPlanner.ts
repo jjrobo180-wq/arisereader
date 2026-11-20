@@ -148,7 +148,9 @@ const askOpenAI: LessonAsk = async (system, user, maxTokens, attachments = []) =
   }
   if (!res.ok) {
     console.error("[lesson-planner] AI failed:", res.status, attachments.length ? `(${attachments.length} attachment(s))` : "", (await res.text().catch(() => "")).slice(0, 300));
-    throw new LessonAiError(res.status === 429 ? "The AI is busy right now. Try again in a minute." : "The AI could not help with that right now. Try again.");
+    throw new LessonAiError(res.status === 429 ? "The AI is busy right now. Try again in a minute."
+      : res.status === 413 ? "That assignment is too long for the AI in one go. Upload one or two pages at a time."
+      : `The AI could not help with that right now (it answered ${res.status}). Try again in a minute.`);
   }
   const payload: any = await res.json().catch(() => null);
   if (payload?.choices?.[0]?.finish_reason === "length") throw new LessonAiError("That was too much to make at once. Ask for fewer questions or slides.");
@@ -240,6 +242,13 @@ const SCAFFOLD_RULES = `Scaffolding rules:
 - Give every question an answer for the answer key. Fade the help as the worksheet goes on.
 - Write for a student who is capable but needs a way in: respectful wording, never babyish.`;
 
+/** Rewriting the teacher's own assignment for one student's level (Modify for students). */
+const MODIFY_RULES = `Modifying rules: the teacher gave you their ORIGINAL assignment or test (below). Make the modified version a student at the given level does instead.
+- Keep every task and question of the original, in the same order and with the same purpose, so the student does the same lesson as the class. Only drop a question when the original has more than 20; then keep the most important 20.
+- Make each one reachable at the student's level: shorter sentences, easier words (with a short "Word help" where a hard word must stay), a reading passage shortened and rewritten at the level, fewer answer choices (2 or 3), smaller numbers or fewer steps in maths, a sentence frame or starter for anything written.
+- Keep the original's skill and standard. Never change what a question is asking into a different skill.
+- Give every question its correct answer for the answer key, worked from the modified version.`;
+
 /** The system and user messages for each job, and how long the answer may be. */
 export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user: string; maxTokens: number } {
   const ctx = context(a);
@@ -256,6 +265,10 @@ export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user:
     case "worksheet": {
       const kind = a.kind || "practice worksheet";
       return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? (a.level.length > 60 ? `. Level: ${a.level}.` : `, ${a.level} level`) : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.${example ? `\n\n${EXAMPLE_RULES}\n\n${example}` : ""}\nReturn ${WORKSHEET_SHAPE}.` };
+    }
+    case "modify": {
+      const who = a.level ? `a student who works at this level: ${a.level}` : "a student who needs it a little easier to get into (keep the original's grade level; make the wording clearer and the layout easier)";
+      return { maxTokens: 5000, system: `${BASE}\n${WORKSHEET_RULES}\n${MODIFY_RULES}`, user: `Make the modified version of the teacher's assignment for ${who}.${a.grade ? ` Grade: ${a.grade}.` : ""}${a.subject ? ` Subject: ${a.subject}.` : ""}\n\n${example || "(The teacher gave no assignment.)"}\n\nReturn ${WORKSHEET_SHAPE}.` };
     }
     case "scaffold": {
       const kind = a.kind || "practice worksheet";
@@ -278,7 +291,7 @@ export function readAnswer(mode: AiMode, rawText: string): any {
     case "ideas": { const ideas = cleanIdeas(raw); if (!ideas.length) break; return { ideas }; }
     case "build": case "reteach": { const plan = cleanPlanFields(raw); if (!Object.keys(plan).length) break; return { plan }; }
     case "standards": return { standards: cleanFoundStandards(raw) };
-    case "worksheet": case "scaffold": { const worksheet = cleanWorksheet(raw); if (!worksheet) break; return { worksheet }; }
+    case "worksheet": case "scaffold": case "modify": { const worksheet = cleanWorksheet(raw); if (!worksheet) break; return { worksheet }; }
     case "slides": { const slides = cleanSlides(raw?.slides); if (!slides) break; return { slides }; }
     case "unit": { const unit = cleanUnit(raw); if (!unit.lessons.length) break; return unit; }
   }
@@ -298,7 +311,7 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
     // An example to copy (worksheet only): typed text, links, files (PDF, Word, ...) and photos.
     let example = "";
     let attachments: string[] = [];
-    if (a.mode === "worksheet") {
+    if (a.mode === "worksheet" || a.mode === "modify") {
       try {
         const exampleText = s(req.body?.exampleText, 12_000);
         const links = linksFrom(req.body?.links);
@@ -325,13 +338,14 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
           pdfTexts.length && `EXAMPLE from the teacher's PDF${pdfTexts.length > 1 ? "s" : ""}:\n${pdfTexts.join("\n\n")}`,
           pages.length && `EXAMPLE from a web page:\n${pagesText(pages, 12_000)}`,
           read.length && `EXAMPLE problems read from ${read.length} photo(s) the teacher uploaded:\n${read.map((t, i) => `Photo ${i + 1}:\n${t}`).join("\n\n")}`,
-        ].filter(Boolean).join("\n\n").slice(0, 40_000);
+        ].filter(Boolean).join("\n\n").slice(0, a.mode === "modify" ? 14_000 : 20_000);
       } catch (e: any) {
         if (e instanceof UploadError || e instanceof PageError) return res.status(400).json({ message: e.message });
         if (e instanceof LessonAiError) return res.status(502).json({ message: e.message });
         throw e;
       }
     }
+    if (a.mode === "modify" && !example) return res.status(400).json({ message: "Add the assignment first: upload it, paste it, or link it." });
     if (!a.topic && !example && !Object.keys(a.lesson).length && !a.standards.length) return res.status(400).json({ message: "Type a topic or skill first, or add an example, so the AI knows what the worksheet is about." });
     const who = `u${req.user?.id}`;
     const wait = limits.retryAfter(who);
