@@ -36,14 +36,31 @@ function get(url: URL): Promise<Got> {
 }
 
 /** The words on a web page, or a PageError that says why not. */
+/**
+ * A Google Doc, Slides or Sheet link as the address of its plain-text export, which opens without a
+ * sign-in when the file is shared as "Anyone with the link". Any other link comes back as it is.
+ */
+export function googleExportUrl(raw: string): string {
+  const m = /^https?:\/\/docs\.google\.com\/(document|presentation|spreadsheets)\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]{20,})/.exec(raw.trim());
+  if (!m) return raw;
+  const [, kind, id] = m;
+  if (kind === "document") return `https://docs.google.com/document/d/${id}/export?format=txt`;
+  if (kind === "presentation") return `https://docs.google.com/presentation/d/${id}/export/txt`;
+  const gid = /[#&?]gid=(\d+)/.exec(raw)?.[1];
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv${gid ? `&gid=${gid}` : ""}`;
+}
+
 export async function fetchPageText(raw: string): Promise<PageText> {
-  let url = allowedUrl(String(raw || "").trim());
+  const google = googleExportUrl(String(raw || "").trim());
+  const isGoogle = google !== String(raw || "").trim();
+  let url = allowedUrl(google);
   if (!url) throw new PageError(`That link can't be opened from here. ${INSTEAD}`);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     let page: Got;
     try { page = await get(url); } catch (e: any) {
       throw new PageError(e?.code === "EBLOCKED" ? `That link can't be opened from here. ${INSTEAD}` : `I couldn't open ${url.hostname}. Check the link, or ${INSTEAD.charAt(0).toLowerCase()}${INSTEAD.slice(1)}`);
     }
+    if (isGoogle && (page.status === 401 || page.status === 403 || page.status === 404 || /accounts\.google\.com|ServiceLogin/.test(page.location || "") || (/text\/html/i.test(page.type) && /accounts\.google\.com/.test(page.body.slice(0, 5000))))) throw new PageError(`That Google file is private. In Google, click Share and set General access to “Anyone with the link”, then try again. ${INSTEAD}`);
     if (page.status >= 300 && page.status < 400 && page.location) {
       const next = allowedUrl(new URL(page.location, url).toString());
       if (!next) throw new PageError(`That link sends me somewhere I can't open. ${INSTEAD}`);
@@ -51,10 +68,10 @@ export async function fetchPageText(raw: string): Promise<PageText> {
     }
     if (page.status === 401 || page.status === 403) throw new PageError(`${url.hostname} needs a sign-in to show that page. ${INSTEAD}`);
     if (page.status >= 400) throw new PageError(`${url.hostname} answered "${page.status}" for that link. Check the link, or ${INSTEAD.charAt(0).toLowerCase()}${INSTEAD.slice(1)}`);
-    if (!/text\/(html|plain)|application\/xhtml/i.test(page.type) && page.type) throw new PageError(`That link isn't a web page (it may be a PDF or a file). ${INSTEAD}`);
+    if (!/text\/(html|plain|csv)|application\/xhtml/i.test(page.type) && page.type) throw new PageError(`That link isn't a web page (it may be a PDF or a file). ${INSTEAD}`);
     const title = (/<title[^>]*>([\s\S]*?)<\/title>/i.exec(page.body)?.[1] || "").replace(/\s+/g, " ").trim().slice(0, 160);
     const text = (/html|xml/i.test(page.type) || /<html|<body|<p[ >]/i.test(page.body.slice(0, 2000)) ? htmlToText(page.body) : page.body).replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-    if (text.length < 200) throw new PageError(`That page has no readable text for me (it may load its words with JavaScript, or need a sign-in). ${INSTEAD}`);
+    if (text.length < (isGoogle ? 10 : 200)) throw new PageError(`That page has no readable text for me (it may load its words with JavaScript, or need a sign-in). ${INSTEAD}`);
     return { url: url.toString(), title, text };
   }
   throw new PageError(`That link keeps redirecting. ${INSTEAD}`);

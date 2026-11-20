@@ -132,6 +132,7 @@ import {
 } from "@shared/teacherHub";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, teamDraft, teamMembers, updateStudentWithTeam, type StudentDetails, type TeamDraft } from "@shared/hubStudentTeam";
 import { StudentTeamFields, StudentTeamSummary } from "@/components/teacher-hub/HubStudentTeam";
+import { levelLabel } from "@shared/levelWorksheets";
 import { deleteRow, deleteStudentRecords, studentRecordCount, undoDelete, type Deleted } from "@shared/hubDelete";
 import { BottomStack, useToasts, type ToastAction } from "@/components/teacher-hub/HubToast";
 import { publishWatchPart, watchActions } from "@/lib/watch";
@@ -140,7 +141,7 @@ import { ConflictDialog, HubDataPanel, SaveBadge, SaveNotice, SizeNotice, downlo
 import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
 import { Tasks, TaskRow, NewChip } from "@/components/teacher-hub/HubTasks";
-import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
+import { Card, Empty, Field, GhostButton, Labeled, LevelSelect, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import HubQuickAddStudent, { AddStudentButton } from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
@@ -2308,8 +2309,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
         <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Field placeholder="Student name" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setAddError(""); }} required aria-label="Student name" aria-invalid={!!addError} />
           <Field placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
-          <Field placeholder="Reading level" value={form.readingLevel} onChange={(e) => setForm({ ...form, readingLevel: e.target.value })} />
-          <Field placeholder="Math level" value={form.mathLevel} onChange={(e) => setForm({ ...form, mathLevel: e.target.value })} />
+          <LevelSelect placeholder="Reading level" value={form.readingLevel} onChange={(v) => setForm({ ...form, readingLevel: v })} aria-label="Reading level" />
+          <LevelSelect placeholder="Math level" value={form.mathLevel} onChange={(v) => setForm({ ...form, mathLevel: v })} aria-label="Math level" />
           <Labeled label="IEP deadline"><Field type="date" value={form.iepDate} onChange={(e) => setForm({ ...form, iepDate: e.target.value })} /></Labeled>
           <Labeled label="Reevaluation deadline"><Field type="date" value={form.reevalDate} onChange={(e) => setForm({ ...form, reevalDate: e.target.value })} /></Labeled>
           <Field placeholder="Accommodations" value={form.accommodations} onChange={(e) => setForm({ ...form, accommodations: e.target.value })} className="md:col-span-2" />
@@ -2337,8 +2338,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
               <Labeled label="Student name"><Field value={editing.form.name} onChange={(e) => typed({ name: e.target.value })} required autoFocus={editing.start === "name"} /></Labeled>
               <Labeled label="Grade"><Field value={editing.form.grade} onChange={(e) => typed({ grade: e.target.value })} /></Labeled>
-              <Labeled label="Reading level"><Field value={editing.form.readingLevel} onChange={(e) => typed({ readingLevel: e.target.value })} /></Labeled>
-              <Labeled label="Math level"><Field value={editing.form.mathLevel} onChange={(e) => typed({ mathLevel: e.target.value })} /></Labeled>
+              <Labeled label="Reading level"><LevelSelect value={editing.form.readingLevel} onChange={(v) => typed({ readingLevel: v })} /></Labeled>
+              <Labeled label="Math level"><LevelSelect value={editing.form.mathLevel} onChange={(v) => typed({ mathLevel: v })} /></Labeled>
               <Labeled label="IEP deadline"><Field type="date" value={editing.form.iepDate} onChange={(e) => typed({ iepDate: e.target.value })} /></Labeled>
               <Labeled label="Reevaluation deadline"><Field type="date" value={editing.form.reevalDate} onChange={(e) => typed({ reevalDate: e.target.value })} /></Labeled>
               <Labeled label="Accommodations" className="sm:col-span-2"><Field value={editing.form.accommodations} onChange={(e) => typed({ accommodations: e.target.value })} /></Labeled>
@@ -2401,8 +2402,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             </div>
             <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <Info label="Grade" value={s.grade || "—"} />
-              <Info label="Reading" value={s.readingLevel || "—"} />
-              <Info label="Math" value={s.mathLevel || "—"} />
+              <Info label="Reading" value={s.readingLevel ? levelLabel(s.readingLevel) : "—"} />
+              <Info label="Math" value={s.mathLevel ? levelLabel(s.mathLevel) : "—"} />
               <Info label="IEP deadline" value={s.iepDate || "—"} />
               <Info label="Reeval deadline" value={s.reevalDate || "—"} />
               <Info label="Accommodations" value={s.accommodations || "—"} />

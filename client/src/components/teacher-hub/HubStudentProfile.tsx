@@ -1,5 +1,6 @@
 // Arise WorkHub: one student's whole picture. Opened from the Caseload: everything the Hub holds
 // for that student in one place, each part with a way to jump to the tab where it is kept.
+import { levelLabel } from "@shared/levelWorksheets";
 import { cleanHelpLogs, logsFor, whatWorks, whatWorksSentence } from "@shared/hubCoach";
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { ArrowLeft, Plus, Sparkles } from "lucide-react";
@@ -123,8 +124,8 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Fact label="Grade" value={s.grade} />
-          <Fact label="Reading level" value={s.readingLevel} />
-          <Fact label="Math level" value={s.mathLevel} />
+          <Fact label="Reading level" value={s.readingLevel && levelLabel(s.readingLevel)} />
+          <Fact label="Math level" value={s.mathLevel && levelLabel(s.mathLevel)} />
           <Fact label="Behavior points" value={profile.behavior.entries.length ? String(profile.behavior.total) : ""} />
           {!s.supplementary && <DateFact label="IEP deadline" when={profile.iep} today={today} />}
           {!s.supplementary && <DateFact label="Reevaluation deadline" when={profile.reeval} today={today} />}

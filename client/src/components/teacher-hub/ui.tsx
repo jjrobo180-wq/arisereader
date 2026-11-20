@@ -1,6 +1,7 @@
 // The small building blocks every Arise WorkHub screen is made of.
 import { forwardRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
+import { LEVELS, levelLabel } from "@shared/levelWorksheets";
 
 // Which cards are folded shut, remembered on this phone or computer.
 const COLLAPSED_KEY = "arise-hub-collapsed";
@@ -122,4 +123,20 @@ export function Labeled({ label, className = "", children }: { label: string; cl
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="py-4 text-sm text-slate-500">{children}</p>;
+}
+
+/**
+ * A reading or math level picked from a list of grades (shared/levelWorksheets.ts). A level typed
+ * before the list existed ("2nd grade, DRA 18") stays as its own choice, so nothing is lost.
+ */
+export function LevelSelect({ value, onChange, placeholder = "Not set", ...rest }: { value: string; onChange: (next: string) => void; placeholder?: string } & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "value" | "onChange">) {
+  const known = (LEVELS as readonly string[]).includes(value);
+  return (
+    <select {...rest} value={value} onChange={(e) => onChange(e.target.value)}
+      className={`w-full min-w-0 max-w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${rest.className || ""}`}>
+      <option value="">{placeholder}</option>
+      {!known && value && <option value={value}>{value}</option>}
+      {LEVELS.map((l) => <option key={l} value={l}>{levelLabel(l)}</option>)}
+    </select>
+  );
 }

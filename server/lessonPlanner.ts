@@ -20,6 +20,7 @@ import { supportWords } from "@shared/pushIn";
 import { BACKUPS, findBackup, perplexityKey } from "./aiProvider";
 import { PageError, fetchPageText, linksFrom, pagesText } from "./pageText";
 import { UploadError, readUploads } from "./uploadText";
+import { pdfToText } from "./pdfText";
 
 /** `attachments` are PDFs and photos (data URLs) the AI reads itself, e.g. an example problem page. */
 export type LessonAsk = (system: string, user: string, maxTokens: number, attachments?: string[]) => Promise<string>;
@@ -175,7 +176,7 @@ export function cleanAsk(body: any) {
     minutes: num(body?.minutes, 10, 240, 45),
     count: num(body?.count, 1, 40, 10),
     kind: s(body?.kind, 40),
-    level: s(body?.level, 40),
+    level: s(body?.level, 700),
     students: num(body?.students, 0, 200, 0),
     /** The supports a scaffold must have (shared/pushIn.ts): the teacher's picks, as sentences. Never a student's name. */
     supports: cleanSupportsAsked(body?.supports),
@@ -254,7 +255,7 @@ export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user:
       return { maxTokens: 1600, system: `${BASE}\n${standardsRule(a.state)}`, user: `${ctx}\n\nList up to 10 ${a.state || "Common Core / national"} standards that best match this${a.grade ? ` for grade ${a.grade}` : ""}${a.subject ? ` in ${a.subject}` : ""}, best match first. Return {"standards": [{"code": string, "text": string}]}.` };
     case "worksheet": {
       const kind = a.kind || "practice worksheet";
-      return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? `, ${a.level} level` : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.${example ? `\n\n${EXAMPLE_RULES}\n\n${example}` : ""}\nReturn ${WORKSHEET_SHAPE}.` };
+      return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? (a.level.length > 60 ? `. Level: ${a.level}.` : `, ${a.level} level`) : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.${example ? `\n\n${EXAMPLE_RULES}\n\n${example}` : ""}\nReturn ${WORKSHEET_SHAPE}.` };
     }
     case "scaffold": {
       const kind = a.kind || "practice worksheet";
@@ -303,8 +304,14 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
         const links = linksFrom(req.body?.links);
         const up = readUploads(req.body?.files, 24_000);
         const photos: string[] = (Array.isArray(req.body?.images) ? req.body.images : []).filter((u: unknown) => typeof u === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(u) && u.length <= 4_000_000).slice(0, 6);
-        const all = [...up.attachments, ...photos].slice(0, 8);
-        if (all.some((u) => u.startsWith("data:application/pdf"))) throw new UploadError("I can't read PDF pages yet. Take a screenshot or photo of the page and upload that, or save it as a Word file, or paste the problem.");
+        // PDFs: their words are read here. A scanned PDF has none, so it needs a photo instead.
+        const pdfTexts: string[] = [];
+        for (const u of up.attachments.filter((x) => x.startsWith("data:application/pdf"))) {
+          const words = pdfToText(Buffer.from(u.slice(u.indexOf(",") + 1), "base64"), 24_000);
+          if (words.replace(/\s+/g, "").length < 40) throw new UploadError("That PDF is a scan (pictures of pages), so there are no words to read. Take a screenshot or photo of the page and upload that instead.");
+          pdfTexts.push(words);
+        }
+        const all = [...up.attachments.filter((x) => !x.startsWith("data:application/pdf")), ...photos].slice(0, 8);
         // The site's chat AI can't see pictures, so each photo is read into words first.
         const see = deps.seePhoto ?? seePhotoAnyAi;
         const read: string[] = [];
@@ -315,6 +322,7 @@ export function registerLessonPlannerRoutes(app: Express, authMiddleware: Reques
         example = [
           exampleText && `EXAMPLE problems the teacher typed or pasted:\n${exampleText}`,
           up.text && `EXAMPLE from the teacher's files:\n${up.text}`,
+          pdfTexts.length && `EXAMPLE from the teacher's PDF${pdfTexts.length > 1 ? "s" : ""}:\n${pdfTexts.join("\n\n")}`,
           pages.length && `EXAMPLE from a web page:\n${pagesText(pages, 12_000)}`,
           read.length && `EXAMPLE problems read from ${read.length} photo(s) the teacher uploaded:\n${read.map((t, i) => `Photo ${i + 1}:\n${t}`).join("\n\n")}`,
         ].filter(Boolean).join("\n\n").slice(0, 40_000);

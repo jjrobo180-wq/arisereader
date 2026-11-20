@@ -233,21 +233,27 @@ function itemHtml(it: GenWorksheet["sections"][number]["items"][number], n: numb
 const norm = (s: string) => String(s || "").replace(/\$/g, "").replace(/^[A-F][.)]\s*/i, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 /** A worksheet as a full page to print, save as PDF or open in Word. With `answers` it is the answer key. */
-export function worksheetHtml(ws: GenWorksheet, opts: { answers: boolean; className?: string; teacher?: string; word?: boolean; both?: boolean }): string {
-  const page = (answers: boolean) => {
+type PageOpts = { className?: string; teacher?: string; word?: boolean; student?: string };
+/** One copy of a worksheet (or its answer key): the name line, title, sections and footer. */
+function worksheetPage(ws: GenWorksheet, answers: boolean, opts: PageOpts): string {
+  {
     let n = 0;
     const sections = ws.sections.map((s) => {
       const items = s.items.map((it) => itemHtml(it, ++n, answers, !!opts.word)).join("");
       const cols = s.columns && s.columns > 1 ? ` cols-${Math.min(4, s.columns)}` : "";
       return `<section><h2>${h(s.heading)}</h2>${s.directions ? `<p class="dir">${mathHtml(s.directions, opts.word ? "word" : "katex")}</p>` : ""}${s.passage ? `<div class="passage">${h(s.passage).replace(/\n{2,}/g, "</div><div class=\"passage\" style=\"border:0;padding-top:0;margin-top:-8px\">").replace(/\n/g, "<br>")}</div>` : ""}${s.wordBank?.length ? `<div class="bank">${s.wordBank.map(h).join("<span>•</span>")}</div>` : ""}<ol class="items${cols}">${items}</ol></section>`;
     }).join("");
-    return `<div class="top"><b>Name</b><span></span><b>Date</b><span style="flex:.45"></span>${opts.className ? `<b>${h(opts.className)}</b>` : "<b>Class</b><span style=\"flex:.35\"></span>"}${ws.score !== false ? `<span class="score" style="border-bottom:2px solid #111827;flex:none">Score: ______ / ${n || ws.sections.reduce((a, s) => a + s.items.length, 0)}</span>` : ""}</div>
+    return `<div class="top"><b>Name</b><span class="who-name">${opts.student ? h(opts.student) : ""}</span><b>Date</b><span style="flex:.45"></span>${opts.className ? `<b>${h(opts.className)}</b>` : "<b>Class</b><span style=\"flex:.35\"></span>"}${ws.score !== false ? `<span class="score" style="border-bottom:2px solid #111827;flex:none">Score: ______ / ${n || ws.sections.reduce((a, s) => a + s.items.length, 0)}</span>` : ""}</div>
       ${ws.subject || ws.grade ? `<div class="tag" style="margin-top:10px">${h([ws.subject, ws.grade && `Grade ${ws.grade}`].filter(Boolean).join(" · "))}</div>` : ""}
       <h1>${h(ws.title)}${answers ? '<span class="key">ANSWER KEY</span>' : ""}</h1>
       ${ws.instructions ? `<p class="inst">${mathHtml(ws.instructions, opts.word ? "word" : "katex")}</p>` : ""}
       ${sections}
       <div class="foot"><span>${opts.teacher ? h(opts.teacher) : ""}</span><span>Made with Arise WorkHub</span></div>`;
-  };
+  }
+}
+
+export function worksheetHtml(ws: GenWorksheet, opts: { answers: boolean; className?: string; teacher?: string; word?: boolean; both?: boolean }): string {
+  const page = (answers: boolean) => worksheetPage(ws, answers, opts);
   const katexCss = opts.word ? "" : `<link rel="stylesheet" href="${typeof location !== "undefined" ? location.origin : ""}/vendor/katex/katex.min.css">`;
   const content = opts.both ? `${page(false)}<div style="page-break-before:always;break-before:page"></div>${page(true)}` : page(opts.answers);
   return `<!doctype html><html><head><meta charset="utf-8"><title>${h(ws.title)}${opts.answers && !opts.both ? " — Answer key" : ""}</title>${katexCss}<style>${WS_CSS}</style></head><body class="${ws.large ? "large" : ""}">${content}</body></html>`;
@@ -262,6 +268,24 @@ export function answerKeyText(ws: GenWorksheet): string {
     const letter = it.choices ? it.choices.findIndex((c) => norm(c) === norm(it.answer)) : -1;
     return `${n}. ${letter >= 0 ? `${LETTERS[letter]}. ` : ""}${plain(it.answer)}`;
   })])].join("\n");
+}
+
+/**
+ * Leveled worksheets for a class, printed together: every student gets the version for their level,
+ * with their name already on it, in a dashed box to cut out (short worksheets share a page; long
+ * ones start on their own). The answer key for each level follows, when asked for.
+ */
+export function cutSheetsHtml(packets: { ws: GenWorksheet; level: string; students: string[] }[], opts: { className?: string; keys?: boolean } = {}): string {
+  const copies = packets.flatMap((p) => p.students.map((name) =>
+    `<div class="cut"><div class="cut-tag">&#9986; ${h(name)}${p.level ? ` &middot; ${h(p.level)}` : ""}</div>${worksheetPage(p.ws, false, { className: opts.className, student: name })}</div>`)).join("");
+  const keys = opts.keys ? packets.map((p) => `<div style="page-break-before:always;break-before:page"></div><div class="tag">Answer key${p.level ? ` &middot; ${h(p.level)}` : ""} &middot; for ${h(p.students.join(", "))}</div>${worksheetPage(p.ws, true, { className: opts.className })}`).join("") : "";
+  const katexCss = `<link rel="stylesheet" href="${typeof location !== "undefined" ? location.origin : ""}/vendor/katex/katex.min.css">`;
+  const cutCss = `.cut{border:2px dashed #64748b;border-radius:6px;padding:12px 14px 4px;margin:0 0 18px;break-inside:avoid;page-break-inside:avoid;position:relative}
+  .cut-tag{position:absolute;top:-11px;left:12px;background:#fff;padding:0 6px;font-size:10pt;font-weight:700;color:#334155}
+  .who-name{font-weight:700;font-size:13pt}
+  @media print{.cut{margin-bottom:14px}}`;
+  const title = packets[0]?.ws.title || "Worksheets";
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${h(title)} — student copies</title>${katexCss}<style>${WS_CSS}${cutCss}</style></head><body>${copies}${keys}</body></html>`;
 }
 
 // ─── Saving and printing ────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import { Plus } from "lucide-react";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, type StudentDetails } from "@shared/hubStudentTeam";
 import { StudentTeamFields } from "./HubStudentTeam";
-import { Field, PrimaryButton, TextArea } from "./ui";
+import { Field, LevelSelect, PrimaryButton, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 import type { Workspace } from "@shared/teacherHub";
 
@@ -70,10 +70,10 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
         <Field type="date" value={form.reevalDate} onChange={(e) => update({ reevalDate: e.target.value })} />
       </label>}
       <label className="text-xs font-bold text-slate-700">Reading level (optional)
-        <Field value={form.readingLevel} onChange={(e) => update({ readingLevel: e.target.value })} />
+        <LevelSelect value={form.readingLevel} onChange={(v) => update({ readingLevel: v })} aria-label="Reading level" />
       </label>
       <label className="text-xs font-bold text-slate-700">Math level (optional)
-        <Field value={form.mathLevel} onChange={(e) => update({ mathLevel: e.target.value })} />
+        <LevelSelect value={form.mathLevel} onChange={(v) => update({ mathLevel: v })} aria-label="Math level" />
       </label>
       <label className="text-xs font-bold text-slate-700 sm:col-span-2">Accommodations (optional)
         <Field value={form.accommodations} onChange={(e) => update({ accommodations: e.target.value })} />
