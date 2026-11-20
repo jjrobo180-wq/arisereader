@@ -79,3 +79,22 @@ test("the AI never guesses a student's gender: it uses their pronouns, or their 
   assert.match(liveCoachPrompt({ student: { name: "Emani Kast", pronouns: "he" }, topic: "fractions" }), /Pronouns for Emani: he\/him\/his/);
   assert.match(liveCoachPrompt({ student: { name: "Emani Kast" }, topic: "fractions" }), /never guess from the name/);
 });
+
+test("the weekly parent update lists what is missing and failed, from the Gradebook and Grade Plans", async () => {
+  const { gatherWeek, writeUpdate, DEFAULT_PARTS } = await import("../shared/parentUpdate");
+  const src = {
+    assignments: [{ id: "a1", title: "Fractions quiz", category: "Math", points: 20, date: "2026-11-18" }, { id: "a2", title: "Exit ticket", category: "Math", points: 10, date: "2026-11-18" }, { id: "a3", title: "Old quiz", category: "Math", points: 10, date: "2026-10-01" }],
+    gradeScores: [
+      { id: "g1", assignmentId: "a1", student: "Emani Kast", score: 9, missing: false, excused: false },
+      { id: "g2", assignmentId: "a2", student: "Emani Kast", score: null, missing: true, excused: false },
+      { id: "g3", assignmentId: "a3", student: "Emani Kast", score: null, missing: true, excused: false },
+    ],
+    gradePlans: [{ id: "p1", student: "Emani Kast", createdAt: "2026-11-19T10:00:00Z", status: "scheduled", concerns: [{ student: "Emani Kast", assignment: "Argument Essay", subject: "English 7", kind: "missing" }], retake: { date: "2026-11-24", start: "10:00", end: "10:45", where: "" } }],
+  };
+  const f = gatherWeek("Emani Kast", "2026-11-16", "2026-11-20", src as any);
+  assert.deepEqual(f.grades.missing.map((g) => g.title), ["Exit ticket", "Argument Essay"]);
+  assert.deepEqual(f.grades.failed, [{ title: "Fractions quiz", subject: "Math", score: "45%" }]);
+  const { body } = writeUpdate(f, { format: "email", parts: DEFAULT_PARTS, teacher: "Mr. Robinson" });
+  assert.match(body, /Grades to know about:\n• Missing: Exit ticket \(Math\); Argument Essay \(English 7\)\n• Below passing: Fractions quiz \(Math\): 45%\n• Emani will make it up with me on Tuesday, November 24, 10:00 AM – 10:45 AM\./);
+  assert.doesNotMatch(writeUpdate(f, { format: "email", parts: { ...DEFAULT_PARTS, grades: false }, teacher: "Mr. R" }).body, /Grades to know about/);
+});

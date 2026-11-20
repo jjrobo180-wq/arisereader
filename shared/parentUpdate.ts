@@ -8,7 +8,8 @@ import {
   type BehaviorMark, type LessonCheck, type Participation,
 } from "./lessonPlanner";
 import { cleanPushInNotes, fold } from "./pushIn";
-import type { AttendanceEntry, BehaviorEntry, ServiceLog } from "./teacherHub";
+import type { Assignment, AttendanceEntry, BehaviorEntry, GradeScore, ServiceLog } from "./teacherHub";
+import { cleanGradePlans, retakeWords } from "./gradePlans";
 
 export type UpdateFormat = "email" | "text";
 
@@ -20,9 +21,10 @@ export const UPDATE_PARTS = [
   { id: "behavior", label: "Behavior" },
   { id: "notes", label: "My notes" },
   { id: "minutes", label: "Support minutes" },
+  { id: "grades", label: "Grades: missing & failed" },
 ] as const;
 export type UpdatePart = (typeof UPDATE_PARTS)[number]["id"];
-export const DEFAULT_PARTS: Record<UpdatePart, boolean> = { lessons: true, progress: true, participation: true, behavior: true, notes: true, minutes: false };
+export const DEFAULT_PARTS: Record<UpdatePart, boolean> = { lessons: true, progress: true, participation: true, behavior: true, notes: true, minutes: false, grades: true };
 
 /** One lesson or class the student was in that week, with how they did. */
 export type WeekEntry = {
@@ -52,7 +54,11 @@ export type WeekFacts = {
   /** Behavior points from the Behavior page, and attendance that was not "Present". */
   points: { date: string; points: number; reason: string }[];
   attendance: { date: string; status: AttendanceEntry["status"] }[];
+  /** Grades: work missing or failed (from the Gradebook and Grade Plans), and a retake that is set. */
+  grades: GradeFacts;
 };
+export type GradeItem = { title: string; subject?: string; score?: string };
+export type GradeFacts = { missing: GradeItem[]; failed: GradeItem[]; retakes: string[] };
 
 const inWeek = (d: string, from: string, to: string) => !!d && d >= from && d <= to;
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || name.trim();
@@ -64,7 +70,7 @@ export function weekOf(day: string): { from: string; to: string } {
 }
 
 /** Everything saved about one student in one week, oldest first. */
-export function gatherWeek(student: string, from: string, to: string, src: { pushInNotes?: unknown; lessons?: unknown; serviceLogs?: ServiceLog[]; behavior?: BehaviorEntry[]; attendance?: AttendanceEntry[] }): WeekFacts {
+export function gatherWeek(student: string, from: string, to: string, src: { pushInNotes?: unknown; lessons?: unknown; serviceLogs?: ServiceLog[]; behavior?: BehaviorEntry[]; attendance?: AttendanceEntry[]; assignments?: Assignment[]; gradeScores?: GradeScore[]; gradePlans?: unknown }): WeekFacts {
   const who = fold(student);
   const entries: WeekEntry[] = [];
   for (const n of cleanPushInNotes(src.pushInNotes)) {
@@ -103,11 +109,48 @@ export function gatherWeek(student: string, from: string, to: string, src: { pus
     .map((b) => ({ date: b.date, points: Number(b.points) || 0, reason: String(b.reason || "").trim() })).sort((a, b) => a.date.localeCompare(b.date));
   const attendance = (src.attendance || []).filter((a) => fold(a.student) === who && inWeek(a.date, from, to) && a.status !== "Present")
     .map((a) => ({ date: a.date, status: a.status })).sort((a, b) => a.date.localeCompare(b.date));
-  return { student, from, to, entries, minutes, sessions, logNotes, points, attendance };
+  return { student, from, to, entries, minutes, sessions, logNotes, points, attendance, grades: gatherGrades(student, from, to, src) };
+}
+
+/**
+ * What a student has missing or failed: Gradebook work dated this week (missing, or under 60%), and
+ * Grade Plans work that is still open or was planned this week, with the retake time when one is set.
+ */
+export function gatherGrades(student: string, from: string, to: string, src: { assignments?: Assignment[]; gradeScores?: GradeScore[]; gradePlans?: unknown }): GradeFacts {
+  const who = fold(student);
+  const out: GradeFacts = { missing: [], failed: [], retakes: [] };
+  const seen = new Set<string>();
+  const add = (kind: "missing" | "failed", item: GradeItem) => { const k = fold(item.title); if (!k || seen.has(k)) return; seen.add(k); out[kind].push(item); };
+  const byId = new Map((src.assignments || []).map((a) => [a.id, a]));
+  for (const g of src.gradeScores || []) {
+    if (fold(g.student) !== who || g.excused) continue;
+    const a = byId.get(g.assignmentId);
+    if (!a || !inWeek(a.date, from, to)) continue;
+    if (g.missing) add("missing", { title: a.title, ...(a.category ? { subject: a.category } : {}) });
+    else if (g.score != null && a.points > 0 && g.score / a.points < 0.6) add("failed", { title: a.title, ...(a.category ? { subject: a.category } : {}), score: `${Math.round((g.score / a.points) * 100)}%` });
+  }
+  for (const p of cleanGradePlans(src.gradePlans)) {
+    if (fold(p.student) !== who) continue;
+    const made = p.createdAt.slice(0, 10);
+    if (p.status === "done" && !inWeek(made, from, to)) continue;
+    for (const c of p.concerns) add(c.kind === "missing" ? "missing" : "failed", { title: c.assignment, ...(c.subject ? { subject: c.subject } : {}), ...(c.score && c.kind !== "missing" ? { score: c.score } : {}) });
+    if (p.retake && p.status !== "done") out.retakes.push(retakeWords(p.retake));
+  }
+  return out;
+}
+
+const gradeItem = (g: GradeItem) => `${g.title}${g.subject ? ` (${g.subject})` : ""}${g.score ? `: ${g.score}` : ""}`;
+/** The grades part of the update, as bullet lines (email) or one sentence (text). */
+function gradeLines(g: GradeFacts, name: string): string[] {
+  return [
+    g.missing.length ? `Missing: ${g.missing.map(gradeItem).join("; ")}` : "",
+    g.failed.length ? `Below passing: ${g.failed.map(gradeItem).join("; ")}` : "",
+    g.retakes.length ? `${name} will make it up with me on ${g.retakes.join(" and ")}.` : "",
+  ].filter(Boolean);
 }
 
 /** How many things are saved for the week: class notes, lessons, logged sessions, behavior points and attendance. */
-export const weekCount = (f: WeekFacts) => f.entries.length + f.sessions + f.points.length + f.attendance.length;
+export const weekCount = (f: WeekFacts) => f.entries.length + f.sessions + f.points.length + f.attendance.length + (f.grades ? f.grades.missing.length + f.grades.failed.length : 0);
 
 /** True when nothing at all was saved for the week. */
 export const isEmptyWeek = (f: WeekFacts) => !f.entries.length && !f.sessions && !f.logNotes.length && !f.points.length && !f.attendance.length;
@@ -223,7 +266,8 @@ export function writeUpdate(f: WeekFacts, o: UpdateOptions): { subject: string; 
   const attendance = o.parts.progress ? attendanceLine(f, name) : "";
   const minutes = o.parts.minutes ? minutesLine(f, name) : "";
   const notes = o.parts.notes ? noteItems(f) : [];
-  const nothing = !(o.parts.lessons && lessons) && !progress.length && !attendance && !participation && !behavior && !minutes && !notes.length;
+  const grades = o.parts.grades && f.grades ? gradeLines(f.grades, name) : [];
+  const nothing = !(o.parts.lessons && lessons) && !progress.length && !attendance && !participation && !behavior && !minutes && !notes.length && !grades.length;
 
   if (o.format === "text") {
     const bits = [
@@ -231,6 +275,7 @@ export function writeUpdate(f: WeekFacts, o: UpdateOptions): { subject: string; 
       o.parts.lessons && lessons ? `We worked on ${lessons}.` : "",
       ...progress, attendance, participation, behavior, minutes,
       ...notes.slice(0, 3).map((n) => sentence(n.note)),
+      ...grades.map((l) => sentence(l)),
       nothing ? "[Add a highlight from this week.]" : "",
       "Thank you for your support at home!",
     ];
@@ -244,6 +289,7 @@ export function writeUpdate(f: WeekFacts, o: UpdateOptions): { subject: string; 
     o.parts.lessons && lessons ? `This week we worked on: ${lessons}.` : "",
     how.length ? `How it went:\n${how.map((l) => `• ${l}`).join("\n")}` : "",
     notes.length ? `Notes from class:\n${notes.map((n) => `• ${shortDay(n.date)}${n.title ? ` (${n.title})` : ""}: ${sentence(n.note)}`).join("\n")}` : "",
+    grades.length ? `Grades to know about:\n${grades.map((l) => `• ${l}`).join("\n")}` : "",
     nothing ? "[Add a highlight from this week.]" : "",
     "Thank you for your support at home. Please reach out anytime with questions.",
     teacher,

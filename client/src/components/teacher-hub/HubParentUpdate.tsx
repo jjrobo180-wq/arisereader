@@ -43,8 +43,8 @@ export default function HubParentUpdate({ workspace, setWorkspace, today, makeId
   const setProfile = (change: Partial<Workspace["profile"]>) => setWorkspace((w) => ({ ...w, profile: { ...w.profile, ...change } }));
 
   const { from, to } = weekOf(day);
-  const src = useMemo(() => ({ pushInNotes: workspace.pushInNotes, lessons: workspace.lessons, serviceLogs: workspace.serviceLogs, behavior: workspace.behavior, attendance: workspace.attendance }),
-    [workspace.pushInNotes, workspace.lessons, workspace.serviceLogs, workspace.behavior, workspace.attendance]);
+  const src = useMemo(() => ({ pushInNotes: workspace.pushInNotes, lessons: workspace.lessons, serviceLogs: workspace.serviceLogs, behavior: workspace.behavior, attendance: workspace.attendance, assignments: workspace.assignments, gradeScores: workspace.gradeScores, gradePlans: (workspace as any).gradePlans }),
+    [workspace.pushInNotes, workspace.lessons, workspace.serviceLogs, workspace.behavior, workspace.attendance, workspace.assignments, workspace.gradeScores, (workspace as any).gradePlans]);
   const facts = useMemo(() => (student ? gatherWeek(student, from, to, src) : null), [student, from, to, src]);
   // Who has something saved this week comes first in the list, so an empty pick is not a surprise.
   const counts = useMemo(() => new Map(students.map((s) => [s, weekCount(gatherWeek(s, from, to, src))])), [students, from, to, src]);
