@@ -12,7 +12,7 @@ import "./keyboard-inset.css";
 import "./reader-app.css";
 import "./todo-app.css";
 import { watchKeyboard } from "./lib/keyboardInset";
-import { applyDeviceBottomInset, applyDeviceTopInset, drawsEdgeToEdge } from "./lib/deviceInsets";
+import { applyDeviceBottomInset, applyDeviceTopInset, applyTabletInsets, drawsEdgeToEdge } from "./lib/deviceInsets";
 import { startReaderNative } from "./lib/readerNative";
 import { installNoFullscreen } from "./lib/noFullscreen";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
@@ -68,6 +68,7 @@ if (isNativeApp() && nativeFlavor() === "eyegaze" && drawsEdgeToEdge()) {
   document.documentElement.classList.add("eyegaze-edge");
   applyDeviceTopInset();
   applyDeviceBottomInset();
+  applyTabletInsets(); // an iPad: about 24 above and 20 below (the phone sizes above don't know it)
 }
 // Cooked PT draws edge to edge ("never") and pads with env(safe-area-inset-*) itself.
 if (isNativeApp() && nativeFlavor() === "reader") { applyDeviceTopInset(); startReaderNative(); }

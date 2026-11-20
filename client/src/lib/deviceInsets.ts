@@ -60,6 +60,22 @@ export function applyDeviceBottomInset(): void {
   window.addEventListener("orientationchange", set);
 }
 
+/** An iPad's clock row and Home bar, in points: about 24 above and 20 below, in every orientation (an iPad keeps
+ *  both when turned sideways). Null on phones, which have their own sizes above, and on small screens. */
+export function tabletInsets(screenW: number, screenH: number): { top: number; bottom: number } | null {
+  if (Math.min(screenW, screenH) < 600 || deviceTopInset(screenW, screenH) !== null) return null;
+  return { top: 24, bottom: 20 };
+}
+
+/** Sets --sat-device and --sab-device on an iPad (the phone ones above leave them alone there). */
+export function applyTabletInsets(): void {
+  if (typeof window === "undefined") return;
+  const t = tabletInsets(window.screen.width, window.screen.height);
+  if (!t) return;
+  document.documentElement.style.setProperty("--sat-device", `${t.top}px`);
+  document.documentElement.style.setProperty("--sab-device", `${t.bottom}px`);
+}
+
 /** True when the web view fills the whole screen (contentInset "never"). Apps still on an older build, where iOS
  *  insets the page itself, are shorter than the screen, so they keep drawing the way they always have. */
 export function drawsEdgeToEdge(): boolean {

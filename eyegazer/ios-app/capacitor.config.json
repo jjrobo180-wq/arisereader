@@ -18,6 +18,9 @@
         "alert"
       ]
     },
+    "StatusBar": {
+      "style": "LIGHT"
+    },
     "CapacitorUpdater": {
       "autoUpdate": false,
       "updateUrl": "https://arisetodo.com/api/ota/eyegaze",

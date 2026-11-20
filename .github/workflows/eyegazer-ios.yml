@@ -78,7 +78,9 @@ jobs:
         working-directory: eyegazer/ios-app
         run: |
           python3 ../../.github/scripts/configure_reader_app.py ios/App/App/Info.plist eyegaze
-          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist --below-status-bar
+          python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist
+          # One app for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2, every iPad orientation).
+          python3 ../../.github/scripts/ipad_universal.py ios/App/App/Info.plist
       - name: Import Apple signing certificate and provisioning profile
         shell: bash
         env:

@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { deviceBottomInset, deviceTopInset, tabletInsets } from "../client/src/lib/deviceInsets";
 import { ANIMAL_SOUNDS, BREATHS, BREATH_MS, COLORS, DECKS, FIRSTS, HUNT_GOAL, PLAY_GAMES, QUESTIONS, SHELVES, STICKERS, THENS, breathAt, cardStep, clock, firstThenSentence, huntRound, huntStep, nextSticker, pickStep, streak, streakMarks, timerLeft, visibleShelves, winSticker, wordOfDay } from "../shared/ariseKids";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -266,4 +267,39 @@ test("Arise AAC draws edge to edge: the app setting, the safe-area rules, and th
   assert.match(read("client/src/components/eye-gaze/StageShell.tsx"), /var\(--sat-in, env\(safe-area-inset-top\)\)/);
   // Pages that are moved in by default must not also pad for the clock themselves.
   assert.match(read("client/src/pages/EyeGazeWren.tsx"), /paddingTop: "var\(--sat-in, env\(safe-area-inset-top\)\)"/);
+});
+
+test("the Arise AAC TestFlight build is edge to edge for real (no native strip above the page), colours the clock, and is one app for iPhone and iPad", () => {
+  // The native white strip under the clock (--below-status-bar) is what kept the top from reaching the screen's edge.
+  const build = read(".github/workflows/eyegazer-ios.yml");
+  assert.doesNotMatch(build, /adopt_uiscene\.py[^\n]*--below-status-bar/);
+  assert.match(build, /adopt_uiscene\.py ios\/App\/App\/Info\.plist\n/);
+  assert.match(build, /ipad_universal\.py ios\/App\/App\/Info\.plist/, "iPad too");
+  assert.match(read(".github/workflows/reader-apps-ios-check.yml"), /\(matrix\.flavor == 'reader' \|\| matrix\.flavor == 'eyegaze'\) && '' \|\| '--below-status-bar'/, "the check builds it the same way");
+  assert.match(read(".github/scripts/ipad_universal.py"), /TARGETED_DEVICE_FAMILY = "1,2"/);
+  // The clock: white over a dark screen, dark over a light one.
+  const pkg = JSON.parse(read("eyegazer/ios-app/package.json"));
+  assert.equal(pkg.dependencies["@capacitor/status-bar"], "8.0.0");
+  const cfg = JSON.parse(read("eyegazer/ios-app/capacitor.config.json"));
+  assert.equal(cfg.plugins.StatusBar.style, "LIGHT", "dark text until a screen says otherwise");
+  assert.equal(cfg.ios.contentInset, "never");
+  const bar = read("client/src/lib/edgeStatusBar.ts");
+  assert.match(bar, /nativeCall\(\/statusbar\/i, "StatusBar", "setStyle", \{ style: dark \? "DARK" : "LIGHT" \}\)/);
+  assert.match(bar, /classList\.contains\("edge-screen"\)\) return "#ffffff"/, "white under the white strip on every other page");
+  assert.match(bar, /classList\.contains\("eyegaze-edge"\)\) return;/, "only the edge-to-edge build");
+  assert.match(read("client/src/components/EyeGazeSiteShell.tsx"), /useEdgeStatusBar\(location\);/);
+});
+
+test("an iPad gets about 24 above and 20 below; iPhones keep their own sizes", () => {
+  assert.deepEqual(tabletInsets(820, 1180), { top: 24, bottom: 20 }, "iPad Air 11-inch");
+  assert.deepEqual(tabletInsets(1180, 820), { top: 24, bottom: 20 }, "turned sideways it keeps both");
+  assert.deepEqual(tabletInsets(1024, 1366), { top: 24, bottom: 20 }, "iPad Pro 13-inch");
+  assert.deepEqual(tabletInsets(744, 1133), { top: 24, bottom: 20 }, "iPad mini");
+  assert.equal(tabletInsets(393, 852), null, "an iPhone 15");
+  assert.equal(tabletInsets(375, 667), null, "an iPhone SE");
+  assert.equal(tabletInsets(360, 640), null, "a small unknown screen");
+  assert.equal(deviceTopInset(820, 1180), null);
+  assert.equal(deviceBottomInset(393, 852), 34);
+  const main = read("client/src/main.tsx");
+  assert.match(main, /applyDeviceBottomInset\(\);\n  applyTabletInsets\(\);/);
 });

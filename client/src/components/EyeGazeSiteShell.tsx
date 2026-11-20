@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { BookOpen, Gamepad2, Home, LogOut, MessageCircle, UserRound } from "lucide-react";
 import { KidsTabBar } from "@/pages/arise-kids/kidsUi";
 import { isEyeGazerApp } from "@/lib/nativeApp";
+import { useEdgeStatusBar } from "@/lib/edgeStatusBar";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
@@ -33,6 +34,8 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
     html.classList.toggle("edge-screen", edgeScreen);
     return () => html.classList.remove("edge-screen");
   }, [edgeScreen]);
+  // The clock and battery turn white over a dark screen (Shorts, a game) and dark over a light one.
+  useEdgeStatusBar(location);
 
   useEffect(() => {
     const handler = (event: Event) => {
