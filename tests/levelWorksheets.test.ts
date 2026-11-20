@@ -50,8 +50,10 @@ test("Modify for students rewords every piece of the page, adds nothing, and pri
   const { cleanAsk, lessonPrompt, readAnswer } = await import("../server/lessonPlanner");
   const a = cleanAsk({ mode: "modify", subject: "ELA", grade: "3", level: levelInstruction("3", "reading", "7") });
   const p = lessonPrompt(a, "EXAMPLE from the teacher's PDF:\nDo Now: pick the RIGHT evidence.\nClaim: The USWNT deserves higher pay.");
-  assert.match(p.system, /reword EVERY piece of text on it, in the same order/);
-  assert.match(p.system, /NEVER add anything that is not on the page: no answer choices, no Yes\/No/);
+  assert.match(p.system, /Leave OUT everything that is not part of the work: headers, dates/);
+  assert.match(p.system, /put that question at the end of EVERY row\'s strip/);
+  assert.match(p.system, /All the directions and instructions together: ONE strip/);
+  assert.match(p.system, /NEVER add anything that is not on the page \(no answer choices, no Yes\/No/);
   assert.match(p.user, /Grade 3 reading level/);
   assert.match(p.user, /Claim: The USWNT/);
   assert.ok(p.maxTokens <= 6000);

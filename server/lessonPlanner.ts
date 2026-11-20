@@ -244,11 +244,15 @@ const SCAFFOLD_RULES = `Scaffolding rules:
 - Write for a student who is capable but needs a way in: respectful wording, never babyish.`;
 
 /** Rewriting the teacher's own assignment for one student's level (Modify for students). */
-const MODIFY_RULES = `Rewording rules: the teacher gave you their ORIGINAL page (below): a worksheet, test, Do Now or handout. Make a simplified REWORDING of it for a student at the given level. The student keeps the real page and writes their answers there; your rewording only helps them understand it.
-- Go through the original from top to bottom and reword EVERY piece of text on it, in the same order: the title, every direction and instruction, every claim, statement, fact, passage and evidence, every question, every table heading and every table row, every sentence starter. Nothing on the page is skipped, even when it is not a question.
-- One part for each piece, in the original's order. label says where it is on the page, the way the original names it ("Directions", "Claim", "Evidence 1", "Column: Would you use this evidence?", "Question 3", "Part B"); text is that piece reworded.
-- Reword ONLY: shorter sentences, easier words for the level (keep names, numbers and dates exactly; a hard word that must stay gets a short meaning in brackets). Keep the same meaning and the same task.
-- NEVER add anything that is not on the page: no answer choices, no Yes/No, no blanks or answer lines, no new questions, no examples, no hints. NEVER answer anything or say which choice is right.
+const MODIFY_RULES = `Rewording rules: the teacher gave you their ORIGINAL page (below): a worksheet, test, Do Now or handout. Make a simplified rewording of it for a student at the given level, cut into strips the teacher hands over one at a time. The student keeps the real page and writes their answers there; the strips only help them understand it.
+- Leave OUT everything that is not part of the work: headers, dates, the class or period, "Level 3", page or lesson titles, the teacher's name, "Do Now" or icon labels, page numbers, and a table's column labels on their own.
+- One strip for each thing the student reads or does, in the page's order:
+  * All the directions and instructions together: ONE strip, label "Directions".
+  * A claim, prompt, topic or passage the work is about: ONE strip each ("Claim", "Prompt", "Passage").
+  * Each item the student responds to: ONE strip each ("Evidence 1", "Question 3", "Part B"), WITH the question they answer about it. When the page is a table where every row is answered with the same question (a column like "Would you use this evidence to support the claim? Why or why not?"), put that question at the end of EVERY row's strip.
+  * A sentence starter or word bank on the page goes in the strip it belongs to.
+- Reword for the level: shorter sentences and easier words; keep names, numbers, dates and facts exactly; a hard word that must stay gets a short meaning in brackets. Same meaning, same task.
+- NEVER add anything that is not on the page (no answer choices, no Yes/No, no blanks or lines, no new questions, no hints) and NEVER answer anything.
 - Never write a grade, a level or "modified" anywhere.`;
 
 /** The system and user messages for each job, and how long the answer may be. */

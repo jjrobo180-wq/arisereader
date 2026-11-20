@@ -454,12 +454,12 @@ function RewordPackets({ packets, note, onChange, onClose }: { packets: RewordPa
         {msg && <span className="text-sm text-rose-700">{msg}</span>}
       </div>
     }>
-      <p className="mb-3 text-sm text-slate-600">Everything on the page, in order, said at each student's level. Students write their answers on the real worksheet. Change any wording below before you print.</p>
+      <p className="mb-3 text-sm text-slate-600">One strip for the directions, one for the claim or prompt, and one for each item with its question, said at each student's level. Students write on the real worksheet. Change or delete any strip below before you print.</p>
       {packets.length > 1 && <div className="mb-3 flex flex-wrap gap-1">{packets.map((x, i) => <button key={i} type="button" onClick={() => setOpen(i)} className={`min-h-9 rounded-full px-3 text-sm font-semibold ${i === open ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{x.level || "Original level"} · {x.students.length}</button>)}</div>}
       {p && <>
         <div className="mb-2 flex flex-wrap gap-1">{p.students.map((n) => <span key={n} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800">{n}</span>)}</div>
         <ol className="space-y-2">{p.doc.parts.map((part, i) => <li key={i} className="rounded-xl border border-dashed border-slate-300 p-2">
-          <div className="mb-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{part.label || `Part ${i + 1}`}</div>
+          <div className="mb-1 flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wider text-slate-500"><span>{part.label || `Part ${i + 1}`}</span><button type="button" className="rounded-full px-2 py-0.5 normal-case tracking-normal text-slate-400 hover:bg-rose-50 hover:text-rose-600" onClick={() => onChange(packets.map((x, k) => (k !== open ? x : { ...x, doc: { ...x.doc, parts: x.doc.parts.filter((_, j) => j !== i) } })))} aria-label={`Remove ${part.label || "this strip"}`}>Remove</button></div>
           <textarea value={part.text} onChange={(e) => setPart(i, e.target.value)} rows={Math.min(6, Math.max(2, Math.ceil(part.text.length / 80)))} className="block w-full resize-y rounded-lg border-0 bg-slate-50 p-2 text-[15px] leading-relaxed text-slate-900 outline-none focus:ring-2 focus:ring-violet-200" aria-label={part.label || `Part ${i + 1}`} />
         </li>)}</ol>
       </>}
