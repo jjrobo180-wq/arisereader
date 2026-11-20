@@ -34,7 +34,7 @@ export type LessonPlannerDeps = {
   seePhoto?: (dataUrl: string) => Promise<string>;
 };
 
-class LessonAiError extends Error {}
+export class LessonAiError extends Error {}
 
 const PHOTO_PROMPT = `This is a photo or screenshot of example problems from a worksheet, textbook or board. Copy out EVERY problem exactly as written: all words, numbers, symbols, answer choices and directions, numbered as on the page. Write maths plainly (for example 3/4, 2^3, sqrt(49)). For any picture, graph, number line, table or shape, describe it in words with every number and label, so a teacher could redraw it. If a worked solution or answer is shown, copy it after the problem and mark it "(shown answer)". Do not solve anything yourself and do not add comments.`;
 
@@ -106,7 +106,7 @@ async function seePhotoAt(url: string, key: string, models: string[], dataUrl: s
 
 /** A photo read into words: Groq first, then the site's other AI companies that can see pictures
  *  (Perplexity, then Grok), so one service retiring its picture model doesn't break uploads. */
-async function seePhotoAnyAi(dataUrl: string): Promise<string> {
+export async function seePhotoAnyAi(dataUrl: string): Promise<string> {
   let first: unknown = null;
   try { return await seePhotoWithGroq(dataUrl); } catch (e) { first = e; }
   const pplx = await perplexityKey();
@@ -126,7 +126,7 @@ async function seePhotoAnyAi(dataUrl: string): Promise<string> {
 
 const limits = createAttemptLimiter({ max: 80, windowMs: 10 * 60_000 });
 
-const askOpenAI: LessonAsk = async (system, user, maxTokens, attachments = []) => {
+export const askOpenAI: LessonAsk = async (system, user, maxTokens, attachments = []) => {
   let res: Response;
   try {
     res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -243,11 +243,13 @@ const SCAFFOLD_RULES = `Scaffolding rules:
 - Write for a student who is capable but needs a way in: respectful wording, never babyish.`;
 
 /** Rewriting the teacher's own assignment for one student's level (Modify for students). */
-const MODIFY_RULES = `Modifying rules: the teacher gave you their ORIGINAL assignment or test (below). Make the modified version a student at the given level does instead.
-- Keep every task and question of the original, in the same order and with the same purpose, so the student does the same lesson as the class. Only drop a question when the original has more than 20; then keep the most important 20.
-- Make each one reachable at the student's level: shorter sentences, easier words (with a short "Word help" where a hard word must stay), a reading passage shortened and rewritten at the level, fewer answer choices (2 or 3), smaller numbers or fewer steps in maths, a sentence frame or starter for anything written.
-- Keep the original's skill and standard. Never change what a question is asking into a different skill.
-- Give every question its correct answer for the answer key, worked from the modified version.`;
+const MODIFY_RULES = `Modifying rules: the teacher gave you their ORIGINAL assignment or test (below). Rewrite it for a student at the given level. This is a REWORDING, question for question, never a new worksheet:
+- First find the original's numbered questions (1, 2, 3…, including parts like 2a and 2b as their own questions). Your worksheet has EXACTLY the same number of questions, in the SAME order: your question 1 is the original's question 1 reworded, your question 2 is its question 2, and so on. Never add a question, never split one into two, never drop one, never merge two.
+- Each question asks the SAME thing as the original question, only in simpler words for the level: shorter sentences, easier vocabulary (a hard word that must stay gets a short meaning in brackets), fewer answer choices (keep the right one and the 1-2 most likely wrong ones), smaller numbers or fewer steps in maths. A question that asks for writing keeps asking for that writing, with a sentence starter written INSIDE the same question's prompt.
+- A reading passage the questions are about goes in the section's "passage", shortened and rewritten at the level, keeping every fact a question needs.
+- Keep the original's title and directions (simplified). Never write a grade, a level or "modified" anywhere a student would see it: not in the title, not in the instructions.
+- Use one section unless the original has clearly separate parts; keep its parts and their headings.
+- Give every question its correct answer for the answer key, from the rewritten question.`;
 
 /** The system and user messages for each job, and how long the answer may be. */
 export function lessonPrompt(a: CleanAsk, example = ""): { system: string; user: string; maxTokens: number } {

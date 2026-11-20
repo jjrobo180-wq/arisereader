@@ -275,18 +275,18 @@ function StudentPackets({ packets, className, note, onChange, onClose }: {
   const [open, setOpen] = useState<number | null>(null);
   const [msg, setMsg] = useState(note);
   const total = packets.reduce((n, p) => n + p.students.length, 0);
-  const print = (keys: boolean) => { if (!printHtml(cutSheetsHtml(packets, { className, keys }))) setMsg("Allow pop-ups for this site to print."); };
+  const print = (keys: boolean, strips = true) => { if (!printHtml(cutSheetsHtml(packets, { className, keys, strips }))) setMsg("Allow pop-ups for this site to print."); };
   if (open !== null && packets[open]) return <WorksheetStudio ws={packets[open].ws} className={className} onChange={(ws) => onChange(packets.map((p, i) => (i === open ? { ...p, ws } : p)))} onClose={() => setOpen(null)} />;
   return (
     <HubModal title="Student copies" onClose={onClose} size="lg" footer={
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => print(false)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white" data-testid="ws-print-cut"><Scissors className="h-4 w-4" /> Print {total} student copies</button>
-        <button type="button" onClick={() => print(true)} className={smallBtn + " min-h-10 px-3"}><Printer className="h-4 w-4" /> Print copies + answer keys</button>
-        <button type="button" onClick={() => print(false)} className={smallBtn + " min-h-10 px-3"} title="In the print window, choose Save as PDF"><Download className="h-4 w-4" /> PDF</button>
+        <button type="button" onClick={() => print(false)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white" data-testid="ws-print-cut"><Scissors className="h-4 w-4" /> Print cut-apart questions</button>
+        <button type="button" onClick={() => print(false, false)} className={smallBtn + " min-h-10 px-3"}><Printer className="h-4 w-4" /> Print whole sheets</button>
+        <button type="button" onClick={() => print(true)} className={smallBtn + " min-h-10 px-3"}><Printer className="h-4 w-4" /> + answer keys</button>
         {msg && <span className="text-sm text-rose-700">{msg}</span>}
       </div>
     }>
-      <p className="mb-3 text-sm text-slate-600">{packets.length} version{packets.length === 1 ? "" : "s"} for {total} student{total === 1 ? "" : "s"}. Each copy prints with the student's name on top, in a dashed box to cut out. Open a version to check or change it first.</p>
+      <p className="mb-3 text-sm text-slate-600">{packets.length} version{packets.length === 1 ? "" : "s"} for {total} student{total === 1 ? "" : "s"}. Every question prints as its own strip with the student's name, to cut apart and hand out one at a time. Each version matches the original question for question. Open one to check or change it first.</p>
       <ul className="space-y-2">
         {packets.map((p, i) => (
           <li key={i} className="rounded-2xl border border-slate-200 bg-white p-3">

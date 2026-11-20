@@ -271,21 +271,42 @@ export function answerKeyText(ws: GenWorksheet): string {
 }
 
 /**
- * Leveled worksheets for a class, printed together: every student gets the version for their level,
- * with their name already on it, in a dashed box to cut out (short worksheets share a page; long
- * ones start on their own). The answer key for each level follows, when asked for.
+ * Leveled copies for a class, printed together. Each student's copy matches the original question for
+ * question. `strips` (the default) prints every question as its own dashed strip with the student's
+ * name and the question number, to cut apart and hand out one at a time; a section's passage, word bank
+ * and directions get their own strip before its first question. Otherwise each student gets the whole
+ * sheet with their name on it. No grade or level is printed on a student's copy; the answer keys (when
+ * asked for) say which level they are.
  */
-export function cutSheetsHtml(packets: { ws: GenWorksheet; level: string; students: string[] }[], opts: { className?: string; keys?: boolean } = {}): string {
-  const copies = packets.flatMap((p) => p.students.map((name) =>
-    `<div class="cut"><div class="cut-tag">&#9986; ${h(name)}${p.level ? ` &middot; ${h(p.level)}` : ""}</div>${worksheetPage(p.ws, false, { className: opts.className, student: name })}</div>`)).join("");
+export function cutSheetsHtml(packets: { ws: GenWorksheet; level: string; students: string[] }[], opts: { className?: string; keys?: boolean; strips?: boolean } = {}): string {
+  const plain = (ws: GenWorksheet): GenWorksheet => ({ ...ws, grade: undefined, subject: undefined, title: ws.title.replace(/\s*[(\[]?\s*(grade|gr\.?)\s*(\d+|k)\s*(level)?\s*[)\]]?\s*$/i, "").trim() });
+  const strips = opts.strips !== false;
+  const studentCopy = (ws: GenWorksheet, name: string) => {
+    if (!strips) return `<div class="cut"><div class="cut-tag">&#9986; ${h(name)}</div>${worksheetPage(plain(ws), false, { className: opts.className, student: name })}</div>`;
+    let n = 0;
+    const tag = (what: string) => `<div class="strip-head"><span>&#9986; <b>${h(name)}</b></span><span>${what}</span></div>`;
+    const parts = ws.sections.flatMap((sec) => {
+      const lead = sec.passage || sec.wordBank?.length
+        ? [`<div class="cut strip">${tag(sec.passage ? "Read this first" : "Word bank")}${sec.directions ? `<p class="dir">${mathHtml(sec.directions, "katex")}</p>` : ""}${sec.passage ? `<div class="passage">${h(sec.passage).replace(/\n/g, "<br>")}</div>` : ""}${sec.wordBank?.length ? `<div class="bank">${sec.wordBank.map(h).join("<span>•</span>")}</div>` : ""}</div>`]
+        : [];
+      return [...lead, ...sec.items.map((it) => { n++; return `<div class="cut strip">${tag(`Question ${n}`)}${!sec.passage && !sec.wordBank?.length && sec.directions ? `<p class="dir">${mathHtml(sec.directions, "katex")}</p>` : ""}<ol class="items">${itemHtml(it, n, false, false)}</ol></div>`; })];
+    });
+    return `<div class="student">${parts.join("")}</div>`;
+  };
+  const copies = packets.flatMap((p) => p.students.map((name) => studentCopy(p.ws, name))).join("");
   const keys = opts.keys ? packets.map((p) => `<div style="page-break-before:always;break-before:page"></div><div class="tag">Answer key${p.level ? ` &middot; ${h(p.level)}` : ""} &middot; for ${h(p.students.join(", "))}</div>${worksheetPage(p.ws, true, { className: opts.className })}`).join("") : "";
   const katexCss = `<link rel="stylesheet" href="${typeof location !== "undefined" ? location.origin : ""}/vendor/katex/katex.min.css">`;
   const cutCss = `.cut{border:2px dashed #64748b;border-radius:6px;padding:12px 14px 4px;margin:0 0 18px;break-inside:avoid;page-break-inside:avoid;position:relative}
   .cut-tag{position:absolute;top:-11px;left:12px;background:#fff;padding:0 6px;font-size:10pt;font-weight:700;color:#334155}
   .who-name{font-weight:700;font-size:13pt}
-  @media print{.cut{margin-bottom:14px}}`;
-  const title = packets[0]?.ws.title || "Worksheets";
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${h(title)} — student copies</title>${katexCss}<style>${WS_CSS}${cutCss}</style></head><body>${copies}${keys}</body></html>`;
+  .strip{padding:8px 14px 6px;margin:0 0 10px}
+  .strip-head{display:flex;justify-content:space-between;gap:12px;font-size:10pt;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:6px}
+  .strip .items{margin:0;padding:0;columns:1!important}
+  .strip .dir{margin:2px 0 6px}
+  .student{break-after:page;page-break-after:always}
+  .student:last-child{break-after:auto;page-break-after:auto}`;
+  const title = packets[0] ? plain(packets[0].ws).title : "Worksheets";
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${h(title)}</title>${katexCss}<style>${WS_CSS}${cutCss}</style></head><body>${copies}${keys}</body></html>`;
 }
 
 // ─── Saving and printing ────────────────────────────────────────────────────

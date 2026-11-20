@@ -51,10 +51,27 @@ test("Modify for students keeps the original's questions and asks for the studen
   const a = cleanAsk({ mode: "modify", subject: "ELA", grade: "3", level: levelInstruction("3", "reading", "7") });
   assert.equal(a.mode, "modify");
   const p = lessonPrompt(a, "EXAMPLE from the teacher's PDF:\n1. Write a body paragraph with two pieces of evidence.");
-  assert.match(p.system, /Keep every task and question of the original/);
+  assert.match(p.system, /EXACTLY the same number of questions, in the SAME order/);
+  assert.match(p.system, /Never write a grade, a level/);
   assert.match(p.user, /Grade 3 reading level/);
   assert.match(p.user, /two pieces of evidence/);
   assert.ok(p.maxTokens <= 6000, "small enough for the free AI's per-minute allowance");
   const ws = readAnswer("modify", JSON.stringify({ title: "Body paragraphs", instructions: "", sections: [{ heading: "Write", directions: "", items: [{ kind: "short", prompt: "Write one sentence.", answer: "A sentence.", lines: 2 }] }] }));
   assert.equal(ws.worksheet.title, "Body paragraphs");
+});
+
+test("student copies print one strip per question with the student's name, and no grade", async () => {
+  const { cutSheetsHtml } = await import("../client/src/lib/lessonExport");
+  const ws = { title: "Essay Practice (Grade 2)", instructions: "", grade: "2", subject: "ELA", sections: [
+    { heading: "Evidence", directions: "Circle Yes or No.", items: [
+      { kind: "choice", prompt: "Use this fact?", choices: ["Yes", "No"], answer: "Yes" },
+      { kind: "short", prompt: "Why? I think this helps because ___.", answer: "It shows they win.", lines: 2 },
+    ] },
+  ] } as any;
+  const html = cutSheetsHtml([{ ws, level: "Grade 2", students: ["Amani Quintana", "Kha Nguyen"] }]);
+  assert.equal((html.match(/class="cut strip"/g) || []).length, 4);
+  assert.match(html, /Amani Quintana[\s\S]*Question 1[\s\S]*Question 2/);
+  assert.doesNotMatch(html, /Grade 2/);
+  const whole = cutSheetsHtml([{ ws, level: "Grade 2", students: ["Amani Quintana"] }], { strips: false });
+  assert.equal((whole.match(/class="cut strip"/g) || []).length, 0);
 });
