@@ -73,3 +73,43 @@ export function rememberLook(layout: object) {
   if (l.lookAt && time(l.lookAt) >= time(local.at)) look.at = l.lookAt;
   set(LOOK_KEY, JSON.stringify(look));
 }
+
+// ── Night mode on the account ──────────────────────────────────────────────
+// Each hub's layout only reaches the devices that open that same hub, so light/dark also lives on the
+// account (server/accountLook.ts): every device and both hubs follow the newest choice.
+
+/** Saves night mode on the account (light or dark), stamped now so it wins everywhere. */
+export function pushAccountNight(token: string | null | undefined, on: boolean, apiBase = "") {
+  if (!token) return;
+  const at = new Date().toISOString();
+  void fetch(`${apiBase}/api/account/look`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ night: on, at }) }).catch(() => {});
+}
+/**
+ * Asks the account for the newest light/dark choice; when it is newer than this device's, this device follows
+ * (both hubs, at once). Returns the choice that now applies, or null when nothing changed.
+ */
+export async function pullAccountNight(token: string | null | undefined, apiBase = ""): Promise<boolean | null> {
+  if (!token) return null;
+  try {
+    const r = await fetch(`${apiBase}/api/account/look`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!r.ok) return null;
+    const look = await r.json();
+    if (typeof look?.night !== "boolean" || typeof look?.at !== "string") return null;
+    const local = readLocal();
+    if (time(look.at) <= time(local.at)) return null;
+    const v = look.night ? "1" : "0";
+    set(NIGHT_KEY, v); set(OLD_NIGHT.life, v); set(OLD_NIGHT.work, v);
+    set(LOOK_KEY, JSON.stringify({ ...local, night: look.night, at: look.at }));
+    window.dispatchEvent(new Event(SHARED_LOOK_EVENT));
+    return look.night;
+  } catch { return null; }
+}
+/** Keeps a page in step with the account's light/dark choice: asks now, and each time the app comes back to the front. */
+export function followAccountNight(token: string | null | undefined, apiBase = ""): () => void {
+  if (!token) return () => {};
+  const pull = () => { if (document.visibilityState !== "hidden") void pullAccountNight(token, apiBase); };
+  pull();
+  window.addEventListener("focus", pull);
+  document.addEventListener("visibilitychange", pull);
+  return () => { window.removeEventListener("focus", pull); document.removeEventListener("visibilitychange", pull); };
+}

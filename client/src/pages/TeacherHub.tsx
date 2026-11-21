@@ -172,7 +172,7 @@ import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import HubCoach from "@/components/HubCoach";
-import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
+import { SHARED_LOOK_EVENT, followAccountNight, pushAccountNight, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
 import { boardGoals } from "@shared/hubGoalBoard";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
 import { API_BASE } from "@/lib/queryClient";
@@ -528,7 +528,8 @@ function TeacherHubPage() {
   // Night mode: the choice is remembered on this phone or computer.
   // Night mode is shared with LifeHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
   const [night, setNight] = useState(() => readNight("work"));
-  function toggleNight() { const on = !night; writeNight("work", on); setNight(on); setWorkspace((p) => ({ ...p, layout: withNight((p.layout || {}) as HubLayout, on) })); }
+  useEffect(() => followAccountNight(token, API_BASE), [token]);
+  function toggleNight() { const on = !night; writeNight("work", on); pushAccountNight(token, on, API_BASE); setNight(on); setWorkspace((p) => ({ ...p, layout: withNight((p.layout || {}) as HubLayout, on) })); }
   const [, setLookTick] = useState(0);
   useEffect(() => { const f = () => { setNight(readNight("work")); setLookTick((x) => x + 1); }; window.addEventListener(SHARED_LOOK_EVENT, f); window.addEventListener("storage", f); return () => { window.removeEventListener(SHARED_LOOK_EVENT, f); window.removeEventListener("storage", f); }; }, []);
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.

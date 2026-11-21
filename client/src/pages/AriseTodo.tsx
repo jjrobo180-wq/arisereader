@@ -133,7 +133,8 @@ import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/H
 import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
 import HubCoach from "@/components/HubCoach";
-import { SHARED_LOOK_EVENT, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
+import { SHARED_LOOK_EVENT, followAccountNight, pushAccountNight, readNight, stampLook, withNight, withSharedLook, writeNight } from "@/lib/sharedLook";
+import { API_BASE } from "@/lib/queryClient";
 import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { appLocked } from "@shared/privacyLock";
@@ -577,7 +578,8 @@ export default function AriseTodo() {
   // when the phone itself is set to dark mode; night mode is only on once someone switches it on.
   // Night mode is shared with WorkHub until "Same settings in both hubs" is turned off (lib/sharedLook.ts).
   const [night, setNight] = useState(() => readNight("life", NIGHT_KEY));
-  const toggleNight = () => { const on = !night; writeNight("life", on, NIGHT_KEY); setNight(on); setFamily((f) => ({ ...f, layout: withNight(f.layout as LifeLayout, on) })); };
+  useEffect(() => followAccountNight(token, API_BASE), [token]);
+  const toggleNight = () => { const on = !night; writeNight("life", on, NIGHT_KEY); pushAccountNight(token, on, API_BASE); setNight(on); setFamily((f) => ({ ...f, layout: withNight(f.layout as LifeLayout, on) })); };
   const [, setLookTick] = useState(0);
   useEffect(() => { const f = () => { setNight(readNight("life", NIGHT_KEY)); setLookTick((x) => x + 1); }; window.addEventListener(SHARED_LOOK_EVENT, f); window.addEventListener("storage", f); return () => { window.removeEventListener(SHARED_LOOK_EVENT, f); window.removeEventListener("storage", f); }; }, []);
   const [legacy, setLegacy] = useState<Data | null>(() => {

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { fromDay, money, toDay, type Expense } from "@shared/familyHub";
 import {
-  billStatus, byCategory, cents, editMonth, onHandIn, sameDayIn, payBillInMonth, unpayBillInMonth, viewMonth, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payPeriods,
+  billStatus, byCategory, cents, editMonth, onHandIn, onHandOnlyFor, setOnHandOnlyFor, sameDayIn, payBillInMonth, unpayBillInMonth, viewMonth, expectedFrom, expectedIncome, FREQ_LABEL, goalProgress, monthCsv, onHandTotal, monthPicture, monthsBack, payPeriods,
   paydays, paydaysToConfirm, receivedIn, safeToSpend, shiftMonth, tipWeeks, type Goal, type IncomeEntry, type IncomeSource, type OnHand, type PayFrequency, type PlanBill, type PlanStyle,
 } from "@shared/moneyPlan";
 import { Bar, Empty, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
@@ -38,18 +38,24 @@ const Figure = ({ label, value, sub, tone = "text-[#232139]", i }: { label: stri
 /** The tabs: one segmented control, like the ones in the budget's own dialogs. */
 const tabClass = (on: boolean) => `inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg px-3.5 text-sm font-semibold transition ${on ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`;
 
+/** Which month Money was left on, kept on this device. */
+const MONTH_KEY = "arise-money-month";
+
 export default function Money({ family, setFamily, today, makeId, say }: SectionProps) {
   // Before setup, the monthly income typed into the old Budget page still counts (it showed $0 coming in).
-  const [month, setMonth] = useState(() => today.slice(0, 7));
+  // The month being looked at stays put when the app is closed and opened again, until it's changed.
+  const [month, setMonthNow] = useState(() => { try { const m = localStorage.getItem(MONTH_KEY); if (m && /^\d{4}-\d{2}$/.test(m)) return m; } catch { /* first visit */ } return today.slice(0, 7); });
+  const setMonth = (m: string) => { setMonthNow(m); try { localStorage.setItem(MONTH_KEY, m); } catch { /* this visit only */ } };
   // Each month has its own bills, income and spending limits once it has been changed (shared/moneyPlan.ts viewMonth),
   // so editing one month never touches another.
   const view = useMemo(() => viewMonth(family.money, family.bills as PlanBill[], family.budget, month), [family.money, family.bills, family.budget, month]);
   // Each month is its own month: only this month's money in counts (shared/moneyPlan.ts onHandIn).
   const plan = useMemo(() => {
-    const p = { ...view.plan, onHand: onHandIn(view.plan, month, today.slice(0, 7)) };
+    // "Count expected pay" belongs to this month alone (onHandOnlyFor): what monthPicture reads as onHandOnly.
+    const p = { ...view.plan, onHand: onHandIn(view.plan, month, today.slice(0, 7)), onHandOnly: onHandOnlyFor(family.money, month, today.slice(0, 7)) || undefined };
     return p.sources.length || !(family.income > 0) ? p
       : { ...p, sources: [{ id: "legacy-income", name: "Monthly income", kind: "other" as const, frequency: "irregular" as const, amount: family.income, days: [], anchor: "" }] };
-  }, [view.plan, family.income, month, today]);
+  }, [view.plan, family.income, family.money, month, today]);
   /** A day in the month being looked at, for anything new: today in this month, else the same day of that month. */
   const inMonth = month === today.slice(0, 7) ? today : sameDayIn(today, month);
   const bills = view.bills;
@@ -116,7 +122,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
 
   // ───────── Summary ─────────
   const onlyHand = !!plan.onHandOnly;
-  const setOnlyHand = (on: boolean) => { setMoney((m) => ({ ...m, onHandOnly: on || undefined })); say(on ? "Counting only the money you have on hand" : "Counting expected pay again"); };
+  const setOnlyHand = (on: boolean) => { setMoney((m) => setOnHandOnlyFor(m, month, on, today.slice(0, 7))); say(on ? `Counting only the money on hand in ${label}` : `Counting expected pay again in ${label}`); };
   const headline = onlyHand
     ? { label: "Left after the bills still due", value: pic.leftover, note: pic.leftover < 0 ? `You're ${money(-pic.leftover)} short for the bills still due` : `${money(pic.onHand)} on hand · ${money(pic.billsLeft)} in bills still due` }
     : safe

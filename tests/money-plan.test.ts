@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { onHandTotal, billStatus, cleanMoney, cleanParts, emptyMoney, expectedIncome, goalProgress, monthPicture, payBill, payPeriods, paydays, safeToSpend, tipWeeks, unpayBill, type MoneyPlan, type PlanBill } from "../shared/moneyPlan";
+import { onHandOnlyFor, setOnHandOnlyFor, onHandTotal, billStatus, cleanMoney, cleanParts, emptyMoney, expectedIncome, goalProgress, monthPicture, payBill, payPeriods, paydays, safeToSpend, tipWeeks, unpayBill, type MoneyPlan, type PlanBill } from "../shared/moneyPlan";
 import { cleanFamily, emptyFamily } from "../shared/familyHub";
 
 const plan = (over: Partial<MoneyPlan> = {}): MoneyPlan => ({ ...emptyMoney(), setUp: true, ...over });
@@ -141,4 +141,24 @@ test("count only money on hand: expected pay is left out, and being short for th
   assert.equal(safeToSpend(p, [bigRent], [], "2026-11", "2026-11-16"), null, "no 'safe to spend' built on pay that hasn't come");
   assert.equal(cleanMoney(p).onHandOnly, true, "the setting is kept");
   assert.equal(cleanMoney(plan()).onHandOnly, undefined);
+});
+
+test("Count expected pay is set month by month: turning it off in one month leaves every other month alone", () => {
+  let p: any = plan({});
+  p = setOnHandOnlyFor(p, "2026-11", true, "2026-11");
+  assert.equal(onHandOnlyFor(p, "2026-11", "2026-11"), true);
+  assert.equal(onHandOnlyFor(p, "2026-12", "2026-11"), false, "next month still counts expected pay");
+  assert.equal(onHandOnlyFor(p, "2026-10", "2026-11"), false);
+  assert.equal(onHandOnlyFor(p, "2026-11", "2026-12"), true, "November keeps its own setting after the month turns");
+  p = setOnHandOnlyFor(p, "2026-11", false, "2026-11");
+  assert.equal(onHandOnlyFor(p, "2026-11", "2026-11"), false);
+  assert.equal(p.onHandMonths, undefined);
+  // The old all-months switch now means the current month only.
+  const old: any = plan({ onHandOnly: true });
+  assert.equal(onHandOnlyFor(old, "2026-11", "2026-11"), true);
+  assert.equal(onHandOnlyFor(old, "2026-12", "2026-11"), false);
+  const moved = setOnHandOnlyFor(old, "2026-12", true, "2026-11");
+  assert.deepEqual(moved.onHandMonths, ["2026-11", "2026-12"]);
+  assert.equal(moved.onHandOnly, undefined);
+  assert.deepEqual(cleanMoney(moved).onHandMonths, ["2026-11", "2026-12"], "kept when saved");
 });

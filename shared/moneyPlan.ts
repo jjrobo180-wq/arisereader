@@ -42,6 +42,9 @@ export type MoneyPlan = {
   /** "Count only money on hand": pay that's expected but hasn't come is left out. What's left is the money on hand
    *  less the bills still to pay (Nov 16, 2026: expected pay made the month look far better than it was). */
   onHandOnly?: boolean;
+  /** The months (YYYY-MM) where "Count expected pay" is turned off. Each month is its own: turning it off in one
+   *  month never changes another (Nov 20, 2026). `onHandOnly` above is the old all-months switch, read as this month only. */
+  onHandMonths?: string[];
   /** A month that has been changed has its own copy of the bills, income and spending limits, so editing one month
    *  never touches another. A month with no copy shows the plan as it was set up. See viewMonth / editMonth. */
   months?: Record<string, MonthLayer>;
@@ -119,6 +122,8 @@ export function cleanMoney(raw: unknown): MoneyPlan {
     cushion: num(r.cushion, 0, 10_000_000),
     ...(r.carryBills === true ? { carryBills: true } : {}),
     ...(r.onHandOnly === true ? { onHandOnly: true } : {}),
+    ...(Array.isArray(r.onHandMonths) && r.onHandMonths.some((m: unknown) => typeof m === "string" && /^\d{4}-\d{2}$/.test(m))
+      ? { onHandMonths: [...new Set((r.onHandMonths as unknown[]).filter((m): m is string => typeof m === "string" && /^\d{4}-\d{2}$/.test(m)))].slice(-120) } : {}),
     ...(cleanMonths(r.months) ? { months: cleanMonths(r.months) } : {}),
     sources: rows(r.sources, MONEY_LIMITS.sources, cleanSource),
     onHand: rows(r.onHand, MONEY_LIMITS.onHand, (o) => {
@@ -388,6 +393,19 @@ export function payPeriods(plan: MoneyPlan, bills: PlanBill[], month: string, to
 
 // ─── The month at a glance ───
 export const spentInMonth = (expenses: Expense[], month: string) => cents(expenses.filter((e) => e.date.startsWith(month)).reduce((t, e) => t + e.amount, 0));
+/** Whether "Count expected pay" is off in this month. The old all-months switch counts for the current month only. */
+export function onHandOnlyFor(plan: Pick<MoneyPlan, "onHandOnly" | "onHandMonths">, month: string, nowMonth: string): boolean {
+  if (plan.onHandMonths?.includes(month)) return true;
+  return !plan.onHandMonths && plan.onHandOnly === true && month === nowMonth;
+}
+/** "Count expected pay" turned on or off for one month only; every other month keeps its own setting. */
+export function setOnHandOnlyFor<T extends MoneyPlan>(plan: T, month: string, on: boolean, nowMonth: string): T {
+  const start = plan.onHandMonths ?? (plan.onHandOnly ? [nowMonth] : []);
+  const months = on ? [...new Set([...start, month])] : start.filter((m) => m !== month);
+  const { onHandOnly: _old, onHandMonths: _list, ...rest } = plan;
+  return { ...rest, ...(months.length ? { onHandMonths: months.sort() } : {}) } as T;
+}
+
 export function monthPicture(plan: MoneyPlan, bills: PlanBill[], expenses: Expense[], budget: BudgetCategory[], month: string, today: string) {
   const expected = expectedIncome(plan, month);
   const received = receivedIn(plan, month);
