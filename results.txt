@@ -1,0 +1,28 @@
+iphone: quick add box shown; placeholder "Add a to-do, or type @arise to ask AI, and press Enter"
+iphone: hint shown
+iphone: server got ask "make a worksheet for Kha by Monday" · kind worksheet · runAt now · due 2026-11-23 · when "Made now · due Mon, Nov 23" · task yes · tz America/Denver · people ["Kha"]
+iphone: task added: true
+iphone: server got ask "email the coach about Saturday on Monday" · kind email · runAt later · due 2026-11-23 · when "Made Mon, Nov 23 at 7:00 AM" · task yes · tz America/Denver · people ["Kha"]
+iphone: chips: Arise made it · Open (new) | Arise · Mon, Nov 23 at 7:00 AM
+iphone: Arise tab rows: 2
+iphone: worksheet shown: true; answer key kept apart: true; print buttons: Print worksheet / Print with answers; blanks: 2
+iphone: server got ask "what's the weather tomorrow?" · kind answer · runAt now · due - · when "Answered now" · task no · tz America/Denver · people ["Kha"]
+iphone: question opened its answer: true; waiting shown: true
+iphone: answer shown: true; on screen: true; source: "Open-Meteo forecast for Denver, Colorado"
+iphone: question added no to-do: true
+iphone: notification link opens the ask: true
+iphone: page errors: none
+desktop: quick add box shown; placeholder "Add a to-do, or type @arise to ask AI, and press Enter"
+desktop: hint shown
+desktop: server got ask "make a worksheet for Kha by Monday" · kind worksheet · runAt now · due 2026-11-23 · when "Made now · due Mon, Nov 23" · task yes · tz America/Denver · people ["Kha"]
+desktop: task added: true
+desktop: server got ask "email the coach about Saturday on Monday" · kind email · runAt later · due 2026-11-23 · when "Made Mon, Nov 23 at 7:00 AM" · task yes · tz America/Denver · people ["Kha"]
+desktop: chips: Arise made it · Open (new) | Arise · Mon, Nov 23 at 7:00 AM
+desktop: Arise tab rows: 2
+desktop: worksheet shown: true; answer key kept apart: true; print buttons: Print worksheet / Print with answers; blanks: 2
+desktop: server got ask "what's the weather tomorrow?" · kind answer · runAt now · due - · when "Answered now" · task no · tz America/Denver · people ["Kha"]
+desktop: question opened its answer: true; waiting shown: true
+desktop: answer shown: true; on screen: true; source: "Open-Meteo forecast for Denver, Colorado"
+desktop: question added no to-do: true
+desktop: notification link opens the ask: true
+desktop: page errors: none
