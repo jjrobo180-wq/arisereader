@@ -4,12 +4,13 @@ name: 5-Minute Reads check (in a browser)
 on:
   workflow_dispatch:
   push:
-    branches: [master, 'claude/more-five-minute-reads']
+    branches: [master, 'claude/more-five-minute-reads', 'claude/reads-rows']
     paths:
       - 'shared/funReads*.ts'
       - 'shared/ariseNews.ts'
       - 'shared/quickReads.ts'
       - 'client/src/components/QuickReadsShelf.tsx'
+      - 'client/src/reader-app.css'
       - 'client/src/pages/reads/**'
       - 'client/src/pages/news/**'
       - 'script/readsCheck.ts'

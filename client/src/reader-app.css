@@ -34,15 +34,29 @@ html.reader-app [role="button"] {
 html.reader-app img { -webkit-touch-callout: none; }
 
 /* Book cards: every one the same, like the Quick Reads cards: cover, title, author, points and one
-   button ("Read & Quiz" or "Take Quiz", Library.tsx). Two across on a phone, and the cards in the
-   rows that scroll sideways are exactly as wide as the ones in the grids. */
-html.reader-app { --card-gap: 1rem; --card-w: calc((100vw - 1.5rem - var(--card-gap)) / 2); }
+   button ("Read & Quiz" or "Take Quiz", Library.tsx). The cards in the rows that scroll sideways are
+   exactly as wide as the ones in the grids. */
 html.reader-app .book-access,
 html.reader-app .card-read { display: none !important; }
+
+/* On a phone (the app or the website), small cards: three across in a grid, and in a row that scrolls
+   sideways three and a bit of the next, so it's plain there's more. A card is its cover, title, author
+   and points; tapping it opens the book or read (the button and the "readers took this" note on the
+   cover are left off: too small to read at this size). */
 @media (max-width: 599px) {
-  html.reader-app .book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: var(--card-gap) !important; }
-  html.reader-app .book-row { gap: var(--card-gap) !important; }
-  html.reader-app .book-row > * { width: var(--card-w) !important; }
+  html { --card-gap: 0.625rem; --card-w: calc((100vw - 0.75rem - 3 * var(--card-gap)) / 3.3); }
+  .book-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: var(--card-gap) !important; }
+  .book-row { gap: var(--card-gap) !important; scroll-padding-left: 0.25rem; }
+  .book-row > * { width: var(--card-w) !important; min-width: 0; border-radius: 0.75rem !important; }
+  .book-grid > *, .book-row > * { border-radius: 0.75rem !important; }
+  .book-grid > * > .p-3, .book-row > * > .p-3 { padding: 0.45rem 0.5rem 0.55rem !important; }
+  .book-grid > * > .p-3 h3, .book-row > * > .p-3 h3 { font-size: 0.72rem !important; line-height: 1.2 !important; }
+  .book-grid > * > .p-3 > p, .book-row > * > .p-3 > p { font-size: 0.64rem !important; margin-top: 0.15rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book-grid > * > .p-3 > div:not(:has(> button)), .book-row > * > .p-3 > div:not(:has(> button)) { margin-top: 0.3rem !important; }
+  .book-grid > * > .p-3 > div > span, .book-row > * > .p-3 > div > span { font-size: 0.62rem !important; padding: 0 0.4rem !important; }
+  .book-grid > * > .p-3 > div:has(> button), .book-row > * > .p-3 > div:has(> button) { display: none !important; }
+  .book-grid [data-testid="quiz-takers-tag"], .book-row [data-testid="quiz-takers-tag"] { display: none !important; }
+  .book-grid > * > div:first-child > .absolute.top-2.right-2, .book-row > * > div:first-child > .absolute.top-2.right-2 { top: 0.3rem !important; right: 0.3rem !important; font-size: 0.6rem !important; padding: 0.1rem 0.35rem !important; }
 }
 html.reader-app .book-grid > *, html.reader-app .book-row > * { display: flex; flex-direction: column; }
 /* The button sits at the bottom, so cards with a one-line title line up with their neighbors. */

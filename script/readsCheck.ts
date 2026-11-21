@@ -28,6 +28,10 @@ async function serve(ctx: BrowserContext, label: string) {
       if (p === "/api/me" || p === "/api/auth/me") return json(user);
       if (p === "/api/profile") return json({ ...user, quizResults: [] });
       if (p === "/api/news/books" || p === "/api/reads/books") return json({ books: {} });
+      // A few library books, so the library shows its shelves instead of "Loading books...".
+      if (p === "/api/books") return json(["Charlotte's Web", "Holes", "Wonder", "Hatchet", "The Wild Robot", "Frindle", "Matilda", "Number the Stars"].map((title, i) => ({ id: 900 + i, title, author: "Author " + (i + 1), pointsValue: [10, 20, 30][i % 3], gradeLevel: 4, coverUrl: null, category: "Fiction", genre: "Fiction", isActive: true })));
+      // Already picked favorite topics, so the first-run "Pick Your Favorites" box doesn't cover the shelf.
+      if (p === "/api/student/favorites") return json({ topics: ["Soccer"], bookIds: [], onboarded: true });
       if (p === "/api/books/quiz-takers") return json({});
       if (p === "/api/public/stats") return json({ students: 0, quizzes: 0, books: 0 });
       if (p === "/api/announcement") return json(null);
@@ -85,6 +89,13 @@ for (const [label, engine, opts] of [["iphone", webkit, devices["iPhone 14"]], [
     await page.locator("#quick-reads-h").scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(800);
     note(`${label}: library shelf shows ${await page.getByTestId("quick-shelf-category").count()} category rows`);
+    // How many cards of the first row are on screen (three and a bit on a phone).
+    const fit = await page.getByTestId("quick-shelf-category").first().locator(".book-row > *").evaluateAll((cards) => {
+      const w = window.innerWidth;
+      const boxes = cards.map((c) => c.getBoundingClientRect());
+      return { whole: boxes.filter((b) => b.left >= 0 && b.right <= w + 1).length, part: boxes.filter((b) => b.left < w && b.right > w).length, width: Math.round(boxes[0]?.width || 0), height: Math.round(boxes[0]?.height || 0) };
+    }).catch(() => null);
+    note(`${label}: first row on screen: ${fit ? `${fit.whole} whole card(s) + ${fit.part} partly, each ${fit.width}x${fit.height}px` : "?"}`);
     await shot("4-library-shelf");
     await page.evaluate(() => window.scrollBy(0, 900)); await page.waitForTimeout(500); await shot("5-library-shelf-more");
     // A few of the new reads.
