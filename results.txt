@@ -1,0 +1,17 @@
+iphone-safari: 2 task checkboxes on screen
+iphone-safari: on top at the checkbox before tapping: nothing
+iphone-safari: tap Done: Task 155 -> saves sent: 0; open tasks saved 2 → 2 (NOT TICKED)
+iphone-safari: quick add box can't be tapped: locator.click: Timeout 5000ms exceeded.
+iphone-safari: quick add -> saves sent: 1; saved has it: false
+iphone-safari: page errors: TypeError: undefined is not an object (evaluating 'N.withMe')
+phone-chrome: 2 task checkboxes on screen
+phone-chrome: on top at the checkbox before tapping: nothing
+phone-chrome: tap Done: Task 155 -> saves sent: 0; open tasks saved 2 → 2 (NOT TICKED)
+phone-chrome: quick add box can't be tapped: locator.click: Timeout 5000ms exceeded.
+phone-chrome: quick add -> saves sent: 1; saved has it: false
+phone-chrome: page errors: N.withMe is not iterable
+desktop: 2 task checkboxes on screen
+desktop: on top at the checkbox before tapping: BUTTON.min-w-0 rounded-2xl border p-2.5 text-left transition active:scale-[.98] border-black/10 b 
+desktop: tap Done: Task 155 -> saves sent: 1; open tasks saved 2 → 2 (NOT TICKED)
+desktop: no quick-add box visible
+desktop: page errors: N.withMe is not iterable

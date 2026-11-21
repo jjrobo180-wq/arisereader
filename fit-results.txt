@@ -1,0 +1,5 @@
+iphone-safari: search add -> searched: 1; saves: 1; foods saved: 1 (LOGGED OK)
+iphone-safari: quick add -> saves: 1; foods saved: 2 (LOGGED OK)
+phone-chrome: search add -> searched: 1; saves: 1; foods saved: 1 (LOGGED OK)
+phone-chrome: quick add -> saves: 1; foods saved: 2 (LOGGED OK)
+phone-chrome: page errors: console: Failed to load resource: net::ERR_FAILED
