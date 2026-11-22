@@ -6,15 +6,19 @@ import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("the home page speaks to teachers, special educators, schools and parents", () => {
+test("the home page speaks to teachers, schools and parents, in the site's own look", () => {
   const home = read("client/public/educator.html");
-  assert.match(home, /<title>Arise To Duo: The Free Workspace for Teachers, Schools and Parents<\/title>/);
-  for (const id of ["teachers", "sped", "schools", "parents", "reader", "pricing"]) assert.match(home, new RegExp(`<section id="${id}"`), id);
-  assert.match(home, /href="\/app#\/teacher-signup"/);
-  assert.match(home, /href="\/app#\/parent-signup"/);
-  assert.match(home, /href="\/iphone-duo\/"/, "links to the iPhone Duo page");
-  assert.match(home, /fetch\('\/api\/public\/reader-totals'\)/);
-  assert.match(home, /Google Classroom and Docs <span class="tag">Coming soon<\/span>/, "not claimed as live before the Google keys are in");
+  const duo = read("client/public/iphone-duo/index.html");
+  assert.match(home, /<title>Arise To Duo: The Free Workspace for Teachers, Schools and Families<\/title>/);
+  assert.match(home, /<h1>The free workspace <span class="gradient-text">for teachers and families\.<\/span><\/h1>/);
+  assert.match(home, /href="\/app#\/teacher-signup">I'm a teacher/);
+  assert.match(home, /href="\/app#\/parent-signup">I'm a parent/);
+  assert.match(home, /<a href="\/iphone-duo\/">iPhone Duo<\/a>/, "the menu links to the iPhone Duo page");
+  assert.match(home, /Arise Reader is free for every student/);
+  // Same theme as before: the same stylesheet and the same sections as the iPhone Duo page.
+  const style = (h: string) => h.slice(h.indexOf("<style>"), h.indexOf("</style>"));
+  assert.equal(style(home), style(duo), "same styles");
+  for (const id of ['id="duo"', 'id="duo-live"', 'id="features"', 'id="app-showcase"', 'id="life"', 'id="pricing"', 'id="faq"', 'id="whats-new"']) assert.ok(home.includes(id), id);
   // App links and the Home Screen app still go into the app.
   assert.match(home, /location\.replace\("\/app" \+ location\.hash\)/);
   assert.match(home, /location\.replace\(signedIn \? "\/app#\/" : "\/app#\/signin"\)/);
