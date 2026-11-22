@@ -54,11 +54,14 @@ type Engagement = {
   personalBest: { thisWeekPoints: number; lastWeekPoints: number; beatLastWeek: boolean };
 };
 
-export default function StudentProgress() {
+/** `view="rewards"` is the Rewards menu (/rewards): the Reward Store and prizes on their own page. */
+export default function StudentProgress({ view }: { view?: "rewards" } = {}) {
   const { user, token } = useAuth();
   const [, navigate] = useLocation();
   // opens on the leaderboard: this month's race, then the Advisory Challenge
-  const [tab, setTab] = useState<"badges" | "rewards" | "leaderboard">("leaderboard");
+  const [tab, setTabState] = useState<"badges" | "rewards" | "leaderboard">(view === "rewards" ? "rewards" : "leaderboard");
+  // Rewards has its own menu now: the Rewards tab on My Progress opens it.
+  const setTab = (t: "badges" | "rewards" | "leaderboard") => (t === "rewards" && view !== "rewards" ? navigate("/rewards") : setTabState(t));
   const [month, setMonth] = useState(() => schoolYearMonth());
   // Two boards, one at a time: the Advisory Challenge first, and the students' monthly race.
   const [board, setBoard] = useState<"students" | "advisories">("advisories");
@@ -159,15 +162,15 @@ export default function StudentProgress() {
             <ArrowLeft className="w-4 h-4 mr-1" /> Library
           </Button>
           <div className="flex-1">
-            <h1 className="font-bold text-lg">My Progress</h1>
-            <p className="text-xs text-muted-foreground hidden sm:block">Badges, rewards, and rankings in one place</p>
+            <h1 className="font-bold text-lg">{view === "rewards" ? "Rewards" : "My Progress"}</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">{view === "rewards" ? "Cash in your Reward Points" : "Badges and rankings"}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>Account</Button>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-5">
-        {engagement && (
+        {engagement && view !== "rewards" && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
@@ -202,7 +205,7 @@ export default function StudentProgress() {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-muted/40">
+        {view !== "rewards" && <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-muted/40">
           <button
             onClick={() => setTab("badges")}
             className={`rounded-lg px-3 py-3 text-sm font-bold flex items-center justify-center gap-2 ${tab === "badges" ? "bg-card shadow text-primary" : "text-muted-foreground"}`}
@@ -225,7 +228,7 @@ export default function StudentProgress() {
             <span className="hidden sm:inline">Leaderboard</span>
             <span className="sm:hidden">Ranks</span>
           </button>
-        </div>
+        </div>}
 
         {message && (
           <div className="rounded-xl border border-primary/20 bg-primary/10 p-3 text-sm">{message}</div>

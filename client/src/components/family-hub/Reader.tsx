@@ -37,7 +37,8 @@ export default function Reader({ say, night = false }: { say: (message: string) 
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState("");
-  const [view, setView] = useState<View>("progress");
+  // /rewards sends a parent here, straight to Rewards (?view=rewards).
+  const [view, setView] = useState<View>(() => { try { const q = window.location.hash.split("?")[1] || window.location.search.slice(1); return new URLSearchParams(q).get("view") === "rewards" ? "prizes" : "progress"; } catch { return "progress"; } });
   const [adding, setAdding] = useState(false);
   const [proctor, setProctor] = useState("");
   const [growth, setGrowth] = useState<any>(null);

@@ -1043,6 +1043,10 @@ function AppRoutes() {
       <Route path="/admin">
         {user?.isAdmin ? <OpenReaderAdmin /> : user ? <Redirect to="/" replace /> : <Redirect to="/signin" replace />}
       </Route>
+      {/* Rewards has its own menu: the Reward Store for a student, the family's rewards for a parent. */}
+      <Route path="/rewards">
+        {user?.role === "parent" ? <Redirect to="/reader?view=rewards" replace /> : <ProtectedRoute><StudentProgress view="rewards" /></ProtectedRoute>}
+      </Route>
       <Route path="/progress">
         <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>
       </Route>

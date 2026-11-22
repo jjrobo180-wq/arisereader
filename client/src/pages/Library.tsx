@@ -1400,7 +1400,10 @@ export default function Library() {
                           <Bookmark className="mb-1.5 h-4 w-4 text-primary" /><span className="block text-xs font-black">My Books</span>
                         </button>
                         <button data-tour="leaderboard-link" onClick={() => { navigate("/leaderboard"); setShowMobileMenu(false); }} className="relative rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                          <Trophy className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Progress & Rewards</span>
+                          <Trophy className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Progress</span>
+                        </button>
+                        <button data-testid="menu-rewards" onClick={() => { navigate("/rewards"); setShowMobileMenu(false); }} className="relative rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                          <Gift className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Rewards</span>
                           {studentRewards.some(r => r.claimStatus === "approved") && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-green-500" />}
                         </button>
                         {!user?.is_eye_gaze_user && !isReaderApp() && (
