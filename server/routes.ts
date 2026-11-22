@@ -148,6 +148,7 @@ import { createEnglishSpeech } from "./ariseEnglishVoice";
 import { beginnersPassTimes, registerBeginnersRoutes, type BeginnersPerson } from "./ariseBeginners";
 import { registerStudentShowVoice } from "./studentShowVoice";
 import { registerAppleReminderRoutes } from "./appleReminders";
+import { registerGoogleRoutes } from "./googleConnect";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
 import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
@@ -2014,7 +2015,13 @@ export async function registerRoutes(
     }, text: textConfig ? createTextService(textConfig) : undefined });
   // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
   registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
-  // Notifications for the Home Screen app (Web Push): Arise WorkHub reminders.
+  // Google (Classroom, Docs, Calendar, Gmail) in Arise To Duo. Off until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+  registerGoogleRoutes(app, authMiddleware, {
+    gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(),
+    clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || "https://arisetodo.com/api/google/callback",
+    siteUrl: process.env.TODO_SITE_URL || "https://arisetodo.com",
+  });
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), todoAllowed: todoOwnerAllowed });
   // Potty Training: the reminder timer as a phone notification, sent even when the app is closed.
   registerPottyTimerRoutes(app, authMiddleware, {

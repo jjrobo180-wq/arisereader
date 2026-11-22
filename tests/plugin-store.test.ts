@@ -115,6 +115,7 @@ test("Start setup goes to the exact setup box of every connection", () => {
     '[data-testid="hub-forwarding"]': "client/src/components/teacher-hub/HubInbox.tsx",
     '[data-plugin-anchor="apple-health"]': "client/src/components/family-hub/AppleHealth.tsx",
     '[data-plugin-anchor="email-forward"]': "client/src/components/family-hub/EmailForward.tsx",
+    '[data-plugin-anchor="google"]': "client/src/components/teacher-hub/HubGoogle.tsx",
   };
   for (const p of PLUGINS.filter((q) => q.target.kind === "connection")) {
     assert.ok(p.anchor && files[p.anchor], `${p.id}: needs a known setup box`);
