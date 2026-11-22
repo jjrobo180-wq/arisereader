@@ -194,6 +194,8 @@ export const SHELVES: KidsShelf[] = [
   { name: "Talk", tiles: [
     { name: "My Talker", bg: "#d9cfff", d: "M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z", path: "/eye-gaze-talker" },
     { name: "Wren", bg: "#ffc9de", d: "M4 14c0-5 4-8 9-8 2 0 4 1 5 3l3 1-3 1c0 5-4 8-9 8l-5 1 2-3c-1-1-2-2-2-3zM14 9h.01", path: "/eye-gaze-wren", allow: "/eye-gaze-talker" },
+    // Real photos of her own things: swipe, right now, this or that, her phrases (shared/photoTalk.ts).
+    { name: "Photo Talk", bg: "#b8ecd8", d: "M4 7h3l2-3h6l2 3h3v12H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", path: "/eye-gaze-photo-talk", allow: "/eye-gaze-talker" },
     { name: "My Buddy", bg: "#ffe3a1", d: "M5 8 3 4l5 1M19 8l2-4-5 1M6 9a6 6 0 0 1 12 0v4a6 6 0 0 1-12 0zM10 11h.01M14 11h.01M11 15h2", path: "/eye-gaze-buddy" },
   ] },
   { name: "Watch", tiles: [

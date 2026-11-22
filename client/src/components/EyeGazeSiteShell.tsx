@@ -23,12 +23,12 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const kidsScreen = location === "/eye-gaze-home" || location === "/eye-gaze-apps" || location === "/eye-gaze-stickers";
   // Each game on its own page, and the Quizzes and Books apps (they draw their own bar), are full screen too.
   const kidsPage = location.startsWith("/eye-gaze-play/") || location === "/eye-gaze-quizzes" || location === "/eye-gaze-books";
-  const immersiveRoute = kidsScreen || kidsPage || location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
+  const immersiveRoute = kidsScreen || kidsPage || location.startsWith("/eye-gaze-quiz/") || location.startsWith("/custom-quiz/") || location.startsWith("/read/") || location.startsWith("/arise-city") || location.startsWith("/buddy-world") || location.startsWith("/my-world") || location.startsWith("/eye-gaze-talker") || location.startsWith("/eye-gaze-wren") || location.startsWith("/eye-gaze-photo-talk") || location.startsWith("/eye-gaze-parent") || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-flashcards") || location.startsWith("/eye-gaze-fidgets") || location.startsWith("/eye-gaze-farm") || location.startsWith("/eye-gaze-potty") || location.startsWith("/eye-gaze-parent-controls");
   const immersive = immersiveRoute || (location === "/eye-gaze-games" && gameImmersive);
 
   // Arise AAC draws edge to edge (index.css, html.eyegaze-edge). These screens go all the way to the top and bottom of
   // the phone and keep their own buttons clear of the clock and the home bar; every other page is held inside them.
-  const edgeScreen = kidsScreen || kidsPage || location.startsWith("/eye-gaze-tv");
+  const edgeScreen = kidsScreen || kidsPage || location.startsWith("/eye-gaze-tv") || location.startsWith("/eye-gaze-photo-talk");
   useEffect(() => {
     const html = document.documentElement;
     html.classList.toggle("edge-screen", edgeScreen);

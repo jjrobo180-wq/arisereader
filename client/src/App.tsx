@@ -194,6 +194,7 @@ const EyeGazeBuddyWorld = lazyPage(() => import("./pages/EyeGazeBuddyWorld"));
 const EyeGazeMyWorld = lazyPage(() => import("./pages/EyeGazeMyWorld"));
 const EyeGazeBuddy = lazyPage(() => import("./pages/EyeGazeBuddy"));
 const EyeGazeWren = lazyPage(() => import("./pages/EyeGazeWren"));
+const EyeGazePhotoTalk = lazyPage(() => import("./pages/EyeGazePhotoTalk"));
 const EyeGazeTalker = lazyPage(() => import("./pages/EyeGazeTalker"));
 const EyeGazeParentMode = lazyPage(() => import("./pages/EyeGazeParentMode"));
 const EyeGazeTV = lazyPage(() => import("./pages/EyeGazeTV"));
@@ -1111,6 +1112,9 @@ function AppRoutes() {
       </Route>
       <Route path="/buddy-world">
         <Redirect to="/my-world" replace />
+      </Route>
+      <Route path="/eye-gaze-photo-talk">
+        {isEyeGazeStudent || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-talker"><EyeGazePhotoTalk /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" replace />}
       </Route>
       <Route path="/my-world">
         {isEyeGazeStudent || user?.role === 'parent' ? <ProtectedRoute><EyeGazeAccessGate path="/my-world"><EyeGazeMyWorld /></EyeGazeAccessGate></ProtectedRoute> : <Redirect to="/" replace />}

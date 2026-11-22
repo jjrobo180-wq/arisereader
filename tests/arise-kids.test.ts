@@ -259,7 +259,7 @@ test("Arise AAC draws edge to edge: the app setting, the safe-area rules, and th
   assert.match(css, /html\.eyegaze-edge:not\(\.edge-screen\) \.fixed:is\(\.inset-0, \.inset-y-0, \.top-0\) \{ top: var\(--sat\); \}/);
   // Shorts, the Kids screens and the games are the edge screens; they keep their own buttons clear.
   const shell = read("client/src/components/EyeGazeSiteShell.tsx");
-  assert.match(shell, /const edgeScreen = kidsScreen \|\| kidsPage \|\| location\.startsWith\("\/eye-gaze-tv"\);/);
+  assert.match(shell, /const edgeScreen = kidsScreen \|\| kidsPage \|\| location\.startsWith\("\/eye-gaze-tv"\) \|\| location\.startsWith\("\/eye-gaze-photo-talk"\);/);
   assert.match(shell, /classList\.toggle\("edge-screen", edgeScreen\)/);
   assert.match(read("client/src/pages/EyeGazeTV.tsx"), /calc\(0\.75rem \+ var\(--sat-in, 0px\)\)/);
   assert.match(read("client/src/pages/EyeGazeTV.tsx"), /calc\(6rem \+ var\(--sab-in, 0px\)\)/);

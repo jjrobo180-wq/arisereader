@@ -11,6 +11,7 @@ import { nameKey, registerAccountMergeRoutes, supabaseMergeDb, type Candidate } 
 import { registerDropAppRoutes } from "./dropApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
+import { normalizePhotoTalk, emptyPhotoTalk } from "../shared/photoTalk";
 import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage, setReaderMessageListener } from "./storage";
@@ -8979,6 +8980,52 @@ Important:
       res.json({ setupComplete, worlds: await signMyWorldMedia(worlds) });
     } catch (error: any) {
       res.status(400).json({ message: error?.message || 'Could not save My World.' });
+    }
+  });
+
+  // Photo Talk (shared/photoTalk.ts): the child's board of real photos. The photos are uploaded through My
+  // World's upload (same private bucket, same grown-up check) and only ever leave as hour-long signed links.
+  const photoTalkKey = (childId: number) => `eye_gaze_photo_talk_${childId}`;
+  async function signPhotoTalk(config: any) {
+    const adminDb = getAdminSupabase();
+    const sign = async (path: string | null) => {
+      if (!path) return null;
+      const { data } = await adminDb.storage.from(MY_WORLD_BUCKET).createSignedUrl(path, 3600);
+      return data?.signedUrl || null;
+    };
+    return {
+      cards: await Promise.all((config.cards || []).map(async (c: any) => ({ ...c, photoUrl: await sign(c.photoPath) }))),
+      phrases: await Promise.all((config.phrases || []).map(async (p: any) => ({ ...p, photoUrl: await sign(p.photoPath) }))),
+    };
+  }
+
+  app.get('/api/eye-gaze/photo-talk', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
+      let saved: any = emptyPhotoTalk();
+      const raw = await storage.getSetting(photoTalkKey(child.id));
+      if (raw) { try { saved = normalizePhotoTalk(JSON.parse(raw), child.id); } catch { saved = emptyPhotoTalk(); } }
+      res.set('Cache-Control', 'no-store');
+      res.json({ student: { id: child.id, name: child.displayName }, isParent: req.user.role === 'parent', ...(await signPhotoTalk(saved)) });
+    } catch (error: any) {
+      console.error('[photo-talk] load:', error?.message);
+      res.status(503).json({ message: 'Could not load Photo Talk right now.' });
+    }
+  });
+
+  app.post('/api/eye-gaze/photo-talk/config', authMiddleware, async (req: any, res) => {
+    try {
+      const child = await talkerStudent(req);
+      if (!child) return res.status(403).json({ message: 'A linked Arise AAC account is required.' });
+      if (!validMyWorldGrownupPass(req, child.id)) return res.status(403).json({ message: 'Answer the grown-up math question to change the photos.' });
+      let config;
+      try { config = normalizePhotoTalk(req.body, child.id); } catch (e: any) { return res.status(400).json({ message: e?.message || 'Could not save that.' }); }
+      await storage.upsertSetting(photoTalkKey(child.id), JSON.stringify(config));
+      res.json(await signPhotoTalk(config));
+    } catch (error: any) {
+      console.error('[photo-talk] save:', error?.message);
+      res.status(503).json({ message: 'Could not save Photo Talk right now.' });
     }
   });
 
