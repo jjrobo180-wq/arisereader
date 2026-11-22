@@ -27,7 +27,8 @@ test("the paywall offers the trial and says what it costs after", () => {
 });
 
 test("arisetodo.com pricing shows the one subscription and the trial", () => {
-  const html = read("client/public/educator.html");
+  // The full To Duo pricing lives on the iPhone Duo page now; the home page is for teachers, schools and parents.
+  const html = read("client/public/iphone-duo/index.html");
   assert.match(html, /The one Arise To Duo subscription/);
   assert.match(html, /data-testid="pricing-trial"><strong>3-day free trial<\/strong> when you subscribe in the Arise To Duo iPhone app/);
   assert.match(html, /One subscription, \$10\./);

@@ -48,7 +48,8 @@ app.get("/robots.txt", (req, res, next) => {
 // The Arise To Duo pages search engines should know about (all static pages in client/public).
 // Update `lastmod` when a page's content changes.
 const TODO_SITEMAP: { path: string; lastmod: string; priority: string }[] = [
-  { path: "/", lastmod: "2026-10-24", priority: "1.0" },
+  { path: "/", lastmod: "2026-11-22", priority: "1.0" },
+  { path: "/iphone-duo/", lastmod: "2026-11-22", priority: "0.9" },
   { path: "/iphone-duo-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
   { path: "/split-screen-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
   { path: "/iphone-duo-split-screen-guide/", lastmod: "2026-10-24", priority: "0.8" },

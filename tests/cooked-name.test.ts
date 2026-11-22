@@ -21,7 +21,7 @@ test("no website page still says Cooked+", () => {
   const pages = readdirSync("client/public").filter((f) => f.endsWith(".html")).map((f) => `client/public/${f}`)
     .concat(readdirSync("client/public", { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `client/public/${d.name}/index.html`).filter((p) => existsSync(p)));
   for (const p of pages) assert.ok(!/Cooked\+/.test(read(p)), `${p} has no Cooked+`);
-  for (const p of ["client/public/educator.html", "client/public/notes-landing.html"]) {
+  for (const p of ["client/public/iphone-duo/index.html", "client/public/notes-landing.html"]) {
     assert.ok(read(p).includes('<li><strong>Cooked Fitness by Arise</strong><small class="perk-detail">Premium All in one Health &amp; Fitness App'), `${p} splits name and description`);
   }
 });
