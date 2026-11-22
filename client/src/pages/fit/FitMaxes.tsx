@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, ClipboardList, Copy, History, Pencil, Play, Plus, Trash2, Trophy } from "lucide-react";
 import { CATALOG_BY_ID, dayKey, fromKg, toKg, uid, type FitData, type Routine, type RoutineItem, type Units, type Workout } from "@shared/fit";
-import { loggedOnly, maxRows, percentOf, strength, type MaxEntry, type MaxRow } from "@shared/fitMaxes";
+import { maxRows, maxTimeline, percentOf, strength, type MaxEntry, type MaxRow } from "@shared/fitMaxes";
 import type { LibraryExercise, Update } from "./fitStore";
 import { Btn, C, Card, Chips, Sheet, Spark, Title, display, inputCls, inputStyle } from "./fitUi";
 import { Library, planned, startWorkout, type Active } from "./FitTrain";
@@ -23,8 +23,28 @@ export function maxLabel(m: Pick<MaxEntry, "kg" | "reps" | "secs">, units: Units
   return `${w1(fromKg(m.kg, units))} ${units} × ${m.reps}`;
 }
 
+/** What a row shows: the max they entered, or their best logged set when that's stronger. */
+export function rowLabel(r: MaxRow, units: Units): string {
+  if (r.source === "logged" && r.logged) return `${w1(r.logged.weight)} ${units} × ${r.logged.reps}`;
+  return r.best ? maxLabel(r.best, units) : "";
+}
+
+/** The My maxes button: how many lifts have a max (entered or logged) and the newest. */
+export function maxSummary(data: FitData): string {
+  const rows = maxRows(data.maxes ?? [], data.workouts, data.profile.units);
+  if (!rows.length) return "Log a workout or add one";
+  return `${rows.length} lift${rows.length === 1 ? "" : "s"} · ${rows[0].name} ${rowLabel(rows[0], data.profile.units)}`;
+}
+
 type Kind = "weight" | "reps" | "time";
 const kindOf = (exId: string, m?: MaxEntry): Kind => (m ? (m.secs ? "time" : m.kg > 0 ? "weight" : "reps") : CATALOG_BY_ID.get(exId)?.timed ? "time" : CATALOG_BY_ID.get(exId)?.equipment === "bodyweight" ? "reps" : "weight");
+
+/** A tiny line of a max going up, for the list. */
+function MiniLine({ values }: { values: number[] }) {
+  const lo = Math.min(...values), hi = Math.max(...values), span = hi - lo || 1, w = 300, h = 28;
+  const d = values.map((v, i) => `${i ? "L" : "M"}${((i / (values.length - 1)) * (w - 4) + 2).toFixed(1)},${(h - 3 - ((v - lo) / span) * (h - 6)).toFixed(1)}`).join(" ");
+  return <svg viewBox={`0 0 ${w} ${h}`} className="h-7 w-full" preserveAspectRatio="none"><path d={d} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ stroke: C.lime }} /></svg>;
+}
 
 function NumberField({ label, value, set, suffix, testId }: { label: string; value: string; set: (v: string) => void; suffix?: string; testId?: string }) {
   return <label className="block text-[12px] font-semibold" style={{ color: C.dim }}>{label}
@@ -79,29 +99,37 @@ function MaxEditor({ data, list, start, onSave, onClose }: { data: FitData; list
 
 function MaxDetail({ row, data, onUpdate, onDelete, onClose }: { row: MaxRow; data: FitData; onUpdate: () => void; onDelete: (id: string) => void; onClose: () => void }) {
   const units = data.profile.units;
-  const best = row.best!;
-  const points = [...row.history].reverse().map((m) => ({ x: shortDate(m.date), y: m.kg > 0 ? fromKg(strength(m), units) : strength(m) }));
-  return <Sheet title={row.name} onClose={onClose} testId="fit-max-detail">
+  const best = row.best;
+  const timed = !!best?.secs, reps = !!best && best.kg <= 0 && !best.secs;
+  const unit = (y: number) => (timed ? clockSecs(Math.round(y)) : reps ? `${Math.round(y)} reps` : `${w1(y)} ${units}`);
+  const line = useMemo(() => maxTimeline(row.exId, data.maxes ?? [], data.workouts, units), [row.exId, data.maxes, data.workouts, units]);
+  const pts = line.points;
+  return <Sheet title={row.name} onClose={onClose} testId="fit-max-detail" tall footer={<Btn className="w-full" onClick={onUpdate} testId="fit-max-update"><Pencil className="h-5 w-5" />{best ? "Update max" : "Save as my max"}</Btn>}>
     <Card className="mt-2 !p-5 text-center">
-      <p className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>Your max</p>
-      <p className="mt-1 text-[34px] leading-none" style={display}>{maxLabel(best, units)}</p>
-      {row.oneRm > 0 && <p className="mt-2 text-[14px]" style={{ color: C.steel }}>About {w1(row.oneRm)} {units} for one rep{row.logged && row.logged.e1rm >= fromKg(strength(best), units) ? " (from a logged workout)" : ""}</p>}
-      <Btn className="mt-4 w-full" onClick={onUpdate} testId="fit-max-update"><Pencil className="h-5 w-5" />Update max</Btn>
+      <p className="text-[12px] font-bold uppercase tracking-[.14em]" style={{ color: C.lime }}>{row.source === "logged" ? "Your best, from your workouts" : "Your max"}</p>
+      <p className="mt-1 text-[34px] leading-none" style={display} data-testid="fit-max-headline">{rowLabel(row, units)}</p>
+      {row.oneRm > 0 && <p className="mt-2 text-[14px]" style={{ color: C.steel }}>About {w1(row.oneRm)} {units} for one rep · {shortDate(row.date)}</p>}
+      {line.gain > 0 && <p className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[13px] font-bold" style={{ background: C.emberSoft, color: C.lime }} data-testid="fit-max-gain">Up {timed || reps ? unit(line.gain) : `${Math.round(line.gain)} ${units}`} since {shortDate(pts[0].date)}</p>}
     </Card>
-    {points.length > 1 && <><Title>Over time</Title><Card><Spark points={points} label={(y) => (best.kg > 0 ? `${w1(y)} ${units}` : best.secs ? clockSecs(Math.round(y)) : `${Math.round(y)} reps`)} /></Card></>}
+    <Title>Max over time</Title>
+    <Card testId="fit-max-chart">{pts.length > 1
+      ? <><Spark points={pts.map((p) => ({ x: shortDate(p.date), y: p.best }))} label={unit} />
+        <p className="mt-2 text-[12px]" style={{ color: C.dim }}>Your best so far ({timed ? "longest hold" : reps ? "most reps" : "estimated one-rep max"}), from {pts.length} days of workouts and maxes. It updates itself after every workout.</p></>
+      : <p className="py-4 text-center text-[13px]" style={{ color: C.dim }}>Log this exercise in a workout or two and your max shows up here as a chart.</p>}</Card>
+    {pts.length > 2 && <><Title>Each workout</Title><Card><Spark points={pts.map((p) => ({ x: shortDate(p.date), y: p.day }))} label={unit} color={C.steel} /></Card></>}
     {row.oneRm > 0 && <><Title>Train from it</Title>
       <Card className="!p-1.5"><div className="grid grid-cols-4 gap-1 text-center" data-testid="fit-max-percents">
         {[50, 60, 65, 70, 75, 80, 85, 90].map((p) => <div key={p} className="rounded-[10px] py-2" style={{ background: C.card2 }}>
           <p className="text-[11px] font-semibold" style={{ color: C.dim }}>{p}%</p><p className="text-[16px] font-bold tabular-nums">{w1(percentOf(row.oneRm, p, units))}</p></div>)}
       </div></Card>
-      <p className="mt-1.5 px-1 text-[12px]" style={{ color: C.dim }}>In {units}, rounded to the plates. New workouts with this exercise start from your max until you've logged it.</p></>}
-    {row.logged && <><Title>Best logged workout</Title><Card className="!p-3"><p className="text-[15px] font-semibold">{w1(row.logged.weight)} {units} × {row.logged.reps}</p><p className="text-[12px]" style={{ color: C.dim }}>{shortDate(row.logged.date)}</p></Card></>}
-    <Title>History</Title>
+      <p className="mt-1.5 px-1 text-[12px]" style={{ color: C.dim }}>In {units}, rounded to the plates.</p></>}
+    {row.logged && <><Title>Best logged set</Title><Card className="!p-3"><p className="text-[15px] font-semibold">{w1(row.logged.weight)} {units} × {row.logged.reps}</p><p className="text-[12px]" style={{ color: C.dim }}>{shortDate(row.logged.date)}</p></Card></>}
+    {row.history.length > 0 && <><Title>Maxes you entered</Title>
     <Card className="!p-1.5"><ul>{row.history.map((m, k) => <li key={m.id} className="flex items-center gap-3 px-2 py-2.5" style={k ? { borderTop: `1px solid ${C.line}` } : undefined}>
       <History className="h-4 w-4 shrink-0" style={{ color: C.dim }} />
       <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold tabular-nums">{maxLabel(m, units)}</span><span className="block truncate text-[12px]" style={{ color: C.dim }}>{shortDate(m.date)}{m.note ? ` · ${m.note}` : ""}</span></span>
       <button type="button" aria-label="Delete this entry" onClick={() => { if (window.confirm("Delete this entry?")) onDelete(m.id); }} className="grid h-10 w-10 place-items-center" style={{ color: C.dim }}><Trash2 className="h-4 w-4" /></button>
-    </li>)}</ul></Card>
+    </li>)}</ul></Card></>}
   </Sheet>;
 }
 
@@ -109,38 +137,35 @@ export function MaxesApp({ inline, data, update, list, say, onClose }: { inline?
   const units = data.profile.units;
   const entries = data.maxes ?? [];
   const rows = useMemo(() => maxRows(entries, data.workouts, units), [entries, data.workouts, units]);
-  const suggest = useMemo(() => loggedOnly(entries, data.workouts), [entries, data.workouts]);
   const [edit, setEdit] = useState<Parameters<typeof MaxEditor>[0]["start"] | null | false>(false);
   const [open, setOpen] = useState<string | null>(null);
   const row = rows.find((r) => r.exId === open) ?? null;
   const save = (m: MaxEntry) => {
-    const before = rows.find((r) => r.exId === m.exId)?.best;
+    const before = rows.find((r) => r.exId === m.exId);
     update((d) => ({ ...d, maxes: [...(d.maxes ?? []), m] }));
     setEdit(false);
-    say(before && strength(m) > strength(before) ? `New max on ${m.name}!` : "Max saved.");
+    const was = before ? (before.best ? strength(before.best) : 0) : 0;
+    say(before && m.kg > 0 && fromKg(strength(m), units) > before.oneRm + 0.01 ? `New max on ${m.name}!` : was && strength(m) > was ? `New max on ${m.name}!` : "Max saved.");
   };
   const remove = (id: string) => update((d) => ({ ...d, maxes: (d.maxes ?? []).filter((m) => m.id !== id) }));
-  return <Sheet inline={inline} title="My maxes" onClose={onClose} testId="fit-app-maxes" right={<Btn className="!min-h-10" onClick={() => setEdit(null)} testId="fit-max-add"><Plus className="h-4 w-4" />Add</Btn>}>
-    {rows.length ? <div className="mt-2 grid gap-2" data-testid="fit-max-list">{rows.map((r) => <Card key={r.exId} onClick={() => setOpen(r.exId)} className="!p-3" testId={`fit-max-${r.exId}`}>
+  return <Sheet inline={inline} tall title="My maxes" onClose={onClose} testId="fit-app-maxes" right={<Btn className="!min-h-10" onClick={() => setEdit(null)} testId="fit-max-add"><Plus className="h-4 w-4" />Add</Btn>}>
+    {rows.length ? <><p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>Every lift you log counts. Your maxes and charts update themselves after each workout.</p>
+      <div className="mt-2 grid grid-cols-1 gap-2" data-testid="fit-max-list">{rows.map((r) => { const t = maxTimeline(r.exId, entries, data.workouts, units); return <Card key={r.exId} onClick={() => setOpen(r.exId)} className="!p-3" testId={`fit-max-${r.exId}`}>
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: C.emberSoft, color: C.lime }}><Trophy className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1"><span className="block truncate text-[16px] font-semibold">{r.name}</span>
-          <span className="block truncate text-[13px] tabular-nums" style={{ color: C.dim }}>{r.oneRm > 0 && r.best && r.best.reps > 1 ? `≈ ${w1(r.oneRm)} ${units} 1RM · ` : ""}Updated {shortDate(r.latest!.date)}</span></span>
-        <span className="text-right text-[18px] font-bold tabular-nums" style={display}>{maxLabel(r.best!, units)}</span>
+          <span className="block truncate text-[13px] tabular-nums" style={{ color: C.dim }}>{r.source === "logged" ? "From a workout" : "Entered"} · {shortDate(r.date)}</span></span>
+        <span className="shrink-0 text-right"><span className="block text-[18px] font-bold tabular-nums" style={display}>{rowLabel(r, units)}</span>
+          {t.gain > 0 && r.best?.kg !== 0 && <span className="block text-[12px] font-bold tabular-nums" style={{ color: C.lime }}>+{Math.round(t.gain)} {units}</span>}</span>
       </div>
-    </Card>)}</div>
-      : <Card className="mt-2 !p-5 text-center"><Trophy className="mx-auto h-8 w-8" style={{ color: C.lime }} /><p className="mt-2 text-[17px] font-semibold">Keep your maxes here</p>
-        <p className="mt-1 text-[14px]" style={{ color: C.dim }}>Add the most you've lifted on a bench, squat or deadlift (or most push-ups, or your longest plank). Update it every time you beat it.</p>
+      {t.points.length > 2 && <div className="mt-2" aria-hidden><MiniLine values={t.points.map((p) => p.best)} /></div>}
+    </Card>; })}</div></>
+      : <Card className="mt-2 !p-5 text-center"><Trophy className="mx-auto h-8 w-8" style={{ color: C.lime }} /><p className="mt-2 text-[17px] font-semibold">Your maxes live here</p>
+        <p className="mt-1 text-[14px]" style={{ color: C.dim }}>Log a workout and your best lifts show up here by themselves, with a chart of how they go up. You can also add a max you tested.</p>
         <Btn className="mt-4 w-full" onClick={() => setEdit(null)}><Plus className="h-5 w-5" />Add a max</Btn></Card>}
-    {suggest.length > 0 && <><Title>From your workouts</Title>
-      <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>Your best logged sets. Tap one to keep it as a max.</p>
-      <div className="grid gap-2">{suggest.map((s) => <Card key={s.exId} onClick={() => setEdit({ exId: s.exId, name: s.name, weight: s.weight, reps: s.reps })} className="!p-3">
-        <div className="flex items-center gap-3"><span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-semibold">{s.name}</span><span className="block text-[12px]" style={{ color: C.dim }}>{shortDate(s.date)}</span></span>
-          <span className="text-[15px] font-bold tabular-nums">{w1(s.weight)} {units} × {s.reps}</span><Plus className="h-4 w-4" style={{ color: C.lime }} /></div>
-      </Card>)}</div></>}
     {edit !== false && <MaxEditor data={data} list={list} start={edit ?? undefined} onSave={save} onClose={() => setEdit(false)} />}
     {row && <MaxDetail row={row} data={data} onClose={() => setOpen(null)} onDelete={(id) => { remove(id); if (row.history.length <= 1) setOpen(null); }}
-      onUpdate={() => setEdit({ exId: row.exId, name: row.name, last: row.best })} />}
+      onUpdate={() => setEdit(row.best && row.source === "entered" ? { exId: row.exId, name: row.name, last: row.best } : { exId: row.exId, name: row.name, weight: row.logged?.weight, reps: row.logged?.reps })} />}
   </Sheet>;
 }
 
@@ -154,7 +179,7 @@ export function templateFrom(w: Workout): Routine {
       const work = e.sets.filter((s) => !s.warm);
       const top = Math.max(0, ...work.map((s) => s.weight));
       const reps = e.target || String(Math.max(1, ...work.map((s) => s.reps)));
-      return { exId: e.exId, name: e.name, sets: Math.max(1, Math.min(20, work.length || e.sets.length)), reps: reps.slice(0, 12), rest: e.rest ?? 90, ...(top > 0 ? { weight: top } : {}), ...(e.note ? { note: e.note.slice(0, 120) } : {}) };
+      return { id: uid(), exId: e.exId, name: e.name, sets: Math.max(1, Math.min(20, work.length || e.sets.length)), reps: reps.slice(0, 12), rest: e.rest ?? 90, ...(top > 0 ? { weight: top } : {}), ...(e.note ? { note: e.note.slice(0, 120) } : {}) };
     }),
   };
 }
@@ -172,7 +197,7 @@ export function TemplateEditor({ routine, list, data, onSave, onClose, onDelete 
     <input value={r.name} onChange={(e) => setR({ ...r, name: e.target.value.slice(0, 60) })} placeholder="Template name, e.g. Push day" aria-label="Template name" className={`${inputCls} mt-2`} style={inputStyle} data-testid="fit-template-name" />
     <textarea value={r.note ?? ""} onChange={(e) => setR({ ...r, note: e.target.value.slice(0, 300) || undefined })} rows={2} placeholder="Notes (optional): warm-up, supersets, how to progress" aria-label="Template notes"
       className="mt-2 w-full resize-none rounded-[12px] px-3 py-2.5 text-[15px] outline-none focus:ring-2" style={inputStyle} />
-    <div className="mt-4 space-y-2">{r.exercises.map((e, i) => <Card key={i} className="!p-3">
+    <div className="mt-4 space-y-2">{r.exercises.map((e, i) => <Card key={e.id ?? i} className="!p-3">
       <div className="flex items-center gap-1">
         <p className="min-w-0 flex-1 truncate font-semibold">{i + 1}. {e.name}</p>
         <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="grid h-9 w-9 place-items-center disabled:opacity-30" style={{ color: C.dim }}>↑</button>
@@ -191,14 +216,14 @@ export function TemplateEditor({ routine, list, data, onSave, onClose, onDelete 
     <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Leave the weight on auto and Cooked fills in what to lift from last time or from your max.</p>
     <Btn kind="soft" className="mt-3 w-full" onClick={() => setAdding(true)} testId="fit-template-add-ex"><Plus className="h-5 w-5" />Add exercise</Btn>
     {onDelete && <button type="button" onClick={() => { if (window.confirm(`Delete “${routine.name}”?`)) onDelete(); }} className="mt-6 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }}>Delete template</button>}
-    {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { setR((x) => ({ ...x, exercises: [...x.exercises, { exId: ex.id, name: ex.name, sets: 3, reps: "8-12", rest: 90 }] })); setAdding(false); }} />}
+    {adding && <Library list={list} data={data} title="Add exercise" onClose={() => setAdding(false)} onPick={(ex) => { setR((x) => ({ ...x, exercises: [...x.exercises, { id: uid(), exId: ex.id, name: ex.name, sets: 3, reps: "8-12", rest: 90 }] })); setAdding(false); }} />}
   </Sheet>;
 }
 
 /** Start a template: its workout, with weights filled in, and it moves to the top as last used. */
 export function startTemplate(r: Routine, data: FitData, list: LibraryExercise[], update: Update): Active {
   update((d) => ({ ...d, routines: d.routines.map((x) => (x.id === r.id ? { ...x, used: dayKey(), uses: (x.uses ?? 0) + 1 } : x)) }));
-  return startWorkout({ name: r.name, exercises: planned(data, r.exercises, list) });
+  return startWorkout({ name: r.name, routineId: r.id, exercises: planned(data, r.exercises, list) });
 }
 
 export function TemplatesApp({ inline, data, update, list, say, onStart, onClose }: { inline?: boolean; data: FitData; update: Update; list: LibraryExercise[]; say: (m: string) => void; onStart: (a: Active) => void; onClose: () => void }) {
@@ -208,13 +233,13 @@ export function TemplatesApp({ inline, data, update, list, say, onStart, onClose
   const sorted = [...data.routines].sort((a, b) => (b.used ?? "").localeCompare(a.used ?? ""));
   const saveTemplate = (r: Routine) => { update((d) => ({ ...d, routines: d.routines.some((x) => x.id === r.id) ? d.routines.map((x) => (x.id === r.id ? r : x)) : [...d.routines, r] })); setEdit(null); say("Template saved."); };
   const recent = data.workouts.filter((w) => w.exercises.some((e) => e.sets.length)).slice(-15).reverse();
-  return <Sheet inline={inline} title="Workout templates" onClose={onClose} testId="fit-app-templates" right={<Btn className="!min-h-10" onClick={() => setEdit({ id: uid(), name: "", exercises: [] })} testId="fit-template-new"><Plus className="h-4 w-4" />New</Btn>}>
-    {sorted.length ? <div className="mt-2 grid gap-2" data-testid="fit-template-list">{sorted.map((r) => <Card key={r.id} className="!p-3" testId={`fit-template-${r.id}`}>
+  return <Sheet inline={inline} tall title="Workout templates" onClose={onClose} testId="fit-app-templates" right={<Btn className="!min-h-10" onClick={() => setEdit({ id: uid(), name: "", exercises: [] })} testId="fit-template-new"><Plus className="h-4 w-4" />New</Btn>}>
+    {sorted.length ? <div className="mt-2 grid grid-cols-1 gap-2" data-testid="fit-template-list">{sorted.map((r) => <Card key={r.id} className="min-w-0 !p-3" testId={`fit-template-${r.id}`}>
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => setEdit(r)} className="min-w-0 flex-1 text-left">
           <span className="block truncate text-[16px] font-semibold">{r.name}</span>
           <span className="block truncate text-[13px]" style={{ color: C.dim }}>{r.exercises.length} exercises · {r.exercises.reduce((t, e) => t + e.sets, 0)} sets{r.used ? ` · last ${shortDate(r.used)}` : ""}</span>
-          <span className="mt-0.5 block truncate text-[12px]" style={{ color: C.steel }}>{r.exercises.map((e) => `${e.name}${e.weight ? ` ${w1(e.weight)}` : ""}`).join(" · ")}</span>
+          <span className="mt-0.5 block truncate text-[12px]" style={{ color: C.steel }}>{planned(data, r.exercises, list).map((e) => `${e.name}${e.sets[0]?.weight ? ` ${w1(e.sets[0].weight)}` : ""}`).join(" · ")}</span>
         </button>
         <button type="button" aria-label={`Copy ${r.name}`} onClick={() => saveTemplate({ ...r, id: uid(), name: `${r.name} (copy)`.slice(0, 60), used: undefined, uses: undefined })} className="grid h-10 w-10 place-items-center rounded-full" style={{ color: C.dim }}><Copy className="h-4 w-4" /></button>
         <Btn className="!min-h-11 !px-4" onClick={() => onStart(startTemplate(r, data, list, update))} testId={`fit-template-start-${r.id}`}><Play className="h-4 w-4" />Start</Btn>

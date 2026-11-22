@@ -66,3 +66,63 @@ test("My maxes and Workout templates are Cooked plugins, on the Train tab, and p
   assert.ok(pages.includes("maxes") && pages.includes("templates"));
   const _d: FitData = emptyFit(); void _d;
 });
+
+// ——— Refined: maxes come from logged workouts by themselves, with a chart; templates follow workouts and merge cleanly. ———
+import { templateAfterWorkout } from "../shared/fit";
+import { maxTimeline } from "../shared/fitMaxes";
+import { merge3 } from "../shared/mergeJson";
+
+const sess = (date: string, weight: number, reps: number, exId = "bench"): Workout => ({ id: date, date: `${date}T10:00:00Z`, name: "Push", secs: 1200, exercises: [{ exId, name: exId === "bench" ? "Bench press" : "Squat", sets: [{ reps: 5, weight: 45, done: true, warm: true }, { reps, weight, done: true }, { reps: 8, weight: 999, done: false }] }] });
+
+test("every lift logged shows on My maxes by itself, the newest first, and a heavier logged set wins over an entered max", () => {
+  const rows = maxRows([bench(80, 1, "2026-01-01")], [sess("2026-02-01", 100, 3), sess("2026-03-01", 140, 5, "squat")], "kg");
+  assert.deepEqual(rows.map((r) => [r.exId, r.source]), [["squat", "logged"], ["bench", "logged"]]);
+  assert.equal(rows[1].date, "2026-02-01");
+  const entered = maxRows([bench(120, 1, "2026-02-05")], [sess("2026-02-01", 100, 3)], "kg")[0];
+  assert.equal(entered.source, "entered", "an entered max that's stronger is the one shown");
+  assert.equal(entered.oneRm, 120);
+});
+
+test("the max chart: best per day from workouts and entered maxes, the best so far only goes up, and the gain", () => {
+  const t = maxTimeline("bench", [bench(90, 1, "2026-01-05")], [sess("2026-01-01", 80, 1), sess("2026-01-10", 85, 1), sess("2026-01-20", 95, 1)], "kg");
+  assert.deepEqual(t.points.map((p) => [p.date, p.day, p.best]), [["2026-01-01", 80, 80], ["2026-01-05", 90, 90], ["2026-01-10", 85, 90], ["2026-01-20", 95, 95]]);
+  assert.equal(t.gain, 15);
+  assert.ok(!t.points.some((p) => p.day >= 999), "unchecked sets don't count");
+  assert.deepEqual(maxTimeline("bench", [], [], "kg"), { points: [], gain: 0 });
+});
+
+test("finishing a workout from a template moves the template's own weights to today's top set; auto stays auto", () => {
+  const r = { id: "t", name: "Push", exercises: [{ id: "a", exId: "bench", name: "Bench press", sets: 3, reps: "5", rest: 120, weight: 90 }, { id: "b", exId: "squat", name: "Squat", sets: 3, reps: "5", rest: 120 }] };
+  const w: Workout = { id: "w", date: "2026-02-01T10:00:00Z", name: "Push", routineId: "t", secs: 1, exercises: [sess("x", 95, 5).exercises[0], sess("x", 140, 5, "squat").exercises[0]] };
+  const next = templateAfterWorkout(r, w)!;
+  assert.equal(next.exercises[0].weight, 95);
+  assert.equal(next.exercises[1].weight, undefined, "auto stays auto");
+  assert.equal(templateAfterWorkout({ ...r, exercises: [{ ...r.exercises[0], weight: 95 }] }, w), null, "nothing changed: no save");
+  assert.equal(cleanFit({ ...emptyFit(), workouts: [w] }).workouts[0].routineId, "t", "the workout remembers its template");
+});
+
+test("templates sync between phones exercise by exercise: every exercise has an id, the same on every device", () => {
+  const raw = { ...emptyFit(), routines: [{ id: "t", name: "Push", exercises: [{ exId: "bench", name: "Bench", sets: 3, reps: "5", rest: 90, weight: 100 }, { exId: "fly", name: "Fly", sets: 3, reps: "12", rest: 60 }] }] };
+  const base = cleanFit(raw), again = cleanFit(raw);
+  assert.deepEqual(base.routines[0].exercises.map((e) => e.id), ["t-0", "t-1"]);
+  assert.deepEqual(again.routines[0].exercises.map((e) => e.id), ["t-0", "t-1"]);
+  // Phone A changes the bench weight; phone B changes the fly reps at the same time.
+  const a = structuredClone(base); a.routines[0].exercises[0].weight = 105;
+  const b = structuredClone(base); b.routines[0].exercises[1].reps = "15";
+  const merged = cleanFit(merge3(base, a, b));
+  assert.equal(merged.routines[0].exercises.length, 2, "no doubled exercises");
+  assert.equal(merged.routines[0].exercises[0].weight, 105);
+  assert.equal(merged.routines[0].exercises[1].reps, "15");
+  assert.equal(cleanFit({ ...emptyFit(), routines: [{ name: "No id", exercises: [] }] }).routines[0].id, "routine-0", "a template always has an id");
+});
+
+test("the screens: My maxes lists logged lifts with a chart, the button counts them, templates start with their id and sync after", () => {
+  const ui = read("client/src/pages/fit/FitMaxes.tsx");
+  assert.match(ui, /<Title>Max over time<\/Title>/);
+  assert.match(ui, /maxTimeline\(row\.exId, data\.maxes \?\? \[\], data\.workouts, units\)/);
+  assert.match(ui, /startWorkout\(\{ name: r\.name, routineId: r\.id, exercises: planned\(data, r\.exercises, list\) \}\)/);
+  const train = read("client/src/pages/fit/FitTrain.tsx");
+  assert.match(train, /\{maxSummary\(data\)\}/);
+  assert.match(train, /templateAfterWorkout\(r, w\) \?\? r/);
+  assert.match(train, /updated with today's weights/);
+});

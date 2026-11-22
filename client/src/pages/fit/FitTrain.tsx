@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftRight, Check, ChevronRight, ClipboardList, Clock3, Dumbbell, Flame, History, MapPin, Minus, Pause, Play, PlayCircle, Plus, ScanEye, ScanLine, Search, Timer, Trash2, Trophy } from "lucide-react";
 import {
-  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, dayKey, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, uid,
+  CATALOG, CATALOG_BY_ID, PROGRAMS, PROGRAM_BY_ID, dayKey, e1rm, fromKg, lastTime, newRecords, nextProgramDay, nextTime, plates, records, repRange, templateAfterWorkout, uid,
   type FitData, type FitExercise, type Program, type Routine, type Units, type Workout,
 } from "@shared/fit";
 import { videoFor } from "@shared/fitVideos";
 import { enteredOneRm, workingWeight } from "@shared/fitMaxes";
-import { TemplateEditor, startTemplate, templateFrom } from "./FitMaxes";
+import { TemplateEditor, maxSummary, startTemplate, templateFrom } from "./FitMaxes";
 import { SESSION_BY_ID, nextC25K, sessionMins, sessionsIn, type Session, type SessionCategory } from "@shared/fitSessions";
 import { BodyMap } from "./FitBody";
 import { SmartWorkoutCard } from "./FitSmart";
@@ -127,7 +127,7 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
 
 /** `pausedMs`: time spent paused so far; `pausedAt`: when the current pause began (unset while going).
  *  Both are saved with the workout, so a pause survives closing the app. */
-export type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null;
+export type Active = { id: string; name: string; started: number; programId?: string; dayId?: string; /** The template it was started from (FitMaxes.tsx). */ routineId?: string; /** 2 and up when this is the rest of a workout that was split (shared/fitVacation.ts). */ part?: number; exercises: FitExercise[]; pausedMs?: number; pausedAt?: number | null;
   /** The pre-workout check-in, once answered or skipped (FitReady.tsx). */ checked?: boolean; check?: Workout["check"] };
 /** Seconds of actual workout: from the start, leaving out any time paused. */
 export const workoutSecs = (a: Pick<Active, "started" | "pausedMs" | "pausedAt">, now: number) => Math.max(0, ((a.pausedAt ?? now) - a.started - (a.pausedMs ?? 0)) / 1000);
@@ -264,11 +264,15 @@ export function LiveWorkout({ active, setActive, data, update, list, say }: { ac
   const finish = () => {
     const exercises = active.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length);
     if (!exercises.length) { if (window.confirm("No sets are checked off. Discard this workout?")) { saveActive(null); setActive(null); } return; }
-    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: (active.part ?? 1) > 1 ? `${active.name.replace(/ \(part \d+\)$/, "")} (part ${active.part})` : active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), ...(active.check ? { check: active.check } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
+    const w: Workout = { id: active.id, date: new Date(active.started).toISOString(), name: (active.part ?? 1) > 1 ? `${active.name.replace(/ \(part \d+\)$/, "")} (part ${active.part})` : active.name, ...(active.programId ? { programId: active.programId, dayId: active.dayId } : {}), ...(active.routineId ? { routineId: active.routineId } : {}), ...(active.check ? { check: active.check } : {}), secs: Math.round(workoutSecs(active, Date.now())), exercises };
     const prs = newRecords(data.workouts, w);
+    // A workout from a template moves the template's own weights to what was lifted today, so next time starts there.
+    const tpl = active.routineId ? data.routines.find((r) => r.id === active.routineId) : undefined;
+    const synced = tpl ? templateAfterWorkout(tpl, w) : null;
     saveToHealth("calories", Math.round((w.secs / 60) * 6), new Date(active.started));
-    update((d) => ({ ...d, workouts: [...d.workouts, w], ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
+    update((d) => ({ ...d, workouts: [...d.workouts, w], ...(synced ? { routines: d.routines.map((r) => (r.id === synced.id ? templateAfterWorkout(r, w) ?? r : r)) } : {}), ...(d.program && active.programId === d.program.id && active.dayId ? { program: { ...d.program, done: [...d.program.done, `${active.dayId}@${w.date.slice(0, 10)}`] } } : {}) }));
     saveActive(null); haptic("success"); setDone({ w, prs });
+    if (synced) say(`“${synced.name}” updated with today's weights.`);
   };
   /** Saves what's been done so far as its own workout and keeps the rest to finish later (from Today). */
   const savePart = () => {
@@ -530,7 +534,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms, on
     {/* Their maxes and their own workout templates (FitMaxes.tsx). */}
     {(onMaxes || onTemplates) && <div className="mb-3 grid grid-cols-2 gap-2">
       {onMaxes && <button type="button" onClick={onMaxes} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-maxes">
-        <Trophy className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My maxes</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.maxes?.length ? `${new Set(data.maxes.map((m) => m.exId)).size} lifts` : "Add and update"}</span></span></button>}
+        <Trophy className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My maxes</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{maxSummary(data)}</span></span></button>}
       {onTemplates && <button type="button" onClick={onTemplates} className="fit-in flex min-h-[64px] items-center gap-2.5 rounded-[14px] px-3 text-left active:scale-[.98]" style={{ background: C.card, boxShadow: `inset 0 0 0 1px ${C.line}` }} data-testid="fit-train-templates">
         <ClipboardList className="h-6 w-6 shrink-0" style={{ color: C.lime }} /><span className="min-w-0"><span className="block text-[17px] leading-none" style={display}>My templates</span><span className="mt-0.5 block truncate text-[12px]" style={{ color: C.dim }}>{data.routines.length ? `${data.routines.length} saved` : "Build your own"}</span></span></button>}
     </div>}
@@ -570,7 +574,7 @@ export function TrainTab({ data, update, list, onStart, say, onCoach, onGyms, on
       <span className="block truncate px-0.5 text-[12px] capitalize" style={{ color: C.dim }}>{find(id)!.muscle} · {find(id)!.equipment}</span>
     </button>)}</div>
     <Title right={<button type="button" onClick={() => setRoutine({ id: uid(), name: "", exercises: [] })} className="text-[14px] font-semibold" style={{ color: C.lime }} data-testid="fit-new-routine">New</button>}>My templates</Title>
-    {data.routines.length ? <div className="space-y-2">{data.routines.map((r) => <Card key={r.id} className="flex items-center gap-3 !p-3">
+    {data.routines.length ? <div className="space-y-2">{[...data.routines].sort((a, b) => (b.used ?? "").localeCompare(a.used ?? "")).map((r) => <Card key={r.id} className="flex items-center gap-3 !p-3">
       <button type="button" onClick={() => setRoutine(r)} className="min-w-0 flex-1 text-left"><p className="truncate font-semibold">{r.name}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{r.exercises.map((e) => e.name).join(", ")}</p></button>
       <Btn className="!min-h-10" onClick={() => onStart(startTemplate(r, data, list, update))}><Play className="h-4 w-4" /></Btn>
     </Card>)}</div> : <p className="px-1 text-[14px]" style={{ color: C.dim }}>Build your own workouts (or save one you did) and start them in one tap.</p>}

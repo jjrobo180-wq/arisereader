@@ -8,12 +8,13 @@ export type Goal = "lose" | "maintain" | "gain";
 export type Meal = "breakfast" | "lunch" | "dinner" | "snack";
 export type FitSet = { reps: number; weight: number; done: boolean; warm?: boolean; rpe?: number };
 export type FitExercise = { exId: string; name: string; sets: FitSet[]; rest?: number; target?: string; note?: string };
-export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; secs: number; exercises: FitExercise[]; note?: string;
+export type Workout = { id: string; date: string; name: string; programId?: string; dayId?: string; /** The template it was started from. */ routineId?: string; secs: number; exercises: FitExercise[]; note?: string;
   /** The pre-workout check-in (shared/fitReadyMode.ts): readiness then, food, caffeine, warm-up, and whether Ready Mode adjusted it. */
   check?: { ready: number; food: "meal" | "snack" | "fasted"; stim: "none" | "coffee" | "preworkout"; stretched: boolean; adapted: boolean } };
 /** A workout template they built (or saved from a workout) to start again in one tap. weight, when set, is
  *  the weight to start each set at (their units); left out, Cooked fills in last time's or one from their max. */
-export type RoutineItem = { exId: string; name: string; sets: number; reps: string; rest: number; weight?: number; note?: string };
+/** `id` keeps an exercise itself when two phones edit the same template at once (shared/mergeJson.ts). */
+export type RoutineItem = { id?: string; exId: string; name: string; sets: number; reps: string; rest: number; weight?: number; note?: string };
 export type Routine = { id: string; name: string; exercises: RoutineItem[]; note?: string; used?: string; uses?: number };
 export type FoodEntry = { id: string; date: string; meal: Meal; name: string; kcal: number; p: number; c: number; f: number; servings: number; serving?: string; note?: string };
 /** A meal saved to add again in one tap (MyFitnessPal's "My Meals"). */
@@ -117,14 +118,16 @@ export function cleanFit(raw: any): FitData {
   const set = (s: any): FitSet => ({ reps: num(s?.reps, 0, 1000), weight: num(s?.weight, 0, 2000), done: !!s?.done, ...(s?.warm ? { warm: true } : {}), ...(s?.rpe ? { rpe: num(s.rpe, 1, 10) } : {}) });
   const ex = (e: any): FitExercise => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: (Array.isArray(e?.sets) ? e.sets : []).slice(0, 30).map(set), ...(e?.rest ? { rest: num(e.rest, 0, 900) } : {}), ...(e?.target ? { target: str(e.target, 20) } : {}), ...(e?.note ? { note: str(e.note, 300) } : {}) });
   d.workouts = (Array.isArray(raw.workouts) ? raw.workouts : []).slice(-LIMITS.workouts).filter((w: any) => w && w.id && w.date).map((w: any): Workout => ({
-    id: str(w.id, 40), date: str(w.date, 30), name: str(w.name, 80) || "Workout", ...(w.programId ? { programId: str(w.programId, 40) } : {}), ...(w.dayId ? { dayId: str(w.dayId, 40) } : {}),
+    id: str(w.id, 40), date: str(w.date, 30), name: str(w.name, 80) || "Workout", ...(w.programId ? { programId: str(w.programId, 40) } : {}), ...(w.dayId ? { dayId: str(w.dayId, 40) } : {}), ...(w.routineId ? { routineId: str(w.routineId, 40) } : {}),
     secs: num(w.secs, 0, 86400), exercises: (Array.isArray(w.exercises) ? w.exercises : []).slice(0, 40).map(ex), ...(w.note ? { note: str(w.note, 500) } : {}),
     ...(w.check && typeof w.check === "object" ? { check: { ready: num(w.check.ready, 0, 100), food: (["meal", "snack", "fasted"].includes(w.check.food) ? w.check.food : "snack"), stim: (["none", "coffee", "preworkout"].includes(w.check.stim) ? w.check.stim : "none"), stretched: !!w.check.stretched, adapted: !!w.check.adapted } } : {}),
   }));
-  d.routines = (Array.isArray(raw.routines) ? raw.routines : []).slice(0, LIMITS.routines).map((r: any): Routine => ({ id: str(r?.id, 40), name: str(r?.name, 60) || "Routine",
-    exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any): RoutineItem => ({ exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90),
+  // Every template and each of its exercises has an id, so two phones editing the same template merge
+  // exercise by exercise instead of doubling them up. Old ones without get the same id on every device.
+  d.routines = (Array.isArray(raw.routines) ? raw.routines : []).slice(0, LIMITS.routines).map((r: any, ri: number): Routine => { const rid = str(r?.id, 40) || `routine-${ri}`; return { id: rid, name: str(r?.name, 60) || "Routine",
+    exercises: (Array.isArray(r?.exercises) ? r.exercises : []).slice(0, 30).map((e: any, ei: number): RoutineItem => ({ id: str(e?.id, 40) || `${rid}-${ei}`, exId: str(e?.exId, 80), name: str(e?.name, 80), sets: num(e?.sets, 1, 20, 3), reps: str(e?.reps, 12) || "8-12", rest: num(e?.rest, 0, 900, 90),
       ...(Number(e?.weight) > 0 ? { weight: num(e.weight, 0, 2000) } : {}), ...(e?.note ? { note: str(e.note, 120) } : {}) })),
-    ...(r?.note ? { note: str(r.note, 300) } : {}), ...(r?.used && day(String(r.used).slice(0, 10)) ? { used: String(r.used).slice(0, 10) } : {}), ...(Number(r?.uses) > 0 ? { uses: num(r.uses, 0, 100000) } : {}) }));
+    ...(r?.note ? { note: str(r.note, 300) } : {}), ...(r?.used && day(String(r.used).slice(0, 10)) ? { used: String(r.used).slice(0, 10) } : {}), ...(Number(r?.uses) > 0 ? { uses: num(r.uses, 0, 100000) } : {}) }; });
   if (raw.program?.id) d.program = { id: str(raw.program.id, 40), started: str(raw.program.started, 30), done: (Array.isArray(raw.program.done) ? raw.program.done : []).slice(-500).map((x: unknown) => str(x, 60)) };
   const food = (f: any) => ({ name: str(f?.name, 120) || "Food", kcal: num(f?.kcal, 0, 10000), p: num(f?.p, 0, 1000), c: num(f?.c, 0, 1500), f: num(f?.f, 0, 1000), servings: num(f?.servings, 0.05, 50, 1), ...(f?.serving ? { serving: str(f.serving, 60) } : {}), ...(f?.note ? { note: str(f.note, 300) } : {}) });
   d.foods = (Array.isArray(raw.foods) ? raw.foods : []).slice(-LIMITS.foods).filter((f: any) => f?.id && day(f?.date)).map((f: any) => ({ id: str(f.id, 40), date: day(f.date), meal: MEALS.includes(f.meal) ? f.meal : "snack", ...food(f) }));
@@ -240,6 +243,21 @@ export function nextTime(last: FitExercise | undefined, reps: string, units: Uni
   const step = units === "kg" ? (lower ? 5 : 2.5) : (lower ? 10 : 5);
   const atTop = sets.filter((s) => s.weight === top).every((s) => s.reps >= hi);
   return atTop ? { weight: top + step, why: `You hit ${hi} reps on every set: add ${step} ${units}.` } : { weight: top, why: `Same weight; aim for ${hi} reps on every set.` };
+}
+
+/** A template after a workout started from it: each exercise that has its own weight moves to the
+ *  top weight lifted on it today (work sets checked off), so next time starts where today ended.
+ *  Exercises left on "auto" stay on auto. Null when nothing changed. */
+export function templateAfterWorkout(r: Routine, w: Workout): Routine | null {
+  let changed = false;
+  const exercises = r.exercises.map((it) => {
+    if (!(it.weight && it.weight > 0)) return it;
+    const done = w.exercises.find((e) => e.exId === it.exId);
+    const top = done ? Math.max(0, ...workSets(done).map((s) => s.weight)) : 0;
+    if (top > 0 && top !== it.weight) { changed = true; return { ...it, weight: top }; }
+    return it;
+  });
+  return changed ? { ...r, exercises } : null;
 }
 
 /** The last time an exercise was done (newest first list in, or any order). */

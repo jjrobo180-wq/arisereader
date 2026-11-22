@@ -29,6 +29,10 @@ export const strength = (m: Pick<MaxEntry, "kg" | "reps" | "secs">) => (m.secs ?
 
 export type MaxRow = {
   exId: string; name: string;
+  /** Where the max shown comes from: one they entered, or their best set in a logged workout. */
+  source: "entered" | "logged";
+  /** The day the max shown was set (entered, or the workout it came from). */
+  date: string;
   /** Their newest entry, and the best they've entered. */
   latest?: MaxEntry; best?: MaxEntry;
   /** Their best from logged workouts (in their units, like the workouts), if any. */
@@ -38,24 +42,48 @@ export type MaxRow = {
   history: MaxEntry[];
 };
 
-/** Each exercise they have a max for, newest change first. */
+/** Every exercise they have a max for, from what they entered and from every workout they've logged
+ *  (nothing to copy over by hand), the most recently changed first. */
 export function maxRows(entries: MaxEntry[], workouts: Workout[], units: Units): MaxRow[] {
   const byEx = new Map<string, MaxEntry[]>();
   for (const m of entries) byEx.set(m.exId, [...(byEx.get(m.exId) ?? []), m]);
   const logged = records(workouts);
+  const names = new Map<string, string>();
+  for (const w of workouts) for (const e of w.exercises) names.set(e.exId, e.name);
   const rows: MaxRow[] = [];
-  for (const [exId, list] of byEx) {
+  for (const exId of new Set([...byEx.keys(), ...[...logged].filter(([, b]) => b.weight > 0).map(([id]) => id)])) {
+    const list = byEx.get(exId) ?? [];
     const history = [...list].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-    const best = [...list].sort((a, b) => strength(b) - strength(a))[0];
+    const best = list.length ? [...list].sort((a, b) => strength(b) - strength(a))[0] : undefined;
     const l = logged.get(exId);
     const entered = best && best.kg > 0 ? fromKg(strength(best), units) : 0;
+    const fromLog = !!l && l.e1rm > 0 && (!best || (best.kg > 0 && l.e1rm > entered + 0.01));
     rows.push({
-      exId, name: history[0].name, latest: history[0], best, history,
+      exId, name: history[0]?.name || names.get(exId) || CATALOG_BY_ID.get(exId)?.name || exId,
+      source: fromLog ? "logged" : "entered",
+      date: (fromLog ? l!.date : history[0]?.date || l?.date || "").slice(0, 10),
+      latest: history[0], best, history,
       ...(l && l.e1rm > 0 ? { logged: { weight: l.weight, reps: l.reps, e1rm: l.e1rm, date: l.date } } : {}),
       oneRm: Math.max(entered, l?.e1rm ?? 0),
     });
   }
-  return rows.sort((a, b) => (b.latest?.date ?? "").localeCompare(a.latest?.date ?? ""));
+  return rows.sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+}
+
+/** "Max over time" for one exercise: for every day it was logged or a max was entered, the best estimated
+ *  one-rep max that day (`day`) and the best so far (`best`, which only goes up), in their units. Bodyweight
+ *  and timed maxes count reps and seconds. `gain` is how far the best has gone up since the first point. */
+export function maxTimeline(exId: string, entries: MaxEntry[], workouts: Workout[], units: Units): { points: { date: string; day: number; best: number }[]; gain: number } {
+  const byDay = new Map<string, number>();
+  const put = (date: string, v: number) => { const d = date.slice(0, 10); if (v > 0 && /^\d{4}-\d{2}-\d{2}$/.test(d)) byDay.set(d, Math.max(byDay.get(d) ?? 0, v)); };
+  for (const m of entries) if (m.exId === exId) put(m.date, m.kg > 0 ? fromKg(strength(m), units) : strength(m));
+  for (const w of workouts) for (const e of w.exercises) {
+    if (e.exId !== exId) continue;
+    for (const s of e.sets) if (s.done && !s.warm && s.reps > 0 && s.weight > 0) put(w.date, e1rm(s.weight, s.reps) || s.weight);
+  }
+  let best = 0;
+  const points = [...byDay].sort(([a], [b]) => a.localeCompare(b)).map(([date, day]) => { best = Math.max(best, day); return { date, day: round(day, 0.1), best: round(best, 0.1) }; });
+  return { points, gain: points.length > 1 ? round(points[points.length - 1].best - points[0].best, 0.1) : 0 };
 }
 
 /** Exercises they've logged a best on but haven't entered a max for: one tap adds it. */
