@@ -73,7 +73,7 @@ export function AddFood({ token, meal, date, data, update, onClose, say, start, 
 
   if (picked) {
     const n = Math.max(0.05, Number(servings) || 1);
-    return <Sheet title="Add food" onClose={() => setPicked(null)}>
+    return <Sheet title="Add food" onClose={() => setPicked(null)} testId="fit-add-food-picked" footer={<Btn className="w-full" onClick={() => add(picked, n)} testId="fit-food-add">{verb} {MEALS.find((m) => m.id === meal)?.label}</Btn>}>
       <div className="mt-2 flex items-start gap-2"><h2 className="min-w-0 flex-1 text-[20px] font-bold leading-tight">{picked.name}</h2>
         <button type="button" onClick={() => toggleFav(picked)} aria-pressed={isFav(picked.name)} aria-label={isFav(picked.name) ? "Remove from Saved foods" : "Save this food"} className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: C.card2, color: isFav(picked.name) ? "#f59e0b" : C.dim }} data-testid="fit-food-fav"><Star className="h-5 w-5" fill={isFav(picked.name) ? "currentColor" : "none"} /></button></div>
       <p className="text-[13px]" style={{ color: C.dim }}>{picked.serving || "1 serving"}</p>
@@ -85,15 +85,15 @@ export function AddFood({ token, meal, date, data, update, onClose, say, start, 
         <Card key={l as string} className="!p-3"><p className="text-[20px] font-bold">{Math.round((v as number) * n)}<span className="text-[11px]" style={{ color: C.dim }}>{u}</span></p><p className="text-[11px]" style={{ color: C.dim }}>{l}</p></Card>)}</div>
       {!pts && <div className="mt-2 flex items-center justify-between rounded-[10px] px-4 py-3" style={{ background: C.card }}><span className="text-[14px]" style={{ color: C.dim }}>Arise Points</span><span className="text-[26px] leading-none" style={{ ...display, color: C.lime }} data-testid="fit-food-points">{pointsOf({ kcal: picked.kcal * n, p: picked.p * n, c: picked.c * n, f: picked.f * n })}</span></div>}
       <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 300))} placeholder="Add a note (optional): how it made you feel, where it was from…" className={`${inputCls} mt-4`} style={inputStyle} aria-label="Note" data-testid="fit-food-note" />
-      <Btn className="mt-6 w-full" onClick={() => add(picked, n)} testId="fit-food-add">{verb} {MEALS.find((m) => m.id === meal)?.label}</Btn>
     </Sheet>;
   }
-  return <Sheet title={`${verb} ${MEALS.find((m) => m.id === meal)?.label}`} onClose={onClose} testId="fit-add-food">
+  return <Sheet title={`${verb} ${MEALS.find((m) => m.id === meal)?.label}`} onClose={onClose} testId="fit-add-food" tall top={<>
     <Chips label="How to add" value={tab} onChange={(t) => { setTab(t); setErr(""); }} items={[{ id: "ai", label: "AI photo" }, { id: "search", label: "Search" }, { id: "recent", label: "Recently used" }, { id: "saved", label: "Saved foods" }, { id: "meals", label: "My meals" }, { id: "scan", label: "Barcode" }, { id: "quick", label: "Quick add" }]} />
+    {tab === "search" && <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search foods, brands and restaurants" className={`${inputCls} pl-10`} style={inputStyle} data-testid="fit-food-search" /></div>}
+  </>} footer={tab === "quick" ? <Btn type="submit" form="fit-quick-form" className="w-full" disabled={!(Number(quick.kcal) > 0)} testId="fit-quick-add"><Zap className="h-5 w-5" />Add</Btn> : undefined}>
     {err && <p className="mt-3 rounded-[8px] p-3 text-[14px]" style={{ background: "rgba(255,77,77,.12)", color: "#ff9c9c" }} role="status">{err}</p>}
     {tab === "search" && <>
-      <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search foods, brands and restaurants" className={`${inputCls} pl-10`} style={inputStyle} data-testid="fit-food-search" /></div>
       {busy && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" style={{ color: C.dim }} /></div>}
       <div className="mt-3 space-y-2">{(found || []).map((f, k) => row(fromFound(f), k))}</div>
       {found && !found.length && !busy && <p className="py-8 text-center" style={{ color: C.dim }}>Nothing found. Try another word, or Quick add.</p>}
@@ -133,11 +133,10 @@ export function AddFood({ token, meal, date, data, update, onClose, say, start, 
       {ai.foods.length > 0 && <button type="button" onClick={() => { const names = ai.foods.map((f) => f.name.replace(/\s*\(.*?\)\s*/g, " ").trim()).filter(Boolean); update((d) => { const cur = d.grocery ?? { made: new Date().toISOString(), from: "Meal photos", items: [] }; const have = new Set(cur.items.map((i) => i.name.toLowerCase())); return { ...d, grocery: { ...cur, items: [...cur.items, ...names.filter((n) => !have.has(n.toLowerCase())).map((n) => ({ id: uid(), name: n.slice(0, 80), qty: "", aisle: "From meal photos", done: false }))] } }; }); say(`Added to your grocery list. Food → Grocery list sends it to Arise To Duo.`); }} className="w-full py-2 text-center text-[14px] font-semibold" style={{ color: C.lime }} data-testid="fit-ai-grocery"><ListChecks className="mr-1.5 inline h-4 w-4" />Put these on my grocery list</button>}
       <p className="text-[12px]" style={{ color: C.dim }}>AI estimates can be off. Check the numbers before you add them.</p>
     </div>}
-    {tab === "quick" && <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); const k = Number(quick.kcal); if (k > 0) add({ name: quick.name.trim() || "Quick add", kcal: k, p: Number(quick.p) || 0, c: Number(quick.c) || 0, f: Number(quick.f) || 0 }, 1); }}>
+    {tab === "quick" && <form id="fit-quick-form" className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); const k = Number(quick.kcal); if (k > 0) add({ name: quick.name.trim() || "Quick add", kcal: k, p: Number(quick.p) || 0, c: Number(quick.c) || 0, f: Number(quick.f) || 0 }, 1); }}>
       <input value={quick.name} onChange={(e) => setQuick({ ...quick, name: e.target.value.slice(0, 80) })} placeholder="Name (optional)" className={inputCls} style={inputStyle} />
       <input inputMode="numeric" value={quick.kcal} onChange={(e) => setQuick({ ...quick, kcal: e.target.value.replace(/\D/g, "").slice(0, 5) })} placeholder="Calories" className={inputCls} style={inputStyle} data-testid="fit-quick-kcal" />
       <div className="grid grid-cols-3 gap-2">{(["p", "c", "f"] as const).map((k) => <input key={k} inputMode="decimal" value={quick[k]} onChange={(e) => setQuick({ ...quick, [k]: e.target.value.replace(/[^\d.]/g, "").slice(0, 5) })} placeholder={k === "p" ? "Protein g" : k === "c" ? "Carbs g" : "Fat g"} className={inputCls} style={inputStyle} />)}</div>
-      <Btn type="submit" className="w-full" disabled={!(Number(quick.kcal) > 0)}><Zap className="h-5 w-5" />Add</Btn>
     </form>}
     <p className="mt-6 text-[11px]" style={{ color: C.dim }}>Food data from USDA FoodData Central and Open Food Facts.</p>
   </Sheet>;

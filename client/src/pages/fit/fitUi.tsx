@@ -4,10 +4,12 @@
 // iPhone. Nine color themes (Ember, the original orange, and Volt, Ocean, Aqua, Berry, Violet, Gold,
 // Crimson, Mono) change the accent and the glow in both modes. Every color is a CSS variable, so a
 // change repaints the whole app at once. Shared by Cooked and Cooked PT.
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, Moon, Smartphone, Sun, X } from "lucide-react";
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
+import { lockPageScroll } from "@/lib/scrollLock";
+import { DRAG_START, dragOffset, shouldDismiss } from "@shared/sheetDrag";
 import { LAYOUTS, LAYOUT_IDS, PALETTES, PALETTE_IDS, mix, paletteTokens, type LayoutId, type PaletteId } from "./fitThemes";
 export { LAYOUTS, LAYOUT_IDS, PALETTES, PALETTE_IDS, paletteTokens, type LayoutId, type PaletteId };
 
@@ -242,6 +244,13 @@ export const FIT_CSS = `
 @keyframes fitSlide{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
 .fit-sheet{animation:fitSheet .38s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitSheet{from{opacity:.4;transform:translateX(100%)}to{opacity:1;transform:none}}
+/* The bottom sheet inside To Duo: slides up from the bottom of the phone (or fades in on a computer) over a fading scrim. */
+.fit-duo-scrim{animation:fitDuoScrim .22s ease-out backwards}
+@keyframes fitDuoScrim{from{opacity:0}to{opacity:1}}
+.fit-duo-sheet{animation:fitDuoSheet .36s cubic-bezier(.32,.72,0,1) backwards}
+@keyframes fitDuoSheet{from{transform:translateY(100%)}to{transform:none}}
+@media (min-width:640px){.fit-duo-sheet{animation-name:fitDuoPop;animation-duration:.22s}}
+@keyframes fitDuoPop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
 .fit-pop{animation:fitPop .6s cubic-bezier(.2,1.6,.4,1) backwards}
 @keyframes fitPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
 .fit-tick{animation:fitTick .35s cubic-bezier(.2,1.6,.4,1) backwards}
@@ -261,7 +270,7 @@ export const FIT_CSS = `
 @keyframes fitWiggle{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
 .fit-route{stroke-dasharray:4000;stroke-dashoffset:4000;animation:fitRoute 1.8s ease-out .2s forwards}
 @keyframes fitRoute{to{stroke-dashoffset:0}}
-@media (prefers-reduced-motion: reduce){.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route,.fit-wiggle{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.fit-duo-scrim,.fit-duo-sheet,.fit-in,.fit-slide,.fit-sheet,.fit-pop,.fit-tick,.fit-bar,.fit-pulse,.fit-up,.fit-route,.fit-wiggle{animation:none!important;stroke-dashoffset:0}.fit-shine::after,.fit-scan{animation:none!important}}
 `;
 /** A staggered entrance: item k starts a little after item k-1. */
 export const stagger = (k: number, step = 0.06, from = 0) => ({ animationDelay: `${(from + k * step).toFixed(2)}s` });
@@ -302,12 +311,12 @@ export function Title({ children, right }: { children: ReactNode; right?: ReactN
   return <div className="mb-3 mt-8 flex items-center justify-between px-1"><h2 className="flex items-center gap-2 text-[13px] tracking-[.16em]" style={{ ...display, color: C.dim }}>{children}</h2>{right}</div>;
 }
 
-export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button" }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit" }) {
+export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button", form }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit"; /** The id of the form a submit button sends, when the button sits outside it (in a sheet's pinned footer). */ form?: string }) {
   const st = kind === "primary" ? { background: C.lime, color: "var(--fit-on-accent)" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
   // To Duo's buttons: sentence case, its type, a little smaller and softer.
-  if (useContext(InDuoCtx)) return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-40 ${className}`}
+  if (useContext(InDuoCtx)) return <button type={type} form={form} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-40 ${className}`}
     style={{ ...st, ...(kind === "soft" ? { boxShadow: `inset 0 0 0 1px ${C.line}`, background: C.card } : {}) }}>{children}</button>;
-  return <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: "var(--fit-btn-font)", fontSize: "var(--fit-btn-size)", textTransform: "var(--fit-btn-case)" as React.CSSProperties["textTransform"], fontWeight: 800 }}>{children}</button>;
+  return <button type={type} form={form} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: "var(--fit-btn-font)", fontSize: "var(--fit-btn-size)", textTransform: "var(--fit-btn-case)" as React.CSSProperties["textTransform"], fontWeight: 800 }}>{children}</button>;
 }
 
 /** A ring that fills as a number approaches its goal. */
@@ -369,26 +378,90 @@ export function Layer({ children }: { children: ReactNode }) {
   return createPortal(children, document.body);
 }
 
+/** Swipe-down-to-close for the bottom sheet: the box follows a finger that drags the handle or the title bar
+ *  (shared/sheetDrag.ts decides when it lets go), then flies off or springs back. Phones only. */
+function useSheetDrag(onClose: () => void) {
+  const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y: number; t: number; id: number; on: boolean } | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const phone = () => typeof matchMedia === "function" && !matchMedia("(min-width: 640px)").matches;
+  const finish = (e: React.PointerEvent, cancelled: boolean) => {
+    const d = drag.current; drag.current = null;
+    const b = box.current;
+    if (!d || !d.on || !b) return;
+    const dy = e.clientY - d.y;
+    if (!cancelled && shouldDismiss(dy, e.timeStamp - d.t, b.offsetHeight)) {
+      b.style.transition = "transform .2s cubic-bezier(.4,0,1,1)";
+      b.style.transform = `translateY(${b.offsetHeight}px)`;
+      window.setTimeout(() => closeRef.current(), 190);
+    } else {
+      b.style.transition = "transform .28s cubic-bezier(.2,.9,.2,1)";
+      b.style.transform = "";
+    }
+  };
+  const handlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      if ((e.pointerType === "mouse" && e.button !== 0) || !phone()) return;
+      drag.current = { y: e.clientY, t: e.timeStamp, id: e.pointerId, on: false };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const d = drag.current;
+      if (!d || d.id !== e.pointerId || !box.current) return;
+      const dy = e.clientY - d.y;
+      if (!d.on) {
+        if (Math.abs(dy) < DRAG_START) return;
+        d.on = true;
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* an old browser: the drag still works while the finger stays on the bar */ }
+        box.current.style.transition = "none";
+      }
+      box.current.style.transform = `translateY(${dragOffset(dy)}px)`;
+    },
+    onPointerUp: (e: React.PointerEvent) => finish(e, false),
+    onPointerCancel: (e: React.PointerEvent) => finish(e, true),
+  };
+  return { box, handlers };
+}
+
 /** A screen that slides in from the right over the app (full height on phones). With `inline`, the
- *  same content is drawn as a tab instead: a big heading, no close button. */
-export function Sheet({ title, onClose, children, testId, right, inline }: { title: string; onClose: () => void; children: ReactNode; testId?: string; right?: ReactNode; inline?: boolean }) {
+ *  same content is drawn as a tab instead: a big heading, no close button.
+ *
+ *  Inside To Duo it is an iPhone-style bottom sheet instead: a grab handle you can swipe down, a pinned title
+ *  bar, optional pinned `top` (a search box and its tabs) and `footer` (the main button) so only the list
+ *  or form between them scrolls, and it rests on top of the keyboard instead of behind it (.kb-sheet,
+ *  lib/keyboardInset.ts). `tall` gives it a steady height for long lists so it doesn't jump as they change.
+ *  Anywhere else `top` and `footer` just sit before and after the content, as they always did. */
+export function Sheet({ title, onClose, children, testId, right, inline, top, footer, tall }: { title: string; onClose: () => void; children: ReactNode; testId?: string; right?: ReactNode; inline?: boolean; top?: ReactNode; footer?: ReactNode; tall?: boolean }) {
   useEffect(() => { if (inline) return; const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc); }, [onClose, inline]);
   const duo = useContext(InDuoCtx);
+  // The page behind a bottom sheet stays put while the sheet is open (it used to scroll along under your finger).
+  useEffect(() => (duo && !inline ? lockPageScroll({ fixed: true }) : undefined), [duo, inline]);
+  const sheet = useSheetDrag(onClose);
+  const plainFooter = footer ? <div className="mt-6">{footer}</div> : null;
+  // On its own (not inside To Duo) a screen's main button sticks to the bottom of what scrolls, as it did before.
+  const stuckFooter = footer ? <div className="sticky bottom-0 mt-6 pb-2 pt-3" style={{ background: C.bg }}>{footer}</div> : null;
   if (inline) return <div data-testid={testId}>
     {duo ? <div className="mb-3 flex items-end justify-between gap-3 px-1"><h2 className="text-xl font-bold" style={{ color: C.text }}>{title}</h2>{right}</div>
       : <div className="mb-3 flex items-end justify-between px-1"><h1 className="text-[46px] leading-[.95]" style={display}>{title}</h1>{right}</div>}
-    {children}
+    {top}{children}{plainFooter}
   </div>;
   // Inside To Duo: To Duo's own box (from the bottom on a phone, centered on a computer) over a dimmed page,
   // not a screen sliding over everything, so the menu and the app stay where they were.
-  if (duo) return <Layer><div className="fixed inset-0 z-[80] flex items-end justify-center bg-[#16152a]/65 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div role="dialog" aria-modal="true" aria-label={title} data-testid={testId} data-fit-duo-modal className="flex max-h-[94dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-[1.5rem] sm:max-w-2xl sm:rounded-[1.5rem]" style={{ background: C.bg, color: C.text, ...font, boxShadow: "0 24px 60px rgba(0,0,0,.25)" }}>
-      <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-5">
-        <h2 className="min-w-0 flex-1 truncate text-xl font-black">{title}</h2>
-        {right}
-        <button type="button" onClick={onClose} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ color: C.dim }}><X className="h-5 w-5" /></button>
+  if (duo) return <Layer><div className="kb-sheet fit-duo-scrim fixed inset-0 z-[80] flex items-end justify-center bg-[#16152a]/65 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div ref={sheet.box} role="dialog" aria-modal="true" aria-label={title} data-testid={testId} data-fit-duo-modal data-sheet-tall={tall ? "" : undefined}
+      className={`fit-duo-sheet flex w-full min-w-0 flex-col overflow-hidden rounded-t-[1.5rem] sm:max-w-2xl sm:rounded-[1.5rem] ${tall ? "h-[92dvh] sm:h-[42rem] sm:max-h-[90dvh]" : "sm:max-h-[90dvh]"}`}
+      style={{ background: C.bg, color: C.text, ...font, boxShadow: "0 24px 60px rgba(0,0,0,.25)", maxHeight: "calc(100dvh - var(--sat,env(safe-area-inset-top,0px)) - 10px)" }}>
+      <div data-sheet-bar className="shrink-0 touch-none select-none" {...sheet.handlers}>
+        <div aria-hidden className="mx-auto mt-2 h-[5px] w-10 rounded-full sm:hidden" style={{ background: C.dim, opacity: 0.4 }} />
+        <div className="flex items-center gap-3 px-5 pb-3 pt-2 sm:pt-5">
+          <h2 className="min-w-0 flex-1 truncate text-xl font-black">{title}</h2>
+          {right}
+          <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.card2, color: C.dim }}><X className="h-[18px] w-[18px]" /></button>
+        </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">{children}</div>
+      {top && <div data-sheet-top className="shrink-0 px-5 pb-3" style={{ boxShadow: `0 1px 0 ${C.line}` }}>{top}</div>}
+      <div data-sheet-body data-sheet-pad className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(20px,env(safe-area-inset-bottom))]">{children}</div>
+      {footer && <div data-sheet-foot data-sheet-pad className="shrink-0 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3" style={{ background: C.bg, boxShadow: `0 -1px 0 ${C.line}` }}>{footer}</div>}
     </div>
   </div></Layer>;
   return <Layer><div className="fit-sheet fixed inset-0 z-[80] flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
@@ -397,7 +470,7 @@ export function Sheet({ title, onClose, children, testId, right, inline }: { tit
       <h1 className="min-w-0 flex-1 truncate text-center text-[22px]" style={display}>{title}</h1>
       <div className="flex min-w-11 justify-end">{right}</div>
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))]">{children}</div>
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))]">{top}{children}{stuckFooter}</div>
   </div></Layer>;
 }
 

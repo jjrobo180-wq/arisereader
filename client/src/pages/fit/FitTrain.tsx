@@ -67,7 +67,7 @@ export function ExerciseDetail({ ex, data, onClose, onAdd }: { ex: LibraryExerci
     return { date: w.date, best: Math.max(0, ...e.sets.filter((s) => s.done && !s.warm).map((s) => e1rm(s.weight, s.reps))), sets: e.sets.filter((s) => s.done) };
   }), [data.workouts, ex.id]);
   const rec = records(data.workouts).get(ex.id);
-  return <Sheet title={ex.name} onClose={onClose} testId="fit-exercise">
+  return <Sheet title={ex.name} onClose={onClose} testId="fit-exercise" tall footer={onAdd ? <Btn onClick={onAdd} className="w-full" testId="fit-exercise-add"><Plus className="h-5 w-5" />Add to workout</Btn> : undefined}>
     {videoFor(ex.id) ? <VideoPlayer exId={ex.id} name={ex.name} /> : <><Demo ex={ex} /><VideoPlayer exId={ex.id} name={ex.name} className="mt-3" /></>}
     {!videoFor(ex.id) && ex.images[0] && <p className="mt-2 text-[11px]" style={{ color: C.dim }}>Photos: {[...new Set(ex.images.map((i) => i.credit))].join(", ")} · {ex.images[0].license} · via wger.de</p>}
     <div className="mt-4 flex flex-wrap gap-2 text-[13px]">
@@ -86,7 +86,6 @@ export function ExerciseDetail({ ex, data, onClose, onAdd }: { ex: LibraryExerci
       <p className="text-[13px] font-semibold">{new Date(h.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
       <p className="mt-0.5 text-[13px]" style={{ color: C.dim }}>{h.sets.map((s) => `${fmtNum(s.weight)}×${s.reps}`).join("  ·  ")}</p>
     </Card>)}</div></>}
-    {onAdd && <div className="sticky bottom-0 mt-6 pb-2 pt-3" style={{ background: C.bg }}><Btn onClick={onAdd} className="w-full" testId="fit-exercise-add"><Plus className="h-5 w-5" />Add to workout</Btn></div>}
   </Sheet>;
 }
 
@@ -101,10 +100,9 @@ export function Library({ list, data, onClose, onPick, title = "Exercises" }: { 
     return list.filter((e) => (muscle === "all" || e.muscle === muscle || e.also.includes(muscle as never)) && (equip === "any" || e.equipment === equip) && (!t || e.name.toLowerCase().includes(t)) && (!videosOnly || !!videoFor(e.id)))
       .sort((a, b) => Number(b.source === "arise") - Number(a.source === "arise") || a.name.localeCompare(b.name)).slice(0, 300);
   }, [list, q, muscle, equip, videosOnly]);
-  return <Sheet title={title} onClose={onClose} testId="fit-library">
-    <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${list.length} exercises`} className={`${inputCls} pl-10`} style={inputStyle} data-testid="fit-library-search" /></div>
-    <div className="mt-3 space-y-2">
+  return <Sheet title={title} onClose={onClose} testId="fit-library" tall top={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: C.dim }} />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${list.length} exercises`} className={`${inputCls} pl-10`} style={inputStyle} data-testid="fit-library-search" /></div>}>
+    <div className="space-y-2 pt-3">
       <Chips label="Muscle" value={muscle} onChange={setMuscle} items={MUSCLES.map((m) => ({ id: m, label: m === "all" ? "All muscles" : m[0].toUpperCase() + m.slice(1) }))} />
       <Chips label="Equipment" value={equip} onChange={setEquip} items={EQUIP.map((m) => ({ id: m, label: m === "any" ? "Any equipment" : m[0].toUpperCase() + m.slice(1) }))} />
     </div>

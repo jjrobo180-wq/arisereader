@@ -14,3 +14,7 @@ html.kb-open .kb-sheet > * {
 html.kb-open .kb-sheet [data-keyboard-top] + * {
   min-height: var(--kb-height, 50vh);
 }
+/* A sheet resting on the keyboard doesn't need the home-bar gap under its list and its pinned button. */
+html.kb-open .kb-sheet [data-sheet-pad] {
+  padding-bottom: 12px !important;
+}
