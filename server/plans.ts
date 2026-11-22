@@ -30,7 +30,7 @@ import {
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
   todoUnlimitedFor, stripeMode, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
   NOTES_PLAN_KINDS, isNotesKind, notesKindOf, notesProductOf,
-  readerAccessFor, type ReaderAccess, type ReaderFacts,
+  readerAccessFor, READER_FREE_FOR_ALL, type ReaderAccess, type ReaderFacts,
 } from "../shared/plans";
 import { NOTES_PLANS, isNotesProduct, planOfProduct, productName, productPrice, type NotesPlanId, type NotesProduct } from "../shared/ariseNotes";
 import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
@@ -542,7 +542,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
             if (teacher?.role === "teacher" && teacher.accountApproved !== false && teacher.id !== user.id) facts.classTeacherAccess = (await readerAccess(teacher)).access;
           }
         }
-        value = readerAccessFor(p, facts);
+        // Free for everyone (READER_FREE_FOR_ALL) only after the plan lookups, so paying families still show as paying.
+        value = readerAccessFor(p, { ...facts, freeForAll: READER_FREE_FOR_ALL });
       }
       readerCache.set(key, { at: now(), value });
       return value;

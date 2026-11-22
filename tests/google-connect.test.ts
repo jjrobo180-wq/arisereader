@@ -98,9 +98,9 @@ test("the sign-in round trip is signed, expires, and only ever returns to our ow
 });
 
 test("the saved Google sign-in is encrypted, and can't be read with another key", () => {
-  const sealed = seal(KEY, { refresh: "r-secret", scope: "a b", email: "x" });
-  assert.doesNotMatch(sealed, /r-secret/);
-  assert.equal(unseal(KEY, sealed)!.refresh, "r-secret");
+  const sealed = seal(KEY, { refresh: "r!secret", scope: "a b", email: "x" });
+  assert.doesNotMatch(sealed, /r!secret/);
+  assert.equal(unseal(KEY, sealed)!.refresh, "r!secret");
   assert.equal(unseal(Buffer.alloc(32, 9), sealed), null);
   assert.equal(unseal(KEY, ""), null);
 });
@@ -139,13 +139,13 @@ test("until the site has Google keys, every part says so instead of breaking", a
 
 test("connecting: Google's code is swapped for a lasting sign-in, saved encrypted, and the website goes back where it was", async () => {
   const idToken = `x.${Buffer.from(JSON.stringify({ email: "kid@school.test" })).toString("base64url")}.y`;
-  const { call, store } = fakeApp({ google: (url) => (url.includes("/token") ? { access_token: "a1", refresh_token: "r1", expires_in: 3600, scope: FEATURE_SCOPES.classroom.join(" "), id_token: idToken } : {}) });
+  const { call, store } = fakeApp({ google: (url) => (url.includes("/token") ? { access_token: "a1", refresh_token: "r1!lasting", expires_in: 3600, scope: FEATURE_SCOPES.classroom.join(" "), id_token: idToken } : {}) });
   const start = await call("POST /api/google/connect", { body: { feature: "classroom", returnTo: "/to-do" } });
   const state = new URL(start.body.url).searchParams.get("state")!;
   const back = await call("GET /api/google/callback", { query: { state, code: "abc" } });
   assert.equal(back.status, 302);
   assert.equal(back.redirect, "https://example.test/to-do?google=connected");
-  assert.doesNotMatch(store.get("google_connect_5")!, /r1/, "stored encrypted");
+  assert.doesNotMatch(store.get("google_connect_5")!, /r1!lasting/, "stored encrypted");
   const status = (await call("GET /api/google/status")).body;
   assert.equal(status.connected, true); assert.deepEqual(status.features, ["classroom"]); assert.equal(status.email, "kid@school.test");
   const docs = await call("GET /api/google/drive/files", { query: {} });

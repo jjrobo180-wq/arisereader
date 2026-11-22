@@ -383,7 +383,7 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
 
 // ─── Arise Reader ─────────────────────────────────────────────────────────
 
-export type ReaderVia = "admin" | "sample" | "existing" | "teacher-plan" | "school-plan" | "class" | "family-plan" | "not-reader";
+export type ReaderVia = "admin" | "sample" | "free" | "existing" | "teacher-plan" | "school-plan" | "class" | "family-plan" | "not-reader";
 export type ReaderAccess = { access: boolean; via: ReaderVia | null };
 
 /** Made before Reader stopped being free? An account with no sign-up date on record is an old one. */
@@ -403,7 +403,13 @@ export type ReaderFacts = {
   familyGrants?: (PlanGrant | null | undefined)[];
   /** A student: the teacher who approved them into a class, and whether that teacher has Reader. */
   classTeacherAccess?: boolean;
+  /** Arise Reader is free for everyone right now (READER_FREE_FOR_ALL). */
+  freeForAll?: boolean;
 };
+
+/** Arise Reader is 100% free for every student, parent and teacher until the owner decides on a cap.
+ *  Set this back to false to turn the paid plans (below) on again; nothing else needs to change. */
+export const READER_FREE_FOR_ALL = true;
 
 /**
  * Can this person use Arise Reader? From November 9, 2026 Reader is paid: $7 a month for a
@@ -423,13 +429,15 @@ export function readerAccessFor(person: (PlanPerson & { username?: string | null
   if (role === "teacher") {
     if (grantLive(facts.teacherGrant, now)) return { access: true, via: "teacher-plan" };
     if (grantLive(facts.schoolGrant, now)) return { access: true, via: "school-plan" };
-    return { access: false, via: null };
+    return facts.freeForAll ? { access: true, via: "free" } : { access: false, via: null };
   }
   if ((facts.familyGrants || []).some((g) => grantLive(g, now))) return { access: true, via: "family-plan" };
   if (role === "student" && facts.classTeacherAccess && person.approvedByTeacher !== false) return { access: true, via: "class" };
   // A student at a school with a school plan, or at an always-free school, reads free: most students
   // join by advisory name, with no teacher account on file, so the class check alone left them locked.
   if (role === "student" && grantLive(facts.schoolGrant, now) && person.approvedByTeacher !== false) return { access: true, via: "school-plan" };
+  // Free for everyone right now: checked last, so a family that does pay still counts as paying (paid rewards).
+  if (facts.freeForAll) return { access: true, via: "free" };
   return { access: false, via: null };
 }
 
