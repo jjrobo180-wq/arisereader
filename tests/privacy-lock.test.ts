@@ -86,7 +86,7 @@ test("Drive meter shows small files and what's left", async () => {
 
 test("refreshing a hub keeps the open app, note and to-do", () => {
   const life = read("../client/src/pages/AriseTodo.tsx"), work = read("../client/src/pages/TeacherHub.tsx");
-  for (const k of ["life-notes-app", "life-sheets-app", "life-drive", "life-drop", "life-kit", "life-task"]) assert.ok(life.includes(`useStayOnRefresh<string | null>("${k}"`) || life.includes(`useStayOnRefresh("${k}"`), k);
+  for (const k of ["life-notes-app", "life-sheets-app", "life-drive", "life-drop", "life-kit", "life-task"]) assert.ok(life.includes(`useStayOnRefresh<string | null>("${k}"`) || life.includes(`useStayOnRefresh("${k}"`) || life.includes(`: "${k}", null)`), k);
   for (const k of ["work-kit", "work-notes-app", "work-drive", "work-admin", "work-student", "work-home-task"]) assert.ok(work.includes(`("${k}"`), k);
   assert.match(read("../client/src/components/teacher-hub/HubNotes.tsx"), /useStayOnRefresh<string \| null>\("work-note"/);
   assert.match(read("../client/src/context/AuthContext.tsx"), /forgetStay\(\)/);
