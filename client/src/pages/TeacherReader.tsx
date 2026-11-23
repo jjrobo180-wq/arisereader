@@ -6,7 +6,7 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BellRing, ChevronLeft, Palette, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, HelpCircle, ChevronLeft, Palette, HeartHandshake, Languages, Sun, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, goToSignIn, isReaderHost } from "@/lib/hubs";
@@ -31,7 +31,7 @@ import CoastScene from "@/components/reader/CoastScene";
 type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 /** Admin menu items that leave the Reader (or jump into a setting) rather than show a console section. */
 type AdminLink = "progress" | "polls" | "alerts";
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | "paraTeam" | "beginners" | "english" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
+type View = ReaderTab | "leaderboard" | "whatsnew" | "help" | "prizes" | "children" | "challenge" | "paraTeam" | "beginners" | "english" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
 
 /** The admin console, as its own part of the menu (admins only). Its Overview is broken into one
  *  item per part, and the buttons that used to sit in the console's own header are items too. */
@@ -44,6 +44,8 @@ const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").the
 
 /** "What's new and what's coming": the same page the home page links to, shown right here. */
 const WhatsNew = lazy(() => import("./WhatsNew"));
+/** "Help & FAQ": how to do each thing in the Reader, with a search (shared/readerHelp.ts). */
+const ReaderHelp = lazy(() => import("@/components/reader/ReaderHelp"));
 
 /** The menu, in the prototype's order, then the Reader's other screens. */
 const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
@@ -66,7 +68,10 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   // Para Team (pages/ParaTeam.tsx) is its own page in the app: this item goes there.
   { id: "paraTeam", label: "Para Team", icon: HeartHandshake },
   { id: "whatsnew", label: "What's new", icon: Megaphone },
+  { id: "help", label: "Help & FAQ", icon: HelpCircle },
 ];
+/** Menu names, for the help answers' "Take me to …" buttons. */
+const MENU_LABEL = Object.fromEntries(MENU.map((m) => [m.id, m.label])) as Partial<Record<View, string>>;
 
 /** Arise History, Arise Math and A.R.I.S.E. Connect, linked from the hub banner. */
 const LEARNING: Array<{ href: string; label: string; Icon: LucideIcon; color: string }> = [
@@ -335,6 +340,10 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {(isParent || user.isAdmin) && <SupportButton isAdmin={!!user.isAdmin} />}
+          {!isParent && <button type="button" onClick={() => go("help")} aria-label="Help & FAQ" data-testid="reader-help-button"
+            className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>
+            <HelpCircle className="h-4 w-4" /><span className="hidden sm:inline">Help</span>
+          </button>}
           <ThemeButton theme={theme} setTheme={setTheme} />
           <span className="hidden text-sm sm:inline" style={{ color: "#c9c5dc" }}>{user.displayName}{school ? ` · ${school}` : ""}</span>
           {isReaderApp() && <button type="button" onClick={() => setPrivacy(true)} className="min-h-10 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }} data-testid="reader-account">Account</button>}
@@ -507,11 +516,13 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             </div>
           </>}
 
+          {!isParent && view === "help" && <Suspense fallback={<p className="text-[15px]" style={{ color: "#a29fb8" }}>Loading…</p>}><ReaderHelp onGo={(to) => go(to)} labels={MENU_LABEL} /></Suspense>}
+
           {!isParent && view === "english" && <Suspense fallback={<p className="text-[15px]" style={{ color: "#a29fb8" }}>Loading…</p>}><EnglishStaff /></Suspense>}
 
           {!isParent && view === "challenge" && <ChallengeKit challenge={challenge} mineName={mine?.name} onStandings={() => go("leaderboard")} />}
 
-          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && view !== "challenge" && view !== "english" && (
+          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && view !== "challenge" && view !== "english" && view !== "help" && (
             <ReaderTools tab={view} openTab={(t) => { if (isReaderTab(t)) go(t); }} night />
           )}
         </main>
