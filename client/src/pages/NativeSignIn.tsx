@@ -173,7 +173,7 @@ export default function NativeSignIn({ flavor: forced, start }: { flavor?: Nativ
   });
 
   const apple = copy.apple && appleSignInAvailable();
-  /** The apps whose paid tier is part of Arise All Access show the plan on sign-up. */
+  /** The apps whose paid tier is part of Arise To Duo Unlimited show the plan on sign-up. */
   /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
   const create = () => (flavor === "reader" ? navigate("/parent-signup") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);

@@ -1296,8 +1296,8 @@ function TeacherHubPage() {
           setWorkspace((prev) => { const had = prev.calendars.find((c) => isIphoneCalendar(c.url)); return replaceCalendarEvents(prev, { id: had?.id || id(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() }, events, id); });
           return events.length;
         }} />}
-      {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). The same one LifeHub shows. */}
-      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />}
+      {/* After the first-run walkthrough: the To Duo Unlimited pop-up, once (iPhone app only). The same one LifeHub shows. */}
+      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise To Duo Unlimited unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         initialOpen={storeOpenApp ?? undefined}

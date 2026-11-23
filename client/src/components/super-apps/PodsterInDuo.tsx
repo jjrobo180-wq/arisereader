@@ -92,7 +92,7 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   useEffect(() => { api("/api/earshot/account").then((b) => setAcct({ signedIn: !!b?.signedIn, email: b?.email ?? null })).catch(() => {}); }, [api]);
   const pro = acct.signedIn;
   const proRef = useRef(pro); proRef.current = pro;
-  // Ad-free listening is Arise All Access, the same as in the Podster app.
+  // Ad-free listening is Arise To Duo Unlimited, the same as in the Podster app.
   const [paid, setPaid] = useState(false);
   useEffect(() => { if (!pro) { setPaid(false); return; } let alive = true; api("/api/earshot/ad-free").then((j) => { if (alive) setPaid(!!j?.adFree); }).catch(() => {}); return () => { alive = false; }; }, [pro, api]);
   useEffect(() => { setCleanEnabled(paid); }, [paid]);

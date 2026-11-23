@@ -530,8 +530,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
-    {/* After setup (the first-run goals): the All Access pop-up, once. */}
-    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise All Access adds Premium with a guest pass for a friend, plus the extras in To Duo, Notes and Podster." />}
+    {/* After setup (the first-run goals): the To Duo Unlimited pop-up, once. */}
+    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise To Duo Unlimited adds Premium with a guest pass for a friend, plus the extras in To Duo, Notes and Podster." />}
     {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}

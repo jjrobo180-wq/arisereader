@@ -315,11 +315,11 @@ function WebHandoff({ app }: { app?: AllAccessApp } = {}) {
   return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 }
 
-/** Signed out on the All Access page: the sign-in of the app they came from (Cooked's, Notes', Podster's),
+/** Signed out on the To Duo Unlimited page: the sign-in of the app they came from (Cooked's, Notes', Podster's),
  *  in its colors, never the To Duo homepage. Signed in, the page shows the plan right here. */
 function AllAccessSignIn({ app }: { app: AllAccessApp }) {
   const brand = ALL_ACCESS_APPS[app];
-  const banner = <p className="px-4 py-3 text-center text-sm font-bold text-white" style={{ background: brand.from }} data-testid="all-access-signin-first">{app === "podster" ? "Sign in with the same email as your Podster account. Arise All Access ($10 a month) opens right here." : `Sign in with your ${brand.name} account. Arise All Access ($10 a month) opens right here.`}</p>;
+  const banner = <p className="px-4 py-3 text-center text-sm font-bold text-white" style={{ background: brand.from }} data-testid="all-access-signin-first">{app === "podster" ? "Sign in with the same email as your Podster account. Arise To Duo Unlimited ($10 a month) opens right here." : `Sign in with your ${brand.name} account. Arise To Duo Unlimited ($10 a month) opens right here.`}</p>;
   return app === "fit" || app === "notes"
     ? <div className="relative"><div className="fixed inset-x-0 top-0 z-[60]">{banner}</div><NativeSignIn flavor={app} /></div>
     : <div>{banner}<SignIn /></div>;
@@ -568,7 +568,7 @@ function PageFallback({ path }: { path: string }) {
 
 function AppRoutes() {
   const { user, isLoading, token } = useAuth();
-  // In the iPhone apps: hand Apple's running All Access subscriptions (renewals) to the server.
+  // In the iPhone apps: hand Apple's running To Duo Unlimited subscriptions (renewals) to the server.
   useEffect(() => { if (user && token) startAppleSync(token); }, [user, token]);
   // The routes below remount when the page changes. A page that redirects lands on another page that
   // often redirects too (a game → "/" → the hub); without a fresh mount React reused the first Redirect,
@@ -658,7 +658,7 @@ function AppRoutes() {
         {/* Signed out on the website: Cooked Fitness by Arise's own sign-in (from arisetodo.com/cooked/), not the To Duo homepage. */}
         <AppSignInGate flavor="fit"><ProtectedRoute><FitApp /></ProtectedRoute></AppSignInGate>
       </Route>
-      {/* Arise All Access: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
+      {/* Arise To Duo Unlimited: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
       <Route path="/all-access">
         {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
             then this same page shows the plan. Never the homepage. */}

@@ -1,4 +1,4 @@
-// The All Access page wears the colors of the app someone came from (shared/allAccess.ts).
+// The To Duo Unlimited page wears the colors of the app someone came from (shared/allAccess.ts).
 import { isAllAccessApp, type AllAccessApp } from "@shared/allAccess";
 
 /** The app someone came from ("?for=fit"), kept through Stripe's checkout and back. */

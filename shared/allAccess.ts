@@ -1,15 +1,15 @@
-// Arise All Access, as people see it: one $10-a-month plan for every Arise app (sold in server/plans.ts,
+// Arise To Duo Unlimited, as people see it: one $10-a-month plan for every Arise app (sold in server/plans.ts,
 // kind "all_access"). Shared by the website, the iPhone apps and Podster.
 export const ALL_ACCESS = {
-  name: "Arise All Access",
+  name: "Arise To Duo Unlimited",
   price: "$10",
   per: "a month",
   /** Where it's bought (the website; the iPhone apps link here only where Apple allows it). */
   url: "https://arisetodo.com/app#/all-access",
-  /** Each app's name, then what All Access adds in it (shown smaller). */
+  /** Each app's name, then what To Duo Unlimited adds in it (shown smaller). */
   perks: [
-    { app: "Arise To Duo", detail: "Unlimited: every plugin and AI" },
-    { app: "Arise Notes", detail: "Plus: 1,500 minutes a month" },
+    { app: "Plugins", detail: "Every plugin in the Plugin Gallery and unlimited AI" },
+    { app: "Notes", detail: "1,500 recording minutes a month" },
     { app: "Cooked Fitness by Arise", detail: "Premium All in one Health & Fitness App, with a guest pass for a friend" },
     { app: "Podster", detail: "Ad-free listening" },
   ],
@@ -26,7 +26,7 @@ export function usRegion(lang?: string | null): boolean {
   return region === "US";
 }
 
-/** The app a person came from: the All Access page wears that app's name and colors and sends them back to it. */
+/** The app a person came from: the To Duo Unlimited page wears that app's name and colors and sends them back to it. */
 export type AllAccessApp = "todo" | "fit" | "notes" | "podster";
 export const ALL_ACCESS_APPS: Record<AllAccessApp, { name: string; from: string; to: string; site: string; perk: string }> = {
   todo: { name: "Arise To Duo", from: "#7c3aed", to: "#4f46e5", site: "https://arisetodo.com/", perk: "Arise To Duo" },
@@ -36,7 +36,7 @@ export const ALL_ACCESS_APPS: Record<AllAccessApp, { name: string; from: string;
 };
 export const isAllAccessApp = (v: unknown): v is AllAccessApp => typeof v === "string" && v in ALL_ACCESS_APPS;
 
-/** The All Access page for one app, signed in when there's a one-use code. */
+/** The To Duo Unlimited page for one app, signed in when there's a one-use code. */
 export function allAccessLink(app: AllAccessApp = "todo", code?: string | null): string {
   const q = new URLSearchParams();
   if (code && /^[a-f0-9]{64}$/.test(code)) q.set("signin", code);

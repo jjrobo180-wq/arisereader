@@ -1555,10 +1555,10 @@ export async function registerRoutes(
       path === "/api/arise-todo/resend-code" ||
       path === "/api/arise-todo/apple-health/sync"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
-    "todo_required", "Arise LifeHub needs Arise All Access.",
+    "todo_required", "Arise LifeHub needs Arise To Duo Unlimited.",
   ));
   registerAdminHandoffRoutes(app, authMiddleware, {
-    // Podster's accounts are its own; All Access lives on the Arise account with the same (verified)
+    // Podster's accounts are its own; To Duo Unlimited lives on the Arise account with the same (verified)
     // email. Its "Get it on arisetodo.com" opens that account signed in, made now if there isn't one.
     emailAccount: async (email) => {
       if (!looksLikeEmail(email)) return null;
@@ -1644,7 +1644,7 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Arise All Access ($${PLANS.allAccess.monthlyCents / 100} a month) for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Arise To Duo Unlimited ($${PLANS.allAccess.monthlyCents / 100} a month) for every app and AI.` });
       }
       next();
     } catch (error: any) {
@@ -1825,7 +1825,7 @@ export async function registerRoutes(
     left: (id) => notesMinutes.left(id),
     spend: (id, m, kind) => notesMinutes.spend(id, m, kind),
   });
-  // Ad-free Podster is part of Arise All Access. In To Duo the listener is the Arise account; in the Podster
+  // Ad-free Podster is part of Arise To Duo Unlimited. In To Duo the listener is the Arise account; in the Podster
   // app it's the Arise account with the same email as the person's Podster sign-in.
   const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
   const allAccessListener = async (req: any): Promise<boolean> => {
