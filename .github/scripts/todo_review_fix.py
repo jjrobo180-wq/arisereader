@@ -32,10 +32,11 @@ IAP_REVIEW_NOTE = ("Arise To Duo Unlimited is the app's one monthly subscription
                    "with the free review account, then add a fourth plugin in the Plugin Gallery, or open ... > Customize > Plan & more, "
                    "and tap Subscribe.")
 
+# (What the description must mention, the line added when it doesn't.)
 DESC_LINES = [
-    ("Apple Health", "Cooked reads your steps, active calories and weight from Apple Health, with your permission, to fill in your food and fitness diary."),
-    ("Terms of Use", "Terms of Use: https://arisetodo.com/terms/"),
-    ("Privacy Policy", "Privacy Policy: https://arisetodo.com/privacy/"),
+    ("Apple Health", "APPLE HEALTH\nCooked reads your steps, active calories and weight from Apple Health, with your permission, to fill in your food and fitness diary. It never writes to Apple Health."),
+    ("arisetodo.com/terms", "Terms of Use: https://arisetodo.com/terms/"),
+    ("arisetodo.com/privacy", "Privacy Policy: https://arisetodo.com/privacy/"),
 ]
 
 NOTES = """Arise To Duo contains no live-update code: everything it does is in this binary, and changes ship only as App Store updates.
@@ -46,7 +47,7 @@ Demo accounts
 What is in the app
 - LifeHub (your own tasks, calendar, notes), FamilyHub (shared with family members you invite by code) and WorkHub (work tasks), switched at the top.
 - Plugins from the Plugin Gallery: Notes (record, transcribe, and an "Ask AI" chat), Cooked (fitness diary; reads steps, active calories and weight from Apple Health), Cooked PT (coaching), Podster (podcasts, public-domain audiobooks and music, radio), Browser (opens web pages in the app), Rise Score and more.
-- WorkHub's teacher tools (classes, students, Arise Reader for a class) need a teacher account.
+- WorkHub's extra teacher tools (classes and students) are for teachers whose school has an Arise license, sold to schools outside the app (3.1.3(c)); nothing in the app sells them. Both accounts above show everything else.
 - Arise To Duo Unlimited: auto-renewing monthly subscription through Apple in-app purchase. It unlocks every plugin and unlimited AI. On the US storefront only, the app also shows a link to buy on our website, as 3.1.1(a) allows.
 
 Privacy and safety
