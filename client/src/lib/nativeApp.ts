@@ -60,7 +60,7 @@ export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; a
   trainer: { name: "Cooked PT", bundle: "com.arisereader.trainer", api: "https://arisetodo.com" },
   notes: { name: "Arise Notes", bundle: "com.arisereader.notes", api: "https://arisetodo.com" },
   talk: { name: "Arise Talk", bundle: "com.arisereader.talk", api: "https://arisetodo.com" },
-  undercover: { name: "Arise Undercover", bundle: "com.arisereader.undercover", api: "https://arisetodo.com" },
+  undercover: (typeof __TODO_APP__ !== "undefined" && __TODO_APP__) ? (undefined as never) : { name: "Arise Undercover", bundle: "com.arisereader.undercover", api: "https://arisetodo.com" },
 };
 export const nativeAppInfo = () => NATIVE_APPS[nativeFlavor()];
 

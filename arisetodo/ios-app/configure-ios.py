@@ -5,7 +5,7 @@ app can ask for needs a sentence saying why, or iOS stops the app the moment it 
   - Apple Health (read only: steps, active calories, weight for the Food & fitness diary)
   - Calendars (the iPhone Calendar in WorkHub and LifeHub)
   - Camera, photos and microphone (barcode scanner, photos in notes and posts, voice features)
-  - Location (only the apps in the App Store that ask for it, like weather and mileage)
+  - Location (only the plugins that ask for it, like weather and mileage)
 It also says the app only uses the encryption built into iOS (HTTPS), so App Store Connect doesn't
 ask about export compliance on every upload, turns on Live Activities (the focus timer on the Lock Screen
 and in the Dynamic Island) and adds the arisetodo:// links that timer's Done and Stop buttons open.
@@ -27,8 +27,8 @@ KEYS = {
     "NSCameraUsageDescription": f"{NAME} uses the camera to scan barcodes and take photos you add to your notes, tasks and posts.",
     "NSPhotoLibraryUsageDescription": f"{NAME} lets you pick photos to add to your notes, tasks and posts.",
     "NSPhotoLibraryAddUsageDescription": f"{NAME} saves pictures you choose to your photo library.",
-    "NSMicrophoneUsageDescription": f"{NAME} uses the microphone for voice notes and speaking practice when you choose to record.",
-    "NSLocationWhenInUseUsageDescription": f"{NAME} uses your location only in the apps that need it, like weather and mileage, while you use them.",
+    "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when you choose to record a voice note or a meeting in Notes, or the sound of a video for your trainer.",
+    "NSLocationWhenInUseUsageDescription": f"{NAME} uses your location only in the plugins that need it, like weather and mileage, while you use them.",
     "ITSAppUsesNonExemptEncryption": False,
     "NSSupportsLiveActivities": True,
 }

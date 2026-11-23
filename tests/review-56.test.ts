@@ -37,3 +37,33 @@ test("No more All Access: the one paid plan is Arise To Duo Unlimited", () => {
   for (const f of ["client/src/components/AllAccessOffer.tsx", "client/src/components/hub-pieces/TodoPlan.tsx", "client/src/pages/AriseTodo.tsx", "client/src/pages/AllAccess.tsx", "server/aiMinutes.ts"])
     assert.doesNotMatch(readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, ""), /"[^"\n]*All Access[^"\n]*"/, f);
 });
+
+test("App Review: one paid plan, no ad stripping or trainer online-coaching payments in the iPhone app, honest permission sentences", () => {
+  const plans = readFileSync("server/plans.ts", "utf8");
+  // A To Duo Unlimited from before (monthly, yearly or an Admin trial) unlocks exactly what the subscription does.
+  assert.match(plans, /for \(const kind of \["todo_unlimited", "todo_unlimited_year"\] as PlanKind\[\]\) \{\n\s+const g = await current\(kind, userId\);\n\s+if \(grantLive\(g, now\(\)\)\) return \{ live: true, admin: false, grant: g \};/);
+  assert.doesNotMatch(plans, /Every Arise app's paid tier/);
+  const offer = readFileSync("client/src/components/AllAccessOffer.tsx", "utf8");
+  assert.match(offer, />Everything in Arise To Duo\. Signing up is free\.</);
+  assert.doesNotMatch(offer, /every Arise app/i);
+  assert.match(offer, /ALL_ACCESS\.perks\.filter\(\(p\) => !\(isNativeApp\(\) && p\.app === "Podster"\)\)/);
+  // Podster plays episodes as published in the iPhone app: no ad skipping, no ad-free copies, nothing selling it.
+  const pod = readFileSync("client/src/components/super-apps/PodsterInDuo.tsx", "utf8");
+  assert.match(pod, /const adFreeHere = paid && !isNativeApp\(\);\n\s+useEffect\(\(\) => \{ setCleanEnabled\(adFreeHere\); \}, \[adFreeHere\]\);\n\s+const adMode = adFreeHere \?/);
+  assert.match(readFileSync("client/src/components/family-hub/earshot/EarshotListen.tsx", "utf8"), /if \(isNativeApp\(\)\) return null;\n\s+if \(notMember\) return <CouldSaveCard/);
+  // Paying a trainer in the iPhone app: real-time one-to-one only (3.1.3(d)).
+  const pay = readFileSync("client/src/pages/coach/Pay.tsx", "utf8");
+  assert.match(pay, /const prices = native \? data\.prices\.filter\(\(p\) => p\.mode === "inPerson" \|\| p\.mode === "virtual"\) : data\.prices;/);
+  assert.match(pay, /const payUrl = native \? "" : data\.payUrl;/);
+  // Permission sentences say what the app really does.
+  const plist = readFileSync("arisetodo/ios-app/configure-ios.py", "utf8");
+  assert.match(plist, /only in the plugins that need it, like weather and mileage/);
+  assert.doesNotMatch(plist, /apps in the App Store|speaking practice/);
+  // The admin console isn't in the iPhone app.
+  const work = readFileSync("client/src/pages/TeacherHub.tsx", "utf8");
+  assert.match(work, /extra: user\.isAdmin && !isNativeApp\(\) \?/);
+  assert.match(work, /\{user\.isAdmin && !isNativeApp\(\) && <a href="#\/todo-admin"/);
+  const rules = readFileSync("CLAUDE.md", "utf8");
+  assert.match(rules, /\*\*No live updates\.\*\*/);
+  assert.match(rules, /\*\*To Duo alone in the To Duo app\.\*\*/);
+});

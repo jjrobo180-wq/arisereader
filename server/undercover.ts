@@ -87,15 +87,20 @@ export const openMeteoWeather: WeatherLookup = async (where, unit) => {
 
 const num = (v: unknown, max: number) => { const n = Number(v); return v !== null && v !== "" && Number.isFinite(n) && Math.abs(n) <= max ? Math.round(n * 100) / 100 : undefined; };
 
+/** Ask AI's instructions (Arise Notes and Arise To Duo): an assistant that's open about being one. */
+export const PLAIN_ASK_PROMPT = "You are the AI assistant in Arise To Duo, answering a person's question in Arise Notes. Answer clearly and to the point, in plain sentences or short lines starting with '- ', under 150 words. If you are not sure, say so. If asked, say you are an AI assistant.";
+
 export function registerUndercoverRoutes(app: Express, auth: RequestHandler, deps: { ask?: UndercoverAsk; weather?: WeatherLookup; now?: () => number; /** The person's LifeHub and WorkHub workspaces, for "what tasks do I have left?". */ hubs?: (userId: number) => Promise<{ life: any; work: any }> } = {}) {
   const ask = deps.ask ?? askUndercoverAi;
   const weather = deps.weather ?? openMeteoWeather;
   const now = deps.now ?? Date.now;
   const perHour = createAttemptLimiter({ max: 120, windowMs: 3600_000, now });
 
-  app.post("/api/undercover/chat", auth, async (req: any, res) => {
+  // `plain`: Ask AI in Arise Notes and Arise To Duo (/api/ask/chat): a plain assistant that says what it is,
+  // with no look to blend into. Arise Undercover's own app keeps /api/undercover/chat and its looks.
+  const chat = (plain: boolean) => async (req: any, res: any) => {
     const u = req.user;
-    if (!u || !Number.isSafeInteger(Number(u.id))) return res.status(401).json({ message: "Sign in to use Arise Undercover." });
+    if (!u || !Number.isSafeInteger(Number(u.id))) return res.status(401).json({ message: plain ? "Sign in to use Ask AI." : "Sign in to use Arise Undercover." });
     const key = `u${u.id}`;
     const wait = perHour.retryAfter(key);
     if (wait > 0) return res.status(429).json({ message: `That's a lot of questions. Try again in ${waitWords(wait)}.` });
@@ -132,11 +137,13 @@ export function registerUndercoverRoutes(app: Express, auth: RequestHandler, dep
     const fromNotes = typeof req.body?.notes === "string" ? req.body.notes.trim().slice(0, 3000) : "";
     if (fromNotes) facts.push(`What the person's own recorded notes say about this, use it together with the web and say it comes from their notes: """${fromNotes}"""`);
     try {
-      const reply = await ask(`${undercoverSystemPrompt(theme)}\n\nFacts to use: ${facts.join(" ")}`, messages);
+      const reply = await ask(`${plain ? PLAIN_ASK_PROMPT : undercoverSystemPrompt(theme)}\n\nFacts to use: ${facts.join(" ")}`, messages);
       res.json({ reply: reply.slice(0, 2000) });
     } catch (e: any) {
       console.error("[undercover] chat:", e?.message || e);
       res.status(502).json({ message: "Couldn't get an answer just now. Try again." });
     }
-  });
+  };
+  app.post("/api/undercover/chat", auth, chat(false));
+  app.post("/api/ask/chat", auth, chat(true));
 }

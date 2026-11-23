@@ -1,13 +1,12 @@
 // Ask: two kinds of answers and three looks, each a toggle.
 //   From:  "My notes" answers only from what you've recorded, with the note and the moment each part
-//          came from; "Anything" is Undercover's AI (live web, the date, the weather; askUndercover.ts).
+//          came from; "Anything" is Ask AI (live web, the date, the weather; lib/askAi.ts).
 //   Look:  "Chat" (bubbles and source chips), "Notes" (reads like your own meeting notes on a page),
 //          "Text" (looks like a text thread). Both choices are remembered on this device.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FileText, MessageCircle, MessagesSquare, Send, Sparkles } from "lucide-react";
 import { fmtClock } from "@shared/ariseNotes";
-import { answerLines, type UndercoverMsg } from "@shared/undercover";
-import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { answerLines, askAi, askPrefs, type AskMsg } from "@/lib/askAi";
 import { plainAsk } from "@/lib/nativeApp";
 import { localDay, notesApi, type AskReply } from "./api";
 import { Btn, Notice } from "./ui";
@@ -56,9 +55,10 @@ export default function AskScreen({ ctx }: { ctx: AppCtx }) {
       if (mine === "notes") done({ a: await notesApi.ask(text, localDay()) });
       else {
         // The "Anything" side remembers the conversation so far (only its own turns).
-        const history: UndercoverMsg[] = turns.filter((t) => t.from === "anything" && t.text).flatMap((t) => [{ role: "user" as const, content: t.q }, { role: "assistant" as const, content: t.text! }]).slice(-14);
-        const theme = look === "text" ? "text" : look === "doc" ? "docNotes" : "docComments";
-        done({ text: await askAi(theme, [...history, { role: "user", content: text }], undercoverPrefs()) });
+        const history: AskMsg[] = turns.filter((t) => t.from === "anything" && t.text).flatMap((t) => [{ role: "user" as const, content: t.q }, { role: "assistant" as const, content: t.text! }]).slice(-14);
+        // In the iPhone apps it's always the plain Ask AI; on the website a look can shape the answer.
+        const theme = plainAsk() ? undefined : look === "text" ? "text" : look === "doc" ? "docNotes" : "docComments";
+        done({ text: await askAi([...history, { role: "user", content: text }], askPrefs(), theme) });
       }
     } catch (e: any) { done({ error: e?.message || "Couldn't get an answer." }); }
     finally { setBusy(false); }

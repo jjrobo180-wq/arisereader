@@ -45,25 +45,8 @@ export function cleanHistory(raw: unknown): UndercoverMsg[] {
   return recent.length && recent[recent.length - 1].role === "user" ? recent : [];
 }
 
-/** Splits an answer into lines (group chat messages, bullet points), without bullet marks. */
-export function answerLines(text: string): string[] {
-  return String(text || "").split(/\n+/).map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim()).filter(Boolean);
-}
-
-// ─── Live info: the time and the weather ─────────────────────────────────────
-
-/** Does the question ask about the weather? */
-export function wantsWeather(q: string): boolean {
-  return /\b(weather|forecast|temperature|temp|rain(ing|y)?|snow(ing|y)?|sunny|humid(ity)?|windy|umbrella|jacket|degrees|how (hot|cold|warm))\b/i.test(q);
-}
-
-/** The place named in a weather question ("weather in Denver, CO tomorrow" → "Denver, CO"). */
-export function weatherPlaceFrom(q: string): string {
-  const m = /\b(?:in|for|at|near)\s+([A-Za-z][A-Za-z .'-]{1,40}(?:,\s*[A-Za-z .]{2,30})?)/i.exec(q);
-  if (!m) return "";
-  const place = m[1].replace(/\b(today|tonight|tomorrow|this|next|right now|now|on|the|weekend|week|morning|afternoon|evening)\b.*$/i, "").replace(/[\s,.'-]+$/, "").trim();
-  return /^(the|my|here|there|it|a|an)$/i.test(place) || place.length < 2 ? "" : place;
-}
+// Plain helpers shared with Ask AI (client/src/lib/askAi.ts): answer lines and weather questions.
+export { answerLines, wantsWeather, weatherPlaceFrom } from "./askText";
 
 /** A forecast written as plain facts for the AI to answer from. */
 export function weatherFacts(f: { place: string; unit: "F" | "C"; current: { temp: number; feels: number; code: number; wind: number; humidity: number }; days: { date: string; code: number; high: number; low: number; rain: number }[] }, describe: (code: number) => string): string {

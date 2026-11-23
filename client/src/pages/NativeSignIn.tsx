@@ -72,7 +72,8 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Made for you", text: "Make boards with the words you use every day." },
       { tint: "#0f766e", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "Share with family", text: "Keep the same boards on every device." },
     ] },
-  undercover: { icon: "/app-icons/undercover-1024.png", tagline: "Ask AI in the meeting. It looks like texting.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
+  // Arise Undercover's own app only: none of it is in the Arise To Duo app's build.
+  undercover: (typeof __TODO_APP__ !== "undefined" && __TODO_APP__) ? (undefined as never) : { icon: "/app-icons/undercover-1024.png", tagline: "Ask AI in the meeting. It looks like texting.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
     features: [
       { tint: "#2563eb", icon: <MessageCircle className="h-[22px] w-[22px]" />, title: "Looks like texting", text: "Answers come back as texts or a group chat." },
       { tint: "#0f766e", icon: <FileText className="h-[22px] w-[22px]" />, title: "Or a document", text: "Answers write into notes or doc comments." },

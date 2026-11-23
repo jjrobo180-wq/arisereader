@@ -13,7 +13,7 @@ import { isNotesApp, nativeCall, plainAsk } from "@/lib/nativeApp";
 const AskScreen = lazy(() => import("./AskScreen"));
 import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
-import { setNotesLookup } from "@/undercover/askUndercover";
+import { setNotesLookup } from "@/lib/askAi";
 import { listLocalNotes, type LocalNote } from "./localNotes";
 import { listenForLinks, widgetAi, widgetPages } from "./widgetLinks";
 import { newPageId, pagesSyncFor } from "./pages/pagesSync";

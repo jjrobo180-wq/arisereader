@@ -1,6 +1,7 @@
 name: Arise To Duo Tasks check (tick and add, in a browser)
 # The built app, signed in with a workspace shaped like a real one; ticks and adds a task and checks each is saved.
-# Screenshots and results go to the duo-tasks-check branch.
+# Run on the website's build and on the To Duo iPhone app's own build (vite.todo.config.ts: To Duo alone).
+# Screenshots and results go to the duo-tasks-check branch (duo-tasks-check-todo for the app's build).
 on:
   workflow_dispatch:
     inputs:
@@ -19,12 +20,19 @@ on:
       - 'script/fitFoodCheck.mjs'
       - 'client/src/pages/fit/**'
       - '.github/workflows/duo-tasks-check.yml'
+      - 'vite.todo.config.ts'
+      - 'script/todoBundle.mjs'
+      - '.github/scripts/prune_todo_bundle.sh'
 permissions:
   contents: write
 jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [website, todo-app]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,7 +40,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx vite build
+      - name: Build
+        run: |
+          if [ "${{ matrix.build }}" = "todo-app" ]; then
+            npx vite build --config vite.todo.config.ts
+            bash .github/scripts/prune_todo_bundle.sh dist/public
+          else
+            npx vite build
+          fi
       - name: Install a browser
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.1
@@ -49,7 +64,8 @@ jobs:
         if: always()
         working-directory: screens
         run: |
-          git init -q -b duo-tasks-check
+          BRANCH=duo-tasks-check${{ matrix.build == 'todo-app' && '-todo' || '' }}
+          git init -q -b "$BRANCH"
           git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com add -A
           git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Duo tasks check ${GITHUB_SHA::7}" || exit 0
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" duo-tasks-check
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$BRANCH"

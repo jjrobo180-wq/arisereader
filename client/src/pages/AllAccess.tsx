@@ -30,7 +30,9 @@ export default function AllAccessPage() {
   const app = allAccessFor();
   const brand = ALL_ACCESS_APPS[app];
   // The app they came from first in the list.
-  const perks = [...PERKS.filter(([t]) => t === brand.perk), ...PERKS.filter(([t]) => t !== brand.perk)];
+  // The app they came from first in the list. The iPhone app has no ad-free Podster.
+  const list = native ? PERKS.filter(([t]) => t !== "Podster") : PERKS;
+  const perks = [...list.filter(([t]) => t === brand.perk), ...list.filter(([t]) => t !== brand.perk)];
   const call = (path: string, body?: unknown) => fetch(`${API_BASE}${path}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
   const load = () => call("/api/all-access").then((r) => r.json()).then(setS).catch(() => setNote("Your plan couldn't be loaded. Check your connection and try again."));
   useEffect(() => {

@@ -1668,7 +1668,7 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        // Unlimited is now sold as Arise All Access ($10: To Duo Unlimited, Notes Plus, Fit+, ad-free Podster).
+        // One paid plan, Arise To Duo Unlimited ($10 a month on the website; the Apple subscription in the app).
         priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });

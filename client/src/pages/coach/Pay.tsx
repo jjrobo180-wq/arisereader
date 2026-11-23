@@ -1,6 +1,7 @@
 // Paying your trainer inside Arise (Stripe Connect). Cooked: pay with a card from My trainer. Cooked PT:
 // set up payouts once, then see what came in. Rules and the fee: shared/coachPay.ts. Server: server/coach.ts.
 import { useState } from "react";
+import { isNativeApp } from "@/lib/nativeApp";
 import { BadgeDollarSign, Check, CreditCard, ExternalLink } from "lucide-react";
 import { MODE_LABEL, money, priceText, type Price } from "@shared/coach";
 import { PLATFORM_FEE_PCT, payKind, trainerGets, type Payment } from "@shared/coachPay";
@@ -13,17 +14,23 @@ const returnTo = () => window.location.origin + window.location.pathname;
 export function PayTrainer({ token, linkId, trainer, say }: { token: string | null; linkId: string; trainer: string; say: (m: string) => void }) {
   const { data } = usePoll(() => coachApi<{ ready: boolean; prices: Price[]; payUrl: string; payments: Payment[] }>(token, `/links/${linkId}/pay`), [token, linkId], 0);
   const [busy, setBusy] = useState("");
-  if (!data || (!data.ready && !data.payUrl)) return null;
+  if (!data) return null;
+  // In the iPhone app only real-time one-to-one training is paid here: in person or live video (App Review
+  // 3.1.3(d)). Online coaching, and a trainer's own payment link, are paid on the website.
+  const native = isNativeApp();
+  const prices = native ? data.prices.filter((p) => p.mode === "inPerson" || p.mode === "virtual") : data.prices;
+  const payUrl = native ? "" : data.payUrl;
+  if (!(data.ready && prices.length) && !payUrl) return null;
   const pay = async (p: Price) => { setBusy(p.id); try { const r = await post<{ url: string }>(token, `/links/${linkId}/pay`, { priceId: p.id, returnTo: returnTo() }); window.location.href = r.url; } catch (e: any) { say(e.message); setBusy(""); } };
   const last = data.payments[0];
   return <div data-testid="pay-trainer">
     <Title>Pay {trainer}</Title>
-    {data.ready && data.prices.length ? <div className="space-y-2">{data.prices.map((p) => <Card key={p.id} className="!p-3.5"><div className="flex items-center gap-3">
+    {data.ready && prices.length ? <div className="space-y-2">{prices.map((p) => <Card key={p.id} className="!p-3.5"><div className="flex items-center gap-3">
       <CreditCard className="h-5 w-5 shrink-0" style={{ color: C.lime }} />
       <div className="min-w-0 flex-1"><p className="truncate font-semibold">{p.label || MODE_LABEL[p.mode]}</p><p className="text-[13px]" style={{ color: C.dim }}>{priceText(p)}{payKind(p) !== "once" ? " · renews until you cancel" : ""}</p></div>
       <Btn className="!min-h-10 !px-4 !text-[15px]" disabled={!!busy} onClick={() => pay(p)} testId="pay-go">{busy === p.id ? "…" : "Pay"}</Btn></div></Card>)}
       <p className="text-[12px]" style={{ color: C.dim }}>Card payments go to {trainer}'s own account through Stripe. You'll get a receipt by email.</p></div>
-      : data.payUrl ? <Btn kind="soft" className="w-full" onClick={() => window.open(data.payUrl, "_blank")}><ExternalLink className="h-5 w-5" />Pay {trainer} (their payment link)</Btn> : null}
+      : payUrl ? <Btn kind="soft" className="w-full" onClick={() => window.open(payUrl, "_blank")}><ExternalLink className="h-5 w-5" />Pay {trainer} (their payment link)</Btn> : null}
     {last && <p className="mt-2 flex items-center gap-1.5 text-[13px]" style={{ color: C.dim }}><Check className="h-4 w-4" style={{ color: C.lime }} />Last paid {money(last.cents)} on {shortDate(last.at)} for {last.label}</p>}
   </div>;
 }

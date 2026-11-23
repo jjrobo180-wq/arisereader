@@ -59,7 +59,8 @@ jobs:
       - name: Build and bundle local frontend
         run: |
           npm ci
-          npx vite build
+          # To Duo alone: no other product's pages, apps or files (vite.todo.config.ts; App Review 2.5.19).
+          npx vite build --config vite.todo.config.ts
           bash .github/scripts/prune_todo_bundle.sh dist/public
           rm -rf arisetodo/ios-app/www
           mkdir -p arisetodo/ios-app/www

@@ -21,9 +21,9 @@ import { lockContent, unlockContent } from "./pagesLock";
 import { AppearanceSheet, ColorDots, ForgotSheet, SYNC_WORDS, UnlockSheet, VaultSheet, loadPageFont, lookStyle, usePages, useUnlocked } from "./pagesUi";
 import { drafts } from "./drafts";
 import { useAppearance } from "../appearance";
-import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { answerLines, askAi, askPrefs } from "@/lib/askAi";
+import { plainAsk } from "@/lib/nativeApp";
 import { takeCommands, useNoteRecording } from "./useNoteRecording";
-import { answerLines } from "@shared/undercover";
 import { WAIT, answerHtml, deleteReply, failReply, finishReply, clearStale, mergeReply, newReplyId, parseAtArise, waitingBlock } from "@shared/ariseReply";
 
 type Panel = "" | "more" | "look" | "folder" | "ai" | "versions" | "export" | "unlock" | "vault" | "forgot" | "sketch" | "ainote" | "info";
@@ -138,7 +138,7 @@ export default function PageScreen({ ctx, id, onBack, expanded, onExpand }: { ct
   const runArise = async (id: string, ask: string, context: string) => {
     working.current.add(id);
     try {
-      const text = await askAi("docNotes", [{ role: "user", content: ask }], { ...undercoverPrefs(), context });
+      const text = await askAi([{ role: "user", content: ask }], { ...askPrefs(), context }, plainAsk() ? undefined : "docNotes");
       const lines = answerLines(text);
       patchReply(WAIT + id, (h) => finishReply(h, id, answerHtml(lines.length ? lines : [text])));
       setReply({ id, waiting: false });

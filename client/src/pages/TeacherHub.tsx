@@ -1248,7 +1248,8 @@ function TeacherHubPage() {
     openNotifications: openNotificationBell, notificationSettings: () => setNotifyOpen(true),
     customize: () => setCustomize(true), night, toggleNight, lock: () => setLockSettings(true),
     gallery: () => setStore(true), privacy: () => setPrivacy(true), signOut: () => void signOut(),
-    extra: user.isAdmin ? [{ id: "admin", label: "To-Do admin", icon: <ShieldCheck />, onClick: () => { window.location.hash = "/todo-admin"; } }] : [],
+    // The admin console is on the website only, never in the iPhone app.
+    extra: user.isAdmin && !isNativeApp() ? [{ id: "admin", label: "To-Do admin", icon: <ShieldCheck />, onClick: () => { window.location.hash = "/todo-admin"; } }] : [],
   });
   const osReady = osOn && canUseHub && loaded && !loadError && !needsPlan;
   const osTab: OsScreen | null = tab === "overview" ? "home" : tab === "tasks" || tab === "calendar" || tab === "notes" ? tab : null;
@@ -1331,7 +1332,7 @@ function TeacherHubPage() {
           </a>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* The To-Do Admin (people, plans, payments) lives in WorkHub's header, not LifeHub's. */}
-            {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100 duo:hidden" data-testid="todo-admin-link"><ShieldCheck className="h-4 w-4" /> <span className="hidden lg:inline">Admin</span></a>}
+            {user.isAdmin && !isNativeApp() && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100 duo:hidden" data-testid="todo-admin-link"><ShieldCheck className="h-4 w-4" /> <span className="hidden lg:inline">Admin</span></a>}
             <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomize(true); }} />
             <HubSwitch current="hub" night={night} />
             {/* The ⚡ shortcut: on a phone only once one is set, so the name "WorkHub" fits in the header. */}

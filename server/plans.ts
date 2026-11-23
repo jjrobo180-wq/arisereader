@@ -1060,10 +1060,17 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const allAccessOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { live: true, admin: true, grant: null };
     const grant = await current("all_access", userId);
-    return { live: grantLive(grant, now()), admin: false, grant };
+    if (grantLive(grant, now())) return { live: true, admin: false, grant };
+    // One paid plan: Arise To Duo Unlimited from before it was one plan (the monthly or yearly To Duo plan,
+    // or a trial given in Admin) unlocks exactly the same things (App Review 2.3.1: one name, one plan).
+    for (const kind of ["todo_unlimited", "todo_unlimited_year"] as PlanKind[]) {
+      const g = await current(kind, userId);
+      if (grantLive(g, now())) return { live: true, admin: false, grant: g };
+    }
+    return { live: false, admin: false, grant };
   };
   const ALL_ACCESS_NAME = "Arise To Duo Unlimited";
-  const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass, and ad-free Podster.";
+  const ALL_ACCESS_ABOUT = "Everything in Arise To Duo for one person: every plugin and unlimited AI, Notes Plus (1,500 minutes a month), and Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass. On the website, Podster is ad-free too.";
   /** Opens Stripe's payment page for To Duo Unlimited. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;

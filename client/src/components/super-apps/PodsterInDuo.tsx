@@ -3,6 +3,7 @@
 // bar, in To Duo's look. Signed in with the To Duo account: the server turns the To Duo sign-in into the same
 // Podster account the Podster app uses (server/earshot.ts, the podscroll gate), so there's no second sign-in.
 // What the person follows, likes and saves is kept with the rest of their To Duo (family.earshot).
+import { isNativeApp } from "@/lib/nativeApp";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -95,8 +96,11 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   // Ad-free listening is Arise To Duo Unlimited, the same as in the Podster app.
   const [paid, setPaid] = useState(false);
   useEffect(() => { if (!pro) { setPaid(false); return; } let alive = true; api("/api/earshot/ad-free").then((j) => { if (alive) setPaid(!!j?.adFree); }).catch(() => {}); return () => { alive = false; }; }, [pro, api]);
-  useEffect(() => { setCleanEnabled(paid); }, [paid]);
-  const adMode = paid ? ("auto" as const) : ("off" as const);
+  // In the iPhone app episodes play exactly as their publishers made them: no ad skipping and no ad-free
+  // copies (App Review 5.2.2: other people's content, used as they publish it).
+  const adFreeHere = paid && !isNativeApp();
+  useEffect(() => { setCleanEnabled(adFreeHere); }, [adFreeHere]);
+  const adMode = adFreeHere ? ("auto" as const) : ("off" as const);
   const shown = useMemo(() => ({ ...es, settings: { ...es.settings, adMode } }), [es, adMode]);
   const shownRef = useRef(shown); shownRef.current = shown;
   const join = useCallback(() => say(pro ? "You're signed in to Podster with your To Duo account." : "Podster uses your To Duo account. Add an email to your account in To Duo's settings to post and keep your place."), [pro, say]);

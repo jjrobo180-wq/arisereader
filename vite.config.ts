@@ -4,6 +4,8 @@ import path from "node:path";
 
 export default defineConfig({
   plugins: [react()],
+  // True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts).
+  define: { __TODO_APP__: "false" },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

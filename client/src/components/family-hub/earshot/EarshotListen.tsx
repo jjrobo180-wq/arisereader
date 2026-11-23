@@ -2,6 +2,7 @@
 // moment), Catch me up (a recap of what you already heard), Fit my drive (episodes that fill your
 // minutes), the Hours back counter, and timed comments popping up as their moment plays.
 // Imports nothing from the Arise app (Podster uses it too).
+import { isNativeApp } from "@/lib/nativeApp";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { sayAI, stopAiVoice } from "../../../lib/aiVoice";
 import { Car, Clock3, Loader2, MessageCircle, Play, Send, Sparkles, Volume2, X } from "lucide-react";
@@ -245,6 +246,8 @@ export function HoursBackCard({ light, onHide, member, onJoin }: { light?: boole
   const h = useHoursBack();
   const could = useCouldSave();
   const notMember = member === false || (member === undefined && (could.weeks[weekKey()]?.ads ?? 0) > 0 && !(h.weeks[weekKey()]?.ads));
+  // No ad skipping in the iPhone app, so nothing that counts or sells it.
+  if (isNativeApp()) return null;
   if (notMember) return <CouldSaveCard light={light} onHide={onHide} onJoin={onJoin} />;
   const week = h.weeks[weekKey()];
   const wk = sumKinds(week), all = sumKinds(h.total);
