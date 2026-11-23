@@ -151,7 +151,7 @@ export function cardStep(deck: DeckId, index: number, done: boolean): { index: n
 /** Everything that was in Arise AAC before, as tiles on the Apps shelves (each still opens its own page,
  *  and a grown-up's choices still decide which ones show). */
 /** The built-in apps drawn by Arise Kids itself (no page of their own to open). */
-export type KidsGame = "cards" | "pick" | "stickers" | "update" | "hunt" | "firstthen" | "timer" | "breathe" | "sounds";
+export type KidsGame = "cards" | "pick" | "stickers" | "hunt" | "firstthen" | "timer" | "breathe" | "sounds";
 export type KidsTile = { name: string; bg: string; d: string; path?: string; game?: KidsGame; deck?: DeckId; allow?: string };
 export type KidsShelf = { name: string; tiles: KidsTile[] };
 /** Each game that used to sit inside "Eye-gaze games" opens on its own page (/eye-gaze-play/<id>). */
@@ -210,9 +210,6 @@ export const SHELVES: KidsShelf[] = [
   { name: "Me", tiles: [
     { name: "My Stars", bg: "#ffe3a1", d: "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z", path: "/leaderboard" },
     { name: "My Profile", bg: "#d9cfff", d: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0", path: "/profile" },
-    // Gets the newest version right now and says what happened (the app otherwise checks 30 seconds after
-    // opening and switches the next time it opens).
-    { name: "Update app", bg: "#b8ecd8", d: "M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5", game: "update" },
   ] },
 ];
 

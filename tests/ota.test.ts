@@ -1,4 +1,4 @@
-// Live updates for the iPhone apps (server/ota.ts, .github/scripts/ota_setup.py, ota-publish.yml).
+// Live updates for the iPhone apps are off for good (server/ota.ts): App Review 2.5.2 / 2.5.19.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -28,93 +28,57 @@ test("an app only gets newer web code made for its own native shell", () => {
   assert.equal(pickUpdate(list, "fit", "1.1.0"), null);
 });
 
-test("the endpoint answers the updater's way, and reads GitHub at most every 5 minutes", async () => {
+test("the endpoint never offers an update, to any app, whatever it's running", async () => {
   const routes: Record<string, any> = {};
   const app: any = { post: (p: string, h: any) => { routes[`POST ${p}`] = h; }, put: () => {}, get: () => {} };
   let calls = 0;
-  registerOtaRoutes(app, { fetchJson: async () => { calls++; return [gh("ota-todo-1.300.0")]; } });
-  const call = async (appId: string, body: any) => { let out: any; let code = 200; const res: any = { set: () => res, status: (c: number) => { code = c; return res; }, json: (b: any) => { out = b; return res; } }; await routes["POST /api/ota/:app"]({ params: { app: appId }, body }, res); return { code, out }; };
-  // Phones are sent to our own server for the file, never straight to GitHub (so the repository can be private).
-  assert.deepEqual((await call("todo", { version_name: "builtin", version_build: "1.200.0" })).out, { version: "1.300.0", url: "https://arisetodo.com/api/ota-file/todo/1.300.0.zip", checksum: SUM });
-  assert.equal((await call("todo", { version_name: "1.300.0" })).out.error, "no_new_version_available");
+  registerOtaRoutes(app, { fetchJson: async () => { calls++; return [gh("ota-todo-1.300.0"), gh("ota-reader-1.300.0")]; } });
+  const call = async (appId: string, body: any) => { let out: any; let code = 200; const res: any = { set: () => res, status: (c: number) => { code = c; return res; }, json: (b: any) => { out = b; return res; } }; await routes["POST /api/ota/:app"]({ params: { app: appId }, body }, res); return { out, code }; };
+  for (const id of ["todo", "reader", "educator", "fit", "notes", "podplus"]) {
+    const { out } = await call(id, { version_name: "builtin", version_build: "1.200.0" });
+    assert.equal(out.error, "no_new_version_available", id);
+    assert.equal(out.url, undefined, id);
+  }
   assert.equal((await call("nope", {})).code, 404);
-  assert.equal(calls, 1);
+  assert.equal(calls, 0, "it doesn't even look for releases");
 });
 
-test("signed builds set the updater up; the apps say they started fine; master publishes", () => {
-  const dir = mkdtempSync(join(tmpdir(), "ota-"));
-  writeFileSync(join(dir, "capacitor.config.json"), JSON.stringify({ appId: "x", plugins: {} }));
-  execFileSync("python3", [join(process.cwd(), ".github/scripts/ota_setup.py"), "todo"], { cwd: dir });
-  const cfg = JSON.parse(rf(join(dir, "capacitor.config.json"), "utf8")).plugins.CapacitorUpdater;
-  assert.equal(cfg.updateUrl, "https://arisetodo.com/api/ota/todo");
-  assert.equal(cfg.statsUrl, "");
-  assert.equal(cfg.autoUpdate, true);
-  assert.match(cfg.version, /^1\.\d+\.0$/);
-  for (const [wf, app] of [["podplus-testflight", "podplus"], ["fit-ios", "fit"], ["educator-ios", "educator"], ["arisereader-ios", "reader"]]) {
-    assert.match(readFileSync(`.github/workflows/${wf}.yml`, "utf8"), new RegExp(`ota_setup\\.py ${app}\\n\\s+npx cap add ios`));
+test("no app has the updater, and nothing builds or publishes web code for phones", () => {
+  assert.throws(() => readFileSync(".github/workflows/ota-publish.yml", "utf8"));
+  assert.throws(() => readFileSync(".github/scripts/ota_setup.py", "utf8"));
+  for (const d of ["arisetodo", "reader", "educator", "eyegazer", "fit", "notes", "talk", "trainer", "podscroll", "undercover"]) {
+    assert.doesNotMatch(readFileSync(`${d}/ios-app/package.json`, "utf8"), /capacitor-updater/, d);
+    assert.equal(JSON.parse(readFileSync(`${d}/ios-app/capacitor.config.json`, "utf8")).plugins?.CapacitorUpdater, undefined, d);
   }
-  // To Duo has no live updates: everything is in the build App Review sees (Guideline 2.5.2 / 5.6).
-  assert.doesNotMatch(readFileSync("arisetodo/ios-app/package.json", "utf8"), /capacitor-updater/);
-  assert.doesNotMatch(readFileSync(".github/workflows/arisetodo-signed-release.yml", "utf8"), /ota_setup\.py todo/);
-  assert.equal(JSON.parse(readFileSync("arisetodo/ios-app/capacitor.config.json", "utf8")).plugins.CapacitorUpdater, undefined);
-  for (const d of ["podscroll", "reader", "educator", "fit"]) {
-    assert.match(readFileSync(`${d}/ios-app/package.json`, "utf8"), /"@capgo\/capacitor-updater": "\^8/);
-    // Only our own server, never an outside one.
-    const c = JSON.parse(readFileSync(`${d}/ios-app/capacitor.config.json`, "utf8")).plugins.CapacitorUpdater;
-    assert.match(c.updateUrl, /^https:\/\/arisetodo\.com\/api\/ota\//); assert.equal(c.statsUrl, ""); assert.match(c.channelUrl, /^https:\/\/arisetodo\.com\//);
+  for (const wf of ["arisereader-ios", "educator-ios", "eyegazer-ios", "fit-ios", "notes-ios", "podplus-testflight", "talk-ios", "trainer-ios", "widget-sim-diag", "widgets-ios-check", "arisetodo-signed-release"]) {
+    assert.doesNotMatch(readFileSync(`.github/workflows/${wf}.yml`, "utf8"), /ota_setup/, wf);
   }
-  // Every app tells the updater it started fine, retrying, without needing Capacitor's plugin list
-  // (that check failed silently and every downloaded update was rolled back after 15 seconds).
-  assert.match(readFileSync("client/src/main.tsx", "utf8"), /markAppReadyWhenDrawn\(\)/);
-  assert.match(readFileSync("podscroll/main.tsx", "utf8"), /markAppReadyWhenDrawn\(\)/);
-  const nat = readFileSync("client/src/lib/nativeApp.ts", "utf8");
-  assert.doesNotMatch(nat.slice(nat.indexOf("export async function markAppReady")), /^[^\n]*hasNativePlugin/m, "the ready signal doesn't depend on the plugin list");
-  assert.match(nat, /Plugins\?\.CapacitorUpdater/);
-  const pub = readFileSync(".github/workflows/ota-publish.yml", "utf8");
-  assert.match(pub, /branches: \[master\]/);
-  assert.match(pub, /gh release create "\$TAG" "\$ZIP"/);
 });
 
 test("every update offered carries the zip's checksum (the phone's updater refuses one without it)", () => {
   const list = releasesFrom([gh("ota-todo-1.300.0"), gh("ota-todo-1.400.0", undefined, null), gh("ota-todo-1.500.0", undefined, "sha256:nothex")]);
   assert.deepEqual(list.map((r) => r.version), ["1.300.0"], "no checksum, not offered");
   assert.equal(list[0].checksum, SUM);
-  assert.match(readFileSync("server/ota.ts", "utf8"), /checksum: next\.checksum/);
 });
 
-test("the iPhone apps get new web code quietly: downloaded in the background, used when the app is next in the background", () => {
+test("the web code never downloads or switches to new web code", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-  const native = read("client/src/lib/nativeApp.ts");
-  assert.match(native, /export async function liveUpdateNow/);
-  assert.match(native, /visibilitychange/);
-  assert.match(read("client/src/main.tsx"), /keepLiveUpdated\(\);/);
-  // Never a reload while the app is on screen: the downloaded copy waits (next), and the updater
-  // itself switches over only when the app goes to the background.
-  const live = native.slice(native.indexOf("export async function liveUpdateNow"), native.indexOf("export async function checkForUpdateNow"));
-  assert.ok(!/u\.set\(/.test(live), "liveUpdateNow never reloads");
-  assert.match(live, /await u\.next\(\{ id: bundle\.id \}\)/);
-  assert.match(read(".github/scripts/ota_setup.py"), /"directUpdate": False,/);
-  assert.ok(!/"directUpdate": "always"/.test(read(".github/scripts/ota_setup.py")));
-  // Only the Settings button switches at once, because someone asked for it.
-  const button = native.slice(native.indexOf("export async function checkForUpdateNow"), native.indexOf("export function keepLiveUpdated"));
-  assert.match(button, /await u\.set\(\{ id: bundle\.id \}\)/);
+  assert.doesNotMatch(read("client/src/lib/nativeApp.ts"), /CapacitorUpdater|liveUpdateNow|checkForUpdateNow|keepLiveUpdated|notifyAppReady/);
+  assert.doesNotMatch(read("client/src/main.tsx"), /keepLiveUpdated|markAppReady/);
+  assert.doesNotMatch(read("podscroll/main.tsx"), /markAppReady/);
 });
 
-test("files are handed out by our server: a signed GitHub link with a token, the public link without", async () => {
+test("update files are never handed out; the desktop downloads still come through our server", async () => {
   const routes: Record<string, any> = {};
   const app: any = { post: () => {}, put: () => {}, get: (p: string, h: any) => { routes[`GET ${p}`] = h; } };
   const list = [{ ...gh("ota-todo-1.300.0"), assets: [{ ...gh("ota-todo-1.300.0").assets[0], id: 77 }] },
-    { tag_name: "desktop", draft: false, assets: [{ id: 5, name: "Arise-To-Duo-Setup.exe", browser_download_url: "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/Arise-To-Duo-Setup.exe" }, { id: 6, name: "latest.yml", browser_download_url: "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/latest.yml" }] }];
+    { tag_name: "desktop", draft: false, assets: [{ id: 5, name: "Arise-To-Duo-Setup.exe", browser_download_url: "https://github.com/jjrobo180-wq/arisereader/releases/download/desktop/Arise-To-Duo-Setup.exe" }] }];
   const asked: (number | undefined)[] = [];
   registerOtaRoutes(app, { fetchJson: async () => list, token: () => "t", resolve: async (id, url) => { asked.push(id); return id ? `https://objects.example/signed/${id}` : url; } });
   const get = async (route: string, params: any) => { let to = "", code = 200; const res: any = { set: () => res, status: (c: number) => { code = c; return res; }, json: () => res, send: () => res, redirect: (c: number, u: string) => { code = c; to = u; return res; } }; await routes[route]({ params }, res); return { code, to }; };
-  assert.deepEqual(await get("GET /api/ota-file/:app/:file", { app: "todo", file: "1.300.0.zip" }), { code: 302, to: "https://objects.example/signed/77" });
-  assert.equal((await get("GET /api/ota-file/:app/:file", { app: "todo", file: "1.999.0.zip" })).code, 404);
-  assert.equal((await get("GET /api/ota-file/:app/:file", { app: "todo", file: "../x" })).code, 404);
+  assert.equal((await get("GET /api/ota-file/:app/:file", { app: "todo", file: "1.300.0.zip" })).code, 410);
   assert.deepEqual(await get("GET /download/desktop/:file", { file: "Arise-To-Duo-Setup.exe" }), { code: 302, to: "https://objects.example/signed/5" });
-  assert.deepEqual(await get("GET /download/desktop/:file", { file: "latest.yml" }), { code: 302, to: "https://objects.example/signed/6" });
-  assert.equal((await get("GET /download/desktop/:file", { file: "nope.exe" })).code, 404);
-  assert.deepEqual(asked, [77, 5, 6]);
+  assert.deepEqual(asked, [5]);
 });
 
 test("the download page and the desktop app's updates come from our server, not GitHub", () => {

@@ -25,18 +25,17 @@ test("its own app: bundle, sign-in screen, home, Apple sign-in and notifications
   assert.ok(existsSync("client/public/app-icons/eyegazer-1024.png"));
 });
 
-test("built and checked like the others, with live updates", () => {
+test("built and checked like the others, with no live updates", () => {
   const wf = read(".github/workflows/eyegazer-ios.yml");
   assert.match(wf, /VITE_NATIVE_APP=eyegaze npx vite build/);
   assert.match(wf, /configure_reader_app\.py ios\/App\/App\/Info\.plist eyegaze/);
   assert.match(wf, /--register-bundle-id "--app-name=Arise AAC"/);
   assert.match(wf, /apple_signing\.py com\.arisereader\.eyegazer "\$RUNNER_TEMP\/profile\.mobileprovision" APPLE_ID_AUTH PUSH_NOTIFICATIONS/);
-  assert.match(wf, /ota_setup\.py eyegaze/);
+  assert.doesNotMatch(wf, /ota_setup/);
   assert.match(read(".github/workflows/reader-apps-ios-check.yml"), /\{ flavor: eyegaze, dir: eyegazer, bundle: com\.arisereader\.eyegazer \}/);
-  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[podplus, reader, educator, fit, eyegaze(, trainer)?(, notes)?(, talk)?\]/);
   assert.match(read("server/ota.ts"), /"fit", "eyegaze"(, "trainer")?(, "notes")?(, "talk")?\]/);
   assert.match(read("eyegazer/ios-app/package.json"), /@capacitor\/push-notifications/);
-  assert.match(read("eyegazer/ios-app/package.json"), /@capgo\/capacitor-updater/);
+  assert.doesNotMatch(read("eyegazer/ios-app/package.json"), /@capgo\/capacitor-updater/);
 });
 
 test("every permission a game asks for has its sentence, or iOS closes the app", () => {

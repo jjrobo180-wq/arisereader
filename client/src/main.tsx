@@ -2,7 +2,7 @@
 import "./lib/liveCatalog";
 import "./lib/accountStorageBoot";
 import "./lib/sampleBoot";
-import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, keepLiveUpdated, markAppReadyWhenDrawn, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
+import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -284,7 +284,3 @@ createRoot(document.getElementById("root")!).render(<App />);
 if (!(isFitApp() || isTrainerApp() || isNotesApp() || isUndercoverApp() || isTalkApp())) {
   void import("./lib/readPhotos").then((m) => m.installReadPhotos()).catch(() => { /* covers keep their drawings */ });
 }
-// Live updates: this copy of the app started and drew its first screen (otherwise the iPhone app goes
-// back to the copy that worked; client/src/lib/nativeApp.ts).
-markAppReadyWhenDrawn();
-keepLiveUpdated();

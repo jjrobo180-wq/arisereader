@@ -52,7 +52,6 @@ jobs:
       - name: Generate native project
         working-directory: ${{ matrix.dir }}/ios-app
         run: |
-          if [[ "${{ matrix.flavor }}" == "fit" || "${{ matrix.flavor }}" == "notes" ]]; then python3 ../../.github/scripts/ota_setup.py ${{ matrix.flavor }}; fi
           npx cap add ios
           npx cap sync ios
           if [[ "${{ matrix.flavor }}" == "fit" || "${{ matrix.flavor }}" == "notes" ]]; then

@@ -60,7 +60,7 @@ test("everything Arise AAC had is on the Apps shelves, and a grown-up's choices 
   assert.ok(!names.includes("My Talker") && !names.includes("Wren"), "Wren follows My Talker's permission");
   assert.ok(names.includes("Card Quest") && names.includes("Pick It!"), "the built-in games always show");
   const none = visibleShelves(() => false);
-  assert.deepEqual(none.map((s) => s.name), ["Games", "Calm & my day", "Card decks", "Me"]);
+  assert.deepEqual(none.map((s) => s.name), ["Games", "Calm & my day", "Card decks"], "Me holds only pages a grown-up allows now (no Update app)");
 });
 
 test("the word of the day changes each day", () => {
@@ -134,11 +134,9 @@ test("the server build fits Render's 2 GB build machine (no gzip size report hol
   assert.ok(!/addTask=\{[^}]*\}\} addTask=/.test(read("client/src/pages/TeacherHub.tsx")), "no duplicate addTask prop");
 });
 
-test("Apps → Me has Update app, which gets the newest version now and says what happened", () => {
-  const me = SHELVES.find((s) => s.name === "Me")!;
-  assert.ok(me.tiles.some((t) => t.name === "Update app" && t.game === "update"));
-  assert.ok(visibleShelves(() => false).some((s) => s.tiles.some((t) => t.game === "update")), "always shown");
-  assert.match(read("client/src/pages/arise-kids/KidsApp.tsx"), /m\.checkForUpdateNow\(\)/);
+test("Apps → Me has no Update app: updates come from the App Store, never downloaded by the app", () => {
+  assert.ok(!SHELVES.some((s) => s.tiles.some((t) => t.name === "Update app")));
+  assert.doesNotMatch(read("client/src/pages/arise-kids/KidsApp.tsx"), /checkForUpdateNow|runUpdate/);
 });
 
 test("every game has its own app on the Apps page, and Quizzes and Books do too", () => {
@@ -205,16 +203,9 @@ test("First / Then, the timer, breathing and animal sounds", () => {
   assert.match(kids, /const goHome = \(\) => \{ setScreen\(\{ kind: "tab" \}\); \};/, "closing a game goes back where it was opened");
 });
 
-test("Update app: one shared download per version (taps don't start it over), an earlier download is reused, and the percent shows", () => {
+test("the web code has no updater: nothing downloads, queues or switches to new web code", () => {
   const n = read("client/src/lib/nativeApp.ts");
-  assert.match(n, /if \(inflight && inflight\.version === version\) return inflight\.promise;/);
-  assert.equal((n.match(/await downloadOnce\(u, latest\)/g) || []).length, 2, "the automatic check and Update app both use it");
-  assert.equal((n.match(/u\.download\(/g) || []).length, 1, "only one place downloads");
-  assert.match(n, /String\(b\?\.status\) === "success"/);
-  assert.match(n, /u\.addListener\("download"/);
-  const kids = read("client/src/pages/arise-kids/KidsApp.tsx");
-  assert.match(kids, /if \(updating\.current\) return;/);
-  assert.match(kids, /Downloading the update… \$\{p\}%/);
+  assert.doesNotMatch(n, /CapacitorUpdater|downloadOnce|liveUpdateNow|checkForUpdateNow|keepLiveUpdated|notifyAppReady/);
 });
 
 test("Wren Talker frame names its file (iPhone app answers a folder address with the app's front page = blank screen)", () => {

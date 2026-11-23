@@ -26,10 +26,6 @@ test("Educator ships without the AAC talker engine, and says where the talker is
   assert.match(read("client/src/pages/EyeGazeWren.tsx"), /isNativeApp\(\) && nativeFlavor\(\) !== "eyegaze"\n/);
 });
 
-test("every live update has a size ceiling, and the small apps are stripped there too", () => {
-  const ota = read(".github/workflows/ota-publish.yml");
-  assert.match(ota, /fit\|trainer\|talk\)\n\s+VITE_NATIVE_APP=\$\{\{ matrix\.app \}\} npx vite build\n\s+bash \.github\/scripts\/prune_own_app_bundle\.sh/);
-  assert.match(ota, /educator\)\n\s+VITE_NATIVE_APP=educator npx vite build\n\s+bash \.github\/scripts\/prune_educator_bundle\.sh/);
-  assert.match(ota, /\*\) LIMIT=60 ;;/);
-  assert.match(ota, /over its \$LIMIT MB limit/);
+test("no live updates at all: nothing builds or publishes web code for phones to download", () => {
+  assert.throws(() => read(".github/workflows/ota-publish.yml"), "the live-update workflow is gone");
 });

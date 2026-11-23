@@ -68,7 +68,7 @@ jobs:
         working-directory: fit/ios-app
         run: |
           npm install --no-audit --no-fund
-          python3 ../../.github/scripts/ota_setup.py fit
+          # No live updates (App Review 2.5.2 / 2.5.19): everything the app does is in the build Apple reviews.
           npx cap add ios
           npx cap sync ios
       - name: Prepare beta icon and build number

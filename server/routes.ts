@@ -1728,7 +1728,7 @@ export async function registerRoutes(
   });
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
-  // Live updates for the iPhone apps' web code (server/ota.ts).
+  // Older iPhone builds' updater is always told "nothing new"; desktop app downloads (server/ota.ts).
   registerOtaRoutes(app);
   registerContentCatalog(app);
   // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.

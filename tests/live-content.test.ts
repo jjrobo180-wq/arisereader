@@ -50,8 +50,6 @@ test("wired in: the lists are topped up before any screen, chapters and covers c
   assert.match(read("server/nativeAppCors.ts"), /\(reads\|classics\|covers\)/);
   assert.match(read("server/routes.ts"), /registerContentCatalog\(app\);/);
   assert.match(read("client/src/pages/reads/ReadHub.tsx"), /\[catalogTick\]/);
-  const ota = read(".github/workflows/ota-publish.yml");
-  assert.match(ota, /bash \.github\/scripts\/prune_content\.sh \$\{\{ matrix\.app \}\} "\$OUT"/);
   const prune = read(".github/scripts/prune_content.sh");
   assert.match(prune, /rm -rf "\$OUT\/reads" "\$OUT\/classics" "\$OUT\/audio"/);
   assert.match(prune, /\[ "\$APP" = "eyegaze" \] \|\| rm -rf "\$OUT\/eyegaze\/wren"/);

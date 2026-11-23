@@ -1,18 +1,16 @@
-// Live updates for the iPhone apps (no App Store build): each app asks here when it opens whether a
-// newer copy of its web code exists (.github/scripts/ota_setup.py sets it up; @capgo/capacitor-updater
-// does the asking, downloading and rolling back). New copies are built from master by
-// .github/workflows/ota-publish.yml and kept as GitHub releases ("ota-<app>-<version>", a zip each)
-// on this repository, so nothing else stores them.
+// Live updates for the iPhone apps are OFF, for good (App Review 2.5.2 and 2.5.19: an app may not
+// download code that adds or changes its features after review). Every change to an iPhone app now
+// ships as an App Store build. This endpoint still answers the updater that's inside builds already
+// on phones, and it always answers "nothing new", so those phones keep the copy they have.
+// .github/workflows/ota-publish.yml (which built the updates) is gone; the old "ota-*" releases on
+// GitHub are never offered or handed out again.
 //
-// Phones never download from GitHub's address directly: they're given /api/ota-file/<app>/<version>.zip
-// here, which sends them on to the file. With GITHUB_TOKEN set (a token that can read this repository),
-// that's a short-lived signed link from GitHub, so it works whether the repository is public or
-// private. Without one it's the public download link, which works only while the repository is public.
-// The Windows and Linux apps are downloaded the same way, from /download/desktop/<file>.
-//
-// Versions are "<native level>.<minutes at build>.0". An app is only offered a copy with its own
-// native level (web code made for the native shell it has) that was built after the one it's running.
+// Still here: the Windows and Linux desktop apps' downloads (/download/desktop/<file>), which are not
+// App Store apps and are fetched the same way, from GitHub releases through this server.
 import type { Express } from "express";
+
+/** What the updater in older builds is told, every time. */
+export const LIVE_UPDATES_OFF = "Live updates are off: every change comes as an App Store update.";
 
 export const OTA_APPS = ["todo", "podplus", "reader", "educator", "fit", "eyegaze", "trainer", "notes", "talk"] as const;
 export type OtaApp = typeof OTA_APPS[number];
@@ -125,12 +123,9 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
   });
 
   // The update zip a phone was offered: sent on to the file itself.
-  app.get("/api/ota-file/:app/:file", async (req: any, res) => {
+  app.get("/api/ota-file/:app/:file", (_req: any, res) => {
     res.set("Cache-Control", "no-store");
-    const m = /^(\d{1,4}\.\d{1,10}\.0)\.zip$/.exec(String(req.params.file || ""));
-    const r = m ? (await releases()).find((x) => x.app === req.params.app && x.version === m[1]) : undefined;
-    if (!r) return res.status(404).json({ message: "No such update" });
-    res.redirect(302, await resolve(r.assetId, r.url));
+    res.status(410).json({ message: LIVE_UPDATES_OFF });
   });
 
   // The Windows and Linux apps (and the update files the installed apps check): sent on to the file.
@@ -145,20 +140,12 @@ export function registerOtaRoutes(app: Express, o: { fetchJson?: (url: string) =
 
   app.post("/api/ota/:app", async (req: any, res) => {
     res.set("Cache-Control", "no-store");
-    const which = String(req.params.app) as OtaApp;
+    const which = String(req.params.app);
     if (!(OTA_APPS as readonly string[]).includes(which)) return res.status(404).json({ message: "Unknown app", error: "unknown_app" });
-    // Switched off from the server (an emergency stop: every phone keeps what it has).
-    if (process.env.OTA_OFF === "1") return none(res, "Live updates are paused");
-    // The copy it's running ("builtin" is the one it shipped with: then the version set at build).
-    const current = parseVersion(req.body?.version_name) ? req.body.version_name : req.body?.version_build;
-    const list = await releases();
-    const next = pickUpdate(list, which, current);
-    const newest = list.filter((r) => r.app === which).sort((a, b) => b.built - a.built)[0]?.version || "none";
-    console.log(`[ota] ${which} running ${String(req.body?.version_name ?? "")}/${String(req.body?.version_build ?? "")} → ${next ? `offered ${next.version}` : "nothing new"} (newest known ${newest})`);
-    recent.unshift({ at: new Date(now()).toISOString(), app: which, running: String(req.body?.version_name ?? "").slice(0, 40), build: String(req.body?.version_build ?? "").slice(0, 40), plugin: String(req.body?.plugin_version ?? "").slice(0, 20), os: String(req.body?.version_os ?? "").slice(0, 20), offered: next ? next.version : `nothing (newest ${newest})` });
+    // Never an update: the build App Review approved is the code that runs.
+    recent.unshift({ at: new Date(now()).toISOString(), app: which, running: String(req.body?.version_name ?? "").slice(0, 40), build: String(req.body?.version_build ?? "").slice(0, 40), plugin: String(req.body?.plugin_version ?? "").slice(0, 20), os: String(req.body?.version_os ?? "").slice(0, 20), offered: "nothing (live updates are off)" });
     if (recent.length > 40) recent.length = 40;
-    if (!next) return none(res);
-    res.json({ version: next.version, url: otaFileUrl(next), checksum: next.checksum });
+    return none(res, LIVE_UPDATES_OFF);
   });
   // Channel requests (the updater may ask): there's one channel.
   app.put("/api/ota/:app", (_req, res) => res.json({ status: "ok", channel: "production" }));

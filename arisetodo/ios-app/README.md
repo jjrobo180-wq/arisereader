@@ -7,10 +7,11 @@ Arise To Duo for iPhone and iPad (bundle ID `com.arisereader.arisetodo`). It is 
   `.github/workflows/arisetodo-signed-release.yml` makes the signed device archive (HealthKit, Sign in with Apple, push,
   app groups, widgets, Apple Watch and Apple TV apps). It uploads to TestFlight only for a commit message containing
   `[approved-testflight]` or a manual run with the upload option.
-- **No live updates in To Duo** (App Review 2.5.2 / 5.6): the build Apple reviews has everything; changes ship as App Store/TestFlight builds. (The other apps still get live updates (`.github/workflows/ota-publish.yml`,
-  `@capgo/capacitor-updater`). A new copy is used the next time the app is opened, so a screen never reloads while someone is
-  using it. `.github/scripts/prune_todo_bundle.sh` takes other products' files (the eye-gaze engine) out of the bundle first.
-- **Purchases:** Arise All Access is sold with Apple in-app purchase. In the US App Store the app may also link to the website,
+- **No live updates in any app** (App Review 2.5.2 / 2.5.19): the build Apple reviews has everything, and every change
+  ships as an App Store/TestFlight build. `server/ota.ts` answers the updater in older builds with "nothing new".
+- **Only To Duo inside:** `vite.todo.config.ts` builds To Duo alone (no other product's pages or apps), and
+  `.github/scripts/prune_todo_bundle.sh` leaves out other products' files, then fails the build if any are left.
+- **Purchases:** Arise To Duo Unlimited is sold with Apple in-app purchase. In the US App Store the app may also link to the website,
   where it shows the website price; elsewhere it shows only the Apple price.
 - **Privacy:** `PrivacyInfo.xcprivacy` goes into the app and each extension (`.github/scripts/add_privacy_manifest.rb`).
   Every permission has its sentence in `configure-ios.py`, and AI features ask before the first request

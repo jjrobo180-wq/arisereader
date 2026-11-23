@@ -12,12 +12,6 @@
     "Keyboard": {
       "resize": "native"
     },
-    "CapacitorUpdater": {
-      "autoUpdate": false,
-      "updateUrl": "https://arisetodo.com/api/ota/talk",
-      "channelUrl": "https://arisetodo.com/api/ota/talk",
-      "statsUrl": ""
-    },
     "StatusBar": {
       "style": "LIGHT"
     }

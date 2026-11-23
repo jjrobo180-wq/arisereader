@@ -40,7 +40,6 @@ jobs:
       - name: Generate native project
         working-directory: ${{ matrix.dir }}/ios-app
         run: |
-          if [[ "${{ matrix.flavor }}" == "fit" ]]; then python3 ../../.github/scripts/ota_setup.py fit; fi
           npx cap add ios && npx cap sync ios
           if [[ "${{ matrix.flavor }}" == "fit" ]]; then python3 ../../.github/scripts/configure_fit_app.py ios/App/App/Info.plist fit; else python3 configure-ios.py ios/App/App/Info.plist; python3 add-sound.py ios/App/App.xcodeproj/project.pbxproj ios/App/App; fi
           python3 ../../.github/scripts/adopt_uiscene.py ios/App/App/Info.plist

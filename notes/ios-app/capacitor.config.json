@@ -12,12 +12,6 @@
     "Keyboard": {
       "resize": "native"
     },
-    "CapacitorUpdater": {
-      "autoUpdate": false,
-      "updateUrl": "https://arisetodo.com/api/ota/notes",
-      "channelUrl": "https://arisetodo.com/api/ota/notes",
-      "statsUrl": ""
-    },
     "StatusBar": {
       "style": "LIGHT"
     }

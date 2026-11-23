@@ -45,14 +45,13 @@ test("no plans are sold inside the iPhone app (App Review 3.1.1)", () => {
   assert.match(s, /\{native \? <AllAccessOffer app="notes" note=\{NATIVE_NO_PURCHASE\}.*?\/> : !bill \? <Spinner \/> : <>/, "no Stripe prices, buy buttons or billing links");
 });
 
-test("the iOS project: light, the microphone with a reason, live updates from our own server", () => {
+test("the iOS project: light, the microphone with a reason, no live updates", () => {
   const cap = JSON.parse(read("notes/ios-app/capacitor.config.json"));
   assert.equal(cap.appId, "com.arisereader.notes");
   assert.equal(cap.appName, "Arise Notes");
-  assert.equal(cap.plugins.CapacitorUpdater.updateUrl, "https://arisetodo.com/api/ota/notes");
-  assert.equal(cap.plugins.CapacitorUpdater.statsUrl, "");
+  assert.equal(cap.plugins?.CapacitorUpdater, undefined, "no live updates");
   const pkg = JSON.parse(read("notes/ios-app/package.json"));
-  for (const dep of ["@capacitor/ios", "@capacitor-community/apple-sign-in", "@capgo/capacitor-updater", "@capacitor/status-bar", "@capacitor/push-notifications", "@ebarooni/capacitor-calendar"]) assert.ok(pkg.dependencies[dep], dep);
+  for (const dep of ["@capacitor/ios", "@capacitor-community/apple-sign-in", "@capacitor/status-bar", "@capacitor/push-notifications", "@ebarooni/capacitor-calendar"]) assert.ok(pkg.dependencies[dep], dep);
   assert.equal(pkg.dependencies["@capgo/capacitor-health"], undefined, "no Apple Health");
 
   // The Info.plist the build writes.
@@ -84,7 +83,7 @@ test("the TestFlight build signs and uploads Arise Notes like the other apps", (
   const wf = read(".github/workflows/notes-ios.yml");
   assert.match(wf, /branches: \[feat\/notes-testflight\]/);
   assert.match(wf, /VITE_NATIVE_APP=notes npx vite build/);
-  assert.match(wf, /ota_setup\.py notes\n\s+npx cap add ios/);
+  assert.doesNotMatch(wf, /ota_setup/);
   assert.match(wf, /configure_fit_app\.py ios\/App\/App\/Info\.plist notes/);
   assert.match(wf, /app-icons\/notes-1024\.png/);
   assert.match(wf, /find-existing-profile\.py com\.arisereader\.notes .* --create-missing-profile --register-bundle-id "--app-name=Arise Notes"/);
@@ -94,8 +93,7 @@ test("the TestFlight build signs and uploads Arise Notes like the other apps", (
   assert.doesNotMatch(wf, /healthkit|HEALTHKIT|com\.arisereader\.fit|fit\/ios-app/i);
 
   assert.match(read("server/ota.ts"), /"trainer", "notes"(, "talk")?\] as const;/);
-  assert.match(read(".github/workflows/ota-publish.yml"), /app: \[[^\]]*\bnotes(, talk)?\]/);
-  assert.match(read(".github/scripts/ota_setup.py"), /"trainer", "notes"(, "talk")?\), APP/);
+  assert.equal(JSON.parse(read("notes/ios-app/package.json")).dependencies["@capgo/capacitor-updater"], undefined, "no live updates");
 });
 
 test("sign out, notifications, and Apple Reminders and Calendar in the Notes iPhone app", () => {

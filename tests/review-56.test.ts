@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 test("App Review 5.6: To Duo has no live updates and Ask is a plain AI chat in the iPhone apps", () => {
   assert.doesNotMatch(readFileSync("arisetodo/ios-app/package.json", "utf8"), /capacitor-updater/);
   assert.doesNotMatch(readFileSync(".github/workflows/arisetodo-signed-release.yml", "utf8"), /ota_setup\.py todo/);
-  assert.doesNotMatch(readFileSync(".github/workflows/ota-publish.yml", "utf8"), /app: \[todo,/);
+  assert.throws(() => readFileSync(".github/workflows/ota-publish.yml", "utf8"), "no live updates for any app");
   const native = readFileSync("client/src/lib/nativeApp.ts", "utf8");
   assert.match(native, /export const plainAsk = \(\): boolean => isNativeApp\(\) && nativeFlavor\(\) !== "undercover";/);
   const notes = readFileSync("client/src/components/arise-notes/NotesApp.tsx", "utf8");
@@ -28,7 +28,7 @@ test("App Review: no TestFlight wording, no locale-guessed purchase link, no upd
   for (const f of ["client/src/components/teacher-hub/HubTaskFocus.tsx", "client/src/components/family-hub/Focus.tsx", "client/src/lib/duoFocus.ts", "client/src/lib/nativeHealth.ts", "client/src/pages/fit/fitNative.ts"])
     assert.doesNotMatch(readFileSync(f, "utf8"), /TestFlight\b(?![^\n]*\/\/)/, f);
   assert.match(readFileSync("client/src/components/AllAccessOffer.tsx", "utf8"), /useState\(\(\) => \(apple \|\| isNativeApp\(\) \? false : usRegion\(\)\)\)/);
-  assert.match(readFileSync("client/src/components/arise-notes/SettingsScreen.tsx", "utf8"), /\{canSelfUpdate\(\) && <Row label="Check for updates"/);
+  assert.doesNotMatch(readFileSync("client/src/components/arise-notes/SettingsScreen.tsx", "utf8"), /Check for updates/);
 });
 
 test("No more All Access: the one paid plan is Arise To Duo Unlimited", () => {
