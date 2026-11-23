@@ -23,7 +23,7 @@ test("the Plugin Gallery's top row clears the clock in the iPhone app", () => {
 
 test("the Plugin Gallery has a Back to the hub at the top left", () => {
   const s = store();
-  assert.match(s, /aria-label=\{`Back to \$\{HUB_NAME\[hub\]\}`\}/);
+  assert.match(s, /aria-label=\{`Back to \$\{familySpace \? "FamilyHub" : HUB_NAME\[hub\]\}`\}/);
   assert.match(s, /data-testid="plugin-store-close">\s*<ChevronLeft/);
   // The hub switch (teachers) sits on the right now, so Back is always the first thing in the row.
   assert.ok(s.indexOf('data-testid="plugin-store-close"') < s.indexOf('aria-label="Which hub"'));

@@ -218,14 +218,14 @@ function Breakdown({ s }: { s: RiseScores }) {
 const DESIGN: Record<RiseScorePage, (p: { s: RiseScores }) => ReactElement> = { home: Full, checklist: Trio, food: Week, move: Year, money: Breakdown };
 
 /** Choosing what counts toward the score. */
-function Choose({ scores, onDone }: { scores: RiseScores; onDone: () => void }) {
+export function Choose({ scores, onDone }: { scores: RiseScores; onDone?: () => void }) {
   const [off, setOff] = useRiseOff();
   const has = new Set(scores.categories.map((c) => c.id));
   return (
     <div className="mt-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[15px] font-extrabold text-slate-800">What counts toward your score</h3>
-        <button type="button" onClick={onDone} className="min-h-11 rounded-xl px-3 text-sm font-bold text-violet-700 hover:bg-violet-50">Done</button>
+        {onDone && <button type="button" onClick={onDone} className="min-h-11 rounded-xl px-3 text-sm font-bold text-violet-700 hover:bg-violet-50">Done</button>}
       </div>
       <p className="text-xs font-semibold text-slate-500">Switched off, a category leaves the score card and your iPhone widgets. A category shows up once you log something for it.</p>
       <ul className="mt-2 divide-y divide-slate-100">
@@ -274,6 +274,39 @@ export default function RiseScoreCard({ page, scores }: { page: RiseScorePage; s
           <span className="flex items-center gap-2 text-xs font-bold text-slate-600">All pages <Switch on={all} onChange={setAll} label="Show the score card on all pages" /></span>
         </div>
       )}
+    </section>
+  );
+}
+
+const HUBS_KEY = "rise-score-hubs";
+export type RiseHubs = { family: boolean; work: boolean };
+const readHubs = (): RiseHubs => { try { const v = JSON.parse(localStorage.getItem(HUBS_KEY) || "{}"); return { family: v.family === true, work: v.work === true }; } catch { return { family: false, work: false }; } };
+
+/** The Rise Score plugin: one page for the score (no more card on every page). Choose what counts and which
+ *  hubs' to-dos count toward the checklist (LifeHub always; FamilyHub and WorkHub if switched on). */
+export function RiseScorePlugin({ scores, extraTasks }: { scores: (extra: { title: string; due: string; time: string; done: boolean }[]) => RiseScores; extraTasks: (hubs: RiseHubs) => Promise<{ title: string; due: string; time: string; done: boolean }[]> }) {
+  const [hubs, setHubsRaw] = useState<RiseHubs>(readHubs);
+  const [extra, setExtra] = useState<{ title: string; due: string; time: string; done: boolean }[]>([]);
+  const [design, setDesign] = useState<RiseScorePage>(() => { try { return (localStorage.getItem("rise-score-design") as RiseScorePage) || "home"; } catch { return "home"; } });
+  useEffect(() => { let live = true; void extraTasks(hubs).then((t) => { if (live) setExtra(t); }).catch(() => {}); return () => { live = false; }; }, [hubs.family, hubs.work]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setHubs = (h: RiseHubs) => { setHubsRaw(h); try { localStorage.setItem(HUBS_KEY, JSON.stringify(h)); } catch { /* this visit only */ } };
+  const s = scores(extra);
+  const Design = DESIGN[design];
+  const looks: [RiseScorePage, string][] = [["home", "Full"], ["checklist", "Trio"], ["food", "Week"], ["move", "Year"], ["money", "Breakdown"]];
+  return (
+    <section aria-label="Rise Score" data-testid="rise-score-plugin">
+      <div className="rounded-[22px] p-4" style={{ background: C.card, color: C.text, fontFamily: "Nunito, ui-rounded, system-ui, sans-serif" }}><Design s={s} /></div>
+      <div className="mt-3 flex gap-1.5 overflow-x-auto [scrollbar-width:none]">{looks.map(([id, label]) => <button key={id} type="button" onClick={() => { setDesign(id); try { localStorage.setItem("rise-score-design", id); } catch { /* */ } }} aria-pressed={design === id} className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-bold ${design === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`} data-testid={`rise-design-${id}`}>{label}</button>)}</div>
+      <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200" data-testid="rise-hubs">
+        <h3 className="text-[15px] font-extrabold text-slate-800">Hubs that count</h3>
+        <p className="text-xs font-semibold text-slate-500">To-dos from these hubs count toward your checklist score.</p>
+        <ul className="mt-2 divide-y divide-slate-100">
+          <li className="flex min-h-12 items-center justify-between gap-3"><span className="text-sm font-bold text-slate-800">LifeHub</span><span className="text-xs font-semibold text-slate-500">Always</span></li>
+          <li className="flex items-center justify-between gap-3 py-1"><span className="text-sm font-bold text-slate-800">FamilyHub</span><Switch on={hubs.family} onChange={(v) => setHubs({ ...hubs, family: v })} label="Count FamilyHub" /></li>
+          <li className="flex items-center justify-between gap-3 py-1"><span className="text-sm font-bold text-slate-800">WorkHub</span><Switch on={hubs.work} onChange={(v) => setHubs({ ...hubs, work: v })} label="Count WorkHub" /></li>
+        </ul>
+      </div>
+      <Choose scores={s} />
     </section>
   );
 }

@@ -125,7 +125,8 @@ import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
 import { duoBoard, publishDuoBoard, publishDuoLinks, publishRiseScores, watchHubWidgetTaps } from "@/lib/duoBoard";
-import RiseScoreCard, { useRiseOff, type RiseScorePage } from "@/components/RiseScoreCard";
+import { RiseScorePlugin, useRiseOff, type RiseHubs } from "@/components/RiseScoreCard";
+import { riseHubTasks } from "@/lib/riseHubTasks";
 import { riseInputFrom, riseScores } from "@shared/riseScore";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
@@ -317,7 +318,7 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
+  home: Home, risescore: TrendingUp, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
@@ -1204,11 +1205,6 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   // The Rise Score (shared/riseScore.ts): the score card on the pages and the Rise Score widgets.
   const [riseOff] = useRiseOff();
   const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done })), riseOff), currentDay), [family, data.tasks, currentDay, riseOff]);
-  /** Which score card a page shows (pages without one show none). */
-  const risePage: RiseScorePage | null = shown === "home" ? "home" : shown === "tasks" ? "checklist"
-    : (["health", "healthlite", "cooked", "meals", "kitchen", "recipes"] as string[]).includes(shown) ? "food"
-    : (["workouts", "cookedpt"] as string[]).includes(shown) ? "move"
-    : (["money", "moneyhub", "subscriptions"] as string[]).includes(shown) ? "money" : null;
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
   // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
@@ -1295,6 +1291,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     : shown === "cookedpt" ? <SuperBoundary key="cookedpt" name="Cooked PT"><Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense></SuperBoundary>
     : shown === "arisenotes" ? <SuperBoundary key="arisenotes" name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense></SuperBoundary>
     : shown === "podster" ? <SuperBoundary key="podster" name="Podster"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary>
+    : shown === "risescore" ? <RiseScorePlugin scores={(extra) => riseScores(riseInputFrom(family, [...data.tasks.filter((t) => !t.archived).map((t) => ({ title: t.title, due: t.due, time: t.time, done: t.done })), ...extra], riseOff), currentDay)} extraTasks={(h: RiseHubs) => riseHubTasks(h, token, familySpace)} />
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
@@ -1506,6 +1503,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     </div>}
     {store && <PluginStore
       hub="life"
+      familySpace={familySpace}
       initialOpen={storeOpenApp ?? undefined}
       night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
@@ -1650,7 +1648,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
       </button>
     </div>
     {osCore && hubLook.look && <LookOS bell={lifeBell} hubName={hubTitle} hubSwitch={(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) ? <HubSwitch current={familySpace ? "family" : "todo"} night={night} /> : null} look={hubLook.look} name={osFirst} dateLabel={new Date(`${currentDay}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-      addTask={() => setEditing(emptyTask(data.lists[0].id))} scoreCard={{ home: <RiseScoreCard page="home" scores={riseNow} />, tasks: <RiseScoreCard page="checklist" scores={riseNow} /> }} banner={<>{shown === "home" && <Recaps family={family} setFamily={setFamily} tasks={data.tasks} go={goSection} />}{familySpace && shown === "home" && <FamilyShared go={goSection} openApp={(app) => { dismissOverlays(); setKitOpenState(`pro:${app}`); }} turnOn={(id) => { if ((FAMILY_SECTIONS as readonly string[]).includes(id)) setFamily((f) => (f.sections[id as FamilySection] ? f : { ...f, sections: { ...f.sections, [id]: true } })); }} />}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
+      addTask={() => setEditing(emptyTask(data.lists[0].id))} banner={<>{shown === "home" && <Recaps family={family} setFamily={setFamily} tasks={data.tasks} go={goSection} />}{familySpace && shown === "home" && <FamilyShared go={goSection} openApp={(app) => { dismissOverlays(); setKitOpenState(`pro:${app}`); }} turnOn={(id) => { if ((FAMILY_SECTIONS as readonly string[]).includes(id)) setFamily((f) => (f.sections[id as FamilySection] ? f : { ...f, sections: { ...f.sections, [id]: true } })); }} />}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
       toggle={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) toggleDone(task); }} openTask={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) setEditing({ ...task }); }}
       notes={[...family.notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt))} lockedApps={family.lock?.apps}
       shortcuts={phoneItems.filter((i) => !["home", "tasks", "calendar", "notes", "notifications", "linked", "family"].includes(i.id)).slice(0, 4).map((i) => ({ id: i.id, label: i.label, onClick: i.onClick }))}
@@ -1790,9 +1788,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && <Recaps family={family} setFamily={setFamily} tasks={data.tasks} go={goSection} />}{familySpace && shown === "home" && <FamilyShared go={goSection} openApp={(app) => { dismissOverlays(); setKitOpenState(`pro:${app}`); }} turnOn={(id) => { if ((FAMILY_SECTIONS as readonly string[]).includes(id)) setFamily((f) => (f.sections[id as FamilySection] ? f : { ...f, sections: { ...f.sections, [id]: true } })); }} />}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{risePage && risePage !== "checklist" && <RiseScoreCard page={risePage} scores={riseNow} />}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && <Recaps family={family} setFamily={setFamily} tasks={data.tasks} go={goSection} />}{familySpace && shown === "home" && <FamilyShared go={goSection} openApp={(app) => { dismissOverlays(); setKitOpenState(`pro:${app}`); }} turnOn={(id) => { if ((FAMILY_SECTIONS as readonly string[]).includes(id)) setFamily((f) => (f.sections[id as FamilySection] ? f : { ...f, sections: { ...f.sections, [id]: true } })); }} />}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
-            <div className="mt-2"><RiseScoreCard page="checklist" scores={riseNow} /></div>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} extra={isOn("cooked", family) ? <CookedGoalsInTasks open={(app) => { setSuperStart({ app: "cooked", page: app, s: null, e: null, coach: null, at: Date.now() }); setSection("cooked" as FamilySection); }} /> : null} />
             </Suspense>

@@ -161,7 +161,7 @@ const TIER_BLURB: Record<PluginTier, string> = {
   mini: "Small tools that each do one job, like a grade calculator, gift dates or a chore chart.",
 };
 
-export default function PluginStore({ hub, teacher, teacherApps, arise, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
+export default function PluginStore({ hub, teacher, teacherApps, arise, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen, familySpace = false }: PluginStoreProps & { /** Opened from FamilyHub (which uses LifeHub's plugins). */ familySpace?: boolean }) {
   const { token } = useAuth();
   const pal = useMemo(() => storePalette(hub, night, accent), [hub, night, accent]);
   const vars = {
@@ -325,9 +325,11 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
     setTimeout(() => { const n = list.filter((p) => installedNow.current(p)).length; if (n) setNote(n === list.length ? `${t.name}: every plugin in it was added to your ${HUB_NAME[hub]}.` : `${t.name}: ${n} of ${list.length} plugins were added to your ${HUB_NAME[hub]}.`); }, 60);
   };
 
-  const switchHub = () => {
+  /** Work, Life and Family: the store opens again in the hub switched to. */
+  const here: "work" | "life" | "family" = familySpace ? "family" : hub;
+  const switchHub = (to: "work" | "life" | "family") => {
     try { sessionStorage.setItem(OPEN_STORE_KEY, "1"); } catch { /* the other hub just opens normally */ }
-    window.location.hash = hub === "work" ? "#/lifehub" : "#/workhub";
+    window.location.replace(to === "work" ? "#/workhub" : to === "life" ? "#/lifehub" : "#/familyhub");
   };
 
   const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--s-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s-bg)]";
@@ -500,14 +502,14 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
       <div className="mx-auto max-w-[1100px] px-5 sm:px-8">
         {/* Back to the hub, top left like every iPhone screen, always below the clock (pt above uses --sat). */}
         <div className="flex h-14 items-center gap-2">
-          <button ref={closeRef} type="button" onClick={close} aria-label={`Back to ${HUB_NAME[hub]}`} title={`Back to ${HUB_NAME[hub]}`}
+          <button ref={closeRef} type="button" onClick={close} aria-label={`Back to ${familySpace ? "FamilyHub" : HUB_NAME[hub]}`} title={`Back to ${familySpace ? "FamilyHub" : HUB_NAME[hub]}`}
             className={`-ml-2.5 inline-flex h-11 min-w-0 shrink items-center gap-0.5 rounded-full pl-1 pr-3 text-[17px] font-semibold text-[var(--s-accent-text)] transition-colors hover:bg-[var(--s-raised)] active:opacity-60 ${ring}`} data-testid="plugin-store-close">
-            <ChevronLeft className="h-7 w-7 shrink-0" strokeWidth={2.2} aria-hidden /><span className="truncate">{HUB_NAME[hub]}</span>
+            <ChevronLeft className="h-7 w-7 shrink-0" strokeWidth={2.2} aria-hidden /><span className="truncate">{familySpace ? "FamilyHub" : HUB_NAME[hub]}</span>
           </button>
-          {teacher && <nav aria-label="Which hub" className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--s-raised)] p-0.5">
-            {(["work", "life"] as const).map((h) => <button key={h} type="button" onClick={h === hub ? undefined : switchHub} aria-current={h === hub ? "page" : undefined} aria-label={HUB_NAME[h]}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors ${ring} ${h === hub ? "bg-[var(--s-surface)] text-[var(--s-text)] shadow-sm" : "text-[var(--s-sub)]"}`}>
-              <HubMark tone={h} className="h-4 w-4 shrink-0" />{HUB_NAME[h]}
+          {(teacher || familySpace || hub === "life") && <nav aria-label="Which hub" className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--s-raised)] p-0.5">
+            {(["work", "life", "family"] as const).map((h) => <button key={h} type="button" onClick={h === here ? undefined : () => switchHub(h)} aria-current={h === here ? "page" : undefined} aria-label={h === "family" ? "FamilyHub" : HUB_NAME[h]} data-testid={`plugin-store-hub-${h}`}
+              className={`inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-[12.5px] font-semibold transition-colors ${ring} ${h === here ? "bg-[var(--s-surface)] text-[var(--s-text)] shadow-sm" : "text-[var(--s-sub)]"}`}>
+              <HubMark tone={h} className="h-4 w-4 shrink-0" />{h === "family" ? "Family" : h === "work" ? "Work" : "Life"}
             </button>)}
           </nav>}
         </div>

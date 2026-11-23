@@ -13,6 +13,7 @@ import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as
 const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "🎨", "🎮", "🌸", "🚀", "👑", "🐻", "🦊", "🐢"];
 export const SECTION_INFO: Record<FamilySection, { label: string; detail: string; icon: ReactNode }> = {
   home: { label: "Home", detail: "Today at a glance", icon: null },
+  risescore: { label: "Rise Score", detail: "How you're doing today, this week and this year", icon: <TrendingUp size={17} /> },
   tasks: { label: "Tasks", detail: "Your to-do lists", icon: null },
   start: { label: "Getting started", detail: "A guide to everything in LifeHub", icon: <Rocket size={17} /> },
   chores: { label: "Chores", detail: "Chore chart, rotations and stars", icon: <Sparkles size={17} /> },
