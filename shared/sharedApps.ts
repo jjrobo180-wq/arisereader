@@ -123,20 +123,38 @@ export function applyParts<F extends Partial<Family>>(family: F, parts: AppPart[
   return next;
 }
 
-/** Merging your own copy into a shared one: lists are joined (an item already there by id isn't added twice);
- *  anything else keeps the shared copy's value, unless it's empty there. */
+/** Merging your own copy into a shared one: lists are joined (an item already there by id isn't added twice),
+ *  objects (Kitchen's pantry, plans…) are merged key by key the same way, and anything else keeps the shared
+ *  copy's value, unless it's empty there. An object with nothing in it counts as empty. */
 export function mergeSlices(shared: Record<string, unknown>, mine: Record<string, unknown>, parts: AppPart[]): Record<string, unknown> {
   const out: Record<string, unknown> = { ...shared };
-  for (const p of parts) {
-    const a = shared[p.key], b = mine[p.key];
-    if (Array.isArray(a) || Array.isArray(b)) {
-      const list = Array.isArray(a) ? [...a] : [];
-      const seen = new Set(list.map((x: any) => (x && typeof x === "object" && "id" in x ? `id:${x.id}` : JSON.stringify(x))));
-      for (const x of Array.isArray(b) ? b : []) { const k = x && typeof x === "object" && "id" in x ? `id:${(x as any).id}` : JSON.stringify(x); if (!seen.has(k)) { seen.add(k); list.push(x); } }
-      out[p.key] = list;
-    } else if (a === undefined || a === null || a === "" || a === 0 || (typeof a === "object" && a && !Object.keys(a).length)) out[p.key] = b;
-  }
+  for (const p of parts) out[p.key] = mergeValue(shared[p.key], mine[p.key]);
   return out;
+}
+
+const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in (x as object) ? `id:${(x as any).id}` : JSON.stringify(x));
+const isPlain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+/** Nothing saved: no value, "", 0, false, an empty list, or an object of only empty things. */
+export function isEmptyValue(v: unknown): boolean {
+  if (v === undefined || v === null || v === "" || v === 0 || v === false) return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (isPlain(v)) return Object.values(v).every(isEmptyValue);
+  return false;
+}
+function mergeValue(a: unknown, b: unknown): unknown {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const list = Array.isArray(a) ? [...a] : [];
+    const seen = new Set(list.map(keyOf));
+    for (const x of Array.isArray(b) ? b : []) { const k = keyOf(x); if (!seen.has(k)) { seen.add(k); list.push(x); } }
+    return list;
+  }
+  if (isEmptyValue(a)) return b === undefined ? a : b;
+  if (isPlain(a) && isPlain(b)) {
+    const out: Record<string, unknown> = { ...a };
+    for (const k of Object.keys(b)) out[k] = k in a ? mergeValue(a[k], b[k]) : b[k];
+    return out;
+  }
+  return a;
 }
 
 /** Whether a slice has anything in it (to know if there's something of yours to merge). */

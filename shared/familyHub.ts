@@ -264,6 +264,8 @@ export type Family = {
   recaps?: import("./recaps").RecapPrefs;
   /** LifeHub: what has moved to FamilyHub because it's shared with the family (shared/familyTransfer.ts). */
   movedToFamily?: string[];
+  /** Which version of the move `movedToFamily` was made by: an older one is run again once (shared/familyTransfer.ts). */
+  familyMoveV?: number;
   stickies: Sticky[];
   randomLists: RandomList[];
   savedWords: SavedWord[];
@@ -645,6 +647,7 @@ export function cleanFamily(input: unknown): Family {
     ...(Array.isArray(raw.widgetBoard) ? { widgetBoard: cleanWidgets(raw.widgetBoard) } : {}),
     ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
     ...(obj(raw.recaps) ? { recaps: cleanRecaps(raw.recaps) } : {}),
+    ...(Number.isInteger(raw.familyMoveV) && raw.familyMoveV > 0 && raw.familyMoveV < 1000 ? { familyMoveV: raw.familyMoveV as number } : {}),
     ...(Array.isArray(raw.movedToFamily) ? { movedToFamily: [...new Set(raw.movedToFamily.filter((x: unknown): x is string => typeof x === "string" && x.length <= 80))].slice(0, 200) as string[] } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {

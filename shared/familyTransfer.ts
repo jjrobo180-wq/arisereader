@@ -1,44 +1,42 @@
-// What you share with your family moves to FamilyHub: Kitchen, the calendar, Potty Training, Accountability
-// and the rest stop showing in your LifeHub and show in FamilyHub instead (the family's shared copy, which
-// everyone in the family already sees). Your LifeHub copy is copied in (merged with anything already in
-// FamilyHub), never deleted, and each thing moves once (Family.movedToFamily), so turning one back on in
-// LifeHub later sticks.
-import { ACCOUNTABILITY_SHARE } from "./profileLinks";
-import { mergeSlices, pickParts, sharedAppById } from "./sharedApps";
+// Everything you share with someone in your family lives in FamilyHub: Accountability, Kitchen, Potty
+// Training, the calendar, chores, bills, your to-do lists and every other app you share (Settings → Sharing).
+// Each one is copied into FamilyHub (merged with anything already there, shared/hubMove.ts), turned on there,
+// and turned off in your LifeHub (its data kept there too). Each share moves once (Family.movedToFamily), so
+// moving one back to LifeHub by hand sticks. To-do lists are copied: Tasks stays in both hubs.
+//
+// Version 2 (Nov 23, 2026): Kitchen moved as the old Meal plan, Kitchen's saved data didn't copy, and
+// shared to-do lists and some apps were left out. Everything moved by version 1 is moved again once.
 import { familyMine } from "./familyShared";
-import type { Family, FamilySection } from "./familyHub";
+import { itemForShare, itemKey, moveItem, type HubItem, type HubWorkspace } from "./hubMove";
+import type { Family } from "./familyHub";
 
-export type FamilyMove = { ids: string[]; sections: FamilySection[]; apps: string[] };
+export const TRANSFER_VERSION = 2;
 
-/** The things I share with family that haven't moved yet. */
-export function pendingMoves(mine: Parameters<typeof familyMine>[0], familyIds: number[], me: number, moved: string[] = []): FamilyMove {
-  const ids = familyMine(mine, familyIds, me).map((r) => r.id).filter((id) => !moved.includes(id));
-  const sections: FamilySection[] = [], apps: string[] = [];
-  for (const id of ids) {
-    if (id === ACCOUNTABILITY_SHARE) sections.push("accountability" as FamilySection);
-    else if (id.startsWith("app:")) apps.push(`life-pro-${id.slice(4)}`);
-    else { const a = sharedAppById(id); if (a) sections.push(a.section); }
-  }
-  return { ids, sections: [...new Set(sections)], apps: [...new Set(apps)] };
+export type FamilyMove = { ids: string[]; items: HubItem[] };
+
+/** What this LifeHub has already moved (none, when it was moved by an older version). */
+export const movedAlready = (life: Pick<Family, "movedToFamily" | "familyMoveV">) => (life.familyMoveV === TRANSFER_VERSION ? life.movedToFamily ?? [] : []);
+
+/** The things I share with people in my family that haven't moved to FamilyHub yet. */
+export function pendingMoves(mine: Parameters<typeof familyMine>[0], familyIds: number[], me: number, life: Pick<Family, "movedToFamily" | "familyMoveV">): FamilyMove {
+  const done = movedAlready(life);
+  const ids = familyMine(mine, familyIds, me).map((r) => r.id).filter((id) => !done.includes(id));
+  const items = new Map<string, HubItem>();
+  for (const id of ids) { const item = itemForShare(id); if (item) items.set(itemKey(item), item); }
+  return { ids, items: [...items.values()] };
 }
 
-/** FamilyHub with my copies merged in and those apps turned on. */
-export function moveIntoFamily(fam: Family, life: Family, m: FamilyMove): Family {
-  let next: Family = { ...fam, sections: { ...fam.sections } };
-  for (const id of m.ids) {
-    const a = sharedAppById(id);
-    if (!a) continue;
-    const merged = mergeSlices(pickParts(next, a.parts), pickParts(life, a.parts), a.parts);
-    next = { ...next, ...(merged as Partial<Family>) };
-  }
-  for (const s of m.sections) next.sections[s] = true;
-  next.sheetsInstalled = [...new Set([...(next.sheetsInstalled ?? []), ...m.apps])];
-  return next;
+/** FamilyHub with everything in the move copied in and turned on. */
+export function intoFamily(life: HubWorkspace, fam: HubWorkspace, m: FamilyMove): HubWorkspace {
+  let to = fam;
+  for (const item of m.items) to = moveItem(life, to, item).to;
+  return to;
 }
 
-/** LifeHub with those apps tucked away (data kept) and remembered as moved. */
-export function hideFromLife(life: Family, m: FamilyMove): Family {
-  const sections = { ...life.sections };
-  for (const s of m.sections) sections[s] = false;
-  return { ...life, sections, sheetsInstalled: (life.sheetsInstalled ?? []).filter((id) => !m.apps.includes(id)), movedToFamily: [...new Set([...(life.movedToFamily ?? []), ...m.ids])] };
+/** LifeHub with those apps turned off (data kept) and remembered as moved, by this version. */
+export function outOfLife(life: HubWorkspace, m: FamilyMove): HubWorkspace {
+  let from = life;
+  for (const item of m.items) from = moveItem(from, from, item).from;
+  const family = from.family;
+  return { ...from, family: { ...family, familyMoveV: TRANSFER_VERSION, movedToFamily: [...new Set([...movedAlready(life.family), ...m.ids])].slice(-200) } };
 }
