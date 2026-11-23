@@ -16,6 +16,8 @@ import { PinButton } from "@/components/teacher-hub/HubPins";
 import { AriseAsks } from "@/components/teacher-hub/AriseAsks";
 import { openAsk, startTaskAsk } from "@/lib/ariseAsks";
 import { parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
+import { TASK_LOOKS, type TaskLook } from "@shared/taskLooks";
+import { LookSwitcher, TaskLookView } from "@/components/teacher-hub/TaskLooks";
 
 /** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
 function linkSummary(workspace: Workspace, links: HubLink[]): string {
@@ -118,6 +120,9 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const setListPick = controls ? controls.setList : setSavedList;
   const listId = listPick === "all" || lists.some((l) => l.id === listPick) ? listPick : "all";
   const [sort, setSort] = useSavedChoice<TaskSort>("hub-tasks-sort", "due", TASK_SORTS.map((o) => o.id));
+  // How the page looks (components/teacher-hub/TaskLooks.tsx), switched at the top of the page. LifeHub and
+  // FamilyHub start on the List look; WorkHub keeps the Original until it's switched. Remembered on this device.
+  const [look, setLook] = useSavedChoice<TaskLook>(plain ? "life-tasks-look" : "hub-tasks-look", plain ? "calm" : "classic", TASK_LOOKS);
   const [search, setSearch] = useState("");
   // A widget tap on one to-do (lib/taskFocus.ts): show the view and list it's in, then scroll to it and light it up.
   const tasksNow = useRef(workspace.tasks); tasksNow.current = workspace.tasks;
@@ -216,8 +221,25 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   }
   const navBtn = (active: boolean) => `flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:px-4 sm:text-sm lg:w-full ${active ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`;
 
+  const emptyText = search ? "No matching tasks. Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Nothing archived." : "A fresh start. Add your first to-do above.";
+  const quickPlaceholder = arise ? "Add a to-do, or type @arise" : `Add a to-do${listId !== "all" ? ` to ${listName}` : ""}`;
+  const looked = look !== "classic";
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13.5rem_minmax(0,1fr)]" data-testid="hub-todo">
+    <div className="space-y-3" data-testid="hub-todo">
+    <LookSwitcher look={look} setLook={(l) => { setLook(l); setAiTab(false); openAsk(null); }} />
+    {looked && aiTab && arise ? <div className="space-y-3"><button type="button" onClick={() => { setAiTab(false); openAsk(null); }} className="min-h-10 rounded-full bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200">← Back to to-dos</button><AriseAsks asks={arise.asks} loaded={arise.loaded} open={arise.open} say={(t) => toast(t)} /></div>
+    : looked ? <>
+      <TaskLookView look={look as Exclude<TaskLook, "classic">} tasks={workspace.tasks} shown={shown} lists={lists} today={today} view={view} setView={setView} views={views}
+        listId={listId} setList={setListPick} listName={listName} toggle={toggle} edit={(id) => setEditing({ id })}
+        add={(lid) => { if (lid !== undefined) setListPick(lid || "all"); setEditing({ id: null }); }}
+        quick={quick} setQuick={setQuick} onQuickAdd={quickAdd} quickPlaceholder={quickPlaceholder}
+        newAsks={newAsks} onArise={arise ? () => { setAiTab(true); openAsk(null); } : undefined}
+        search={search} setSearch={setSearch} sort={sort} setSort={setSort} empty={emptyText} />
+      {arise && parseTaskAsk(quick) && <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="arise-hint"><Sparkles className="h-3.5 w-3.5" />Arise's AI will make this and send you a notification when it's ready.</p>}
+      {extra && (view === "all" || view === "today") && <div>{extra}</div>}
+      {(view === "all" || view === "today") && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
+    </> :
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
       {/* Views and lists: a column on a computer, two scrolling rows on a phone. */}
       <nav aria-label="To-do views and lists" className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-2 lg:self-start lg:p-3">
         <p className="hidden px-3 pb-2 pt-1 text-[11px] font-black uppercase tracking-[.16em] text-slate-500 lg:block">Tasks</p>
@@ -305,6 +327,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
           </aside>
         </div>
       </div>
+    </div>}
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today} lists={lists} startList={listId === "all" ? "" : listId}
         onSave={(fields) => {
           // An "@arise" to-do from the pop-up (new, or an existing to-do being edited): its due date, if one was picked, is the "by" day.
