@@ -8,6 +8,7 @@
 // scores, prices and "who is…" questions are current; if Perplexity isn't set up or fails, the
 // site's usual AI answers (server/aiProvider.ts).
 import type { Express, RequestHandler } from "express";
+import { openTasks, tasksFacts, wantsTasks } from "../shared/askTasks";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { cleanPlace, parseForecast, weatherCode, type Forecast } from "../shared/lifePlugins";
 import { cleanHistory, isUndercoverTheme, nowFacts, undercoverSystemPrompt, wantsWeather, weatherFacts, weatherPlaceFrom, type UndercoverMsg, type UndercoverTheme } from "../shared/undercover";
@@ -86,7 +87,7 @@ export const openMeteoWeather: WeatherLookup = async (where, unit) => {
 
 const num = (v: unknown, max: number) => { const n = Number(v); return v !== null && v !== "" && Number.isFinite(n) && Math.abs(n) <= max ? Math.round(n * 100) / 100 : undefined; };
 
-export function registerUndercoverRoutes(app: Express, auth: RequestHandler, deps: { ask?: UndercoverAsk; weather?: WeatherLookup; now?: () => number } = {}) {
+export function registerUndercoverRoutes(app: Express, auth: RequestHandler, deps: { ask?: UndercoverAsk; weather?: WeatherLookup; now?: () => number; /** The person's LifeHub and WorkHub workspaces, for "what tasks do I have left?". */ hubs?: (userId: number) => Promise<{ life: any; work: any }> } = {}) {
   const ask = deps.ask ?? askUndercoverAi;
   const weather = deps.weather ?? openMeteoWeather;
   const now = deps.now ?? Date.now;
@@ -117,6 +118,12 @@ export function registerUndercoverRoutes(app: Express, auth: RequestHandler, dep
         const f = await weather(where, unit).catch((e) => { console.error("[undercover] weather:", e?.message || e); return null; });
         facts.push(f ? weatherFacts(f, (c) => weatherCode(c).text) : `The weather for ${named || home || "that place"} couldn't be found. Say so in one short line.`);
       }
+    }
+    // "What tasks do I have left?": their real To Duo task lists, not just their notes.
+    if (wantsTasks(question) && deps.hubs) {
+      const today = (() => { try { return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now())); } catch { return new Date(now()).toISOString().slice(0, 10); } })();
+      const h = await deps.hubs(Number(u.id)).catch((e) => { console.error("[undercover] tasks:", e?.message || e); return null; });
+      if (h) facts.push(tasksFacts(openTasks(h.life, h.work), today));
     }
     // Asked from inside a note (Arise Notes): the note so far, so "summarize this" or "what's missing" works.
     const note = typeof req.body?.context === "string" ? req.body.context.trim().slice(0, 8000) : "";

@@ -1734,7 +1734,16 @@ export async function registerRoutes(
   registerAccountabilityRoutes(app, authMiddleware, acctDeps);
   if (process.env.NODE_ENV !== "test") startAccountabilityTicker(acctDeps);
   // Arise Undercover (server/undercover.ts): an AI chat that looks like texting or a document, at /undercover/.
-  registerUndercoverRoutes(app, authMiddleware);
+  registerUndercoverRoutes(app, authMiddleware, {
+    hubs: async (userId) => {
+      const db = getAdminSupabase();
+      const [life, work] = await Promise.all([
+        db.from("arise_todo_workspaces").select("workspace").eq("user_id", userId).maybeSingle(),
+        db.from("teacher_hub_workspaces").select("workspace").eq("teacher_id", userId).maybeSingle(),
+      ]);
+      return { life: life.data?.workspace ?? null, work: work.data?.workspace ?? null };
+    },
+  });
   // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
   // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
   const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
