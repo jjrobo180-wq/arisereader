@@ -22,10 +22,10 @@ test("the prices are the ones on the pricing page", () => {
   assert.equal(usd(PLANS.teacher.monthlyCents), "$20");
   assert.equal(PLANS.teacher.studentsPerBlock, 99);
   assert.equal(usd(PLANS.school.yearlyCents), "$900");
-  assert.equal(usd(PLANS.district.perSchoolYearlyCents), "$750");
+  assert.equal(usd(PLANS.district.yearlyCents), "$10,000");
   assert.equal(PLANS.school.studentCap, 800);
   assert.equal(PLANS.school.yearlyCents, 90000);
-  assert.deepEqual(PLANS.district, { perSchoolYearlyCents: 75000, minSchools: 2 });
+  assert.deepEqual(PLANS.district, { yearlyCents: 1000000, studentCap: 8000 });
   assert.equal(PLANS.parentMaxChildren, 3);
   assert.equal(usd(1250), "$12.50");
 });

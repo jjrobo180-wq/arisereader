@@ -32,10 +32,10 @@ export const PLANS = {
     yearlyCents: 90000,
     studentCap: 800,
   },
-  /** Districts and charter networks (2 or more schools): $750 a school per year, on one license and one bill. */
+  /** Districts and charter networks: $10,000 a year for up to 8,000 students across all their schools, one license and one bill. */
   district: {
-    perSchoolYearlyCents: 75000,
-    minSchools: 2,
+    yearlyCents: 1000000,
+    studentCap: 8000,
   },
   /** Arise WorkHub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
   hub: {
