@@ -12,6 +12,10 @@
 //
 // Pure, so it's tested. Server: server/rewardStore.ts.
 
+/** A.R.I.S.E. doesn't buy or send any rewards: a parent (and a teacher, with class prizes) sets the rewards
+ *  and gives them. The gift-card catalog below stays in the code, closed; true would open it again. */
+export const PAID_STORE_OPEN = false;
+
 /** What 1 dollar of reward cost is worth in Reward Points. */
 export const POINTS_PER_DOLLAR = 2500;
 /** Paid rewards are priced this much above cost (it covers the slack and makes saving feel earned). */

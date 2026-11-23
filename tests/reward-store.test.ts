@@ -57,7 +57,7 @@ function server(over: Partial<RewardDeps> = {}) {
     getSetting: async (k) => settings.get(k) || "", upsertSetting: async (k, v) => { settings.set(k, v); },
     getUser: async (id) => users[id], attempts: async () => [{ bookId: 1, pointsEarned: 30, completedAt: "2026-11-10T10:00:00Z" }, { bookId: 2, pointsEarned: 30, completedAt: "2026-11-11T10:00:00Z" }, { bookId: 3, pointsEarned: 30, completedAt: "2026-11-12T10:00:00Z" }, { bookId: 4, pointsEarned: 30, completedAt: "2026-11-13T10:00:00Z" }, { bookId: 5, pointsEarned: 30, completedAt: "2026-11-14T10:00:00Z" }, { bookId: 6, pointsEarned: 30, completedAt: "2026-11-15T10:00:00Z" }, { bookId: 7, pointsEarned: 30, completedAt: "2026-11-16T10:00:00Z" }, { bookId: 8, pointsEarned: 30, completedAt: "2026-11-17T10:00:00Z" }, { bookId: 9, pointsEarned: 30, completedAt: "2026-11-18T10:00:00Z" }, { bookId: 10, pointsEarned: 30, completedAt: "2026-11-09T10:00:00Z" }, { bookId: 11, pointsEarned: 30, completedAt: "2026-11-08T10:00:00Z" }, { bookId: 12, pointsEarned: 30, completedAt: "2026-11-07T10:00:00Z" }, { bookId: 13, pointsEarned: 30, completedAt: "2026-11-06T10:00:00Z" }],
     beginnersPasses: async () => [], parentStudentIds: async (p) => (p === 2 ? [1] : []), studentParentIds: async (s) => (s === 1 ? [2] : []),
-    paidFamily: async () => true, notify: async (_id, t) => { notes.push(t); }, now: () => Date.parse("2026-11-18T20:00:00Z"), ...over,
+    paidFamily: async () => true, paidStoreOpen: true, notify: async (_id, t) => { notes.push(t); }, now: () => Date.parse("2026-11-18T20:00:00Z"), ...over,
   };
   settings.set("reward_store_config", JSON.stringify({ budgetCents: 2000, studentCapCents: 1000, startedOn: "2026-11-01" }));
   registerRewardStoreRoutes(app, (() => {}) as any, deps);
@@ -119,4 +119,16 @@ test("a parent's own rewards: free to give, picked by the child, given by the pa
   assert.equal((await s.call(2, "GET /api/rewards")).body.toGive.length, 1);
   assert.equal((await s.call(2, "POST /api/rewards/requests/:id/sent", {}, { id: r.body.request.id })).body.request.status, "sent");
   assert.equal((await s.call(1, "PUT /api/rewards/admin", { config: { budgetCents: 999999 } })).status, 403, "only the admin changes the store");
+});
+
+test("A.R.I.S.E. pays for no rewards: the gift-card store is closed, and parents (and teachers' class prizes) set the rewards", async () => {
+  const { PAID_STORE_OPEN } = await import("../shared/rewardStore");
+  assert.equal(PAID_STORE_OPEN, false);
+  const s = server({ paidStoreOpen: undefined });
+  await s.call(2, "PUT /api/rewards/perks", { perks: [{ title: "Pick dinner", points: 3000 }] });
+  const st = await s.call(1, "GET /api/rewards");
+  assert.deepEqual(st.body.store, [], "no gift cards, food or money from the site");
+  assert.equal(st.body.perks.length, 1, "the parent's own rewards");
+  const r = await s.call(1, "POST /api/rewards/redeem", { itemId: "amazon-5" });
+  assert.equal(r.status, 404);
 });

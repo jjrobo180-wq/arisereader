@@ -8,12 +8,14 @@ import type { Express, RequestHandler } from "express";
 import { randomBytes } from "node:crypto";
 import {
   DEFAULT_CATALOG, DEFAULT_CONFIG, LIMITS, PERK_IDEAS, balanceOf, canRedeem, cleanCatalog, cleanConfig, earnings, monthOf, monthSpend, storeSummary,
-  type AttemptLike, type RewardItem, type RewardRequest, type StoreConfig,
+  type AttemptLike, type RewardItem, type RewardRequest, type StoreConfig, PAID_STORE_OPEN,
 } from "../shared/rewardStore";
 
 type AnyUser = { id: number; displayName?: string; username?: string; role?: string | null; isAdmin?: boolean; email?: string | null };
 
 export type RewardDeps = {
+  /** The A.R.I.S.E.-paid gift-card catalog (PAID_STORE_OPEN); tests open it to check the machinery. */
+  paidStoreOpen?: boolean;
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
   /** Throws when the database can't be reached (a failed read must never look like an empty list before a save). */
@@ -89,7 +91,7 @@ export function registerRewardStoreRoutes(app: Express, auth: RequestHandler, de
       return res.json({
         role, balance: st.balance, earnedTotal: st.earned, spentTotal: st.spent, expiring: st.expiring,
         recent: st.earnings.slice(-20).reverse(),
-        store: (await catalog()).filter((x) => x.active).map((it) => ({ ...it, tremendousProduct: undefined, availability: avail(it) })),
+        store: ((deps.paidStoreOpen ?? PAID_STORE_OPEN) ? await catalog() : []).filter((x) => x.active).map((it) => ({ ...it, tremendousProduct: undefined, availability: avail(it) })),
         perks: perks.filter((x) => x.active).map((it) => ({ ...it, availability: avail(it) })),
         requests: st.mine.slice(-50).reverse(),
         monthUsedCents: monthSpend(all, month(), u.id), studentCapCents: cfg.studentCapCents, hasParent: parents.length > 0, paidPlan,
@@ -126,6 +128,7 @@ export function registerRewardStoreRoutes(app: Express, auth: RequestHandler, de
     let it: RewardItem | undefined, perkParentId: number | undefined;
     const m = /^perk:(\d+):(.+)$/.exec(itemId);
     if (m) { perkParentId = Number(m[1]); if (!parents.includes(perkParentId)) throw new Refused("That reward isn't yours to pick."); it = (await perksOf(perkParentId)).find((p) => p.id === m[2]); }
+    else if (!(deps.paidStoreOpen ?? PAID_STORE_OPEN)) throw new Refused("Rewards come from your parent or teacher now.", 404);
     else it = (await catalog()).find((x) => x.id === itemId);
     if (!it) throw new Refused("That reward isn't in the store any more.", 404);
     const all = await requests(true);

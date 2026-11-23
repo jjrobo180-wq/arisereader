@@ -41,7 +41,7 @@ export default function ParentRewards({ token }: { token: string | null }) {
   const paidWaiting = data.waiting.some((r) => r.costCents > 0);
 
   return <div className="space-y-5" data-testid="parent-rewards">
-    <p className="text-sm text-slate-600">Your child earns Reward Points by passing book quizzes, and cashes them in here. Nothing happens until you say yes. Gift cards, food and money go to your email; your own rewards are yours to give.</p>
+    <p className="text-sm text-slate-600">Your child earns Reward Points by passing book quizzes, and cashes them in here. You pick the rewards and what each costs in points, and you give them: nothing happens until you say yes.</p>
     {error && <p className="flex items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}<button type="button" onClick={() => setError("")} aria-label="Dismiss"><X size={15} /></button></p>}
 
     {data.children.length > 0 && <div className="flex flex-wrap gap-2">{data.children.map((c) => <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-800"><Coins size={14} />{c.name}: {c.balance.toLocaleString("en-US")}</span>)}</div>}

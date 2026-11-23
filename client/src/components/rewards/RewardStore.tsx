@@ -76,6 +76,7 @@ export default function RewardStore({ token }: { token: string | null }) {
     <Shelf title="Gift cards" items={data.store.filter((x) => x.kind === "gift")} balance={data.balance} onPick={setAsking} />
     <Shelf title="Food" items={data.store.filter((x) => x.kind === "food")} balance={data.balance} onPick={setAsking} />
     <Shelf title="Money (sent to your parent)" items={data.store.filter((x) => x.kind === "money")} balance={data.balance} onPick={setAsking} />
+    {data.hasParent && !data.perks.length && !data.store.length && <p className="rounded-2xl bg-violet-50 p-4 text-sm text-violet-900" data-testid="reward-store-empty">No rewards yet. Ask your parent to add some: they pick the rewards and what each one costs in points.</p>}
     {!data.hasParent && <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">Ask a parent to link to your account. Every reward needs a parent's OK.</p>}
 
     {/* How it was earned */}
