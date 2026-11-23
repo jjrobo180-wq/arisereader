@@ -122,7 +122,7 @@ import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
 import { duoBoard, publishDuoBoard, publishDuoLinks, publishRiseScores, watchHubWidgetTaps } from "@/lib/duoBoard";
-import RiseScoreCard, { type RiseScorePage } from "@/components/RiseScoreCard";
+import RiseScoreCard, { useRiseOff, type RiseScorePage } from "@/components/RiseScoreCard";
 import { riseInputFrom, riseScores } from "@shared/riseScore";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
@@ -1190,7 +1190,8 @@ export default function AriseTodo() {
   const sharedApp = useSharedApp(shown, common);
   const appProps = sharedApp.props ?? common;
   // The Rise Score (shared/riseScore.ts): the score card on the pages and the Rise Score widgets.
-  const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done }))), currentDay), [family, data.tasks, currentDay]);
+  const [riseOff] = useRiseOff();
+  const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done })), riseOff), currentDay), [family, data.tasks, currentDay, riseOff]);
   /** Which score card a page shows (pages without one show none). */
   const risePage: RiseScorePage | null = shown === "home" ? "home" : shown === "tasks" ? "checklist"
     : (["health", "healthlite", "cooked", "meals", "kitchen", "recipes"] as string[]).includes(shown) ? "food"

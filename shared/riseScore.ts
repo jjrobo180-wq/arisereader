@@ -8,9 +8,14 @@
 //   Food       breakfast, lunch and dinner logged (from the first day anything was logged)
 //   Move       active minutes against the goal (from the first workout logged)
 //   Money      spending against the day's share of the monthly budget (from the first expense)
+//   Water      cups logged against the water goal (from the first day any was logged)
+//   Sleep      hours slept against 8 (from the first night logged)
+//   Habits     the share of habits done that day (from the first habit checked off)
+// Workouts logged on the Workouts page count for Move too (a day with one is a full Move day).
+// Each category can be switched off (input.off): it then counts nowhere, on the card or the widgets.
 // A day's score is the average of the categories it has; a week or year is the average of its days.
 
-export type RiseCategoryId = "checklist" | "food" | "move" | "money";
+export type RiseCategoryId = "checklist" | "food" | "move" | "money" | "water" | "sleep" | "habits";
 export type RiseInput = {
   tasks: { title: string; due: string; time?: string; done: boolean }[];
   food: { date: string; meal: string }[];
@@ -20,6 +25,17 @@ export type RiseInput = {
   /** The monthly budget, all categories together (0: no Money score). */
   monthlyBudget: number;
   expenses: { date: string; amount: number }[];
+  /** Workouts page entries: any on a day makes it a full Move day. */
+  workouts?: { date: string }[];
+  /** Cups of water a day. */
+  water?: { date: string; amount: number }[];
+  waterGoal?: number;
+  /** Nights slept: bed and wake as "HH:MM". */
+  sleep?: { date: string; bed: string; wake: string }[];
+  /** Each habit and the days it was done. */
+  habits?: { days: string[] }[];
+  /** Categories switched off. */
+  off?: RiseCategoryId[];
 };
 export type RiseCategory = { id: RiseCategoryId; name: string; percent: number; color: string };
 export type RiseScores = {
@@ -42,9 +58,18 @@ export type RiseScores = {
   started: boolean;
 };
 
-export const RISE_COLORS: Record<RiseCategoryId, string> = { checklist: "#ffb347", food: "#4fd1c5", move: "#ff7a6b", money: "#a99bff" };
-const NAMES: Record<RiseCategoryId, string> = { checklist: "Checklist", food: "Food", move: "Move", money: "Money" };
-const ORDER: RiseCategoryId[] = ["checklist", "food", "move", "money"];
+export const RISE_COLORS: Record<RiseCategoryId, string> = { checklist: "#ffb347", food: "#4fd1c5", move: "#ff7a6b", money: "#a99bff", water: "#7dd3fc", sleep: "#f0abfc", habits: "#86efac" };
+const NAMES: Record<RiseCategoryId, string> = { checklist: "Checklist", food: "Food", move: "Move", money: "Money", water: "Water", sleep: "Sleep", habits: "Habits" };
+export const RISE_CATEGORIES: { id: RiseCategoryId; name: string; from: string }[] = [
+  { id: "checklist", name: "Checklist", from: "To-dos due today, checked off in Tasks" },
+  { id: "food", name: "Food", from: "Breakfast, lunch and dinner logged in Food & fitness" },
+  { id: "move", name: "Move", from: "Exercise minutes in Food & fitness, or a workout in Workouts" },
+  { id: "money", name: "Money", from: "Spending against your budget in Money" },
+  { id: "water", name: "Water", from: "Cups of water logged in Food & fitness" },
+  { id: "sleep", name: "Sleep", from: "Hours slept, logged in Sleep" },
+  { id: "habits", name: "Habits", from: "Habits checked off in Habits" },
+];
+const ORDER: RiseCategoryId[] = RISE_CATEGORIES.map((c) => c.id);
 
 /** A 90+, B+ 87, B 83, B- 80, C+ 77, C 73, C- 70, D below 70. */
 export function riseGrade(p: number): string {
@@ -71,15 +96,34 @@ function scorer(input: RiseInput) {
   const food = group(input.food, (f) => f.date);
   const moves = group(input.exercise, (e) => e.date);
   const spend = group(input.expenses, (e) => e.date);
-  const foodFrom = first(food), moveFrom = first(moves), moneyFrom = first(spend);
+  const lifts = group(input.workouts ?? [], (w) => w.date);
+  const drinks = group((input.water ?? []).filter((w) => Number(w.amount) > 0), (w) => w.date);
+  const nights = group(input.sleep ?? [], (n) => n.date);
+  const habits = input.habits ?? [];
+  const habitDays = group(habits.flatMap((h) => h.days.map((d) => ({ d }))), (x) => x.d);
+  const off = new Set(input.off ?? []);
+  const foodFrom = first(food), moneyFrom = first(spend), waterFrom = first(drinks), sleepFrom = first(nights), habitFrom = first(habitDays);
+  const moveFrom = [first(moves), first(lifts)].filter(Boolean).sort()[0] ?? "";
   const goal = input.activeMinutes > 0 ? input.activeMinutes : 30;
+  const waterGoal = (input.waterGoal ?? 0) > 0 ? (input.waterGoal as number) : 8;
+  const hours = (bed: string, wake: string) => {
+    const m = (t: string) => { const [h, mm] = t.split(":").map(Number); return (h || 0) * 60 + (mm || 0); };
+    let span = m(wake) - m(bed);
+    if (span <= 0) span += 24 * 60;
+    return span / 60;
+  };
   return (d: string): Record<RiseCategoryId, number | null> => {
+    const all = scoreDay(d);
+    for (const k of ORDER) if (off.has(k)) all[k] = null;
+    return all;
+  };
+  function scoreDay(d: string): Record<RiseCategoryId, number | null> {
     const due = tasks.get(d) ?? [];
     const checklist = due.length ? clamp((due.filter((t) => t.done).length / due.length) * 100) : null;
     const meals = new Set((food.get(d) ?? []).map((f) => f.meal).filter((m) => m === "breakfast" || m === "lunch" || m === "dinner"));
     const foodScore = foodFrom && d >= foodFrom ? clamp((meals.size / 3) * 100) : null;
     const minutes = (moves.get(d) ?? []).reduce((a, e) => a + (Number(e.minutes) || 0), 0);
-    const move = moveFrom && d >= moveFrom ? clamp((minutes / goal) * 100) : null;
+    const move = moveFrom && d >= moveFrom ? (lifts.has(d) ? 100 : clamp((minutes / goal) * 100)) : null;
     let money: number | null = null;
     if (input.monthlyBudget > 0 && moneyFrom && d >= moneyFrom) {
       const x = at(d), days = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
@@ -87,8 +131,13 @@ function scorer(input: RiseInput) {
       const spent = (spend.get(d) ?? []).reduce((a, e) => a + (Number(e.amount) || 0), 0);
       money = spent <= plan ? 100 : clamp(100 - ((spent - plan) / plan) * 100);
     }
-    return { checklist, food: foodScore, move, money };
-  };
+    const cups = (drinks.get(d) ?? []).reduce((a, w) => a + (Number(w.amount) || 0), 0);
+    const water = waterFrom && d >= waterFrom ? clamp((cups / waterGoal) * 100) : null;
+    const slept = (nights.get(d) ?? []).reduce((a, n) => a + hours(n.bed, n.wake), 0);
+    const sleep = sleepFrom && d >= sleepFrom ? clamp((slept / 8) * 100) : null;
+    const habitsScore = habitFrom && d >= habitFrom && habits.length ? clamp((habits.filter((h) => h.days.includes(d)).length / habits.length) * 100) : null;
+    return { checklist, food: foodScore, move, money, water, sleep, habits: habitsScore };
+  }
 }
 
 const dayScore = (c: Record<RiseCategoryId, number | null>) => avg(ORDER.map((k) => c[k]).filter((v): v is number => v !== null));
@@ -142,8 +191,13 @@ export function riseScores(input: RiseInput, today: string): RiseScores {
 
 /** The Rise Score input from LifeHub's family data and to-dos (the first person with a food & fitness plan). */
 export function riseInputFrom(
-  family: { health: { profiles: Record<string, unknown>; goals: Record<string, { activeMinutes?: number }>; food: { memberId: string; date: string; meal: string }[]; exercise: { memberId: string; date: string; minutes: number }[] }; budget: { limit: number }[]; expenses: { date: string; amount: number }[] },
+  family: {
+    health: { profiles: Record<string, unknown>; goals: Record<string, { activeMinutes?: number; water?: number }>; food: { memberId: string; date: string; meal: string }[]; exercise: { memberId: string; date: string; minutes: number }[]; days?: { memberId: string; date: string; water: number }[] };
+    budget: { limit: number }[]; expenses: { date: string; amount: number }[];
+    workouts?: { date: string }[]; sleep?: { date: string; bed: string; wake: string }[]; habits?: { days: string[] }[];
+  },
   tasks: { title: string; due: string; time?: string; done: boolean }[],
+  off: RiseCategoryId[] = [],
 ): RiseInput {
   const h = family.health;
   const member = Object.keys(h.profiles)[0] ?? h.food[0]?.memberId ?? h.exercise[0]?.memberId ?? "";
@@ -155,5 +209,11 @@ export function riseInputFrom(
     activeMinutes: Number(h.goals[member]?.activeMinutes) || 30,
     monthlyBudget: family.budget.reduce((a, b) => a + (Number(b.limit) || 0), 0),
     expenses: family.expenses,
+    workouts: family.workouts ?? [],
+    water: mine(h.days ?? []).map((x) => ({ date: x.date, amount: x.water })),
+    waterGoal: Number(h.goals[member]?.water) || 8,
+    sleep: family.sleep ?? [],
+    habits: family.habits ?? [],
+    off,
   };
 }

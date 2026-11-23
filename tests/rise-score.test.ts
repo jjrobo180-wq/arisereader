@@ -105,3 +105,27 @@ test("input from LifeHub's data uses one person's food and workouts", () => {
   assert.equal(input.monthlyBudget, 1500);
   assert.equal(input.food.length, 1);
 });
+
+test("water, sleep, habits and Workouts count, from their first entry", () => {
+  const s = riseScores({
+    ...empty,
+    water: [{ date: TODAY, amount: 4 }], waterGoal: 8,
+    sleep: [{ date: TODAY, bed: "23:00", wake: "07:00" }, { date: "2026-11-21", bed: "01:00", wake: "05:00" }],
+    habits: [{ days: [TODAY] }, { days: ["2026-11-21"] }],
+    workouts: [{ date: TODAY }],
+  }, TODAY);
+  const by = Object.fromEntries(s.categories.map((c) => [c.id, c.percent]));
+  assert.equal(by.water, 50);
+  assert.equal(by.sleep, 100);   // 11 PM to 7 AM is 8 hours
+  assert.equal(by.habits, 50);   // 1 of 2 habits
+  assert.equal(by.move, 100);    // a workout makes it a full Move day
+  assert.deepEqual(s.categories.map((c) => c.name), ["Move", "Water", "Sleep", "Habits"]);
+});
+
+test("a category switched off counts nowhere", () => {
+  const input: RiseInput = { ...empty, tasks: [{ title: "a", due: TODAY, done: true }], exercise: [{ date: TODAY, minutes: 0 }] };
+  assert.equal(riseScores(input, TODAY).today, 50);
+  const s = riseScores({ ...input, off: ["move"] }, TODAY);
+  assert.equal(s.today, 100);
+  assert.deepEqual(s.categories.map((c) => c.id), ["checklist"]);
+});

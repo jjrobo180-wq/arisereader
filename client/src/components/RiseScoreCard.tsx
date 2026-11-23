@@ -2,8 +2,8 @@
 // (shared/riseScore.ts). Each page has its own design (the same five as the iPhone's Rise Score widgets) and its own
 // on/off switch; "All pages" turns every page's card on or off at once. The choice is kept on this device.
 import { useEffect, useState, type ReactElement, type ReactNode } from "react";
-import { Flame, TrendingUp } from "lucide-react";
-import { riseGrade, type RiseScores } from "@shared/riseScore";
+import { Flame, SlidersHorizontal, TrendingUp } from "lucide-react";
+import { RISE_CATEGORIES, riseGrade, type RiseCategoryId, type RiseScores } from "@shared/riseScore";
 
 export type RiseScorePage = "home" | "checklist" | "food" | "move" | "money";
 const PAGES: RiseScorePage[] = ["home", "checklist", "food", "move", "money"];
@@ -15,6 +15,25 @@ const write = (pages: RiseScorePage[], on: boolean) => {
   try { for (const p of pages) localStorage.setItem(KEY(p), on ? "on" : "off"); } catch { /* kept for this visit only */ }
   window.dispatchEvent(new Event(CHANGED));
 };
+
+const OFF_KEY = "rise-score-off";
+const readOff = (): RiseCategoryId[] => {
+  try { const v = JSON.parse(localStorage.getItem(OFF_KEY) || "[]"); return Array.isArray(v) ? v.filter((x) => RISE_CATEGORIES.some((c) => c.id === x)) : []; } catch { return []; }
+};
+const writeOff = (off: RiseCategoryId[]) => {
+  try { localStorage.setItem(OFF_KEY, JSON.stringify(off)); } catch { /* kept for this visit only */ }
+  window.dispatchEvent(new Event(CHANGED));
+};
+/** The categories switched off on the score card (they then count nowhere, widgets included). */
+export function useRiseOff(): [RiseCategoryId[], (off: RiseCategoryId[]) => void] {
+  const [off, setOff] = useState(readOff);
+  useEffect(() => {
+    const sync = () => setOff(readOff());
+    window.addEventListener(CHANGED, sync);
+    return () => window.removeEventListener(CHANGED, sync);
+  }, []);
+  return [off, (v) => { setOff(v); writeOff(v); }];
+}
 
 /** Whether a page's card is on, kept in step with every other card's switches. */
 function useCardOn(page: RiseScorePage): [boolean, (on: boolean) => void, boolean, (on: boolean) => void] {
@@ -198,8 +217,38 @@ function Breakdown({ s }: { s: RiseScores }) {
 
 const DESIGN: Record<RiseScorePage, (p: { s: RiseScores }) => ReactElement> = { home: Full, checklist: Trio, food: Week, move: Year, money: Breakdown };
 
+/** Choosing what counts toward the score. */
+function Choose({ scores, onDone }: { scores: RiseScores; onDone: () => void }) {
+  const [off, setOff] = useRiseOff();
+  const has = new Set(scores.categories.map((c) => c.id));
+  return (
+    <div className="mt-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[15px] font-extrabold text-slate-800">What counts toward your score</h3>
+        <button type="button" onClick={onDone} className="min-h-11 rounded-xl px-3 text-sm font-bold text-violet-700 hover:bg-violet-50">Done</button>
+      </div>
+      <p className="text-xs font-semibold text-slate-500">Switched off, a category leaves the score card and your iPhone widgets. A category shows up once you log something for it.</p>
+      <ul className="mt-2 divide-y divide-slate-100">
+        {RISE_CATEGORIES.map((c) => {
+          const on = !off.includes(c.id);
+          return (
+            <li key={c.id} className="flex items-center justify-between gap-3 py-1.5">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-800">{c.name}{on && !has.has(c.id) && <span className="font-semibold text-slate-500"> · nothing logged today</span>}</p>
+                <p className="text-xs text-slate-500">{c.from}</p>
+              </div>
+              <Switch on={on} onChange={(v) => setOff(v ? off.filter((x) => x !== c.id) : [...off, c.id])} label={`Count ${c.name}`} />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export default function RiseScoreCard({ page, scores }: { page: RiseScorePage; scores: RiseScores }) {
   const [on, setOn, all, setAll] = useCardOn(page);
+  const [choosing, setChoosing] = useState(false);
   const Design = DESIGN[page];
   return (
     <section className="mb-4" aria-label="Rise Score" data-testid={`rise-score-${page}`}>
@@ -208,8 +257,13 @@ export default function RiseScoreCard({ page, scores }: { page: RiseScorePage; s
           <p className="text-[15px] font-extrabold text-slate-800">Score card</p>
           <p className="text-xs font-semibold text-slate-500">Show your Rise Score on this page</p>
         </div>
-        <Switch on={on} onChange={setOn} label="Show the score card on this page" />
+        <div className="flex items-center gap-1">
+          {on && <button type="button" onClick={() => setChoosing((v) => !v)} aria-expanded={choosing}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100"><SlidersHorizontal size={16} aria-hidden="true" /> Choose</button>}
+          <Switch on={on} onChange={setOn} label="Show the score card on this page" />
+        </div>
       </div>
+      {on && choosing && <Choose scores={scores} onDone={() => setChoosing(false)} />}
       {on ? (
         <div className="mt-2 rounded-[22px] p-4" style={{ background: C.card, color: C.text, fontFamily: "Nunito, ui-rounded, system-ui, sans-serif" }}>
           <Design s={scores} />
