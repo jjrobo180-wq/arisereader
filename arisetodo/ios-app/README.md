@@ -7,7 +7,7 @@ Arise To Duo for iPhone and iPad (bundle ID `com.arisereader.arisetodo`). It is 
   `.github/workflows/arisetodo-signed-release.yml` makes the signed device archive (HealthKit, Sign in with Apple, push,
   app groups, widgets, Apple Watch and Apple TV apps). It uploads to TestFlight only for a commit message containing
   `[approved-testflight]` or a manual run with the upload option.
-- **Live updates:** web-code changes reach installed apps without a new App Store build (`.github/workflows/ota-publish.yml`,
+- **No live updates in To Duo** (App Review 2.5.2 / 5.6): the build Apple reviews has everything; changes ship as App Store/TestFlight builds. (The other apps still get live updates (`.github/workflows/ota-publish.yml`,
   `@capgo/capacitor-updater`). A new copy is used the next time the app is opened, so a screen never reloads while someone is
   using it. `.github/scripts/prune_todo_bundle.sh` takes other products' files (the eye-gaze engine) out of the bundle first.
 - **Purchases:** Arise All Access is sold with Apple in-app purchase. In the US App Store the app may also link to the website,
