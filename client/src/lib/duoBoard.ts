@@ -119,3 +119,9 @@ export function publishDuoLinks(hub: "life" | "work", links: { id: string; title
   const list = duoLinks(links);
   publishRaw({ id: hub === "work" ? "duo.links.work" : "duo.links", title: "Links", value: String(list.length), links: list });
 }
+
+/** The Rise Score widgets (native/widget-extension/DuoScores.swift) read this one "duo.scores" slot. */
+export function publishRiseScores(scores: import("@shared/riseScore").RiseScores): void {
+  const { started: _started, categories, ...rest } = scores;
+  publishRaw({ id: "duo.scores", title: "Rise Score", value: `${scores.overall}%`, scores: { ...rest, next: cut(rest.next, 60), categories: categories.map(({ name, percent, color }) => ({ name, percent, color })) } });
+}

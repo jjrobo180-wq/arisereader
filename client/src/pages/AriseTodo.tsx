@@ -121,7 +121,9 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
-import { duoBoard, publishDuoBoard, publishDuoLinks, watchHubWidgetTaps } from "@/lib/duoBoard";
+import { duoBoard, publishDuoBoard, publishDuoLinks, publishRiseScores, watchHubWidgetTaps } from "@/lib/duoBoard";
+import RiseScoreCard, { type RiseScorePage } from "@/components/RiseScoreCard";
+import { riseInputFrom, riseScores } from "@shared/riseScore";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { applyDuoWidgetTaps, duoWidgetSlots } from "@/lib/duoWidgets";
@@ -1187,6 +1189,13 @@ export default function AriseTodo() {
   // this app with you, their copy (to use together, or look at) in place of yours if you choose it.
   const sharedApp = useSharedApp(shown, common);
   const appProps = sharedApp.props ?? common;
+  // The Rise Score (shared/riseScore.ts): the score card on the pages and the Rise Score widgets.
+  const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done }))), currentDay), [family, data.tasks, currentDay]);
+  /** Which score card a page shows (pages without one show none). */
+  const risePage: RiseScorePage | null = shown === "home" ? "home" : shown === "tasks" ? "checklist"
+    : (["health", "healthlite", "cooked", "meals", "kitchen", "recipes"] as string[]).includes(shown) ? "food"
+    : (["workouts", "cookedpt"] as string[]).includes(shown) ? "move"
+    : (["money", "moneyhub", "subscriptions"] as string[]).includes(shown) ? "money" : null;
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
   // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
@@ -1200,9 +1209,11 @@ export default function AriseTodo() {
         data.lists.map(l => ({ name: l.name, color: l.color, count: live.filter(t => !t.done && t.listId === l.id).length })), currentDay));
       // The Links widget: your Link page's links, each opening in Safari.
       publishDuoLinks("life", family.linkPage?.links || []);
+      // The Rise Score widgets (native/widget-extension/DuoScores.swift).
+      publishRiseScores(riseNow);
     }, 1500);
     return () => window.clearTimeout(t);
-  }, [family, data.tasks, data.lists, currentDay, weatherFeed.data]);
+  }, [family, data.tasks, data.lists, currentDay, weatherFeed.data, riseNow]);
   // Circles tapped on the To-do and Chore checklist widgets: saved as done when the app opens.
   useEffect(() => watchHubWidgetTaps((t) => t.id !== "duo.worktodos", (taps) => {
     const tasks = latest.current.data.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done }));
@@ -1763,8 +1774,9 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{risePage && risePage !== "checklist" && <RiseScoreCard page={risePage} scores={riseNow} />}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
+            <div className="mt-2"><RiseScoreCard page="checklist" scores={riseNow} /></div>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} />
             </Suspense>

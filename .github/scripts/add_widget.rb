@@ -57,13 +57,15 @@ if own.empty?
     if link.(w) then "        AriseLink#{i}()"
     elsif check.(w) then "        AriseCheck#{i}()"
     elsif live.(w) then "        AriseLive#{i}()"
-    elsif designs.(w) then "        DuoSmallWidgets().body\n        DuoMediumWidgets().body\n        DuoLargeWidgets().body\n        DuoLockWidgets().body\n        DuoLinkWidget()"
+    elsif designs.(w) then "        DuoSmallWidgets().body\n        DuoMediumWidgets().body\n        DuoLargeWidgets().body\n        DuoLockWidgets().body\n        DuoLinkWidget()\n        RiseScoreWidgets().body"
     else "        AriseSimple#{i}()
         AriseDetail#{i}()"
     end
   end.join("
 ")
   src += "\n" + File.read(File.join(root, "native/widget-extension/DuoDesigns.swift")) if widgets.any? { |w| designs.(w) }
+  # The Rise Score widgets (day, week and year standing) come with the task designs.
+  src += "\n" + File.read(File.join(root, "native/widget-extension/DuoScores.swift")) if widgets.any? { |w| designs.(w) }
   src = src.sub("__WIDGETS__", JSON.generate(widgets)).sub("__TINT__", tint || "ff5a1f").sub("__STRUCTS__", structs).sub("__BUNDLE__", bundle)
 else
   # An app's own widgets (Arise Notes): used as they are.
