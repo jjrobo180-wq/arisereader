@@ -56,8 +56,8 @@ export default function Pricing() {
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-district">
           <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Districts &amp; networks</p>
           <h2 className="mt-3 text-2xl font-black">District</h2>
-          <p className="mt-3 text-5xl font-black">Ask us</p>
-          <p className="mt-3 text-sm leading-6 text-slate-600">Every school in your district or charter network on one license, priced for your number of students.</p>
+          <p className="mt-3 text-5xl font-black">{usd(PLANS.district.perSchoolYearlyCents)} <span className="text-sm font-semibold text-slate-500">/ school, per year</span></p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">Every school in your district or charter network on one license, for {PLANS.district.minSchools} or more schools. Each school gets up to {PLANS.school.studentCap.toLocaleString("en-US")} students.</p>
           <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Everything in the school plan, at every school</li><li>✓ District-wide reports</li><li>✓ One contract and one yearly bill</li></ul>
           <a href="https://arisetodo.com/support/" target="_blank" rel="noopener noreferrer" className="mt-7 block w-full rounded-xl bg-emerald-700 px-5 py-3 text-center font-bold text-white" data-testid="pricing-district-contact">Ask about a district license</a>
         </article>

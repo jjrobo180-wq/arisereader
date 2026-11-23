@@ -1,4 +1,4 @@
-// Arise Reader is paid from November 9, 2026: $7 a family, $20 per 99 students, $600 a school year.
+// Arise Reader is paid from November 9, 2026: $7 a family, $20 per 99 students, $900 a school year (up to 800 students).
 // Every account made before then keeps it free.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +12,7 @@ test("the new prices", () => {
   assert.equal(PLANS.bundle.familyMonthlyCents, 700);
   assert.equal(PLANS.teacher.monthlyCents, 2000);
   assert.equal(PLANS.teacher.studentsPerBlock, 99);
-  assert.deepEqual([priceOf("school").cents, priceOf("school").interval], [60000, "year"]);
+  assert.deepEqual([priceOf("school").cents, priceOf("school").interval], [90000, "year"]);
   assert.equal(priceOf("teacher").seats(1), 99);
 });
 

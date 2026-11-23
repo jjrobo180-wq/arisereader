@@ -28,9 +28,14 @@ export const PLANS = {
     maxBlocks: 50,
   },
   school: {
-    /** $600 for a full school year: every teacher and student there. */
-    yearlyCents: 60000,
-    studentCap: 5000,
+    /** $900 for a full school year: every teacher and up to 800 students there (about $1.13 a student). */
+    yearlyCents: 90000,
+    studentCap: 800,
+  },
+  /** Districts and charter networks (2 or more schools): $750 a school per year, on one license and one bill. */
+  district: {
+    perSchoolYearlyCents: 75000,
+    minSchools: 2,
   },
   /** Arise WorkHub, the add-on: the same prices as Premium, counted against the students in the teacher's Hub caseload. */
   hub: {

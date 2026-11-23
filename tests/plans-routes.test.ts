@@ -274,7 +274,7 @@ test("checkout builds the right Stripe order", async (t) => {
   await call(50, "POST", "/api/billing/checkout", { kind: "school", blocks: 40 });
   f = calls.at(-1)!;
   assert.equal(f.form.get("line_items[0][quantity]"), "1");
-  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "60000");
+  assert.equal(f.form.get("line_items[0][price_data][unit_amount]"), "90000");
   assert.equal(f.form.get("line_items[0][price_data][recurring][interval]"), "year");
   assert.equal(f.form.get("metadata[kind]"), "school");
   assert.equal(f.form.get("metadata[ownerId]"), "3", "the buyer's own school, never one named in the request");
@@ -406,7 +406,7 @@ test("the admin switches rules on, grants plans by hand and stores keys safely",
   await call(1, "POST", "/api/admin/plans/grant", { kind: "school", ownerId: 3, months: 12 });
   list = (await call(1, "GET", "/api/admin/plans")).body;
   const school = list.plans.find((p: any) => p.kind === "school");
-  assert.deepEqual([school.name, school.seats, school.students], ["Lincoln Middle", 5000, 240]);
+  assert.deepEqual([school.name, school.seats, school.students], ["Lincoln Middle", 800, 240]);
   assert.ok(Math.abs(Date.parse(school.endsAt) - (NOW + 365.25 * DAY)) < DAY);
 
   // keys are checked, stored, and never sent back whole
