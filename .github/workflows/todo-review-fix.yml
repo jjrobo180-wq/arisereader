@@ -1,0 +1,38 @@
+name: App Review fixes (Arise To Duo, App Store Connect)
+# Reads or fixes Arise To Duo's App Store Connect page for the App Review resubmission
+# (.github/scripts/todo_review_fix.py). Parts: status (read only), age, china, iap, desc, notes, build.
+# Never submits: Update Review stays the owner's tap in App Store Connect.
+on:
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: "What to do: status, or any of: age china iap desc notes build"
+        default: status
+      demo_user: { description: "Free review account's sign-in (for notes)", required: false, default: "" }
+      demo_pass: { description: "Its password", required: false, default: "" }
+      sub_user: { description: "Subscribed review account's sign-in (optional)", required: false, default: "" }
+      sub_pass: { description: "Its password", required: false, default: "" }
+      build: { description: "Build number to put on version 1.0 (blank = newest processed)", required: false, default: "" }
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hide the passwords
+        run: |
+          [ -n "${{ github.event.inputs.demo_pass }}" ] && echo "::add-mask::${{ github.event.inputs.demo_pass }}" || true
+          [ -n "${{ github.event.inputs.sub_pass }}" ] && echo "::add-mask::${{ github.event.inputs.sub_pass }}" || true
+      - name: App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PARTS: ${{ github.event.inputs.parts }}
+          DEMO_USER: ${{ github.event.inputs.demo_user }}
+          DEMO_PASS: ${{ github.event.inputs.demo_pass }}
+          SUB_USER: ${{ github.event.inputs.sub_user }}
+          SUB_PASS: ${{ github.event.inputs.sub_pass }}
+          BUILD: ${{ github.event.inputs.build }}
+        run: python3 .github/scripts/todo_review_fix.py
