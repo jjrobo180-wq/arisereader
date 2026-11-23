@@ -185,7 +185,7 @@ export const PROGRAMS: readonly Program[] = [
   { id: "todo", name: "Arise To Duo", about: "To Duo Unlimited", kinds: ["todo_unlimited", "todo_unlimited_year", "todo_family"], give: "todo_unlimited", membership: "Unlimited" },
   { id: "notes", name: "Arise Notes", about: "Notes Basic, Plus and Family", kinds: ["notes_basic", "notes_plus", "notes_plus_year", "notes_family"], give: "notes_plus", membership: "Notes Plus" },
   { id: "fit", name: "Cooked", about: "Cooked+ (Cooked and Cooked PT)", kinds: ["fit_plus"], give: "fit_plus", membership: "Cooked Fitness by Arise Premium" },
-  { id: "all", name: "All Access + Podster", about: "Every app's paid tier, and ad-free Podster", kinds: ["all_access"], give: "all_access", membership: "All Access" },
+  { id: "all", name: "To Duo Unlimited + Podster", about: "Every app's paid tier, and ad-free Podster", kinds: ["all_access"], give: "all_access", membership: "To Duo Unlimited" },
   { id: "reader", name: "Arise Reader", about: "Teacher plans (school plans are in the Reader admin)", kinds: ["teacher", "bundle_teacher"], give: null, membership: "Teacher plan" },
 ];
 export const programOf = (id: unknown): Program | null => PROGRAMS.find((p) => p.id === id) ?? null;

@@ -1031,14 +1031,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** Runs after a plan is saved. A teacher's new class add-on may take over some families' plans. */
   const afterGrant = async (grant: PlanGrant) => {
     if (grant.kind === "all_access" && grantLive(grant, now()) && grant.source === "stripe") {
-      // All Access includes them: they end at the end of what's already paid (no double billing).
+      // To Duo Unlimited includes them: they end at the end of what's already paid (no double billing).
       for (const k of ["todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "fit_plus"] as PlanKind[]) {
         try {
           const g = await readGrant(k, grant.ownerId, true);
           if (!g || !grantLive(g, now()) || g.source !== "stripe" || !g.stripeSubscriptionId || g.cancelAtPeriodEnd || g.buyerId !== grant.ownerId) continue;
           await stripe("POST", subscriptionPath(g.stripeSubscriptionId), { cancel_at_period_end: "true" });
           await syncSubscription(g.stripeSubscriptionId);
-        } catch (e: any) { console.error("[plans] ending an older plan after All Access failed:", k, e?.message); }
+        } catch (e: any) { console.error("[plans] ending an older plan after To Duo Unlimited failed:", k, e?.message); }
       }
       return;
     }
@@ -1053,26 +1053,26 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
   };
 
-  // ─── Arise All Access: $10 a month, one person, every app's paid tier ──────────────────────────
+  // ─── Arise To Duo Unlimited: $10 a month, one person, every app's paid tier ──────────────────────────
   // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Podster in one plan. It is now
   // the only thing those apps sell; anyone already paying for one of the older plans keeps it.
-  /** This account's All Access (paid, or given by the admin). The admin always has it. */
+  /** This account's To Duo Unlimited (paid, or given by the admin). The admin always has it. */
   const allAccessOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { live: true, admin: true, grant: null };
     const grant = await current("all_access", userId);
     return { live: grantLive(grant, now()), admin: false, grant };
   };
-  const ALL_ACCESS_NAME = "Arise All Access";
+  const ALL_ACCESS_NAME = "Arise To Duo Unlimited";
   const ALL_ACCESS_ABOUT = "Every Arise app's paid tier for one person: To Duo Unlimited, Arise Notes Plus (1,500 minutes a month), Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass, and ad-free Podster.";
-  /** Opens Stripe's payment page for All Access. `returnPath` (in the body) says which app to come back to. */
+  /** Opens Stripe's payment page for To Duo Unlimited. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;
     if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
-    if (buyer.isAdmin) throw new Refused("The admin account already has All Access.", 409);
-    if (buyer.role === "student" || !buyer.role) throw new Refused("Ask a parent or teacher about All Access.", 403);
+    if (buyer.isAdmin) throw new Refused("The admin account already has To Duo Unlimited.", 409);
+    if (buyer.role === "student" || !buyer.role) throw new Refused("Ask a parent or teacher about To Duo Unlimited.", 403);
     if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
     const kind: PlanKind = "all_access";
-    if ((await allAccessOwn(buyer.id, buyer)).live) throw new Refused("You already have All Access. Use Manage billing to change it.", 409, "has_plan");
+    if ((await allAccessOwn(buyer.id, buyer)).live) throw new Refused("You already have To Duo Unlimited. Use Manage billing to change it.", 409, "has_plan");
     const pending = await readPending(kind, buyer.id);
     if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
     const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
@@ -1116,7 +1116,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const user: AnyUser = req.user;
       const grant = await current("all_access", user.id);
-      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for All Access.", 409);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for To Duo Unlimited.", 409);
       if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: addonReturn(req).back });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
@@ -1124,7 +1124,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "all access portal"); }
   });
 
-  // ─── All Access bought in an iPhone app (Apple in-app purchase; server/appleStore.ts) ───────────
+  // ─── To Duo Unlimited bought in an iPhone app (Apple in-app purchase; server/appleStore.ts) ───────────
   // The app asks for this account's purchase token first and hands it to Apple with the purchase, so
   // the signed purchase (and every renewal Apple reports later) names the account it belongs to.
   const APPLE = { tokenKey: "apple_token_key", token: (t: string) => `apple_token_${t}`, tx: (id: string) => `apple_tx_${id}` };
@@ -1136,7 +1136,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if ((await read(APPLE.token(token))) !== String(userId)) await write(APPLE.token(token), String(userId));
     return token;
   };
-  /** Saves what an Apple-signed All Access purchase says, for `userId`. A live plan from the website or
+  /** Saves what an Apple-signed To Duo Unlimited purchase says, for `userId`. A live plan from the website or
    *  the admin is never replaced by an Apple one that has ended. */
   const applyAppleTransaction = (userId: number, t: AppleTransaction) => serial(async () => {
     const state = allAccessState(t, now());
@@ -1162,7 +1162,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const appleTransaction = (jws: unknown): AppleTransaction => {
     const t = verifyAppleJws<AppleTransaction>(jws, { now: now(), ...(deps.appleVerify ?? {}) });
-    if (!isAllAccessProduct(t.bundleId, t.productId)) throw new Refused("That purchase isn't Arise All Access.", 400);
+    if (!isAllAccessProduct(t.bundleId, t.productId)) throw new Refused("That purchase isn't Arise To Duo Unlimited.", 400);
     if (!t.originalTransactionId) throw new Refused("That purchase is incomplete.", 400);
     return t;
   };
@@ -1170,7 +1170,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.get("/api/all-access/apple-token", auth, async (req: any, res: any) => {
     try {
       const user: AnyUser = req.user;
-      if (req.adminPreview || !user || user.role === "student" || !user.role) throw new Refused("Ask a parent or teacher about All Access.", 403);
+      if (req.adminPreview || !user || user.role === "student" || !user.role) throw new Refused("Ask a parent or teacher about To Duo Unlimited.", 403);
       res.set("Cache-Control", "no-store");
       res.json({ token: await appleTokenOf(user.id) });
     } catch (e) { fail(res, e, "apple token"); }
@@ -1306,7 +1306,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       if (req.body?.product === "todo") throw new Refused("Arise To Duo is free. No checkout is needed.", 409);
-      // To Duo Unlimited is sold as All Access now (it includes Unlimited and every other app's paid tier).
+      // To Duo Unlimited is sold as To Duo Unlimited now (it includes Unlimited and every other app's paid tier).
       if (req.body?.product === "unlimited" || req.body?.product === "unlimited_year" || req.body?.product === "all_access") {
         if ((await todoUnlimited(buyer)).unlimited) throw new Refused("You're already on Unlimited. Use Manage billing to change it.", 409);
         return void res.json({ url: await allAccessCheckout(req) });
@@ -1384,7 +1384,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const notesPlanOf = async (userId: number, user?: AnyUser | null): Promise<{ plan: NotesPlanId; product: NotesProduct | null; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { plan: "plus", product: null, grant: null };
     const live = await notesLive(userId);
-    // All Access includes Notes Plus (a Family plan someone already pays for stays Family).
+    // To Duo Unlimited includes Notes Plus (a Family plan someone already pays for stays Family).
     if (!live.length || (live[0].kind !== "notes_family" && live[0].kind !== "notes_plus" && live[0].kind !== "notes_plus_year")) {
       const all = await allAccessOwn(userId, user);
       if (all.live) return { plan: "plus", product: null, grant: all.grant };
@@ -1421,7 +1421,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer = notesBuyer(req);
       const product = req.body?.product;
       if (!isNotesProduct(product)) throw new Refused("Choose a plan.", 400);
-      // New Notes plans are sold as All Access (Notes Plus is part of it).
+      // New Notes plans are sold as To Duo Unlimited (Notes Plus is part of it).
       if ((await notesLive(buyer.id)).length === 0) return void res.json({ url: await allAccessCheckout(req) });
       if ((await notesLive(buyer.id)).length) throw new Refused("You already have an Arise Notes plan. Change it from the plans page instead.", 409, "has_plan");
       const kind = notesKindOf(product);
@@ -1507,7 +1507,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (user?.isAdmin) return { live: true, admin: true, grant: null };
     const grant = await current("fit_plus", userId);
     if (grantLive(grant, now())) return { live: true, admin: false, grant };
-    // All Access includes Fit+.
+    // To Duo Unlimited includes Fit+.
     const all = await allAccessOwn(userId, user);
     return all.live ? { live: true, admin: false, grant: all.grant } : { live: false, admin: false, grant };
   };
@@ -1519,7 +1519,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind: PlanKind = "fit_plus";
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Cooked Fitness by Arise Premium. Use Manage billing to change it.", 409, "has_plan");
-      // Fit+ is sold as All Access now (Fit+ and its guest pass are part of it).
+      // Fit+ is sold as To Duo Unlimited now (Fit+ and its guest pass are part of it).
       req.body = { ...(req.body || {}), returnPath: "/fit" };
       return void res.json({ url: await allAccessCheckout(req) });
     } catch (e) { fail(res, e, "fit checkout"); }

@@ -16,7 +16,7 @@ export type AiMinutesBackend = {
 let backend: AiMinutesBackend | null = null;
 export function configureAiMinutes(b: AiMinutesBackend | null): void { backend = b; }
 
-export const OUT_OF_MINUTES = "You've used this month's AI minutes. They're shared by Arise Notes and Podster. Arise All Access gives you 1,500 a month.";
+export const OUT_OF_MINUTES = "You've used this month's AI minutes. They're shared by Arise Notes and Podster. Arise To Duo Unlimited gives you 1,500 a month.";
 
 /**
  * Checks there are minutes for this request (at least one). Answers the request itself and returns false when

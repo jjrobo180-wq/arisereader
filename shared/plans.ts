@@ -91,7 +91,7 @@ export const PLANS = {
     monthlyCents: 1000,
   },
   /**
-   * Arise All Access: one $10-a-month plan for one person that unlocks the paid tier of every app:
+   * Arise To Duo Unlimited: one $10-a-month plan for one person that unlocks the paid tier of every app:
    * Arise To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free Podster.
    * It replaces selling those separately; people who already pay for one of them keep it.
    */

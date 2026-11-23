@@ -243,7 +243,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** "Get it on arisetodo.com": a one-use code that opens the All Access page in Safari signed in to the
+  /** "Get it on arisetodo.com": a one-use code that opens the To Duo Unlimited page in Safari signed in to the
    *  Arise account for this verified email (made then if there isn't one). Never the session itself. */
   const handoffs = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
   app.post(`${P}/web-handoff`, gate, async (req: any, res) => {

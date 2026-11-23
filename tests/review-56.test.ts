@@ -30,3 +30,10 @@ test("App Review: no TestFlight wording, no locale-guessed purchase link, no upd
   assert.match(readFileSync("client/src/components/AllAccessOffer.tsx", "utf8"), /useState\(\(\) => \(apple \|\| isNativeApp\(\) \? false : usRegion\(\)\)\)/);
   assert.match(readFileSync("client/src/components/arise-notes/SettingsScreen.tsx", "utf8"), /\{canSelfUpdate\(\) && <Row label="Check for updates"/);
 });
+
+test("No more All Access: the one paid plan is Arise To Duo Unlimited", () => {
+  const s = readFileSync("shared/allAccess.ts", "utf8");
+  assert.match(s, /name: "Arise To Duo Unlimited"/);
+  for (const f of ["client/src/components/AllAccessOffer.tsx", "client/src/components/hub-pieces/TodoPlan.tsx", "client/src/pages/AriseTodo.tsx", "client/src/pages/AllAccess.tsx", "server/aiMinutes.ts"])
+    assert.doesNotMatch(readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, ""), /"[^"\n]*All Access[^"\n]*"/, f);
+});

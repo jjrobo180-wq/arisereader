@@ -1,4 +1,4 @@
-// The Arise All Access offer in the iPhone apps (shared/allAccess.ts), on sign-up and upgrade screens.
+// The Arise To Duo Unlimited offer in the iPhone apps (shared/allAccess.ts), on sign-up and upgrade screens.
 //  - With a free trial set in App Store Connect (3 days for To Duo) and not used yet by this Apple ID, the
 //    button starts the trial and says what it costs after.
 //  - App builds with Apple in-app purchase (lib/appleStore.ts): subscribe in the app at Apple's price.
@@ -40,19 +40,19 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
     setBusy("buy"); setMsg("");
     try {
       const r = await buyAllAccessWithApple(authToken);
-      if (r.status === "purchased") { setMsg(r.live ? "You have All Access. Enjoy!" : "Purchase received. It switches on in a moment."); onBought?.(); }
-      else if (r.status === "pending") setMsg("Waiting for approval. All Access switches on once it's approved.");
+      if (r.status === "purchased") { setMsg(r.live ? "You have To Duo Unlimited. Enjoy!" : "Purchase received. It switches on in a moment."); onBought?.(); }
+      else if (r.status === "pending") setMsg("Waiting for approval. To Duo Unlimited switches on once it's approved.");
     } catch (e: any) { setMsg(e?.message || "The purchase didn't go through."); }
     setBusy("");
   };
   const restore = async () => {
     if (!authToken) return;
     setBusy("restore"); setMsg("");
-    try { const r: any = await restoreApplePurchases(authToken); setMsg(r?.none ? "No All Access purchase was found for this Apple ID." : r?.live ? "Restored. You have All Access." : "Your All Access purchase has ended."); if (r?.live) onBought?.(); }
+    try { const r: any = await restoreApplePurchases(authToken); setMsg(r?.none ? "No To Duo Unlimited purchase was found for this Apple ID." : r?.live ? "Restored. You have To Duo Unlimited." : "Your To Duo Unlimited purchase has ended."); if (r?.live) onBought?.(); }
     catch (e: any) { setMsg(e?.message || "Couldn't restore purchases."); }
     setBusy("");
   };
-  // Signed in: Safari opens the All Access page already signed in (a one-use code, never the password or
+  // Signed in: Safari opens the To Duo Unlimited page already signed in (a one-use code, never the password or
   // token). Signed out, or if the code can't be made: the plain link, where they sign in or make an account.
   const openSite = async (e: MouseEvent) => {
     if (!authToken && !handoff) return; // the plain link

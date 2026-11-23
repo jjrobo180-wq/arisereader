@@ -1489,8 +1489,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     {!setupOpen && setupChecked && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
-    {/* After the first-run walkthrough: the All Access pop-up, once (iPhone app only). */}
-    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise All Access unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />
+    {/* After the first-run walkthrough: the To Duo Unlimited pop-up, once (iPhone app only). */}
+    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise To Duo Unlimited unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />
     {removing && <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="life-remove-title" data-testid="life-remove-confirm" onClick={() => setRemoving(null)}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <h2 id="life-remove-title" className="text-base font-bold text-slate-900">Remove {removing.label} from your menu?</h2>
