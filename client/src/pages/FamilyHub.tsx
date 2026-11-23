@@ -11,10 +11,24 @@ import HubSwitch from "@/components/HubSwitch";
 import type { FamilyInfo } from "@shared/familySpace";
 
 const api = `${API_BASE}/api/family-space`;
+// Which family this account is in, kept on the device so FamilyHub opens straight into the hub (no spinner,
+// no white flash) and is checked with the server in the background, like LifeHub ⇄ WorkHub.
+const infoKey = (id: number | string) => `arise-family-info-v1:${id}`;
+const readInfo = (id: number | string | undefined): FamilyInfo | null | undefined => { if (!id) return undefined; try { const raw = localStorage.getItem(infoKey(id)); return raw ? (JSON.parse(raw).family ?? null) : undefined; } catch { return undefined; } };
+const keepInfo = (id: number | string | undefined, family: FamilyInfo | null) => { if (id) try { localStorage.setItem(infoKey(id), JSON.stringify({ family })); } catch {} };
+/** Fetched ahead of time from LifeHub and WorkHub (App.tsx), so the first switch to FamilyHub is instant too. */
+export async function prefetchFamilyInfo(userId: number | undefined, token: string | null) {
+  if (!userId || !token) return;
+  const res = await fetch(api, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).catch(() => null);
+  if (!res?.ok) return;
+  const out = await res.json().catch(() => null);
+  if (out && "family" in out) keepInfo(userId, out.family ?? null);
+}
 
 export default function FamilyHub() {
   const { user, token } = useAuth();
-  const [family, setFamily] = useState<FamilyInfo | null | undefined>(undefined);
+  const [family, setFamilyRaw] = useState<FamilyInfo | null | undefined>(() => readInfo(user?.id));
+  const setFamily = useCallback((next: FamilyInfo | null | undefined | ((f: FamilyInfo | null | undefined) => FamilyInfo | null | undefined)) => setFamilyRaw((f) => { const v = typeof next === "function" ? next(f) : next; if (v !== undefined) keepInfo(user?.id, v); return v; }), [user?.id]);
   const [error, setError] = useState("");
   const [people, setPeople] = useState(false);
 
@@ -25,12 +39,12 @@ export default function FamilyHub() {
     if (!res.ok) { setError(out?.message || "That didn't work. Please try again."); return false; }
     setFamily(out.family ?? null);
     return true;
-  }, [token]);
+  }, [token, setFamily]);
 
   useEffect(() => { if (token) void call("").then((ok) => { if (!ok) setFamily((f) => f === undefined ? null : f); }); }, [token, call]);
 
   if (!user) return null;
-  if (family === undefined) return <div className="grid min-h-screen place-items-center bg-[#f6f7fc]"><div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" /></div>;
+  if (family === undefined) return <div className="grid min-h-screen place-items-center bg-[#f6f7fc] dark:bg-[#0d1020]"><div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" /></div>;
   if (!family) return <FamilyStart call={call} error={error} showSwitch={user.role === "teacher" || user.role === "parent" || user.role === "todo" || !!user.isAdmin} />;
   return <>
     {/* A new family (or one rejoined) is its own hub: the key starts it fresh. */}

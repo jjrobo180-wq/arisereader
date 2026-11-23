@@ -262,6 +262,8 @@ export type Family = {
   layout?: LifeLayout;
   /** Recaps on Home: Yesterday or This week, and which apps' recaps are off (shared/recaps.ts). Not set: on, Yesterday. */
   recaps?: import("./recaps").RecapPrefs;
+  /** LifeHub: what has moved to FamilyHub because it's shared with the family (shared/familyTransfer.ts). */
+  movedToFamily?: string[];
   stickies: Sticky[];
   randomLists: RandomList[];
   savedWords: SavedWord[];
@@ -643,6 +645,7 @@ export function cleanFamily(input: unknown): Family {
     ...(Array.isArray(raw.widgetBoard) ? { widgetBoard: cleanWidgets(raw.widgetBoard) } : {}),
     ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
     ...(obj(raw.recaps) ? { recaps: cleanRecaps(raw.recaps) } : {}),
+    ...(Array.isArray(raw.movedToFamily) ? { movedToFamily: [...new Set(raw.movedToFamily.filter((x: unknown): x is string => typeof x === "string" && x.length <= 80))].slice(0, 200) as string[] } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {
       const name = typedEnd(str(r.name, 60));

@@ -109,9 +109,11 @@ test("hand ticks are cleaned for keeping, and survive cleanFit", () => {
   assert.equal(cleanFit({}).checks, undefined);
 });
 
-test("the checklist sits on Today in every layout", async () => {
+test("the checklist sits on Today in every layout (in To Duo it's on the Tasks screen instead)", async () => {
   const { readFileSync } = await import("node:fs");
   const app = readFileSync("client/src/pages/fit/FitApp.tsx", "utf8");
-  assert.equal((app.match(/\{logFood\}\{dayCard\}/g) || []).length, 6);
+  assert.equal((app.match(/\{logFood\}\{goalsHere\}/g) || []).length, 6);
+  assert.match(app, /const goalsHere = !duo && dayCard;/);
+  assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /extra=\{isOn\("cooked", family\) \? <CookedGoalsInTasks/);
   assert.match(app, /import FitChecklist from "\.\/FitChecklist"/);
 });

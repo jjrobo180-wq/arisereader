@@ -33,6 +33,21 @@ export function prefetchLifeHub(userId: number | undefined, token: string | null
 const familyApi = `${API_BASE}/api/family-space/workspace`;
 const familyBackupKey = (id: number) => `arise-family-draft-v1:${id}`;
 
+/** FamilyHub's copy, fetched in the background while LifeHub or WorkHub is open, so switching is instant (no
+ *  loading screen), the same as LifeHub ⇄ WorkHub. Skipped when this device has family changes not yet saved. */
+export function prefetchFamilyHub(userId: number | undefined, token: string | null): Promise<void> {
+  return prefetchHub<object>("family", userId, async () => {
+    if (!token || !userId) return null;
+    try { const raw = localStorage.getItem(familyBackupKey(userId)); if (raw && JSON.parse(raw)?.dirty === true) return null; } catch { return null; }
+    const response = await fetch(familyApi, { headers: auth(token), cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json().catch(() => null);
+    const remote = body?.workspace;
+    if (!remote || typeof remote !== "object" || Array.isArray(remote)) return null;
+    return { workspace: remote, updatedAt: typeof body?.updatedAt === "string" ? body.updatedAt : null };
+  });
+}
+
 export function useTodoCloud<W extends object>({
   userId, token, blank, isValid, space = "life",
 }: {

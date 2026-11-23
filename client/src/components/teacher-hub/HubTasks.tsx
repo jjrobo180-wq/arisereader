@@ -94,7 +94,9 @@ function DueChip({ date, time, today }: { date: string; time?: string; today: st
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}{time ? ` · ${clock12(time)}` : ""}</span>;
 }
 
-export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls, plain = false, arise }: SectionProps & {
+export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls, plain = false, arise, extra }: SectionProps & {
+  /** LifeHub: today's goals from other apps (Cooked's food, water, sleep…), shown above the list. */
+  extra?: ReactNode;
   makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void;
   /** LifeHub keeps the view and list itself (Home and the calendar jump here), so it passes them in. */
   controls?: { view: TaskView; setView: (v: TaskView) => void; list: string; setList: (id: string) => void };
@@ -257,6 +259,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
                 <PrimaryButton type="submit" disabled={!quick.trim()}>{arise && parseTaskAsk(quick) ? "Ask Arise" : "Add"}</PrimaryButton>
               </form>
             )}
+            {extra && (view === "all" || view === "today") && <div className="mb-4">{extra}</div>}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>{renaming && listId !== "all"
                 ? <form onSubmit={(e) => { e.preventDefault(); setWorkspace((p) => renameTaskList(p, listId, renameTo)); setRenaming(false); }} className="flex items-center gap-2" data-testid="list-rename-form">

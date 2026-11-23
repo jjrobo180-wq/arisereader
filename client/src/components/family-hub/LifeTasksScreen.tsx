@@ -9,7 +9,8 @@ import type { AriseAsk } from "@shared/ariseAsks";
 
 type Life = { tasks: LifeTaskShape[]; lists: LifeListShape[] };
 
-export default function LifeTasksScreen<T extends Life>({ data, setData, makeId, say, view, setView, list, setList, arise }: {
+export default function LifeTasksScreen<T extends Life>({ data, setData, makeId, say, view, setView, list, setList, arise, extra }: {
+  extra?: import("react").ReactNode;
   data: T;
   setData: (update: (previous: T) => T) => void;
   makeId: () => string;
@@ -29,5 +30,5 @@ export default function LifeTasksScreen<T extends Life>({ data, setData, makeId,
   const remove = (key: keyof Workspace, rowId: string) => {
     if (key === "tasks") setData((previous) => ({ ...previous, tasks: previous.tasks.filter((t) => t.id !== rowId) }));
   };
-  return <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={makeId} toast={(text) => say(text)} plain controls={{ view, setView, list, setList }} arise={arise} />;
+  return <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={makeId} toast={(text) => say(text)} plain controls={{ view, setView, list, setList }} arise={arise} extra={extra} />;
 }

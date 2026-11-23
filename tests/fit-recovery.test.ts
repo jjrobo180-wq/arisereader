@@ -78,7 +78,7 @@ test("swapping an exercise offers the same muscle with your equipment", () => {
 
 test("the rebuilt Today and Train: built-for-you workout, recovery card, week strip, body map", () => {
   const app = read("client/src/pages/fit/FitApp.tsx"), train = read("client/src/pages/fit/FitTrain.tsx"), smart = read("client/src/pages/fit/FitSmart.tsx");
-  assert.match(app, /<SmartWorkoutCard data=\{data\} list=\{list\} onStart=\{onStart\} testId="fit-today-smart" \/>/);
+  assert.match(app, /<SmartWorkoutCard data=\{data\} list=\{list\} onStart=\{onStart\} testId="fit-today-smart"( compact)? \/>/);
   assert.match(app, /testId="fit-today-readiness"/);
   assert.match(read("client/src/pages/fit/FitApps.tsx"), /testId="fit-recovery-body"/);
   assert.match(app, /<WeekStrip /);

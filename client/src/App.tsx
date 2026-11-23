@@ -606,11 +606,12 @@ function AppRoutes() {
       if (ric) idle = ric(fn, { timeout: 4000 }); else code = window.setTimeout(fn, 1200);
     };
     const run = () => {
-      TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload();
+      TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload(); FamilyHub.preload();
       copy = window.setTimeout(() => whenIdle(() => {
         if (!token || !hubUserId) return;
         void import("@/components/teacher-hub/useHubWorkspace").then((m) => m.prefetchWorkHub(hubUserId, token)).catch(() => {});
-        void import("@/lib/useTodoCloud").then((m) => m.prefetchLifeHub(hubUserId, token)).catch(() => {});
+        void import("@/lib/useTodoCloud").then((m) => { void m.prefetchLifeHub(hubUserId, token); void m.prefetchFamilyHub(hubUserId, token); }).catch(() => {});
+        void import("@/pages/FamilyHub").then((m) => m.prefetchFamilyInfo(hubUserId, token)).catch(() => {});
       }), 1500);
     };
     const later = () => { code = window.setTimeout(() => whenIdle(run), 1500); };

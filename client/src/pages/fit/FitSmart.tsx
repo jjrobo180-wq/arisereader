@@ -50,9 +50,10 @@ export function smartWorkoutNow(data: FitData, list: LibraryExercise[]) {
   return startWorkout({ name: base.title, programId: "smart", dayId: today, exercises: planned(data, items, list) });
 }
 
-export function SmartWorkoutCard({ data, list, onStart, testId = "fit-smart" }: { data: FitData; list: LibraryExercise[]; onStart: (a: ReturnType<typeof startWorkout>) => void; testId?: string }) {
+export function SmartWorkoutCard({ data, list, onStart, testId = "fit-smart", compact = false }: { data: FitData; list: LibraryExercise[]; onStart: (a: ReturnType<typeof startWorkout>) => void; testId?: string; /** On Today: just the workout and Start; the options and exercise list open with "See exercises". */ compact?: boolean }) {
   const { plan, opts, gear, setOpts, shuffle, setItems } = usePlan(data);
   const [options, setOptions] = useState(false);
+  const [open, setOpen] = useState(!compact);
   const rec = useMemo(() => recovery(data.workouts), [data.workouts]);
   const doneToday = data.workouts.some((w) => w.programId === "smart" && w.dayId === dayKey());
   const u = data.profile.units;
@@ -76,7 +77,8 @@ export function SmartWorkoutCard({ data, list, onStart, testId = "fit-smart" }: 
       </span>
     </Art>
     <div className="p-4 pt-3">
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+      {!open && <button type="button" onClick={() => setOpen(true)} className="flex min-h-11 w-full items-center justify-between rounded-[12px] px-3 text-[14px] font-semibold" style={{ background: C.card2 }} data-testid={`${testId}-see`}><span>{plan.items.length} exercises · about {plan.mins} min</span><span style={{ color: C.lime }}>See exercises</span></button>}
+      {open && <><div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
         <button type="button" onClick={() => setOptions(true)} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={{ background: C.card2 }} data-testid={`${testId}-options`}><Clock3 className="h-4 w-4" />{opts.mins} min</button>
         <button type="button" onClick={() => setOptions(true)} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={{ background: C.card2 }}><Dumbbell className="h-4 w-4" />{opts.equip === "mygym" && data.profile.gym ? gymLabel(data.profile.gym) : EQUIP_LABEL[opts.equip]}</button>
         <button type="button" onClick={() => setOptions(true)} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={{ background: C.card2 }}><SlidersHorizontal className="h-4 w-4" />{opts.focus === "auto" ? "Auto focus" : FOCUS_LABEL[opts.focus]}</button>
@@ -94,6 +96,7 @@ export function SmartWorkoutCard({ data, list, onStart, testId = "fit-smart" }: 
         </li>;
       })}</ol>
       {!plan.items.length && <p className="py-4 text-center text-[14px]" style={{ color: C.dim }}>Nothing fits that equipment. Try another option.</p>}
+      </>}
       <Btn className="mt-2 w-full !min-h-[52px] !text-[19px]" disabled={!plan.items.length} onClick={start} testId={`${testId}-start`}><Play className="h-5 w-5" fill="currentColor" />Start workout</Btn>
     </div>
     {options && <OptionsSheet opts={opts} hasGym={!!data.profile.gym} onClose={() => setOptions(false)} onChange={(o) => { setOpts(o); haptic("light"); }} />}

@@ -3,7 +3,7 @@
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Cooked prototype (fitUi.tsx).
 import AllAccessPopup from "@/components/AllAccessPopup";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
@@ -47,7 +47,7 @@ import { HealthSheet, RemindersSheet, useHealth } from "./FitHealth";
 import { saveToHealth } from "./fitNative";
 import { DIET_BY_ID, fastingStatus, pointsBudget, pointsOf } from "@shared/fitNutrition";
 import { videoOfTheDay } from "@shared/fitVideos";
-import { Bar, Btn, useDuoLook, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx, useFitLayout, useFitTheme, layoutChoice, type LayoutId } from "./fitUi";
+import { Bar, Btn, InDuoCtx, useDuoLook, C, Card, Columns, Field, Ring, Sheet, Spark, StatusShade, Title, cardStyle, fmtDur, fmtNum, font, glowBg, haptic, inputCls, inputStyle, display, stagger, useFitFonts, Layer, ThemePicker, PointsModeCtx, useFitLayout, useFitTheme, layoutChoice, type LayoutId } from "./fitUi";
 import { BloomFlower, BloomRitual, FitNav, LayoutPicker, ProTiles, StudioTrio, ZenRows, type DayVals } from "./FitLayouts";
 import { AskFitCard, FitAsk } from "./FitAsk";
 import { ProPlusAnalysis, ProPlusBoard } from "./FitProPlus";
@@ -78,6 +78,7 @@ function Glance({ icon: Icon, color, value, label, pct, onClick, testId, delay =
 
 function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSettings, onCoach, onStart, onOver, token, user, list, sleepGuess, onSkipSleep, say }: { layout: LayoutId; data: FitData; update: Update; onApp: (id: FitAppId) => void; onAllApps: () => void; onStartProgram: () => void; onSettings: () => void; onCoach: () => void; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; onOver: (o: Over) => void; token: string | null; user: string; list: ReturnType<typeof libraryFallback>; sleepGuess: SleepGuess | null; onSkipSleep: () => void; say: (m: string) => void }) {
   const today = dayKey();
+  const duo = useContext(InDuoCtx);
   const t = totals(data.foods.filter((f) => f.date === today));
   const g = dayGoals(data, latestKg(data));
   const s = streak({ ...data, workouts: data.workouts.filter(isWorkout) });
@@ -145,7 +146,7 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
       <span className="mt-1 block text-[14px]" style={{ color: C.dim }}>{next.day.items.length} exercises · about {Math.round(next.day.items.reduce((a, i) => a + i.sets * (i.rest + 45), 0) / 60)} min</span>
       <span className="mt-2 flex flex-wrap gap-1.5">{next.day.items.slice(0, 4).map((i) => <span key={i.exId} className="rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ background: C.card2 }}>{CATALOG_BY_ID.get(i.exId)?.name ?? i.exId}</span>)}{next.day.items.length > 4 && <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ background: C.card2, color: C.dim }}>+{next.day.items.length - 4}</span>}</span>
       <Btn className="relative z-[1] mt-3 w-full !min-h-[52px]" onClick={() => { haptic("medium"); onStartProgram(); }} testId="fit-today-start"><Play className="h-5 w-5" fill="currentColor" />Start workout</Btn>
-    </CoverCard> : <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-today-smart" />}
+    </CoverCard> : <SmartWorkoutCard data={data} list={list} onStart={onStart} testId="fit-today-smart" compact />}
   </div>;
   const glanceAll = <div className="mt-3 grid grid-cols-2 gap-2.5" data-testid="fit-glance">
     <Glance icon={HeartPulse} color={readyColor} value={String(ready.score)} label={ready.word} pct={ready.score / 100} onClick={() => onApp("recovery")} testId="fit-today-readiness" delay={0.05} />
@@ -180,20 +181,34 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
   const dayCard = <FitChecklist data={data} update={update} steps={health ? health.steps[today] ?? 0 : null} onApp={onApp} />;
   const checkin = sleepGuess && <SleepCheckIn guess={sleepGuess} data={data} update={update} say={say} onSkip={onSkipSleep} />;
   const footer = <>
-    <WeightCard data={data} update={update} />
-    <p className="mt-4 px-1 text-center text-[12px]" style={{ color: C.dim }}>{DIET_BY_ID.get(data.profile.dietPlan ?? "balanced")?.name} nutrition plan · change it in Food</p>
     {watch && tip && <ExerciseDetail ex={tip} data={data} onClose={() => setWatch(false)} />}
     {asking && <FitAsk token={token} onClose={() => setAsking(false)} />}
     {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
-  // Each layout arranges the same pieces its own way.
-  const body = layout === "studio" ? <>{checkin}{logFood}{dayCard}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}<div className="mt-3 grid grid-cols-2 gap-2.5">{sleepGlance}{fastGlance}</div>{extras}{tipCard}</>
-    : layout === "bloom" ? <>{checkin}{logFood}{dayCard}<BloomFlower v={v} open={open} /><BloomRitual v={v} open={open} />{heroTabs}{heroCard}{week}{extras}{tipCard}</>
-    : layout === "proplus" && insights ? <>{checkin}{logFood}{dayCard}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "pro" ? <>{checkin}{logFood}{dayCard}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}{calories}{extras}{tipCard}</>
-    : layout === "zen" ? <>{checkin}{logFood}{dayCard}{heroTabs}{heroCard}<ZenRows v={v} open={open} />{week}{extras}{tipCard}</>
-    : <>{week}{checkin}{logFood}{dayCard}{heroTabs}{heroCard}{glanceAll}{calories}{extras}{tipCard}</>;
+  // Each layout arranges the same few pieces its own way. Today stays short: check in, log food, today's
+  // goals (in To Duo they're on the Tasks screen instead), the workout and the week. Coach, split, Ask,
+  // form tips, calories and weight live on their tabs (Train, Food, Progress).
+  const goalsHere = !duo && dayCard;
+  const body = layout === "studio" ? <>{checkin}{logFood}{goalsHere}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}</>
+    : layout === "bloom" ? <>{checkin}{logFood}{goalsHere}<BloomFlower v={v} open={open} />{heroTabs}{heroCard}{week}</>
+    : layout === "proplus" && insights ? <>{checkin}{logFood}{goalsHere}<ProTiles v={v} open={open} /><ProPlusBoard i={insights} open={open} onAnalysis={() => setAnalysis(true)} onAsk={() => setAsking(true)} />{heroTabs}{heroCard}{week}</>
+    : layout === "pro" ? <>{checkin}{logFood}{goalsHere}<ProTiles v={v} open={open} />{heroTabs}{heroCard}{week}</>
+    : layout === "zen" ? <>{checkin}{logFood}{goalsHere}{heroTabs}{heroCard}{week}</>
+    : <>{checkin}{logFood}{goalsHere}{heroTabs}{heroCard}{week}</>;
+  void extras; void tipCard; void calories; void glanceAll; void sleepGlance; void fastGlance;
   return <div data-layout={layout}>{header}{body}{footer}</div>;
+}
+
+/** On Train (moved off Today so Today stays short): Ask Cooked, the coach, your split and a trip. */
+function TrainExtras({ token, data, update, list, onStart, onCoach, onVacation }: { token: string | null; data: FitData; update: Update; list: ReturnType<typeof libraryFallback>; onStart: (a: NonNullable<ReturnType<typeof readActive>>) => void; onCoach: () => void; onVacation: () => void }) {
+  const [asking, setAsking] = useState(false);
+  return <div data-testid="fit-train-extras">
+    <div className="mt-1"><CoachCard token={token} data={data} list={list} onStart={onStart} onOpen={onCoach} /></div>
+    <SplitCard data={data} update={update} onStart={onStart} />
+    {data.vacation && <VacationCard data={data} onOpen={onVacation} />}
+    <AskFitCard onOpen={() => setAsking(true)} />
+    {asking && <FitAsk token={token} onClose={() => setAsking(false)} />}
+  </div>;
 }
 
 /** This week, Monday to Sunday: a filled day for each day trained, today ringed, and the streak. */
@@ -482,7 +497,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   /** One app's screen: as a tab (inline) or a sheet over everything. */
   const screen = (id: FitAppId, inline: boolean, close: () => void) => {
     switch (id) {
-      case "train": return <Sheet inline={inline} title="Train" onClose={close} testId="fit-app-train"><TrainTab data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} say={say} onCoach={() => setCoach(true)} onMaxes={() => openApp("maxes")} onTemplates={() => openApp("templates")} onGyms={() => setOver("gyms")} /></Sheet>;
+      case "train": return <Sheet inline={inline} title="Train" onClose={close} testId="fit-app-train"><TrainExtras token={token} data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} onCoach={() => setCoach(true)} onVacation={() => setOver("vacation")} /><TrainTab data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} say={say} onCoach={() => setCoach(true)} onMaxes={() => openApp("maxes")} onTemplates={() => openApp("templates")} onGyms={() => setOver("gyms")} /></Sheet>;
       case "food": return <Sheet inline={inline} title="Food" onClose={close} testId="fit-app-food"><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></Sheet>;
       case "fast": return <FastingSheet inline={inline} data={data} update={update} onClose={close} />;
       case "run": return <OutdoorHub inline={inline} data={data} update={update} say={say} onClose={close} />;

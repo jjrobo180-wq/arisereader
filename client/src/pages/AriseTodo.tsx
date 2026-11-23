@@ -39,6 +39,7 @@ import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp
 import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
 import FamilyShared from "@/components/family-hub/FamilyShared";
 import Recaps from "@/components/family-hub/Recaps";
+import { useFamilyTransfer } from "@/lib/useFamilyTransfer";
 import { JOIN_PENDING_KEY, linksApi } from "@/lib/profileLinks";
 import StickyBoard, { ADD_STICKY_EVENT } from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
@@ -184,6 +185,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 // The parents' Arise Reader tab, built from LifeHub parts (loaded when opened).
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 const LifeTasksScreen = lazy(() => import("@/components/family-hub/LifeTasksScreen"));
+const CookedGoalsInTasks = lazy(() => import("@/components/super-apps/CookedGoalsInTasks"));
 import "./todoNight.css";
 import "./hubThemes.css";
 import { HubWaiting } from "@/lib/hubBackdrop";
@@ -889,6 +891,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   // Installed Sheets apps and Drive (App Store add-ons) may also be pinned to Home and need a
   // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
   const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  // What you share with your family lives in FamilyHub, not here (shared/familyTransfer.ts).
+  useFamilyTransfer({ on: !familySpace && sync.loaded && !sync.recovery, token, me: Number(user?.id), family, setFamily });
   const installedOffice = (family.sheetsInstalled ?? []).map((id) => officeAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   // Already on a para team: Para Team is added to LifeHub's apps once.
   useParaTeamAutoAdd(!!user && sync.loaded && !sync.recovery, token, user?.id, "life", (family.sheetsInstalled ?? []).includes("life-para-team"), () => {
@@ -1790,7 +1794,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <div className="mt-2"><RiseScoreCard page="checklist" scores={riseNow} /></div>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
-              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} />
+              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} extra={isOn("cooked", family) ? <CookedGoalsInTasks open={(app) => { setSuperStart({ app: "cooked", page: app, s: null, e: null, coach: null, at: Date.now() }); setSection("cooked" as FamilySection); }} /> : null} />
             </Suspense>
             <div className="mt-5 max-w-xl"><EmailForwardCard token={token} /></div>
           </>}
