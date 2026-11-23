@@ -124,7 +124,7 @@ def status():
         print(f"  build on the version: {b['attributes']['version'] if b else 'none'}")
     except RuntimeError as e:
         print(f"  build: {e}")
-    builds = q("builds", **{"filter[app]": APP, "sort": "-uploadedDate", "limit": 3})["data"]
+    builds = q("builds", **{"filter[app]": APP, "filter[preReleaseVersion.platform]": "IOS", "sort": "-uploadedDate", "limit": 3})["data"]
     for b in builds:
         print(f"  build {b['attributes']['version']} uploaded {b['attributes']['uploadedDate']} {b['attributes'].get('processingState')}")
     decl = q(f"appInfos/{info['id']}/ageRatingDeclaration")["data"]["attributes"]
@@ -247,7 +247,8 @@ def notes():
 
 def build():
     want = os.environ.get("BUILD", "").strip()
-    builds = q("builds", **{"filter[app]": APP, "sort": "-uploadedDate", "limit": 10})["data"]
+    # The Apple TV app's builds share the numbers: only the iPhone and iPad (IOS) ones.
+    builds = q("builds", **{"filter[app]": APP, "filter[preReleaseVersion.platform]": "IOS", "sort": "-uploadedDate", "limit": 10})["data"]
     pick = next((b for b in builds if b["attributes"].get("processingState") == "VALID" and (not want or b["attributes"]["version"] == want)), None)
     if not pick:
         raise RuntimeError(f"no processed build {want or ''}".strip())
