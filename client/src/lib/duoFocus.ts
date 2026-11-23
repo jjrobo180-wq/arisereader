@@ -33,7 +33,7 @@ export async function startFocus(task: { id: string; title: string }, minutes: n
   } catch (e: any) {
     const msg = String(e?.message || e || "");
     // An app from before the focus timer (a live update reached it, the native part didn't).
-    if (/not implemented|unimplemented|not available/i.test(msg)) throw new Error("Update Arise To Duo from TestFlight or the App Store to use the focus timer.");
+    if (/not implemented|unimplemented|not available/i.test(msg)) throw new Error("Update Arise To Duo to use the focus timer.");
     throw new Error(msg || "The focus timer couldn't start.");
   }
 }

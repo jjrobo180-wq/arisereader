@@ -142,6 +142,8 @@ export function markAppReadyWhenDrawn(): void {
  *  the next time the app goes to the background or opens again — never while it's on screen. Reloading on the
  *  spot (a few seconds after opening, or when coming back) showed up as the app freezing and losing its place.
  *  Builds whose updater already does this by itself (autoUpdate on) are left to it, so the code isn't downloaded twice. */
+/** Can this app update itself (live updates)? Not To Duo: its updates come from the App Store. */
+export const canSelfUpdate = (): boolean => { if (!isNativeApp()) return false; try { return !!(window as any).Capacitor?.isPluginAvailable?.("CapacitorUpdater"); } catch { return false; } };
 const updater = () => {
   const cap = typeof window !== "undefined" ? (window as any).Capacitor : null;
   const p = cap?.Plugins?.CapacitorUpdater;
@@ -223,7 +225,7 @@ export async function liveUpdateNow(force = false): Promise<"none" | "applied" |
 export async function checkForUpdateNow(): Promise<string> {
   if (!isNativeApp()) return "This is the website: it always has the newest version. Reload the page to get it.";
   const u = updater();
-  if (!u) return "This app can't update itself (the updater isn't in this build). It needs a new TestFlight build.";
+  if (!u) return "This app can't update itself (the updater isn't in this build). Updates come from the App Store.";
   let cur: any = null;
   try { cur = await u.current(); } catch { /* unknown */ }
   const running = String(cur?.bundle?.version || "builtin"), shipped = String(cur?.native || "");

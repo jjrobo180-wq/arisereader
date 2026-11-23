@@ -7,7 +7,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { Check, ExternalLink, Loader2 } from "lucide-react";
 import { ALL_ACCESS, allAccessLink, type AllAccessApp, usRegion } from "@shared/allAccess";
-import { LEGAL, openOutside } from "@/lib/nativeApp";
+import { LEGAL, isNativeApp, openOutside } from "@/lib/nativeApp";
 import { API_BASE } from "@/lib/queryClient";
 import { allAccessAppleOffer, appStoreCountry, appleStoreReady, buyAllAccessWithApple, restoreApplePurchases } from "@/lib/appleStore";
 
@@ -25,7 +25,9 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
   // The free trial this Apple ID can still start (App Store Connect's introductory offer), in days; 0 = none.
   const [trialDays, setTrialDays] = useState(0);
   // With the store plugin, only the App Store country decides; the phone's region is the guess for builds without it.
-  const [us, setUs] = useState(() => (apple ? false : usRegion()));
+  // The US website link only when the App Store storefront itself is the US one (never guessed from the
+  // phone's language), so App Review sees exactly what customers in each storefront see.
+  const [us, setUs] = useState(() => (apple || isNativeApp() ? false : usRegion()));
   const [busy, setBusy] = useState<"" | "buy" | "restore">("");
   const [msg, setMsg] = useState("");
   useEffect(() => {

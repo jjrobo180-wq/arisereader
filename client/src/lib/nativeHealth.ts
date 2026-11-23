@@ -49,7 +49,7 @@ export async function askHealthPermission(): Promise<void> {
   catch (e: any) {
     const msg = String(e?.message || e || "");
     // Without the HealthKit capability in the app's signing profile, iOS refuses before showing anything.
-    if (/entitlement|not authorized to use|com\.apple\.developer\.healthkit/i.test(msg)) throw new Error("This build of Arise To Duo can't use Apple Health yet (HealthKit isn't switched on for the app). Update the app from TestFlight, then try again.");
+    if (/entitlement|not authorized to use|com\.apple\.developer\.healthkit/i.test(msg)) throw new Error("This build of Arise To Duo can't use Apple Health yet (HealthKit isn't switched on for the app). Update the app, then try again.");
     throw new Error(`Apple Health didn't connect: ${msg || "no answer"}. Try again, or check Settings → Health → Data Access & Devices → Arise To Duo.`);
   }
 }

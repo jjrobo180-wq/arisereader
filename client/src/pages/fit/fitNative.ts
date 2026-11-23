@@ -9,8 +9,8 @@ const health = (method: string, options?: unknown) => nativeCall(/^Health$|Capac
 const notes = (method: string, options?: unknown) => nativeCall(/LocalNotifications/i, "LocalNotifications", method, options);
 const friendly = (e: any, what: string) => {
   const m = String(e?.message || e || "");
-  if (/not implemented|unimplemented|plugin|not available/i.test(m)) return new Error(`${what} needs the newest Cooked from TestFlight.`);
-  if (/entitlement|healthkit/i.test(m)) return new Error("Apple Health isn't switched on for this build yet. Update Cooked from TestFlight.");
+  if (/not implemented|unimplemented|plugin|not available/i.test(m)) return new Error(`${what} needs the newest version of the app.`);
+  if (/entitlement|healthkit/i.test(m)) return new Error("Apple Health isn't switched on for this build yet. Update the app.");
   return new Error(m || `${what} didn't answer. Try again.`);
 };
 

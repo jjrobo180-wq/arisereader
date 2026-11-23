@@ -14,7 +14,7 @@ export function TaskFocus({ task, say }: { task: { id: string; title: string; do
   // The To Duo iPhone app from before the focus timer: say so, instead of showing nothing.
   if (!focusSupported()) return isNativeApp() && nativeFlavor() === "todo" ? (
     <p className="rounded-2xl bg-violet-50 p-3 text-xs font-semibold text-violet-900 ring-1 ring-violet-100" data-testid="work-task-focus-update">
-      <Timer className="mr-1 inline h-4 w-4" />Focus timer: update Arise To Duo from TestFlight to get a timer on your Lock Screen and in the Dynamic Island.
+      <Timer className="mr-1 inline h-4 w-4" />Focus timer: update Arise To Duo to get a timer on your Lock Screen and in the Dynamic Island.
     </p>
   ) : null;
   const mine = focus?.id === task.id;

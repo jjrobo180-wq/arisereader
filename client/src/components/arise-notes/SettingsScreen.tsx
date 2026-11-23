@@ -8,7 +8,7 @@ import { NOTES_PLANS, NOTES_THEMES, SUITE_LOOKS, dayWords, type NotesPlanId, typ
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { NATIVE_NO_PURCHASE, isNativeApp } from "@/lib/nativeApp";
-import { checkForUpdateNow } from "@/lib/nativeApp";
+import { canSelfUpdate, checkForUpdateNow } from "@/lib/nativeApp";
 import { api, notesApi, type Billing } from "./api";
 import { removeAllLocalNotes } from "./localNotes";
 import { PrivacyPicker, defaultPrivacy, rememberPrivacy, useOnDevice } from "./privacyMode";
@@ -93,7 +93,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
       </Group>
       <AppsGroup ctx={ctx} />
       <Group title="More">
-        <Row label="Check for updates" detail={updateMsg || "Get the newest version now"} onClick={() => { setUpdateMsg("Checking…"); void checkForUpdateNow().then(setUpdateMsg); }} testId="notes-check-update" />
+        {canSelfUpdate() && <Row label="Check for updates" detail={updateMsg || "Get the newest version now"} onClick={() => { setUpdateMsg("Checking…"); void checkForUpdateNow().then(setUpdateMsg); }} testId="notes-check-update" />}
         <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
         {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
       </Group>

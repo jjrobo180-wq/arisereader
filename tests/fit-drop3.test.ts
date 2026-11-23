@@ -17,7 +17,7 @@ test("Health and reminders go through Capacitor's bridge and fail with a clear m
   const n = readFileSync("client/src/pages/fit/fitNative.ts", "utf8");
   assert.match(n, /nativeCall\(\/\^Health\$\|CapacitorHealth\/i, "Health"/);
   assert.match(n, /nativeCall\(\/LocalNotifications\/i, "LocalNotifications"/);
-  assert.match(n, /needs the newest Cooked from TestFlight/);
+  assert.match(n, /needs the newest version of the app/);
   for (const f of ["FitApp.tsx", "FitTrain.tsx", "FitRun.tsx"]) assert.match(readFileSync(`client/src/pages/fit/${f}`, "utf8"), /saveToHealth\(/, `${f} saves to Health`);
   assert.match(readFileSync("client/src/pages/fit/FitFasting.tsx", "utf8"), /scheduleFastEnd\(/);
 });

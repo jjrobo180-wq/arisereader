@@ -160,6 +160,7 @@ import { HubWaiting } from "@/lib/hubBackdrop";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderHost, isReaderPage } from "@/lib/hubs";
 import NativePlans from "@/components/NativePlans";
+import { todoNativeAllows } from "@shared/todoNativeRoutes";
 import { isEyeGazerApp, isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, nativeFlavor } from "@/lib/nativeApp";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
@@ -648,6 +649,8 @@ function AppRoutes() {
     // React stopped with error 426 and the Educator app showed "Something went wrong").
     return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}><AriseReader /></Suspense>;
   }
+  // The To Duo iPhone app opens only To Duo's own pages (shared/todoNativeRoutes.ts).
+  if (isNativeApp() && nativeFlavor() === "todo" && !todoNativeAllows(routePath)) return isLoading ? null : <Redirect key="todo-only" to={user ? hubPathFor(user) : "/signin"} replace />;
   return (
     <Suspense fallback={<PageFallback path={routePath} />}>
     <Switch key={routePath}>
