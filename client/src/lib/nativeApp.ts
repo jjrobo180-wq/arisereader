@@ -1,6 +1,8 @@
 // The Arise To Duo iPhone app runs this same site from capacitor://localhost. These helpers say when
 // we're inside it and call its native plugins (Apple Health, Calendar) without importing their
 // JavaScript packages, so the website build never depends on them.
+/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+declare const __TODO_APP__: boolean | undefined;
 type Bridge = {
   PluginHeaders?: { name: string }[];
   nativePromise?: (plugin: string, method: string, options?: unknown) => Promise<any>;

@@ -3,6 +3,8 @@
 // (Arise Undercover's own app asks through client/src/undercover/askUndercover.ts instead.)
 import { API_BASE, apiAuthToken } from "@/lib/queryClient";
 import { wantsWeather, weatherPlaceFrom } from "@shared/askText";
+/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+declare const __TODO_APP__: boolean | undefined;
 export { answerLines } from "@shared/askText";
 
 export type AskMsg = { role: "user" | "assistant"; content: string };

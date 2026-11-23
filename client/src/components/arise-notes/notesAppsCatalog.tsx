@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { ChevronRight, EyeOff, FileText, Layers, LayoutGrid, ListChecks, Palette, PenLine, Presentation, StickyNote, Table2, Timer } from "lucide-react";
 import { useAppData } from "@/lib/cloudDocs";
 import type { AppCtx } from "./NotesApp";
+/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+declare const __TODO_APP__: boolean | undefined;
 
 export type NotesAppId = "stickies" | "lists" | "whiteboard" | "sheets" | "slides" | "docs" | "design" | "flashcards" | "focus" | "undercover";
 export type NotesAppInfo = { id: NotesAppId; name: string; short: string; tagline: string; about: string; color: string; icon: ReactNode; group: "Write & plan" | "Office" | "Study" };

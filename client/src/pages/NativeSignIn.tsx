@@ -14,6 +14,8 @@ import { LEGAL, NATIVE_APPS, nativeAppInfo, nativeFlavor, type NativeFlavor } fr
 import { API_BASE } from "@/lib/queryClient";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
+/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+declare const __TODO_APP__: boolean | undefined;
 
 type Screen = "welcome" | "signin" | "signup" | "code" | "forgot";
 

@@ -49,7 +49,10 @@ test("the Undercover looks and words are dropped from the app's build", () => {
   assert.ok(read("client/src/components/arise-notes/notesAppsCatalog.tsx").includes(`...(${T} ? [] : [`));
   assert.ok(read("client/src/lib/aiConsent.ts").includes(`...(${T} ? [] : [/\\/api\\/undercover\\/chat$/]),`));
   assert.ok(read("client/src/lib/nativeApp.ts").includes(`undercover: ${T} ? (undefined as never) : {`));
-  assert.match(read("client/src/buildFlags.d.ts"), /declare const __TODO_APP__: boolean \| undefined;/);
+  // Each file declares it for itself, so every type check (the website's, Podster's) knows it.
+  for (const f of ["client/src/pages/NativeSignIn.tsx", "client/src/components/arise-notes/notesAppsCatalog.tsx", "client/src/lib/aiConsent.ts", "client/src/lib/askAi.ts", "client/src/lib/nativeApp.ts"]) {
+    assert.match(read(f), /declare const __TODO_APP__: boolean \| undefined;/, f);
+  }
   for (const w of ["decoy chat", "Quick hide", "looks like texting", "CapacitorUpdater", "/api/ota/", "notifyAppReady"]) assert.ok(TODO_FORBIDDEN.includes(w), w);
 });
 
