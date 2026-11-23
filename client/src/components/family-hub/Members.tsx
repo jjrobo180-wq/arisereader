@@ -89,7 +89,6 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   timers: { label: "Kitchen timers", detail: "Several timers at once", icon: <TimerIcon2 size={17} /> },
   accountability: { label: "Accountability", detail: "Ask each other, get nudged, check it off with proof", icon: <BadgeCheckIcon4 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
-  browser: { label: "Browser", detail: "Browse, bookmark and save pages as tasks", icon: <GlobeIcon2 size={17} /> },
   inspire: { label: "Journal & Inspiration", detail: "Journal, quotes, gratitude", icon: <BookOpenIcon size={17} /> },
   kitchen: { label: "Kitchen", detail: "Shop, plan, cook", icon: <ChefHatIcon size={17} /> },
   moneyhub: { label: "Money", detail: "Budget, bills, loans, savings", icon: <Wallet size={17} /> },

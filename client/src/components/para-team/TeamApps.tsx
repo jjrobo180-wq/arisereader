@@ -9,7 +9,6 @@ import { ICONS } from "@/components/plugin-store/PluginStore";
 import { KIT_ICONS } from "@/components/plugin-kit/kitIcons";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import FamilyCalendar from "@/components/family-hub/FamilyCalendar";
-import Browser from "@/components/family-hub/Browser";
 import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
 import { cleanFamily, emptyFamily, MEMBER_COLORS, type Family, type FamilySection, type Member } from "@shared/familyHub";
 import { kitDef } from "@shared/pluginKit";
@@ -182,8 +181,6 @@ export function TeamAppPage({ appKey }: { appKey: string }) {
     body = def ? <KitPlugin key={def.id} def={def} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={p.today} makeId={makeId} say={p.say} /> : null;
   } else if (app.target === "calendar") {
     body = <FamilyCalendar {...common} tasks={[]} onOpenTasks={() => p.go("tasks")} />;
-  } else if (app.target === "browser") {
-    body = <Browser {...common} onAddTask={(title, url) => void p.act(() => p.api.add("task", { title: title.slice(0, 200), note: url }), "Added to the team's to-dos.")} />;
   } else {
     body = LIFE_VIEWS[app.target as FamilySection]?.(common) ?? null;
   }

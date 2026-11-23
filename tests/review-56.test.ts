@@ -67,3 +67,23 @@ test("App Review: one paid plan, no ad stripping or trainer online-coaching paym
   assert.match(rules, /\*\*No live updates\.\*\*/);
   assert.match(rules, /\*\*To Duo alone in the To Duo app\.\*\*/);
 });
+
+test("no Browser plugin: not in the Plugin Gallery, the hubs, split screen or the team apps, and its screen is gone", async () => {
+  const { PLUGINS } = await import("../shared/pluginStore");
+  assert.ok(!PLUGINS.some((p: any) => p.id === "life-browser" || p.name === "Browser"), "not in the Plugin Gallery");
+  const { FAMILY_SECTIONS, cleanFamily, emptyFamily } = await import("../shared/familyHub");
+  assert.ok(!(FAMILY_SECTIONS as readonly string[]).includes("browser"));
+  // Someone who had added it: it simply drops off their menu.
+  const had: any = { ...emptyFamily(), sections: { ...emptyFamily().sections, browser: true }, sectionOrder: ["browser", "health"] };
+  const clean: any = cleanFamily(had);
+  assert.equal(clean.sections.browser, undefined);
+  assert.ok(!clean.sectionOrder.includes("browser"));
+  for (const f of ["client/src/pages/AriseTodo.tsx", "client/src/components/para-team/TeamApps.tsx", "client/src/lib/duoSplit.ts"]) {
+    assert.doesNotMatch(readFileSync(f, "utf8"), /family-hub\/Browser|"browser"/, f);
+  }
+  assert.throws(() => readFileSync("client/src/components/family-hub/Browser.tsx", "utf8"), "the screen itself is gone");
+  // App Store: no unrestricted web access to declare.
+  const asc = readFileSync(".github/scripts/todo_review_fix.py", "utf8");
+  assert.match(asc, /AGE_YES = \{"userGeneratedContent", "messagingAndChat", "healthOrWellnessTopics"\}/);
+  assert.match(asc, /There is no web browser in the app\./);
+});

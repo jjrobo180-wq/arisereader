@@ -26,7 +26,6 @@ export const PANE_OPTIONS: PaneOption[] = [
   life("countdowns", "Countdowns"),
   life("lifeplan", "AI Reminders"),
   life("focus", "Focus timer"),
-  life("browser", "Browser"),
   { id: "arisenotes", label: "Arise Notes", path: "/arise-notes?pane=1", group: "LifeHub" },
 ];
 

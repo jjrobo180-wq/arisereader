@@ -1,8 +1,8 @@
 """Arise To Duo's App Store Connect page, for the App Review 5.6 resubmission (run by todo-review-fix.yml).
 
   PARTS=status   reads and prints everything below. Changes nothing.
-  PARTS=age      answers the age rating questions as the app really is (web browser, user posts and messages,
-                 health and fitness topics), so the rating isn't 4+ for an app with a web browser.
+  PARTS=age      answers the age rating questions as the app really is (user posts and messages, health and
+                 fitness topics; no web browser since the Browser plugin was taken out).
   PARTS=china    takes the app off sale in China mainland (it would need generative-AI filings there).
   PARTS=iap      renames the subscription "Arise To Duo Unlimited" and rewrites its description and review note
                  (only while it isn't waiting for or in review: App Store Connect locks it then).
@@ -47,7 +47,7 @@ Demo accounts
 {subscribed}
 What is in the app
 - LifeHub (your own tasks, calendar, notes), FamilyHub (shared with family members you invite by code) and WorkHub (work tasks), switched at the top.
-- Plugins from the Plugin Gallery: Notes (record, transcribe, and an "Ask AI" chat), Cooked (fitness diary; reads steps, active calories and weight from Apple Health), Cooked PT (coaching), Podster (podcasts, public-domain audiobooks and music, radio), Browser (opens web pages in the app), Rise Score and more.
+- Plugins from the Plugin Gallery: Notes (record, transcribe, and an "Ask AI" chat), Cooked (fitness diary; reads steps, active calories and weight from Apple Health), Cooked PT (coaching), Podster (podcasts, public-domain audiobooks and music, radio), Rise Score and more. There is no web browser in the app.
 - WorkHub's extra teacher tools (classes and students) are for teachers whose school has an Arise license, sold to schools outside the app (3.1.3(c)); nothing in the app sells them. Both accounts above show everything else.
 - Arise To Duo Unlimited: auto-renewing monthly subscription through Apple in-app purchase. It unlocks every plugin and unlimited AI. On the US storefront only, the app also shows a link to buy on our website, as 3.1.1(a) allows.
 
@@ -57,7 +57,7 @@ Privacy and safety
 - Account deletion: ... > Account & privacy > Delete my account."""
 
 # The age rating questions, as the app is. Booleans not listed are "no"; levels not listed are "none".
-AGE_YES = {"unrestrictedWebAccess", "userGeneratedContent", "messagingAndChat", "healthOrWellnessTopics"}
+AGE_YES = {"userGeneratedContent", "messagingAndChat", "healthOrWellnessTopics"}
 AGE_LEVELS = {"medicalOrTreatmentInformation": "INFREQUENT_OR_MILD"}
 
 

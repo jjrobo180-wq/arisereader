@@ -72,7 +72,6 @@ test("full-screen views the hubs open never put their Back or Close under the cl
     "client/src/components/teacher-hub/HubModal.tsx",
     "client/src/components/teacher-hub/HubGoalQuiz.tsx",
     "client/src/components/family-hub/DriveApp.tsx",
-    "client/src/components/family-hub/Browser.tsx",
     "client/src/components/family-hub/Accountability.tsx",
     "client/src/components/family-hub/PhoneMenu.tsx",
     "client/src/components/family-hub/earshot/EarshotCreators.tsx",

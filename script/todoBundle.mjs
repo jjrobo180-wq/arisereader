@@ -56,4 +56,4 @@ export function todoLeavesOut(file, root) {
 export const TODO_STAND_IN = "export default function LeftOutOfToDuo(props) { return props && props.children !== undefined ? props.children : null; }\n";
 
 /** Words that must never be in the To Duo app: the build fails if any is (.github/scripts/prune_todo_bundle.sh). */
-export const TODO_FORBIDDEN = ["UndercoverApp", "decoy chat", "Quick hide", "looks like texting", "CapacitorUpdater", "/api/ota/", "notifyAppReady"];
+export const TODO_FORBIDDEN = ["browser-frame", "UndercoverApp", "decoy chat", "Quick hide", "looks like texting", "CapacitorUpdater", "/api/ota/", "notifyAppReady"];
