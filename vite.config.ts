@@ -19,8 +19,11 @@ export default defineConfig({
     // Render's build has a 2 GB machine; working out each file's gzip size for the report holds every file in
     // memory at the end and ran it out of memory (Nov 18, 2026). The sizes are only printed, never used.
     reportCompressedSize: false,
+    // Not keeping Rollup's module cache after the build lowers its peak memory on that 2 GB machine (out of memory
+    // again on Nov 22, 2026, while rendering chunks).
     // Two pages: the A.R.I.S.E. / Arise To Duo app, and Arise Notes on its own at /notes/.
     rollupOptions: {
+      cache: false,
       input: {
         main: path.resolve(import.meta.dirname, "client", "index.html"),
         notes: path.resolve(import.meta.dirname, "client", "notes", "index.html"),

@@ -26,6 +26,7 @@ export type OsProps = {
   /** The hub's name and its Work/Life switch, always at the top. */ hubName: string; hubSwitch: ReactNode;
   /** The notification bell, in the top bar beside the switch (in the bar's own row, so it can never cover "Work"). */ bell?: ReactNode;
   /** Shown at the bottom of Home: invitations and the hub's standing banner. */ banner?: ReactNode;
+  /** The Rise Score card (client/src/components/RiseScoreCard.tsx), shown at the top of Home and Tasks. */ scoreCard?: { home?: ReactNode; tasks?: ReactNode };
   /** Main apps turned off in the Plugin Gallery, which leave the dock. */ off?: OsScreen[];
   /** Apps behind the passcode, whose details stay off Home until it is entered. */ lockedApps?: string[];
   /** Problems to show on any screen, such as a save that failed. */
@@ -285,8 +286,8 @@ export function LookOS(p0: OsProps) {
     <header className="los-topbar"><b>{p.look.id === "console" ? `~/${p.hubName.toLowerCase()}` : p.hubName}</b><div className="los-topright">{p.bell}{p.hubSwitch}</div></header>
     <div className="los-body">
       {p.look.id === "gazette" && p.screen !== "home" && <div className="los-paper"><header><h1>The Daily Duo</h1><small>{p.dateLabel}</small></header></div>}
-      {p.screen === "home" && <><Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
-      {p.screen === "tasks" && win("Tasks", <LockedApp locked={locked("tasks")} name="Tasks">{taskScreen}</LockedApp>)}
+      {p.screen === "home" && <>{p.scoreCard?.home && <div className="los-pad">{p.scoreCard.home}</div>}<Home {...p} />{p.banner && <div className="los-banner">{p.banner}</div>}</>}
+      {p.screen === "tasks" && win("Tasks", <LockedApp locked={locked("tasks")} name="Tasks">{p.scoreCard?.tasks && <div className="los-pad">{p.scoreCard.tasks}</div>}{taskScreen}</LockedApp>)}
       {p.screen === "calendar" && win("Calendar", <div className="los-pad"><header className="los-title"><h1>Calendar</h1></header><CalendarWidget look={p.look} days={p.days} go={() => {}} big />{p.look.id === "tide" && <TideAgenda days={p.days.slice(0, 14)} go={() => {}} />}<div className="los-app">{p.content}</div></div>)}
       {p.screen === "notes" && win("Notes", <div className="los-pad"><div className="los-app">{p.content}</div></div>)}
     </div>
