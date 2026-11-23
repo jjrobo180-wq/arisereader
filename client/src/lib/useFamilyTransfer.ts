@@ -49,12 +49,16 @@ export async function moveToOtherHub(space: Space, token: string, item: HubItem,
   return true;
 }
 
-/** Who is in my family (ids), or null when I'm not in one with anyone else. */
+/** Who is in my family (ids), or null when I have no FamilyHub. A family of one counts: what I share with
+ *  someone still moves to my FamilyHub even before they join it. */
 async function familyIds(token: string): Promise<number[] | null> {
   const info = await fetch(`${API_BASE}/api/family-space`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const ids: number[] = (info?.family?.members || []).map((m: any) => Number(m.id));
-  return ids.length >= 2 ? ids : null;
+  return ids.length >= 1 ? ids : null;
 }
+/** Everyone I share with counts as family for moving: shares are household things (Potty Training,
+ *  Kitchen, Accountability…), and the person often hasn't joined the FamilyHub yet. */
+const withEveryone = (ids: number[], mine: { viewerId?: number | null }[]) => [...new Set([...ids, ...mine.map((l) => Number(l.viewerId)).filter((n) => Number.isSafeInteger(n) && n > 0)])];
 
 /** Moves what I share with my family into FamilyHub, quietly, a moment after LifeHub or FamilyHub opens.
  *  Anything that can't move now (offline, someone saving at the same moment) is tried again next time. */
@@ -72,7 +76,7 @@ export function useFamilyTransfer({ space, on, token, me, data, setData }: { spa
         if (!links) return;
         if (space === "life") {
           // In LifeHub: FamilyHub's saved copy gets everything, then it's turned off here.
-          const m = pendingMoves(links.mine, ids, me, dataRef.current.family);
+          const m = pendingMoves(links.mine, withEveryone(ids, links.mine), me, dataRef.current.family);
           if (!m.ids.length) return;
           const life = dataRef.current;
           if (await changeHub("family", token, (fam) => intoFamily(life, fam, m)) !== "ok") return;
@@ -81,7 +85,7 @@ export function useFamilyTransfer({ space, on, token, me, data, setData }: { spa
           // In FamilyHub: everything comes in here first, then my LifeHub's saved copy turns it off.
           const got = await readHub("life", token);
           if (!got) return;
-          const m = pendingMoves(links.mine, ids, me, got.ws.family);
+          const m = pendingMoves(links.mine, withEveryone(ids, links.mine), me, got.ws.family);
           if (!m.ids.length) return;
           setData((d) => intoFamily(got.ws, d, m));
           await changeHub("life", token, (life) => outOfLife(life, m));

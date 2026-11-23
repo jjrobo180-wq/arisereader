@@ -1103,14 +1103,14 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const [privacy, setPrivacy] = useState(false);
   /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
    *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
-  const [notesAppOpen, setNotesAppOpenState] = useStayOnRefresh<string | null>("life-notes-app", null);
+  const [notesAppOpen, setNotesAppOpenState] = useStayOnRefresh<string | null>(familySpace ? "family-notes-app" : "life-notes-app", null);
   const setNotesAppOpen = (id: string | null) => { setNotesAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   /** Notes-app plugins this family added from the Store that aren't built into LifeHub. */
   const myNotesApps = pinnableNotes;
   const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
     setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
   /** Sheets, Drive, and Drop (App Store add-ons) open full-page, the same way a Notes-app install does. */
-  const [sheetsAppOpen, setSheetsAppOpenState] = useStayOnRefresh<string | null>("life-sheets-app", null);
+  const [sheetsAppOpen, setSheetsAppOpenState] = useStayOnRefresh<string | null>(familySpace ? "family-sheets-app" : "life-sheets-app", null);
   const setSheetsAppOpen = (id: string | null) => { setSheetsAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   const [driveOpen, setDriveOpenState] = useStayOnRefresh("life-drive", false);
   const setDriveOpen = (on: boolean) => { setDriveOpenState(on); if (on) window.scrollTo({ top: 0 }); };
@@ -1118,7 +1118,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const setDropOpen = (on: boolean) => { setDropOpenState(on); if (on) window.scrollTo({ top: 0 }); };
   /** A Kit plugin added from WorkHub's shelf (App Store), open full-page. LifeHub's own kit plugins
    *  are menu sections; these crossed-over ones work like a Notes-app install. */
-  const [kitOpen, setKitOpenState] = useStayOnRefresh<string | null>("life-kit", null);
+  const [kitOpen, setKitOpenState] = useStayOnRefresh<string | null>(familySpace ? "family-kit" : "life-kit", null);
   const setKitOpen = (id: string | null) => { setKitOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   /** The floating add menu (bottom right), the same idea as WorkHub's: one button that adds
    *  anything, instead of a + wedged into the header beside the search, bell and ⋯ buttons. */
@@ -1182,7 +1182,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const openReader = () => { closeApps(); goToReader(); };
   const phoneItems: PhoneMenuItem[] = [
     // Right below Home: Arise Reader, then Arise Learning (Math, History, Connect), for everyone.
-    ...collapseGroups([...builtInSections, ...installedSections], sections).filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: groupLabel(id, sections, SECTION_INFO[id].label), icon: <Icon />, active: !notesAppOpen && leadOf(shown, sections) === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
+    ...collapseGroups([...builtInSections, ...installedSections], sections).filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: groupLabel(id, sections, SECTION_INFO[id].label), icon: <Icon />, active: !notesAppOpen && !kitOpen && !sheetsAppOpen && leadOf(shown, sections) === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
       return id !== "home" || !learningHere ? [item] : [item,
         { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
@@ -1431,9 +1431,9 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
                 <button
                   onClick={() => { if (held.current) { held.current = false; return; } closeApps(); goSection(id); }}
                   {...(movable ? holdToRemove(id) : {})}
-                  aria-current={leadOf(shown, sections) === id ? "page" : undefined}
+                  aria-current={!kitOpen && !notesAppOpen && !sheetsAppOpen && leadOf(shown, sections) === id ? "page" : undefined}
                   data-testid={`life-section-${id}`}
-                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${!kitOpen && !notesAppOpen && !sheetsAppOpen && shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
                   <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
                 </button>
