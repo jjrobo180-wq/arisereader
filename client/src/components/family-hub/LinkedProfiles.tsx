@@ -184,7 +184,7 @@ function grantSummary(g: Grants, catalog: ShareItem[]): string {
   return names.length ? `${names.slice(0, 4).join(", ")}${names.length > 4 ? ` and ${names.length - 4} more` : ""}` : "Nothing yet";
 }
 
-function ItemIcon({ item }: { item: ShareItem }) {
+export function ItemIcon({ item }: { item: ShareItem }) {
   if (item.emoji) return <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg" aria-hidden>{item.emoji}</span>;
   const Icon = kitIcon(item.icon || "Puzzle");
   return <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: item.color || "#64748b" }} aria-hidden><Icon size={17} /></span>;
@@ -295,7 +295,7 @@ export function LinkSomeoneModal({ family, onClose, onDone, say, initialGrants, 
   </Modal>;
 }
 
-function LifeViewModal({ owner, item, onClose }: { owner: SharedLink; item: ShareItem; onClose: () => void }) {
+export function LifeViewModal({ owner, item, onClose }: { owner: SharedLink; item: ShareItem; onClose: () => void }) {
   const { token } = useAuth();
   const [data, setData] = useState<{ view: any; today: string } | null>(null);
   const [error, setError] = useState("");

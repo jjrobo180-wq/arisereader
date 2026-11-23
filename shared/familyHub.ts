@@ -7,6 +7,7 @@ import { isLinkTheme, type LinkPageTheme } from "./linkPageLook";
 import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan";
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
+import { cleanRecaps } from "./recaps";
 import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
 import { cleanDriveFiles, type DriveFile } from "./driveApp";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
@@ -259,6 +260,8 @@ export type Family = {
   widgetBoard?: WidgetItem[];
   /** How the family arranged the hub in Customize (see shared/lifeLayout.ts). Not set: the usual layout. */
   layout?: LifeLayout;
+  /** Recaps on Home: Yesterday or This week, and which apps' recaps are off (shared/recaps.ts). Not set: on, Yesterday. */
+  recaps?: import("./recaps").RecapPrefs;
   stickies: Sticky[];
   randomLists: RandomList[];
   savedWords: SavedWord[];
@@ -639,6 +642,7 @@ export function cleanFamily(input: unknown): Family {
     widgets: { stickies: bool(obj(raw.widgets)?.stickies, false), ...(bool(obj(raw.widgets)?.chat, false) ? { chat: true } : {}), ...(bool(obj(raw.widgets)?.board, false) ? { board: true } : {}) },
     ...(Array.isArray(raw.widgetBoard) ? { widgetBoard: cleanWidgets(raw.widgetBoard) } : {}),
     ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
+    ...(obj(raw.recaps) ? { recaps: cleanRecaps(raw.recaps) } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {
       const name = typedEnd(str(r.name, 60));
