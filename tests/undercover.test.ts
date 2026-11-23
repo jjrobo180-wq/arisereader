@@ -93,7 +93,7 @@ test("chat route: knows the time and gets the real weather", async () => {
 });
 
 test("wired into the site, the app and the iPhone build", () => {
-  assert.match(read("server/routes.ts"), /registerUndercoverRoutes\(app, authMiddleware\)/);
+  assert.match(read("server/routes.ts"), /registerUndercoverRoutes\(app, authMiddleware[,)]/);
   assert.match(read("vite.config.ts"), /client", "undercover", "index.html"/);
   assert.match(read("client/src/App.tsx"), /isUndercoverApp\(\)/);
   const notes = read("client/src/components/arise-notes/NotesApp.tsx");
