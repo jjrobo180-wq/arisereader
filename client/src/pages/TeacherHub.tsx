@@ -208,6 +208,7 @@ import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQu
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
+import { FocusButton, FocusExit } from "@/components/FocusMode";
 import HeaderShortcut, { type ShortcutChoice } from "@/components/HeaderShortcut";
 import { smartDate } from "@shared/smartDate";
 import { IPHONE_CALENDAR_URL, isIphoneCalendar, readIphoneEvents } from "@/lib/nativeCalendar";
@@ -1322,7 +1323,7 @@ function TeacherHubPage() {
         onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
       {/* Blends into the page (no white bar or line), and slides away as you scroll down on a phone. */}
-      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} bg-slate-100 py-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && workHeaderHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-header-hidden={!osCore && workHeaderHidden ? "true" : undefined}>
+      <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} bg-slate-100 py-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && workHeaderHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-duo-chrome="" data-header-hidden={!osCore && workHeaderHidden ? "true" : undefined}>
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
@@ -1347,6 +1348,7 @@ function TeacherHubPage() {
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
             <LockButton className="hidden sm:inline-flex duo:hidden" />
+            <FocusButton className="hidden lg:inline-flex duo:hidden" />
             <HubMoreMenu testId="hub-more" open={more} setOpen={setMore} groups={moreGroups}
               buttonClass="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
               status={view.kind === "retrying" || view.kind === "blocked" ? <span className="inline-flex items-center gap-2 font-semibold text-red-700"><AlertTriangle className="h-4 w-4 text-red-600" />Not saved</span>
@@ -1356,12 +1358,12 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className={`mx-auto grid grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} ${deskGrid} ${deskSidebar ? "md:!gap-0 md:!px-0 md:!py-0" : "max-w-[1500px] md:px-6"}`}>
-        {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
+      <div data-duo-grid="" className={`mx-auto grid grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} ${deskGrid} ${deskSidebar ? "md:!gap-0 md:!px-0 md:!py-0" : "max-w-[1500px] md:px-6"}`}>
+        {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show" data-duo-chrome=""
           className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
           {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
         {(drawerMenu || deskDrawer) && !apps && !osOn && (
-          <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open"
+          <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open" data-duo-chrome=""
             onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (appsSwipe.current !== null && appsSwipe.current - e.touches[0].clientY > 30) { appsSwipe.current = null; setApps(true); } }}
             className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 ${drawerMenu && !tabBar ? "inline-flex" : "hidden"} ${deskDrawer ? "md:inline-flex" : "md:hidden"}`}>
             <AppsIcon className="h-6 w-6" />
@@ -1468,7 +1470,7 @@ function TeacherHubPage() {
             </div>
           </div>
         )}
-        <aside data-tour="hub-menu" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
+        <aside data-tour="hub-menu" data-duo-chrome="" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
           <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${deskList}`}>
             {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
             <div className={`hidden px-3 py-3 ${deskTop || deskCompact ? "" : "md:block"}`}>
@@ -2082,6 +2084,7 @@ function TeacherHubPage() {
           </LockedApp>}
         </main>
       </div>
+      <FocusExit />
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={(side === "bottom" && menuOpen) || tabBar ? 4.9 : 0} />}
       {searching && <HubSearch entries={searchEntries} hubName="WorkHub" accent="bg-teal-700" onClose={() => setSearching(false)} />}
       {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
@@ -2090,7 +2093,7 @@ function TeacherHubPage() {
       {notifyOpen && <HubModal title="Notification settings" onClose={() => setNotifyOpen(false)} closeOnBackdrop size="lg"><HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} inModal /></HubModal>}
       {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <div ref={addRef} className={`${osOn ? "los-addwrap " : ""}fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
+        <div ref={addRef} data-duo-chrome="" className={`${osOn ? "los-addwrap " : ""}fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${tabBar ? "max-md:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-md:left-1/2 max-md:right-auto md:left-auto" : side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "" : side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-md:bottom-0 max-md:right-auto max-md:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>

@@ -137,6 +137,7 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+const FamilyHub = lazyPage(() => import("./pages/FamilyHub"));
 const Register = lazyPage(() => import("./pages/Register"));
 const TeacherSignup = lazyPage(() => import("./pages/TeacherSignup"));
 const ParentSignup = lazyPage(() => import("./pages/ParentSignup"));
@@ -403,7 +404,7 @@ function AdminPreviewBar() {
   // keep silently narrowing what they can see on these pages.
   useEffect(() => {
     if (!adminPreviewMode) return;
-    if (location === "/admin" || location === "/workhub" || location === "/lifehub") exitAdminPreview();
+    if (location === "/admin" || location === "/workhub" || location === "/lifehub" || location === "/familyhub") exitAdminPreview();
   }, [location, adminPreviewMode, exitAdminPreview]);
 
   if (!realUser?.isAdmin || !adminPreviewMode) return null;
@@ -560,7 +561,7 @@ function TodoPublicHomeRedirect() {
 /** While a page's code arrives: the last hub's own background (never a white flash on a dark theme),
  *  and a loading circle only if it takes more than a moment — a quick switch shows nothing at all. */
 function PageFallback({ path }: { path: string }) {
-  const hub = /^\/(workhub|teacher-hub|lifehub|to-do|duo)(\/|$)/.test(path);
+  const hub = /^\/(workhub|teacher-hub|lifehub|familyhub|to-do|duo)(\/|$)/.test(path);
   return hub ? <HubWaiting /> : <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" style={{ opacity: 0, animation: "spin 1s linear infinite, arise-fade-in .3s ease .6s forwards" }} /></div>;
 }
 
@@ -678,7 +679,10 @@ function AppRoutes() {
         <AppSignInGate flavor="trainer"><ProtectedRoute><TrainerApp /></ProtectedRoute></AppSignInGate>
       </Route>
       <Route path="/lifehub">
-        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo key="life" /></TodoGate>}
+      </Route>
+      <Route path="/familyhub">
+        {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : !user ? <Redirect to="/signin" replace /> : <FamilyHub />}
       </Route>
       <Route path="/to-do">
         {eyeGazerApp ? <Redirect to={user ? "/eye-gaze-home" : "/signin"} replace /> : onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
@@ -1174,7 +1178,7 @@ function AppRoutes() {
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
 // Cooked, Cooked PT, the trainer directory and Arise Talk are whole apps of their own on the
 // website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
-const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
+const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/familyhub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
   // Trainer websites (#/t/<slug>) belong to the trainer: no Arise pop-ups or install prompts for their visitors.
   const read = () => { const p = window.location.hash.replace(/^#/, "").split("?")[0]; return FULLSCREEN_GAME_ROUTES.includes(p) || p.startsWith("/t/") || p.startsWith("/c/") || p === "/buddy" || p.startsWith("/buddy/"); };

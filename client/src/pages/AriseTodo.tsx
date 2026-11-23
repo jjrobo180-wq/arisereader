@@ -171,6 +171,7 @@ import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
+import { FocusButton, FocusExit } from "@/components/FocusMode";
 
 import HeaderShortcut from "@/components/HeaderShortcut";
 import { useAutoHideHeader } from "@/hooks/useAutoHideHeader";
@@ -326,6 +327,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
 // Tasks and Notifications is the family's own toggleable block, in the order they chose.
 const sectionOrderFor = (family: Family): FamilySection[] => ["home", "reader", "tasks", ...orderedToggleable(family), "linked", "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
+const FAMILY_SECTION_KEY = "arise-family-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
   if (!isDate(due) || repeat === "none") return "";
@@ -352,25 +354,29 @@ const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 roun
 /** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
-export default function AriseTodo() {
+/** LifeHub is the person's own; FamilyHub ("family") is the same hub, shared by everyone in their family
+ *  (server/familySpace.ts). `onFamilyPeople` opens the family's people and code (pages/FamilyHub.tsx). */
+export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: "life" | "family"; onFamilyPeople?: () => void } = {}) {
+  const familySpace = space === "family";
+  const hubTitle = familySpace ? "FamilyHub" : "LifeHub";
   const [location, navigate] = useLocation();
   const { user, token, logout } = useAuth();
   const onTodoSite = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
   const goToSiteHome = () => onTodoSite ? window.location.assign("/") : navigate("/");
   /** The plugin waiting on "Remove it from your menu?" (asked in the page; see removeFromMenu). */
   const [removing, setRemoving] = useState<{ label: string; run: () => void } | null>(null);
-  const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
+  const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo, space });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   // In the iPhone app, reminders are scheduled on the phone and redone a few seconds after each change.
   useEffect(() => {
-    if (!user || !isNativeApp()) return;
+    if (!user || !isNativeApp() || familySpace) return;
     const t = window.setTimeout(() => { void scheduleNativeReminders("life", data).catch(() => { /* tried again on the next change */ }); }, 4000);
     return () => window.clearTimeout(t);
   }, [data, user]);
   // ...and again when reminders are switched on (in either hub) and whenever the app comes back to the front.
   const remindData = useRef(data); remindData.current = data;
   useEffect(() => {
-    if (!user || !isNativeApp()) return;
+    if (!user || !isNativeApp() || familySpace) return;
     installReminderTaps();
     const again = () => { void scheduleNativeReminders("life", remindData.current).catch(() => {}); };
     const front = () => { if (document.visibilityState === "visible") again(); };
@@ -389,12 +395,12 @@ export default function AriseTodo() {
     rawSet(previous => {
       const value = typeof next === "function" ? next(upgrade(previous)) : next;
       const plan = todoPlanRef.current;
-      if ((value as unknown) === previous || !plan || plan.unlimited) return value;
+      if ((value as unknown) === previous || !plan || plan.unlimited || familySpace) return value; // FamilyHub's plugins don't count against anyone's free plan
       if (!appsBlocked(plan, "life", appsIn("life", previous), appsIn("life", value))) return value;
       if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("apps")); }
       return previous;
     });
-  }, [rawSet]);
+  }, [rawSet, familySpace]);
   const setFamily = useCallback((update: (family: Family) => Family) => {
     // Unchanged family (e.g. an Apple Health check with nothing new) is not saved again.
     setData(previous => { const family = update(previous.family); return family === previous.family ? previous : { ...previous, family }; });
@@ -414,7 +420,7 @@ export default function AriseTodo() {
     // Sign-in opens LifeHub Home with its Reader menu visible; the user can
     // enter Reader from the navigation rather than losing the hub sidebar.
     const first: FamilySection = "home";
-    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
+    try { const saved = localStorage.getItem(familySpace ? FAMILY_SECTION_KEY : SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
   const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
   // Holding an app in the menu on a touch screen asks to remove it (removeFromMenu).
@@ -428,7 +434,7 @@ export default function AriseTodo() {
   }, [location]);
   const setSection = (next: FamilySection) => {
     setSectionState(next);
-    try { if (!inDuoPane()) localStorage.setItem(SECTION_KEY, next); } catch {}
+    try { if (!inDuoPane()) localStorage.setItem(familySpace ? FAMILY_SECTION_KEY : SECTION_KEY, next); } catch {}
     window.scrollTo({ top: 0 });
   };
   // A tapped AI Reminders phone notification opens "#/lifehub?plan=<id>": go to AI Reminders with that
@@ -1448,6 +1454,7 @@ export default function AriseTodo() {
     extra: [
       { id: "sharing", label: "Sharing", detail: "Everyone you share with, and what", icon: <Users />, onClick: () => { closeApps(); goSection("linked"); } },
       { id: "family", label: "Family & settings", detail: "People, linked children and sections", icon: <Users />, onClick: () => { closeApps(); goSection("family"); } },
+      ...(familySpace && onFamilyPeople ? [{ id: "family-people", label: "Who's in FamilyHub", detail: "Your family code, and who's in it", icon: <Users />, onClick: onFamilyPeople }] : []),
     ],
   });
   const inOtherApp = !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen;
@@ -1573,15 +1580,15 @@ export default function AriseTodo() {
         </> },
       ]} />}
     {/* The same header as WorkHub: the hub on the left, everything you do to it on the right. */}
-    <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} h-[4.5rem] bg-[#f6f7fc] transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="life-header" data-header-hidden={!osCore && headerHidden ? "true" : undefined}>
+    <header className={`${osCore ? "los-ghost" : "sticky top-0 z-40"} h-[4.5rem] bg-[#f6f7fc] transition-transform duration-300 ease-out motion-reduce:transition-none ${!osCore && headerHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`} data-testid="life-header" data-duo-chrome="" data-header-hidden={!osCore && headerHidden ? "true" : undefined}>
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
-        <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
-          <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">LifeHub</span>
+        <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label={`${hubTitle} home`}>
+          <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone={familySpace ? "family" : "life"} className="h-full w-full" /></span>
+          <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">{hubTitle}</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomizing(true); }} />
-          {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current={familySpace ? "family" : "todo"} night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
           {/* Not in the iPhone app: the app is the real thing, no Shortcut. */}{!isNativeApp() && <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
             onChange={(next) => setFamily((f) => { const { shortcut: _old, ...rest } = f.layout ?? layout; return { ...f, layout: next ? { ...rest, shortcut: next } : rest }; })} />}
@@ -1590,18 +1597,20 @@ export default function AriseTodo() {
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"} duo:hidden`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           {!osCore && lifeBell}
           <LockButton className="hidden sm:inline-flex duo:hidden" />
+          <FocusButton className="hidden lg:inline-flex duo:hidden" />
           <HubMoreMenu testId="life-more" open={more} setOpen={setMore} groups={moreGroups}
             buttonClass="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             status={<span className="inline-flex items-center gap-2">{sync.view.kind === "saved" ? <CheckCircle2 size={14} className="text-emerald-600" /> : sync.view.kind === "blocked" ? <AlertCircle size={14} className="text-rose-600" /> : <Save size={14} />}{saveStatus}</span>} />
         </div>
       </div>
     </header>
+    <FocusExit />
     {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={(layout.menuSide === "bottom" && phone.open) || tabBar ? 4.9 : 0} />}
-    {searching && <HubSearch entries={buildSearchEntries()} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
+    {searching && <HubSearch entries={buildSearchEntries()} hubName={hubTitle} accent="bg-[#292446]" onClose={() => setSearching(false)} />}
     {privacy && <AccountPrivacy onClose={() => setPrivacy(false)} />}
     {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
         when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
-    <div ref={addRef} className={`${osOn && hubLook.look ? "los-addwrap " : ""}fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+    <div ref={addRef} data-duo-chrome="" className={`${osOn && hubLook.look ? "los-addwrap " : ""}fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${tabBar ? "max-lg:bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] max-lg:left-1/2 max-lg:right-auto" : layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${tabBar ? "lg:left-auto" : layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
       {addMenu && (
         <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
           className={`absolute bottom-[calc(100%+0.6rem)] right-0 w-60 ${tabBar ? "max-lg:bottom-0 max-lg:right-auto max-lg:-translate-x-1/2" : ""} overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl`}>
@@ -1634,7 +1643,7 @@ export default function AriseTodo() {
         <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
       </button>
     </div>
-    {osCore && hubLook.look && <LookOS bell={lifeBell} hubName="LifeHub" hubSwitch={(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) ? <HubSwitch current="todo" night={night} /> : null} look={hubLook.look} name={osFirst} dateLabel={new Date(`${currentDay}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+    {osCore && hubLook.look && <LookOS bell={lifeBell} hubName={hubTitle} hubSwitch={(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) ? <HubSwitch current={familySpace ? "family" : "todo"} night={night} /> : null} look={hubLook.look} name={osFirst} dateLabel={new Date(`${currentDay}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
       addTask={() => setEditing(emptyTask(data.lists[0].id))} scoreCard={{ home: <RiseScoreCard page="home" scores={riseNow} />, tasks: <RiseScoreCard page="checklist" scores={riseNow} /> }} banner={<>{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{family.widgets.stickies && <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{null}</StickyBoard>}</>} screen={shown as OsScreen} go={osGo} openApps={osApps} add={osAdd} tasks={osTasks} days={osDays} off={osOff} onYou={() => setYouOpen(true)}
       toggle={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) toggleDone(task); }} openTask={(id) => { const task = data.tasks.find((t) => t.id === id); if (task) setEditing({ ...task }); }}
       notes={[...family.notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt))} lockedApps={family.lock?.apps}
@@ -1642,7 +1651,7 @@ export default function AriseTodo() {
       content={<LockedApp locked={appLocked(family.lock, leadOf(shown, sections))} name={openAppName}>{shown === "calendar" || shown === "notes" ? familyContent : null}</LockedApp>} />}
     {osOn && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
     {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}
-      items={[{ id: "search", label: "Search", detail: "Everything in LifeHub", onClick: () => setSearching(true) }, { id: "duo", label: "Duo & split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
+      items={[{ id: "search", label: "Search", detail: `Everything in ${hubTitle}`, onClick: () => setSearching(true) }, { id: "duo", label: "Duo & split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
     {tabBar && !osOn && <PhoneTabBar name={user.displayName || user.username || ""}
       home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
       addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
@@ -1652,11 +1661,11 @@ export default function AriseTodo() {
       you={moreGroups.flatMap((g) => g.items)} />}
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
     {/* On a computer the menu beside the page has Home, so the Start button is for phones and tablets. */}
-    {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
+    {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-duo-chrome="" data-testid="life-start-back"
       className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 lg:hidden inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
     {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={phoneSide} hideTab={osOn} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} onFolders={(next) => setLayout({ ...layout, folders: next })} deskDrawer={dsk === "drawer"} />}
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} duo-book:flex-row`}>
-      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" || layout.menuSide === "tabs" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" || layout.menuSide === "tabs" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side" data-duo-chrome="">
         <nav aria-label="Family Hub" className={`duo-book:flex duo-book:flex-col duo-book:gap-0.5 duo-book:overflow-visible duo-book:px-3 duo-book:pt-4 hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
           {renderSectionItems(collapseGroups(builtInSections, sections), true)}
 

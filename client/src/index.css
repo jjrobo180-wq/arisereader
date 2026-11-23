@@ -1111,3 +1111,14 @@ html.eyegaze-edge:not(.edge-screen) .sticky.top-0 { top: var(--sat); }
   100% { box-shadow: 0 0 0 0 rgba(110, 90, 224, 0); }
 }
 @media (prefers-reduced-motion: reduce) { .duo-task-flash { animation: none; box-shadow: 0 0 0 3px #6e5ae0; } }
+
+/* Full screen in the hubs (lib/focusMode.ts): only the open plugin. The top bar, menu, tab bar and
+   Add button carry data-duo-chrome; the page takes the room they leave, under a small Exit button. */
+html.duo-focus [data-duo-chrome] { display: none !important; }
+html.duo-focus [data-duo-grid] { grid-template-columns: minmax(0, 1fr) !important; max-width: none !important; }
+html.duo-focus [data-duo-grid],
+html.duo-focus main[data-tour="life-content"] { padding-top: max(3.25rem, calc(env(safe-area-inset-top) + 2.75rem)) !important; }
+@media (max-width: 1023px) {
+  html.duo-focus [data-duo-grid],
+  html.duo-focus main[data-tour="life-content"] { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+}

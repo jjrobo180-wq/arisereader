@@ -64,7 +64,7 @@ export function HubChat({ hub, token, accent, lift = false, raiseRem = 0 }: { hu
   const copy = async (i: number) => { try { await navigator.clipboard.writeText(turns[i].content); setCopied(i); window.setTimeout(() => setCopied(-1), 1500); } catch { /* can't copy here */ } };
 
   return <>
-    {!open && <button type="button" onClick={() => setOpen(true)} aria-label="Open the AI assistant" data-testid="hub-chat-open"
+    {!open && <button type="button" onClick={() => setOpen(true)} aria-label="Open the AI assistant" data-testid="hub-chat-open" data-duo-chrome=""
       className={`fixed right-4 z-40 h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition active:scale-90 max-sm:hidden sm:inline-flex ${accent} `} style={{ bottom: `calc(max(1.25rem, env(safe-area-inset-bottom)) + ${(lift ? 4.25 : 0) + raiseRem}rem)` }}>
       <Sparkles className="h-6 w-6" />
     </button>}

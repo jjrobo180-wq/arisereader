@@ -44,8 +44,8 @@ test("the homepage tells search engines the right logo, names and prices", () =>
   assert.equal(org.logo.url, READER_LOGO);
   assert.ok(org.alternateName.includes("A.R.I.S.E. Reader"));
   const offers = graph.find((n: any) => n["@type"] === "WebApplication").offers;
-  assert.equal(offers.find((o: any) => o.name === "Family").price, String(PLANS.bundle.familyMonthlyCents / 100));
-  assert.equal(offers.find((o: any) => o.name === "Class").price, String(PLANS.teacher.monthlyCents / 100));
+  assert.equal(offers.find((o: any) => o.name === "Students and parents").price, "0", "free for students and parents");
+  assert.ok(!offers.some((o: any) => o.name === "Family" || o.name === "Class"), "no family or class plan for sale");
   assert.equal(offers.find((o: any) => o.name === "Whole school").price, String(PLANS.school.yearlyCents / 100));
   assert.ok(html.includes('<a href="/5-minute-reads/" target="_top">5-Minute Reads</a>'));
   const routes = readFileSync("server/index.ts", "utf8");

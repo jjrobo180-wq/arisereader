@@ -53,3 +53,13 @@ test("the teacher pages sell school and district licenses, not one-teacher plans
   assert.match(sub, /\{ who: "Districts", price: "Ask"/);
   assert.doesNotMatch(sub, /who: "Teachers"/);
 });
+
+test("the pricing page: free for students and parents, school and district licenses, no family or class plans", () => {
+  const p = readFileSync(join(new URL("..", import.meta.url).pathname, "client/src/pages/Pricing.tsx"), "utf8");
+  for (const id of ["pricing-family", "pricing-school", "pricing-district"]) assert.match(p, new RegExp(`data-testid="${id}"`));
+  assert.match(p, /<p className="mt-3 text-5xl font-black">\$0<\/p>/);
+  assert.doesNotMatch(p, /familyPlan|\/ month/, "no monthly family or class price");
+  const landing = readFileSync(join(new URL("..", import.meta.url).pathname, "client/public/reader-landing.html"), "utf8");
+  assert.doesNotMatch(landing, /\$7 a month|\$20 a month/);
+  assert.match(landing, /@media\(min-width:901px\) and \(max-width:1480px\)\{\.adult-signin \.lbl-long\{display:none!important\}/, "the menu fits on laptop screens");
+});

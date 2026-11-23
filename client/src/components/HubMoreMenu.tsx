@@ -2,7 +2,8 @@
 // same items in the same order in both hubs, in groups so it's easy to find things. The tab bar's You
 // sheet (PhoneTabBar) shows the same items.
 import { useEffect, useRef, type ReactNode } from "react";
-import { Bell, BellRing, HelpCircle, Lock, LogOut, Moon, Settings2, ShieldCheck, ShoppingBag, Smartphone, Sun } from "lucide-react";
+import { Bell, BellRing, HelpCircle, Lock, LogOut, Maximize2, Moon, Settings2, ShieldCheck, ShoppingBag, Smartphone, Sun } from "lucide-react";
+import { setFocusMode } from "@/lib/focusMode";
 import { isNativeApp } from "@/lib/nativeApp";
 
 export type MoreItem = { id: string; label: string; detail?: string; icon: ReactNode; onClick: () => void; danger?: boolean };
@@ -25,6 +26,7 @@ export function hubMoreGroups(o: {
       ...(isNativeApp() ? [{ id: "iphone-setup", label: "iPhone connections", detail: "Notifications, Calendar and Reminders", icon: <Smartphone />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) }] : []),
     ] },
     { title: "Settings", items: [
+      { id: "fullscreen", label: "Full screen", detail: "Just the plugin, no menus", icon: <Maximize2 />, onClick: () => setFocusMode(true) },
       { id: "customize", label: "Customize", detail: "Menu, Home, theme and split screen", icon: <Settings2 />, onClick: o.customize },
       { id: "night", label: o.night ? "Day mode" : "Night mode", icon: o.night ? <Sun /> : <Moon />, onClick: o.toggleNight },
       { id: "lock", label: "Passcode & locks", icon: <Lock />, onClick: o.lock },

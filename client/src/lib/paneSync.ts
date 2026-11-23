@@ -1,7 +1,7 @@
 // When the same hub is open twice at once (the two panes of Arise To Duo's split screen, or two
 // tabs), a save in one tells the others right away so they pick it up before the person edits
 // there, instead of waiting for the next timed check and then hitting "changed on another device".
-type Kind = "todo" | "workhub";
+type Kind = "todo" | "workhub" | "family";
 
 const channelName = (kind: Kind, userId?: number | string) => `arise-saved:${kind}:${userId ?? "me"}`;
 

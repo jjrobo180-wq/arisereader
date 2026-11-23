@@ -95,7 +95,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
     : openFolder ? openFolder.items.map((id) => items.find((i) => i.id === id)).filter((i): i is PhoneMenuItem => !!i).map((item) => ({ kind: "item" as const, item }))
     : foldMenu(items, folders);
   const drawer = !(onPhone || deskDrawer) ? null : <>
-      {!apps && !hideLauncher && side !== "tabs" && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open"
+      {!apps && !hideLauncher && side !== "tabs" && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open" data-duo-chrome=""
         onTouchStart={(e) => { swipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (swipe.current !== null && swipe.current - e.touches[0].clientY > 30) { swipe.current = null; setApps(true); } }}
         className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-[#292446] text-white shadow-xl transition active:scale-90 ${onPhone ? "inline-flex" : "hidden"} ${deskDrawer ? "lg:inline-flex" : "lg:hidden"}`}><LayoutGrid className="h-6 w-6" /></button>}
       <div className={`fixed inset-0 z-[480] ${onPhone ? "" : "max-lg:hidden"} ${deskDrawer ? "" : "lg:hidden"} ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>
@@ -149,9 +149,9 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
 
   return <>
     {drawer}
-    {!open && !hideTab && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="life-rail-show"
+    {!open && !hideTab && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="life-rail-show" data-duo-chrome=""
       className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md lg:hidden ${tabPlace}`} style={side === "bottom" ? undefined : { top: side === "top" ? top : top + 12 }}>{showIcon}</button>}
-    <nav aria-label="LifeHub menu" aria-hidden={open ? undefined : true} data-testid="life-phone-menu"
+    <nav aria-label="LifeHub menu" aria-hidden={open ? undefined : true} data-testid="life-phone-menu" data-duo-chrome=""
       className={`fixed z-30 border-slate-200 bg-white transition-transform duration-200 lg:hidden ${place}`} style={side === "bottom" ? undefined : { top }}>
       <div className={`flex ${across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5"} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
         {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" tabIndex={open ? 0 : -1} data-testid="life-rail-hide"

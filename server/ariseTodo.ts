@@ -10,7 +10,7 @@ import { cleanFamily } from "../shared/familyHub";
 
 const TABLE = "arise_todo_workspaces";
 // Room for the Family Hub, including about a year of food and fitness logs.
-const MAX_BYTES = 5_000_000;
+export const MAX_BYTES = 5_000_000;
 // Per network: generous, since a whole office (App Review, a school) can share one address.
 const signupLimits = createAttemptLimiter({ max: 30, windowMs: 60 * 60_000 });
 
@@ -20,7 +20,7 @@ function validDate(value: unknown): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function validateWorkspace(input: unknown): input is Record<string, any> {
+export function validateWorkspace(input: unknown): input is Record<string, any> {
   if (!input || typeof input !== "object" || Array.isArray(input)) return false;
   const data = input as Record<string, any>;
   // Version 2 adds the Family Hub (chores, calendar, polls, trips, money, notes...).

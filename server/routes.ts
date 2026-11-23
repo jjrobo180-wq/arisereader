@@ -70,6 +70,7 @@ import { createSupabaseLifeStore } from "./ariseNotesHubs";
 import { registerPagesRoutes, startPagesTicker } from "./arisePages";
 import { createSupabasePagesStore } from "./arisePagesStore";
 import { registerAriseTodoRoutes } from "./ariseTodo";
+import { registerFamilySpaceRoutes } from "./familySpace";
 import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerTvLinkRoutes } from "./tvLink";
@@ -1655,6 +1656,7 @@ export async function registerRoutes(
   });
   // The personal Arise To Duo sign-up confirms its email with the same 6-digit code the teacher
   // sign-up uses, so there is one mechanism to get right rather than two.
+  registerFamilySpaceRoutes(app, authMiddleware);
   registerAriseTodoRoutes(app, authMiddleware, {
     codes: teacherEmailCodes,
     turnOn: (userId) => storage.approveTeacherAccount(userId),

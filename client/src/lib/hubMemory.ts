@@ -18,13 +18,13 @@ type Entry<W> = {
 };
 
 const store = new Map<string, Entry<unknown>>();
-const key = (hub: "todo" | "work", userId: number) => `${hub}:${userId}`;
+const key = (hub: "todo" | "work" | "family", userId: number) => `${hub}:${userId}`;
 /** Hubs showing on this page right now (their own copy is the live one, so nothing is fetched for them). */
 const open = new Set<string>();
 /** Goes up on sign-out, so a fetch that started before it never fills memory afterwards. */
 let generation = 0;
 
-export function markHubOpen(hub: "todo" | "work", userId: number | undefined, isOpen: boolean): void {
+export function markHubOpen(hub: "todo" | "work" | "family", userId: number | undefined, isOpen: boolean): void {
   if (!userId) return;
   if (isOpen) open.add(key(hub, userId)); else open.delete(key(hub, userId));
 }
@@ -32,7 +32,7 @@ export function markHubOpen(hub: "todo" | "work", userId: number | undefined, is
 /** Fetch the other hub's copy ahead of time, so even the first switch to it shows at once.
  *  `load` asks the server; nothing is kept if the hub is already open or remembered, or if someone
  *  signed out meanwhile. */
-export async function prefetchHub<W>(hub: "todo" | "work", userId: number | undefined, load: () => Promise<{ workspace: W; updatedAt: string | null; extra?: Record<string, unknown> } | null>): Promise<void> {
+export async function prefetchHub<W>(hub: "todo" | "work" | "family", userId: number | undefined, load: () => Promise<{ workspace: W; updatedAt: string | null; extra?: Record<string, unknown> } | null>): Promise<void> {
   if (!userId) return;
   const k = key(hub, userId);
   if (store.has(k) || open.has(k)) return;
@@ -44,12 +44,12 @@ export async function prefetchHub<W>(hub: "todo" | "work", userId: number | unde
   } catch { /* the hub loads normally when it is opened */ }
 }
 
-export function recallHub<W>(hub: "todo" | "work", userId: number | undefined): Entry<W> | null {
+export function recallHub<W>(hub: "todo" | "work" | "family", userId: number | undefined): Entry<W> | null {
   if (!userId) return null;
   return (store.get(key(hub, userId)) as Entry<W> | undefined) ?? null;
 }
 
-export function rememberHub<W>(hub: "todo" | "work", userId: number | undefined, patch: Partial<Entry<W>> & { workspace?: W }): void {
+export function rememberHub<W>(hub: "todo" | "work" | "family", userId: number | undefined, patch: Partial<Entry<W>> & { workspace?: W }): void {
   if (!userId) return;
   const k = key(hub, userId);
   const before = store.get(k) as Entry<W> | undefined;

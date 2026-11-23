@@ -258,6 +258,7 @@ app.use("/api/app-data", express.json({ limit: "2500kb" }));
 app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 // LifeHub workspaces can exceed the default 100 KB JSON request size.
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
+app.use("/api/family-space/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
 // Cooked: a photo of a machine or a gym (shrunk on the phone, but still far over the usual 100 KB),

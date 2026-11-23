@@ -4,11 +4,11 @@
 // so WorkHub and LifeHub read as siblings rather than as two unrelated logos.
 import { useId } from "react";
 
-type Tone = "work" | "life" | "brand";
+type Tone = "work" | "life" | "family" | "brand";
 
 const INK = "#15131f";
 /** The half that tells the hubs apart. Brand matches the favicon. */
-const ACCENT: Record<Tone, string> = { work: "#22d3ee", life: "#7c4dff", brand: "#7c4dff" };
+const ACCENT: Record<Tone, string> = { work: "#22d3ee", life: "#7c4dff", family: "#f59e0b", brand: "#7c4dff" };
 
 export default function HubMark({ tone = "brand", className = "h-5 w-5", label }: { tone?: Tone; className?: string; label?: string }) {
   // Each instance needs its own clip id, or two marks on one page collide.

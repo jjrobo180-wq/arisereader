@@ -33,7 +33,9 @@ export default function SignIn() {
   const [who, setWho] = useState<Who>(() => !onTodo && /[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [personalSignup, setPersonalSignup] = useState(false);
+  // arisetodo.com's "I'm a teacher" / "I'm a parent" buttons open /signin?create: the Arise To Duo account form
+  // straight away (not Arise Reader's teacher or parent sign-up).
+  const [personalSignup, setPersonalSignup] = useState(() => { try { return /[?&]create\b/.test(window.location.hash) && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname); } catch { return false; } });
   const [email, setEmail] = useState("");
   /** Set once the sign-up has sent a code: the form becomes "type the code we emailed you". */
   const [codeFor, setCodeFor] = useState("");

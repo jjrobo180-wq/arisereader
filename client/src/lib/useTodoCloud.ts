@@ -8,8 +8,10 @@ import { markHubOpen, prefetchHub, recallHub, rememberHub } from "@/lib/hubMemor
 import { merge3 } from "@shared/mergeJson";
 
 const api = `${API_BASE}/api/arise-todo/workspace`;
+const lifeApi = api;
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 const backupKey = (id: number) => `arise-todo-draft-v2:${id}`;
+const lifeBackupKey = backupKey;
 
 /** LifeHub's copy, fetched in the background while WorkHub is open, so switching over is instant.
  *  Not when this device holds changes that never reached the account: then LifeHub opens the normal
@@ -27,14 +29,24 @@ export function prefetchLifeHub(userId: number | undefined, token: string | null
   });
 }
 
+/** FamilyHub: one shared workspace for everyone in the family (server/familySpace.ts), saved and merged the same way. */
+const familyApi = `${API_BASE}/api/family-space/workspace`;
+const familyBackupKey = (id: number) => `arise-family-draft-v1:${id}`;
+
 export function useTodoCloud<W extends object>({
-  userId, token, blank, isValid,
+  userId, token, blank, isValid, space = "life",
 }: {
   userId?: number;
   token: string | null;
   blank: () => W;
   isValid: (value: unknown) => value is W;
+  /** "family": the family's shared FamilyHub instead of this person's LifeHub. Fixed for the life of the hook. */
+  space?: "life" | "family";
 }) {
+  const family = space === "family";
+  const api = family ? familyApi : lifeApi;
+  const backupKey = family ? familyBackupKey : lifeBackupKey;
+  const MEM = family ? "family" as const : "todo" as const;
   const [workspace, rawSetWorkspace] = useState<W>(blank);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -95,11 +107,11 @@ export function useTodoCloud<W extends object>({
       return;
     }
     let cancelled = false;
-    markHubOpen("todo", userId, true);
+    markHubOpen(MEM, userId, true);
     // Coming back from WorkHub (or anywhere else on this page): show the copy kept in memory at
     // once, and catch up with the server in the background — no loading screen. (A copy fetched
     // ahead of time is checked like one from the server.)
-    const remembered = recallHub<W>("todo", userId);
+    const remembered = recallHub<W>(MEM, userId);
     // Opening the app fresh: the copy kept on this device shows at once, the same way, instead of a
     // loading screen while the whole hub downloads. It names the account copy it came from, so the
     // server is only asked for anything newer, and changes that never reached the account (no signal,
@@ -138,7 +150,7 @@ export function useTodoCloud<W extends object>({
         setView(next);
         if (next.kind === "saved" && saver.current) saveDraft(saver.current.current(), false);
       },
-      onSaved: () => announceSaved("todo", userRef.current),
+      onSaved: () => announceSaved(MEM, userRef.current),
       setTimer: (fn, ms) => window.setTimeout(fn, ms),
       clearTimer: timer => window.clearTimeout(timer as number),
       debounceMs: 650,
@@ -157,7 +169,7 @@ export function useTodoCloud<W extends object>({
         if (memo) {
           // A save left running when this hub was last closed finishes first, so this one names the right copy.
           if (memo.pending) await memo.pending.catch(() => {});
-          const latest = recallHub<W>("todo", userId) ?? memo;
+          const latest = recallHub<W>(MEM, userId) ?? memo;
           if (cancelled) return;
           saver.current?.dispose();
           const instance = makeSaver(latest.saved, latest.updatedAt);
@@ -208,7 +220,7 @@ export function useTodoCloud<W extends object>({
     })();
     return () => {
       cancelled = true;
-      markHubOpen("todo", userId, false);
+      markHubOpen(MEM, userId, false);
       const instance = saver.current;
       saver.current = null;
       if (!instance) return;
@@ -218,10 +230,10 @@ export function useTodoCloud<W extends object>({
       const signedIn = !!tokenRef.current && userRef.current === userId;
       const unsaved = instance.hasUnsaved();
       const pending = unsaved
-        ? instance.finish().then(() => { if (signedIn) rememberHub<W>("todo", userId, { saved: instance.saved, updatedAt: instance.baseUpdatedAt, pending: undefined }); })
+        ? instance.finish().then(() => { if (signedIn) rememberHub<W>(MEM, userId, { saved: instance.saved, updatedAt: instance.baseUpdatedAt, pending: undefined }); })
         : undefined;
       if (!unsaved) instance.dispose();
-      if (signedIn && !recoveryRef.current) rememberHub<W>("todo", userId, { workspace: instance.current(), saved: instance.saved, updatedAt: instance.baseUpdatedAt, pending });
+      if (signedIn && !recoveryRef.current) rememberHub<W>(MEM, userId, { workspace: instance.current(), saved: instance.saved, updatedAt: instance.baseUpdatedAt, pending });
     };
   }, [token, userId, round, blank, isValid, saveDraft]);
 
@@ -268,7 +280,7 @@ export function useTodoCloud<W extends object>({
     window.addEventListener("beforeunload", beforeUnload);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void check(); }, 30000);
     // The other pane (or tab) just saved: catch up now.
-    const stopListening = onOtherCopySaved("todo", userRef.current, () => { lastCheck.current = 0; void check(); });
+    const stopListening = onOtherCopySaved(MEM, userRef.current, () => { lastCheck.current = 0; void check(); });
     return () => {
       stopListening();
       window.removeEventListener("pagehide", send);

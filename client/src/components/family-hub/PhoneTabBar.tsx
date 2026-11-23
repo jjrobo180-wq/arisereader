@@ -30,7 +30,7 @@ export function PhoneTabBar({ home, tasks, addOpen, onHome, onTasks, onAdd, name
   const initial = (name.trim()[0] || "Y").toUpperCase();
   const tab = (active: boolean) => `relative flex min-h-12 min-w-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold transition active:scale-90 ${active ? "text-white" : "text-white/60"}`;
   return <>
-    <nav aria-label={work ? "WorkHub" : "Arise To Duo"} data-testid={id("tab-bar")}
+    <nav aria-label={work ? "WorkHub" : "Arise To Duo"} data-testid={id("tab-bar")} data-duo-chrome=""
       className={`fixed inset-x-3 z-[45] mx-auto flex max-w-md items-center gap-1 rounded-full bg-[#1d1a33] px-2 py-1.5 shadow-[0_12px_32px_#16152a55] ring-1 ring-white/10 ${phoneOnly} ${raise ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]" : "bottom-[max(0.75rem,env(safe-area-inset-bottom))]"}`}>
       <button type="button" onClick={onHome} aria-current={home ? "page" : undefined} className={tab(home)} data-testid={id("tab-home")}><Home className="h-[22px] w-[22px]" />Home</button>
       <button type="button" onClick={onTasks} aria-current={tasks ? "page" : undefined} className={tab(tasks)} data-testid={id("tab-tasks")}><CheckSquare className="h-[22px] w-[22px]" />Tasks</button>
