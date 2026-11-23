@@ -13,6 +13,7 @@ Several parts: "age china iap desc". Nothing here submits the app: Update Review
 """
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -164,11 +165,33 @@ def age():
         low = k.lower()
         if k == "kidsAgeBand" or any(w in low for w in ("url", "uri", "override", "grac", "classification", "korea")):
             continue
-        attrs[k] = (k in AGE_YES) if isinstance(v, bool) else AGE_LEVELS.get(k, "NONE")
+        if isinstance(v, bool) or k in AGE_YES:
+            attrs[k] = k in AGE_YES
+        elif v is None and k not in AGE_LEVELS:
+            attrs[k] = None  # a newer question: its type is learned from Apple's answer below
+        else:
+            attrs[k] = AGE_LEVELS.get(k, "NONE")
     for k in AGE_YES:
-        attrs.setdefault(k, True)
-    api(f"ageRatingDeclarations/{decl['id']}", {"data": {"type": "ageRatingDeclarations", "id": decl["id"], "attributes": attrs}}, method="PATCH")
-    print("     answers: " + ", ".join(f"{k}={v}" for k, v in sorted(attrs.items()) if v not in (False, "NONE")))
+        attrs[k] = True
+    for _ in range(20):
+        body = {k: (False if v is None else v) for k, v in attrs.items()}
+        try:
+            api(f"ageRatingDeclarations/{decl['id']}", {"data": {"type": "ageRatingDeclarations", "id": decl["id"], "attributes": body}}, method="PATCH")
+            print("     answers: " + ", ".join(f"{k}={v}" for k, v in sorted(body.items()) if v not in (False, "NONE")))
+            return
+        except RuntimeError as e:
+            fixed = False
+            for name, want in re.findall(r"attribute '(\w+)'\. Expected an? (\w+)", str(e)):
+                if name in attrs:
+                    attrs[name] = (name in AGE_YES) if want == "BOOLEAN" else AGE_LEVELS.get(name, "NONE")
+                    fixed = True
+            for name in re.findall(r'"pointer"\s*:\s*"/data/attributes/(\w+)"', str(e)):
+                if not fixed and name in attrs:
+                    attrs.pop(name)
+                    fixed = True
+            if not fixed:
+                raise
+    raise RuntimeError("age rating: too many corrections")
 
 
 def china():
