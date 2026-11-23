@@ -86,10 +86,11 @@ export default function ReaderSubscribe() {
     setBusy(false);
   };
 
+  // Free for students and parents; teacher accounts come with a school or district license.
   const plans = [
-    { who: "Families", price: usd(PLANS.bundle.familyMonthlyCents), what: `A parent and up to ${PLANS.parentMaxChildren} children` },
-    { who: "Teachers", price: usd(PLANS.teacher.monthlyCents), what: `Teacher discount · up to ${PLANS.teacher.studentsPerBlock} students` },
-    { who: "Schools", price: usd(PLANS.school.yearlyCents), per: "/yr", what: "School discount · every teacher and student" },
+    { who: "Students & parents", price: "Free", per: " ", what: "Every book, quiz and reward" },
+    { who: "Schools", price: usd(PLANS.school.yearlyCents), per: "/yr", what: "Every teacher and student at the school" },
+    { who: "Districts", price: "Ask", per: " ", what: "Every school in the district or network" },
   ];
 
   return (
@@ -102,14 +103,14 @@ export default function ReaderSubscribe() {
         <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.06] p-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/20"><BookOpen className="h-6 w-6 text-violet-300" /></div>
           <h1 className="mt-4 text-2xl font-black leading-tight">
-            {role === "student" ? "Your account needs a reading plan" : "Start your Arise Reader plan"}
+            {role === "student" ? "Your account needs a reading plan" : role === "teacher" ? "Teacher accounts come with a school license" : "Start your Arise Reader plan"}
           </h1>
           <p className="mt-2 text-[15px] leading-6 text-slate-300">
             {role === "student"
               ? "Ask a parent to get the family plan, or ask your teacher to add you to their class. Then sign in again."
               : role === "parent"
                 ? `${usd(PLANS.bundle.familyMonthlyCents)} a month covers you and up to ${PLANS.parentMaxChildren} linked children: every book, quiz and reward.`
-                : `${usd(PLANS.teacher.monthlyCents)} a month covers up to ${PLANS.teacher.studentsPerBlock} students. A whole school is ${usd(PLANS.school.yearlyCents)} for the school year.`}
+                : `Arise Reader is free for students and parents. Teacher accounts, with your classes, the teacher dashboard and its tools, come with your school's or district's license: ${usd(PLANS.school.yearlyCents)} a school year covers every teacher and student at a school. Your students can still read free on their own accounts.`}
           </p>
           <ul className="mt-5 space-y-2.5 text-[15px] text-slate-200">
             {["Every book, story and quiz", "Points, badges, streaks and rewards", "Games and avatar worlds", "Teacher and parent dashboards"].map((t) => (
@@ -131,7 +132,7 @@ export default function ReaderSubscribe() {
             </button>
           ) : (
             <button type="button" onClick={() => navigate("/billing")} className="mt-6 flex min-h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-4 text-base font-bold hover:bg-violet-500" data-testid="reader-subscribe-teacher">
-              See teacher and school plans
+              Get a school or district license
             </button>
           ))}
           {error && <p className="mt-3 text-sm text-rose-300" role="alert">{error}</p>}

@@ -159,7 +159,7 @@ test("the library banner shows the student's advisory place and the top of the b
 
 test("the student leaderboard opens on this month's race, with the Advisory Challenge on its own tab", () => {
   const page = read("client/src/pages/StudentProgress.tsx");
-  assert.match(page, /useState<"badges" \| "rewards" \| "leaderboard">\("leaderboard"\)/);
+  assert.match(page, /useState<"badges" \| "rewards" \| "leaderboard">\(view === "rewards" \? "rewards" : "leaderboard"\)/);
   assert.match(page, /\/api\/leaderboard\?month=\$\{encodeURIComponent\(schoolYearMonth\(\)\)\}/);
   assert.match(page, /monthly winner/);
   assert.match(page, /useState<"students" \| "advisories">\("advisories"\)/, "the Advisory board first");

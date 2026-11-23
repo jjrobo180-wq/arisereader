@@ -394,6 +394,14 @@ export function readerExistingAccount(createdAt: unknown, now = Date.now()): boo
   return !Number.isFinite(t) || t < Date.parse(PLANS.readerPaidFrom);
 }
 
+/** From this moment a new teacher account needs a school or district license (READER_FREE_FOR_ALL covers
+ *  students and parents only). Teachers who signed up before it keep their account and everything on it. */
+export const TEACHER_LICENSE_FROM = "2026-11-23T07:00:00.000Z";
+export function teacherKeepsAccount(createdAt: unknown): boolean {
+  const t = signedUpAt(createdAt);
+  return !Number.isFinite(t) || t < Date.parse(TEACHER_LICENSE_FROM);
+}
+
 export type ReaderFacts = {
   now?: number;
   /** A teacher's own plan, and their school's (a free school's plan counts). The school's counts for its students too. */
@@ -407,7 +415,8 @@ export type ReaderFacts = {
   freeForAll?: boolean;
 };
 
-/** Arise Reader is 100% free for every student, parent and teacher until the owner decides on a cap.
+/** Arise Reader is free for every student and parent. (Teachers: a school or district license, or an account
+ *  made before TEACHER_LICENSE_FROM.)
  *  Set this back to false to turn the paid plans (below) on again; nothing else needs to change. */
 export const READER_FREE_FOR_ALL = true;
 
@@ -427,9 +436,12 @@ export function readerAccessFor(person: (PlanPerson & { username?: string | null
   if (role !== "student" && role !== "teacher" && role !== "parent") return { access: true, via: "not-reader" };
   if (readerExistingAccount(person.createdAt, now)) return { access: true, via: "existing" };
   if (role === "teacher") {
+    // Arise Reader is free for students and parents; teacher accounts (classes, the teacher dashboard and
+    // its perks) come with a school or district license. Every teacher signed up before then keeps theirs.
+    if (teacherKeepsAccount(person.createdAt)) return { access: true, via: "existing" };
     if (grantLive(facts.teacherGrant, now)) return { access: true, via: "teacher-plan" };
     if (grantLive(facts.schoolGrant, now)) return { access: true, via: "school-plan" };
-    return facts.freeForAll ? { access: true, via: "free" } : { access: false, via: null };
+    return { access: false, via: null };
   }
   if ((facts.familyGrants || []).some((g) => grantLive(g, now))) return { access: true, via: "family-plan" };
   if (role === "student" && facts.classTeacherAccess && person.approvedByTeacher !== false) return { access: true, via: "class" };

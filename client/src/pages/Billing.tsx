@@ -74,8 +74,8 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
     case "demo":
       return { tone: "plain", title: "This account always has Premium", lines: ["Nothing to pay."] };
     default:
-      return { tone: "need", title: "Your teacher account needs Premium", lines: [
-        "The Class plan includes Arise Reader, your teacher dashboard, book quizzes, live class games, game controls, Arise Math, Arise History and A.R.I.S.E. Connect — all in one price.",
+      return { tone: "need", title: "Teacher accounts come with a school license", lines: [
+        "A school or district license includes Arise Reader, your teacher dashboard, book quizzes, live class games, game controls, Arise Math, Arise History and A.R.I.S.E. Connect for every teacher there.",
         "Your students keep reading, taking quizzes and playing for free either way.",
         "Arise To Duo (Work & Life hubs) is free either way too — no plan needed.",
       ] };
@@ -202,7 +202,7 @@ export default function Billing() {
         {freeYear && plan && (
           <div className="bl-card">
             <h2>When your free year ends</h2>
-            <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a school year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
+            <p>After {day(plan.endsAt)}, teacher accounts come with a school license: {usd(PLANS.school.yearlyCents)} a school year for a whole school of up to {count(PLANS.school.studentCap)} students, or a district license. You'll be able to get one on this page when the time comes.</p>
           </div>
         )}
 
@@ -212,26 +212,6 @@ export default function Billing() {
             {!plan.payment && <p className="bl-banner">Online payment isn't open yet. You'll be able to pay here soon.</p>}
             <div className="bl-options">
               <div className="bl-card bl-featured">
-                <span className="bl-badge">Most popular</span>
-                <h3>One teacher</h3>
-                <p className="bl-price"><b>{usd(price)}</b> a month</p>
-                <p>Covers your class of up to {count(seatsFor(blocks))} students. You have {count(students)}.</p>
-                <ul className="bl-features">
-                  <li><span className="bl-check"><Check /></span>Arise Reader included — books, quizzes and reading tools</li>
-                  <li><span className="bl-check"><Check /></span>Your own teacher dashboard</li>
-                  <li><span className="bl-check"><Check /></span>Live class games &amp; game controls</li>
-                  <li><span className="bl-check"><Check /></span>Arise Math included</li>
-                  <li><span className="bl-check"><Check /></span>Arise History included</li>
-                  <li><span className="bl-check"><Check /></span>A.R.I.S.E. Connect included</li>
-                  <li><span className="bl-check"><Check /></span>Arise To Duo — always free</li>
-                </ul>
-                <Stepper blocks={blocks} min={needed} onChange={setBlocks} />
-                <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment} onClick={() => go("teacher", "/api/billing/checkout", { kind: "teacher", blocks, returnTo: siteAddress() })} data-testid="billing-buy-teacher">
-                  {busy === "teacher" ? "Opening the payment page…" : `Pay ${usd(price)} a month`}
-                </button>
-                <small>Billed monthly. Cancel any time.</small>
-              </div>
-              <div className="bl-card">
                 <h3>Whole school</h3>
                 <p className="bl-price"><b>{usd(PLANS.school.yearlyCents)}</b> a school year</p>
                 {plan.school
@@ -247,6 +227,16 @@ export default function Billing() {
                   {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} for the school year`}
                 </button>
                 <small>Runs a full 12 months, so summer reading clubs and competitions are covered.</small>
+              </div>
+              <div className="bl-card" data-testid="billing-district">
+                <h3>District or network</h3>
+                <p className="bl-price"><b>Ask us</b></p>
+                <p>Every school in your district or charter network on one license, priced for your number of students.</p>
+                <ul className="bl-features">
+                  <li><span className="bl-check"><Check /></span>Everything in the school plan, at every school</li>
+                  <li><span className="bl-check"><Check /></span>One contract and one yearly bill</li>
+                </ul>
+                <a className="pr-pill pr-pill-ghost pr-wide" href="https://arisetodo.com/support/" target="_blank" rel="noopener noreferrer">Ask about a district license</a>
               </div>
             </div>
             <p className="bl-foot">Card details are entered on Stripe's secure payment page, never on A.R.I.S.E. <button type="button" className="bl-text" onClick={() => navigate("/pricing")}>See what Premium includes</button></p>

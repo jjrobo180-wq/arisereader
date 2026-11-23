@@ -23,9 +23,12 @@ test("every account made before November 9 keeps Reader free for the school year
 });
 
 test("new accounts need a plan", () => {
-  for (const role of ["student", "teacher", "parent"]) assert.equal(readerAccessFor({ id: 1, role, createdAt: NEW }, { now: NOW }).access, false, role);
-  assert.equal(readerAccessFor({ id: 1, role: "teacher", createdAt: NEW }, { now: NOW, teacherGrant: live }).via, "teacher-plan");
-  assert.equal(readerAccessFor({ id: 1, role: "teacher", createdAt: NEW }, { now: NOW, schoolGrant: { ...live, kind: "school" } }).via, "school-plan");
+  for (const role of ["student", "parent"]) assert.equal(readerAccessFor({ id: 1, role, createdAt: NEW }, { now: NOW }).access, false, role);
+  // Teachers who signed up before teacher accounts moved to school licenses keep theirs (tests/reader-free.test.ts).
+  const NEW_TEACHER = "2026-11-24T00:00:00Z", LATER = Math.max(NOW, Date.parse("2026-12-01T00:00:00Z"));
+  assert.equal(readerAccessFor({ id: 1, role: "teacher", createdAt: NEW_TEACHER }, { now: LATER }).access, false, "teacher");
+  assert.equal(readerAccessFor({ id: 1, role: "teacher", createdAt: NEW_TEACHER }, { now: LATER, teacherGrant: live }).via, "teacher-plan");
+  assert.equal(readerAccessFor({ id: 1, role: "teacher", createdAt: NEW_TEACHER }, { now: LATER, schoolGrant: { ...live, kind: "school" } }).via, "school-plan");
   assert.equal(readerAccessFor({ id: 1, role: "parent", createdAt: NEW }, { now: NOW, familyGrants: [{ ...live, kind: "bundle_family" }] }).via, "family-plan");
   assert.equal(readerAccessFor({ id: 2, role: "student", createdAt: NEW }, { now: NOW, familyGrants: [null, { ...live, kind: "bundle_family" }] }).via, "family-plan");
   assert.equal(readerAccessFor({ id: 2, role: "student", createdAt: NEW }, { now: NOW, classTeacherAccess: true }).via, "class");
