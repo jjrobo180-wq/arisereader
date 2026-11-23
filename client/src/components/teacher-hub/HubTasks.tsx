@@ -246,18 +246,17 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
       </nav>
 
       <div className="min-w-0">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="task-alerts">
-          {[
-            { label: "Open tasks", count: counts.open, icon: <ListTodo className="h-[17px] w-[17px]" />, tint: "text-violet-600 bg-violet-50", go: "all" as TaskView },
-            { label: "Due today", count: counts.today, icon: <Sun className="h-[17px] w-[17px]" />, tint: "text-amber-600 bg-amber-50", go: "today" as TaskView },
-            { label: "Overdue", count: counts.overdue, icon: <Clock3 className="h-[17px] w-[17px]" />, tint: "text-rose-600 bg-rose-50", go: "today" as TaskView },
-            { label: "Completed", count: done, icon: <CheckCircle2 className="h-[17px] w-[17px]" />, tint: "text-emerald-600 bg-emerald-50", go: "completed" as TaskView },
-          ].map((s) => <button key={s.label} type="button" onClick={() => setView(s.go)} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 text-left shadow-[0_3px_16px_#17152b08] transition hover:border-violet-200 sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{s.label}</span><span className={`rounded-xl p-2 ${s.tint}`}>{s.icon}</span></div><p className="text-3xl font-black text-[#242238]">{s.count}</p></button>)}
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
+        {counts.overdue > 0 && <button type="button" onClick={() => { setView("today"); setAiTab(false); openAsk(null); }} className="mb-3 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-rose-50 px-3 text-xs font-bold text-rose-700" data-testid="tasks-overdue"><Clock3 className="h-3.5 w-3.5" /> {counts.overdue} overdue</button>}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
           {arise && aiTab ? <AriseAsks asks={arise.asks} loaded={arise.loaded} open={arise.open} say={(t) => toast(t)} /> :
           <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
+            {view !== "completed" && view !== "archived" && (
+              <form onSubmit={quickAdd} className="mb-4 flex gap-2">
+                <Field placeholder={arise ? `Add a to-do, or type @arise to ask AI, and press Enter` : `Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} data-testid="tasks-quick-add" />
+<button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="tasks-quick-more"><MoreHorizontal className="h-4 w-4" /> More</button>
+                <PrimaryButton type="submit" disabled={!quick.trim()}>{arise && parseTaskAsk(quick) ? "Ask Arise" : "Add"}</PrimaryButton>
+              </form>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>{renaming && listId !== "all"
                 ? <form onSubmit={(e) => { e.preventDefault(); setWorkspace((p) => renameTaskList(p, listId, renameTo)); setRenaming(false); }} className="flex items-center gap-2" data-testid="list-rename-form">
@@ -266,15 +265,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
                     <button type="button" onClick={() => setRenaming(false)} className="min-h-10 rounded-xl px-3 text-sm font-semibold text-slate-600">Cancel</button>
                   </form>
                 : <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}{listId !== "all" && <button type="button" onClick={() => { setRenameTo(listName); setRenaming(true); }} className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-xs font-bold normal-case tracking-normal text-slate-600 hover:bg-slate-100" data-testid="list-rename"><Pencil className="h-3.5 w-3.5" /> Rename</button>}</p>}<h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
-              <button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#6e5ae0] px-4 text-sm font-bold text-white hover:bg-[#5948c8]"><Plus className="h-[17px] w-[17px]" /> Add task</button>
             </div>
-            {view !== "completed" && view !== "archived" && (
-              <form onSubmit={quickAdd} className="mt-5 flex gap-2">
-                <Field placeholder={arise ? `Add a to-do, or type @arise to ask AI, and press Enter` : `Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} data-testid="tasks-quick-add" />
-<button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="tasks-quick-more"><MoreHorizontal className="h-4 w-4" /> More</button>
-                <PrimaryButton type="submit" disabled={!quick.trim()}>{arise && parseTaskAsk(quick) ? "Ask Arise" : "Add"}</PrimaryButton>
-              </form>
-            )}
             {arise && parseTaskAsk(quick) && <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="arise-hint"><Sparkles className="h-3.5 w-3.5" />Arise's AI will make this and send you a notification when it's ready. Add “by Monday” or “on Monday” to say when.</p>}
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
               <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><Field type="search" placeholder="Search tasks and notes" aria-label="Search to-dos" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>

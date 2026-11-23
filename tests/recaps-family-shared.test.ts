@@ -55,3 +55,16 @@ test("Home shows the recaps everywhere and the family shares in FamilyHub", () =
   assert.match(src, /shown === "home" && <Recaps /);
   assert.match(src, /familySpace && shown === "home" && <FamilyShared /);
 });
+
+test("FamilyHub also shows what I share with my family (Potty Training, Kitchen, Accountability)", async () => {
+  const { familyMine } = await import("../shared/familyShared.ts");
+  const mine: any[] = [
+    { id: "x", viewerId: 2, viewerName: "Mike", nickname: "", status: "active", grants: { "life:meals": "edit", "app:potty": "edit", "together:accountability": "edit" } },
+    { id: "y", viewerId: 3, viewerName: "Grandma", nickname: "Nana", status: "active", grants: { "app:potty": "view" } },
+    { id: "z", viewerId: 9, viewerName: "Coworker", nickname: "", status: "active", grants: { "life:meals": "view" } },
+  ];
+  const rows = familyMine(mine, [1, 2, 3], 1);
+  assert.deepEqual(rows.map((r) => r.id), ["app:potty", "together:accountability", "life:meals"]);
+  assert.deepEqual(rows[0].with, ["Mike", "Nana"]);
+  assert.deepEqual(rows[2].with, ["Mike"]);
+});

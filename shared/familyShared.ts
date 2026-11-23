@@ -26,3 +26,18 @@ export function familyShares(withMe: Link[], familyIds: number[], me: number): {
 
 /** Does someone in the family do Accountability with me (so FamilyHub turns it on)? */
 export const familyHasAccountability = (shares: { id: string }[]) => shares.some((s) => s.id === ACCOUNTABILITY_SHARE);
+
+type Mine = { id: string; viewerId?: number | null; viewerName: string; nickname: string; status: "pending" | "active"; grants: Record<string, "view" | "edit"> };
+
+/** What I share with people in my family (Potty Training, Kitchen, Accountability…): one row per thing, with who it's shared with. */
+export function familyMine(mine: Mine[], familyIds: number[], me: number): { id: string; with: string[] }[] {
+  const fam = new Set(familyIds.filter((id) => id !== me));
+  const by = new Map<string, string[]>();
+  for (const l of mine) {
+    if (!l.viewerId || !fam.has(Number(l.viewerId))) continue;
+    const name = l.nickname || l.viewerName || "family";
+    for (const [id, access] of Object.entries(l.grants || {})) if (access === "view" || access === "edit") by.set(id, [...(by.get(id) || []), name]);
+  }
+  const rank = (id: string) => (id === "app:potty" ? 0 : id === ACCOUNTABILITY_SHARE ? 1 : id.startsWith("app:") ? 2 : 3);
+  return [...by].map(([id, w]) => ({ id, with: [...new Set(w)] })).sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
+}
