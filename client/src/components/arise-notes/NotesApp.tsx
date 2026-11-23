@@ -9,7 +9,8 @@ import { ArrowRight, AudioLines, ChevronLeft, Columns2, Folder, LayoutGrid, Load
 import { ForcedDark, hasAppearance, setAppearance, useAppearance } from "./appearance";
 import { useAuth } from "@/context/AuthContext";
 import { startApplePush } from "@/lib/applePush";
-import { isNotesApp, nativeCall } from "@/lib/nativeApp";
+import { isNotesApp, nativeCall, plainAsk } from "@/lib/nativeApp";
+const AskScreen = lazy(() => import("./AskScreen"));
 import { NOTES_PLANS, SUITE_LOOKS, dayWords, fmtClock, nightLook, templateOf, themeOf, themeVars } from "@shared/ariseNotes";
 import { notesApi, setNotesToken, type ListNote, type Me } from "./api";
 import { setNotesLookup } from "@/undercover/askUndercover";
@@ -268,7 +269,7 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   // The Notes tab (typed and handwritten notes) always has a plain, professional look: neutral surfaces,
   // the system's own type and real folders. Dark when the look or night mode is dark.
   // Every screen has the same plain look (Ask paints its own, in the look chosen in Undercover).
-  const pro = route.name !== "ask" && route.name !== "undercover" && !s?.contrast;
+  const pro = (plainAsk() || (route.name !== "ask" && route.name !== "undercover")) && !s?.contrast;
   // Light / Dark / Auto (Auto follows the phone). Light and Dark are a deliberate choice, so they win over the look.
   // The Suite looks (Paper, Midnight, Folio, Nordic, Carbon) carry on into the Notes tab and the writing
   // page: their colors and type replace the neutral ones there (notes-suite.css).
@@ -283,7 +284,7 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   const backdrop = s?.contrast ? "#ffffff" : proLook && route.name === "page" ? look.card : suite || proLook ? look.bg : pro ? (proDark ? "#0f0f11" : route.name === "pages" || route.name === "page" ? "#ffffff" : "#f2f2f7") : themed ? look.bg : "#f5f4fb";
   const darkBackdrop = pro ? proDark : themed && !!look.dark;
   // Ask (Undercover) paints its own top strip in its look's color, so the app doesn't paint over it.
-  const bare = route.name === "ask" || route.name === "undercover";
+  const bare = !plainAsk() && (route.name === "ask" || route.name === "undercover");
   useEffect(() => {
     if (bare || duo) return; // inside To Duo, To Duo paints the page and the clock's strip
     const html = document.documentElement, body = document.body;
@@ -327,8 +328,7 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
       case "upload": return <UploadScreen ctx={ctx} />;
       case "note": return <NoteScreen key={route.id} ctx={ctx} id={route.id} at={route.t} />;
       // Ask is only the chat or note in the look chosen in Undercover: no toggles, no suggestion buttons.
-      case "ask": return <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
-      case "undercover": return <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
+      case "ask": case "undercover": return plainAsk() ? <AskScreen ctx={ctx} /> : <AppScreen key="undercover" ctx={ctx} id="undercover" ask />;
       case "memo": return <MemoScreen ctx={ctx} />;
       case "settings": return <SettingsScreen ctx={ctx} tab={route.tab} />;
       case "privacy": return <PrivacyPage onBack={() => go({ name: "settings", tab: "privacy" })} />;

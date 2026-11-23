@@ -8,6 +8,7 @@ import { FileText, MessageCircle, MessagesSquare, Send, Sparkles } from "lucide-
 import { fmtClock } from "@shared/ariseNotes";
 import { answerLines, type UndercoverMsg } from "@shared/undercover";
 import { askAi, undercoverPrefs } from "@/undercover/askUndercover";
+import { plainAsk } from "@/lib/nativeApp";
 import { localDay, notesApi, type AskReply } from "./api";
 import { Btn, Notice } from "./ui";
 import { TopBar, type AppCtx } from "./NotesApp";
@@ -37,7 +38,9 @@ export default function AskScreen({ ctx }: { ctx: AppCtx }) {
   const [busy, setBusy] = useState(false);
   const [view, setViewState] = useState(loadView);
   const setView = (v: Partial<typeof view>) => setViewState((old) => { const next = { ...old, ...v }; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* not kept */ } return next; });
-  const { from, look } = view;
+  const { from } = view;
+  // In the iPhone apps, Ask is always a plain AI chat (no look that makes it look like texting or a doc).
+  const look: Look = plainAsk() ? "chat" : view.look;
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns]);
   const notesLocked = !ctx.me.features.ask;
@@ -113,11 +116,11 @@ export default function AskScreen({ ctx }: { ctx: AppCtx }) {
   </div>;
 
   return <>
-    <TopBar ctx={ctx} title="Ask" back={() => ctx.go({ name: "home" })} />
+    <TopBar ctx={ctx} title={plainAsk() ? "Ask AI" : "Ask"} back={() => ctx.go({ name: "home" })} />
     <main className="mx-auto flex max-w-3xl flex-col px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
       <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
         <Toggle label="Answer from" value={from} onChange={(v) => setView({ from: v })} options={[["anything", "Notes + web", <Sparkles key="a" className="h-4 w-4" aria-hidden />], ["notes", "Only my notes", <FileText key="n" className="h-4 w-4" aria-hidden />]]} />
-        <Toggle label="Look" value={look} onChange={(v) => setView({ look: v })} options={[["chat", "Chat", <MessagesSquare key="c" className="h-4 w-4" aria-hidden />], ["doc", "Notes", <FileText key="d" className="h-4 w-4" aria-hidden />], ["text", "Text", <MessageCircle key="t" className="h-4 w-4" aria-hidden />]]} />
+        {!plainAsk() && <Toggle label="Look" value={look} onChange={(v) => setView({ look: v })} options={[["chat", "Chat", <MessagesSquare key="c" className="h-4 w-4" aria-hidden />], ["doc", "Notes", <FileText key="d" className="h-4 w-4" aria-hidden />], ["text", "Text", <MessageCircle key="t" className="h-4 w-4" aria-hidden />]]} />}
       </div>
       {from === "notes" && notesLocked ? <Notice tone="warn" action={<Btn kind="primary" onClick={() => ctx.go({ name: "settings", tab: "plan" })}>See plans</Btn>}>Asking your own notes comes with Arise Notes Basic. "Anything" works on every plan.</Notice> : <>
         <div className="flex-1 space-y-5" aria-live="polite">

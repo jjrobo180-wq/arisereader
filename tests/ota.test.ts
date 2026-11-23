@@ -50,10 +50,14 @@ test("signed builds set the updater up; the apps say they started fine; master p
   assert.equal(cfg.statsUrl, "");
   assert.equal(cfg.autoUpdate, true);
   assert.match(cfg.version, /^1\.\d+\.0$/);
-  for (const [wf, app] of [["arisetodo-signed-release", "todo"], ["podplus-testflight", "podplus"], ["fit-ios", "fit"], ["educator-ios", "educator"], ["arisereader-ios", "reader"]]) {
+  for (const [wf, app] of [["podplus-testflight", "podplus"], ["fit-ios", "fit"], ["educator-ios", "educator"], ["arisereader-ios", "reader"]]) {
     assert.match(readFileSync(`.github/workflows/${wf}.yml`, "utf8"), new RegExp(`ota_setup\\.py ${app}\\n\\s+npx cap add ios`));
   }
-  for (const d of ["arisetodo", "podscroll", "reader", "educator", "fit"]) {
+  // To Duo has no live updates: everything is in the build App Review sees (Guideline 2.5.2 / 5.6).
+  assert.doesNotMatch(readFileSync("arisetodo/ios-app/package.json", "utf8"), /capacitor-updater/);
+  assert.doesNotMatch(readFileSync(".github/workflows/arisetodo-signed-release.yml", "utf8"), /ota_setup\.py todo/);
+  assert.equal(JSON.parse(readFileSync("arisetodo/ios-app/capacitor.config.json", "utf8")).plugins.CapacitorUpdater, undefined);
+  for (const d of ["podscroll", "reader", "educator", "fit"]) {
     assert.match(readFileSync(`${d}/ios-app/package.json`, "utf8"), /"@capgo\/capacitor-updater": "\^8/);
     // Only our own server, never an outside one.
     const c = JSON.parse(readFileSync(`${d}/ios-app/capacitor.config.json`, "utf8")).plugins.CapacitorUpdater;

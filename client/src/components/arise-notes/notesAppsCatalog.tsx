@@ -1,6 +1,7 @@
 // The apps you can add to Arise Notes (the App Gallery, NotesApps.tsx): what each one is, which ones
 // you've added (saved to the account, so they follow you to every device) and the row of them on Home.
 // Kept small and separate from the apps themselves so Home doesn't load them.
+import { plainAsk } from "@/lib/nativeApp";
 import type { ReactNode } from "react";
 import { ChevronRight, EyeOff, FileText, Layers, LayoutGrid, ListChecks, Palette, PenLine, Presentation, StickyNote, Table2, Timer } from "lucide-react";
 import { useAppData } from "@/lib/cloudDocs";
@@ -9,7 +10,7 @@ import type { AppCtx } from "./NotesApp";
 export type NotesAppId = "stickies" | "lists" | "whiteboard" | "sheets" | "slides" | "docs" | "design" | "flashcards" | "focus" | "undercover";
 export type NotesAppInfo = { id: NotesAppId; name: string; short: string; tagline: string; about: string; color: string; icon: ReactNode; group: "Write & plan" | "Office" | "Study" };
 
-export const NOTES_APPS: NotesAppInfo[] = [
+export const ALL_NOTES_APPS: NotesAppInfo[] = [
   { id: "stickies", name: "Sticky Notes", short: "Stickies", tagline: "Quick colored notes on a board", group: "Write & plan", color: "#f2a900", icon: <StickyNote />,
     about: "Jot something down in a second: a phone number, a reminder, an idea. Pick a color and pin the ones that matter most." },
   { id: "lists", name: "Checklists", short: "Lists", tagline: "Lists you can tick off", group: "Write & plan", color: "#15803d", icon: <ListChecks />,
@@ -31,6 +32,9 @@ export const NOTES_APPS: NotesAppInfo[] = [
   { id: "focus", name: "Focus Timer", short: "Focus", tagline: "25 minutes on, 5 minutes off", group: "Study", color: "#db2777", icon: <Timer />,
     about: "A Pomodoro timer for studying or deep work: focus, take a short break, repeat. It counts today's sessions." },
 ];
+/** Undercover (the disguised chat) isn't offered inside the iPhone apps; Ask there is a plain AI chat (App Review 5.6). */
+export const NOTES_APPS: NotesAppInfo[] = plainAsk() ? ALL_NOTES_APPS.filter((a) => a.id !== "undercover") : ALL_NOTES_APPS;
+
 export const notesAppOf = (id: string) => NOTES_APPS.find((a) => a.id === id);
 
 const cleanInstalled = (raw: unknown): { installed: NotesAppId[] } => {

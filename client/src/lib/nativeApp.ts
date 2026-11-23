@@ -46,6 +46,9 @@ export const isNotesApp = (): boolean => isNativeApp() && nativeFlavor() === "no
 export const isTalkApp = (): boolean => isNativeApp() && nativeFlavor() === "talk";
 /** Inside the Arise Undercover iPhone app (AI chat that looks like texting or a doc; undercover/UndercoverApp.tsx). */
 export const isUndercoverApp = (): boolean => isNativeApp() && nativeFlavor() === "undercover";
+/** In every iPhone app but Arise Undercover itself, the AI chat always looks like what it is: a plain chat
+ *  titled "Ask AI", with no looks that disguise it and nothing that hides it (App Review 5.6). */
+export const plainAsk = (): boolean => isNativeApp() && nativeFlavor() !== "undercover";
 /** Each app's name, bundle id (Sign in with Apple asks for it) and server. All three use the same
  *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {

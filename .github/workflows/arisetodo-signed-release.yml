@@ -68,7 +68,8 @@ jobs:
         working-directory: arisetodo/ios-app
         run: |
           npm install --no-audit --no-fund
-          python3 ../../.github/scripts/ota_setup.py todo
+          # No live updates in To Duo (App Review 2.5.2 / 5.6): everything the app does is in the build
+          # Apple reviews, and changes ship as App Store updates.
           npx cap add ios
           npx cap sync ios
       - name: Prepare beta icon and build number
