@@ -416,6 +416,7 @@ export interface IStorage {
   getRangeLeaderboard(fromYearMonth: string, toYearMonth: string): Promise<any[]>;
   getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
+  getWindowStatsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, { points: number; quizzesTaken: number; quizzesPassed: number }>>;
   // Advisory leaderboard (grouped by teacher)
   getAdvisoryLeaderboard(): Promise<any[]>;
 }
@@ -1452,6 +1453,11 @@ export class DatabaseStorage implements IStorage {
   async getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>> {
     const stats = await this.windowStatsBetween(userIds, startMs, endMs, fromDay, endDayExclusive);
     return new Map([...stats].map(([id, w]) => [id, w.quizzesTaken]));
+  }
+
+  /** Points, quizzes taken and quizzes passed for each student between two times (the Top Reader Challenge). */
+  async getWindowStatsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string) {
+    return this.windowStatsBetween(userIds, startMs, endMs, fromDay, endDayExclusive);
   }
 
   private async windowStatsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, ReturnType<typeof windowPoints>>> {

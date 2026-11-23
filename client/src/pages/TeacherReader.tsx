@@ -19,6 +19,10 @@ import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/Supp
 import { AdvisoryStandings, ChallengeStatus, GamesBeginStaffPopup } from "@/components/AdvisoryChallenge";
 import { challengeEnded } from "@shared/advisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
+import { TopReaderCard } from "@/components/TopReader";
+import { useTopReader } from "@/lib/topReader";
+import { topReaderDates, topReaderWinners } from "@shared/topReader";
+import { dayLabel } from "@shared/advisoryChallenge";
 import { ordinal } from "@shared/advisoryChallenge";
 import { nameWords } from "@shared/classTeachers";
 import { ADMIN_SECTIONS, type AdminSection, type SettingsSection } from "@/lib/adminSections";
@@ -213,6 +217,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const [privacy, setPrivacy] = useState(false);
   const [counts, setCounts] = useState<Counts | null>(null);
   const challenge = useAdvisoryChallenge(token);
+  // The Top Reader Challenge: students race one by one (shared/topReader.ts).
+  const topReader = useTopReader(token);
   const [adminSettings, setAdminSettings] = useState<SettingsSection>("programs");
   const [hubIntroDone, setHubIntroDone] = useState(() => (user ? hubIntroSeen(user.id) : true));
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem(RAIL_KEY) !== "closed"; } catch { return true; } });
@@ -469,6 +475,18 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
                 </div>
               ))}
             </section>
+            {topReader?.challenge && (
+              <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border px-5 py-[18px]" style={{ background: "#0f1a1a", borderColor: "#11604a" }} data-testid="reader-top-reader-card">
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-extrabold" style={{ color: "#6ee7b7" }}>{topReader.challenge.firstDay ? "New! " : ""}{topReader.challenge.title} · {topReaderDates(topReader.challenge)}</span>
+                  <span className="text-[17px] font-extrabold">{topReader.challenge.phase === "over"
+                    ? `Winners: ${topReaderWinners(topReader.standings, topReader.challenge.winners).map((w) => w.name).join(" and ") || "no one scored"}`
+                    : `The top ${topReader.challenge.winners} students with the most points each win ${topReader.challenge.prize}`}</span>
+                  <span className="text-sm" style={{ color: "#a29fb8" }}>{topReader.challenge.phase === "over" ? `Prizes go out ${dayLabel(topReader.challenge.prizeDay)}.` : `${topReader.racers.toLocaleString()} ${topReader.racers === 1 ? "student has" : "students have"} scored so far. Everyone started at 0.`}</span>
+                </div>
+                <button type="button" onClick={() => go("leaderboard")} className="min-h-10 rounded-[10px] px-3.5 text-sm font-extrabold" style={{ background: "#34d399", color: "#05231a" }}>See the leaderboard</button>
+              </section>
+            )}
             {challenge?.challenge && (
               <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border px-5 py-[18px]" style={{ background: "#1f1418", borderColor: "#5a2a20" }} data-testid="reader-challenge-card">
                 <div className="flex flex-col gap-1">
@@ -487,16 +505,18 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             <PrizesCard onStandings={() => go("leaderboard")} />
           </>}
 
-          {isParent && view === "leaderboard" && <ParentLeaderboards token={token} challenge={challenge} />}
+          {isParent && view === "leaderboard" && <ParentLeaderboards token={token} challenge={challenge} topReader={topReader} />}
 
           {!isParent && view === "leaderboard" && <>
-            <h1 className="text-[30px] font-black tracking-[-0.02em]">Advisory Challenge</h1>
+            <h1 className="text-[30px] font-black tracking-[-0.02em]">Leaderboard</h1>
+            {topReader?.challenge && <TopReaderCard view={topReader} />}
+            {(topReader?.challenge || challenge?.challenge) && <h2 className="mt-2 text-lg font-extrabold">Advisory Challenge</h2>}
             {challenge?.challenge ? (
               <section className="flex flex-col gap-3 rounded-[18px] border p-4" style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
                 <ChallengeStatus view={challenge} mineName={mine?.name} />
                 <AdvisoryStandings view={challenge} mineName={mine?.name} />
               </section>
-            ) : <p className="text-[15px]" style={{ color: "#a29fb8" }}>{challenge === undefined ? "Loading…" : "Your school has no Advisory Challenge running."}</p>}
+            ) : !topReader?.challenge && <p className="text-[15px]" style={{ color: "#a29fb8" }}>{challenge === undefined ? "Loading…" : "Your school has no Advisory Challenge running."}</p>}
           </>}
 
           {view === "whatsnew" && (
@@ -560,7 +580,7 @@ function PrizesCard({ onStandings }: { onStandings?: () => void }) {
 type Board = Array<{ id?: number; userId?: number; displayName: string; totalPoints: number }>;
 
 /** Every leaderboard running now, in plain words for a parent, with their own children marked. */
-function ParentLeaderboards({ token, challenge }: { token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge> }) {
+function ParentLeaderboards({ token, challenge, topReader }: { token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge>; topReader?: ReturnType<typeof useTopReader> }) {
   const [month, setMonth] = useState<Board | null>(null);
   const [year, setYear] = useState<Board | null>(null);
   const [kids, setKids] = useState<number[]>([]);
@@ -598,6 +618,7 @@ function ParentLeaderboards({ token, challenge }: { token: string | null; challe
   return <>
     <h1 className="text-[30px] font-black tracking-[-0.02em]">Leaderboards</h1>
     <p className="-mt-2 text-[15px]" style={{ color: "#c9c5dc" }}>Every race going on right now. Points come from passing reading quizzes.</p>
+    {topReader?.challenge && <TopReaderCard view={topReader} child={topReader.mine?.name} />}
     {challenge?.challenge && (
       <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
         <h2 className="text-lg font-extrabold">Advisory Challenge · {challengeEnded(challenge.challenge.phase) ? "over" : "prize: pizza party"}</h2>

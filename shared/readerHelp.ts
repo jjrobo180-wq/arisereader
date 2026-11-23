@@ -340,6 +340,18 @@ export const HELP: HelpEntry[] = [
     open: "readerPrizes",
   },
   {
+    id: "top-reader", section: "Games & prizes",
+    q: "What is the Top Reader Challenge?",
+    a: "Students race one by one. Everyone started at 0 on Monday, Nov 23, and the 2 students with the most reading points by the end of Monday, Nov 30 each win a $5 gift card or snacks (chips, candy and a drink). Open **Leaderboard** to see the whole board, or click **See the leaderboard** on your Overview.",
+    notes: [
+      "Points are the usual ones: a passed quiz adds the book's points, and points you give count too.",
+      "Students see the top 10 and their own place. You see every student who has scored.",
+      "If two students tie for a prize, both are shown as winners.",
+    ],
+    keywords: ["top reader", "challenge", "contest", "gift card", "snacks", "candy", "chips", "drink", "winners", "most points", "race", "new challenge"],
+    open: "leaderboard",
+  },
+  {
     id: "advisory-challenge", section: "Games & prizes",
     q: "Where are the Advisory Challenge poster, login papers and slide?",
     a: "Open **Advisory Challenge**. It has the **Hallway poster**, **Student login papers** (4 per page with a QR code), the **Advisory slide**, and a **Slide for Google Slides**, plus how to run it. **Leaderboard** shows the standings.",

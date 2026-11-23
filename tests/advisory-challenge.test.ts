@@ -143,7 +143,8 @@ test("the Advisory Challenge pop-up replaces the Halloread welcome and the 'your
   assert.doesNotMatch(app, /<LeaderboardPopup /);
   assert.match(app, /<AdvisoryChallengePopup onNavigate=/);
   const popup = read("client/src/components/AdvisoryChallenge.tsx");
-  assert.match(popup, /if \(raw === null \|\| !raw\.challenge\) return <LeaderboardPopup onNavigate=\{onNavigate\} \/>;/, "schools without a challenge keep the standing pop-up");
+  // With no Advisory Challenge on, the Top Reader Challenge pop-up shows if one is on, and the standing pop-up if not.
+  assert.match(popup, /if \(raw === null \|\| !raw\.challenge\) return <TopReaderPopup onNavigate=\{onNavigate\} fallback=\{<LeaderboardPopup onNavigate=\{onNavigate\} \/>\} \/>;/, "schools without a challenge keep the standing pop-up");
   assert.match(popup, /onNavigate\("\/leaderboard"\)/);
   assert.match(popup, /const early = c\.countsFrom < c\.starts \?/, "points from before the start only count if the challenge says so");
   assert.match(popup, /Every advisory starts at 0 points\./);
@@ -239,7 +240,7 @@ test("a student's profile, messages and certificates open as pop-ups; the hub op
 test("parents see the prizes, every leaderboard, and their child's school's challenge; banners are slim", () => {
   const reader = read("client/src/pages/TeacherReader.tsx");
   for (const prize of ["Pizza party", "DoorDash food", "AirPods"]) assert.ok(reader.includes(`title: "${prize}"`), prize);
-  assert.match(reader, /\{isParent && view === "leaderboard" && <ParentLeaderboards token=\{token\} challenge=\{challenge\} \/>\}/);
+  assert.match(reader, /\{isParent && view === "leaderboard" && <ParentLeaderboards token=\{token\} challenge=\{challenge\} topReader=\{topReader\} \/>\}/);
   assert.match(reader, /\/api\/leaderboard\?month=\$\{ym\}/);
   assert.match(reader, /\{ id: "whatsnew", label: "What's new", icon: Megaphone \}/);
   assert.match(reader, /<WhatsNew embedded \/>/);

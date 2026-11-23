@@ -11,6 +11,8 @@ import MonthCountdown from "@/components/MonthCountdown";
 import { AdvisoryStandings, ChallengeStatus, headline } from "@/components/AdvisoryChallenge";
 import { challengeEnded } from "@shared/advisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
+import { TopReaderCard } from "@/components/TopReader";
+import { useTopReader } from "@/lib/topReader";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
 
 const SESSION_COOKIE = "arise_session";
@@ -66,6 +68,7 @@ export default function StudentProgress({ view }: { view?: "rewards" } = {}) {
   // Two boards, one at a time: the Advisory Challenge first, and the students' monthly race.
   const [board, setBoard] = useState<"students" | "advisories">("advisories");
   const challenge = useAdvisoryChallenge(token || getTokenFromCookie());
+  const topReader = useTopReader(token || getTokenFromCookie());
   const [badges, setBadges] = useState<Badge[]>([]);
   const [badgeCounts, setBadgeCounts] = useState({ unlocked: 0, total: 0 });
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -322,6 +325,8 @@ export default function StudentProgress({ view }: { view?: "rewards" } = {}) {
             </CardContent>
           </Card>
         )}
+
+        {tab === "leaderboard" && topReader?.challenge && <TopReaderCard view={topReader} />}
 
         {tab === "leaderboard" && challenge && challenge.challenge && (
           <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/40" role="tablist" aria-label="Leaderboards" data-testid="leaderboard-boards">

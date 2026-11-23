@@ -10,6 +10,8 @@ import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 import MonthCountdown from "@/components/MonthCountdown";
 import { AdvisoryStandings, ChallengeStatus } from "@/components/AdvisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
+import { TopReaderCard } from "@/components/TopReader";
+import { useTopReader } from "@/lib/topReader";
 import { monthLabel, previousYearMonth, recentSchoolMonths, schoolYearMonth } from "@shared/schoolMonth";
 
 /** "1 quiz passed" / "3 quizzes passed" (older servers only sent quizzes taken). */
@@ -45,6 +47,8 @@ export default function LeaderboardPage() {
   const [view, setView] = useState<"individual" | "advisory">("individual");
   // The school's Advisory Challenge (by advisory), when there is one; otherwise the older board by teacher.
   const challenge = useAdvisoryChallenge(token);
+  // The Top Reader Challenge (students one by one), at the top of the page while it runs.
+  const topReader = useTopReader(token);
   const currentMonth = schoolYearMonth();
   const recentMonths = recentSchoolMonths(6);
   // At midnight on the 1st, someone watching this month moves on to the new one by themselves.
@@ -140,6 +144,8 @@ export default function LeaderboardPage() {
             </p>
           )}
         </div>
+
+        {topReader?.challenge && <div className="mb-6"><TopReaderCard view={topReader} /></div>}
 
         {/* Prizes this reader's own family, teacher and school have put up. Nothing shows when there are none. */}
         <div className="mb-6 empty:hidden">

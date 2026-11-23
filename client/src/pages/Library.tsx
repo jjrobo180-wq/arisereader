@@ -8,6 +8,7 @@ import type { BookCandidate } from "@shared/bookMatch";
 import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
 import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
+import { TopReaderBanner } from "@/components/TopReader";
 import { EnglishExplorerBanner, useEnglishExplorer } from "@/components/EnglishExplorerBanner";
 import { BeginnersBanner } from "@/components/BeginnersBanner";
 import { QuizReadyBanner } from "@/components/QuizReadyBanner";
@@ -1508,6 +1509,7 @@ export default function Library() {
         {/* Quizzes this student asked for that a teacher approved: shown first, until taken. */}
         {user?.role === 'student' && <QuizReadyBanner />}
         {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}
+        {user?.role === 'student' && <TopReaderBanner onOpen={() => navigate("/leaderboard")} />}
         {user?.role === 'student' && <AdvisoryChallengeBanner onOpen={() => navigate("/leaderboard")} />}
         {/* English Explorer: only for students a teacher turned it on for. */}
         {user?.role === 'student' && <EnglishExplorerBanner onOpen={() => navigate("/english")} />}

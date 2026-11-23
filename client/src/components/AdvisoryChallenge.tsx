@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useAdvisoryChallenge, useGamesBegin } from "@/lib/advisoryChallenge";
 import { challengeEnded, challengeWinners, countdownText, dayLabel, endTimeLabel, joinNames, ordinal, type ChallengeView, type Standing } from "@shared/advisoryChallenge";
 import LeaderboardPopup from "./LeaderboardPopup";
+import { TopReaderPopup } from "./TopReader";
 
 type View = ChallengeView & { challenge: NonNullable<ChallengeView["challenge"]> };
 
@@ -225,7 +226,8 @@ export default function AdvisoryChallengePopup({ onNavigate }: { onNavigate: (pa
   const live = !!raw?.challenge && raw.challenge.phase !== "over";
   const intro = useGamesBegin(token, user?.id, live);
   if (raw === undefined || !user) return null;
-  if (raw === null || !raw.challenge) return <LeaderboardPopup onNavigate={onNavigate} />;
+  // No Advisory Challenge on: the Top Reader Challenge pop-up when one is on, otherwise "your standing".
+  if (raw === null || !raw.challenge) return <TopReaderPopup onNavigate={onNavigate} fallback={<LeaderboardPopup onNavigate={onNavigate} />} />;
   if (!open || (live && intro.show === undefined)) return null;
   const v = raw as View;
   const first = live && intro.show === true;

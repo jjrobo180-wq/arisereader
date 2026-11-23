@@ -32,6 +32,7 @@ import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
 import { registerAdvisoryChallengeRoutes } from "./advisoryChallenge";
+import { registerTopReaderRoutes } from "./topReader";
 import { registerReaderTotalsRoutes } from "./readerTotals";
 import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTeachers";
 import { advisorAccount, advisoriesForSchool, advisoryLabel, advisoryName } from "../shared/advisories";
@@ -1479,6 +1480,27 @@ export async function registerRoutes(
     },
     pointsBetween: (ids, from, to, fromDay, endDay) => storage.getPointsBetween(ids, from, to, fromDay, endDay),
     quizzesBetween: (ids, from, to, fromDay, endDay) => storage.getQuizzesBetween(ids, from, to, fromDay, endDay),
+    async parentChildren(parentId) {
+      const ids = await getParentStudentIds(parentId);
+      const kids = await Promise.all(ids.map((id) => storage.getUser(id)));
+      return kids.filter((k: any) => k && k.role === "student" && !k.archivedAt).map((k: any) => ({ id: Number(k.id), schoolId: k.schoolId ?? k.school_id ?? null }));
+    },
+  });
+  // The Top Reader Challenge board (server/topReader.ts): students race one by one for the most points.
+  registerTopReaderRoutes(app, {
+    auth: authMiddleware,
+    getSchool: classTeacherStore.getSchool,
+    allSchools: classTeacherStore.allSchools,
+    async schoolStudents(schoolId) {
+      const rows = await pagedRows((a, b) => supabase.from("users").select("id, username, display_name, role, is_admin").eq("school_id", schoolId).is("archived_at", null).order("id", { ascending: true }).range(a, b));
+      return rows.filter((r) => !r.is_admin && (r.role || "student") === "student" && !isSampleAccount(r))
+        .map((r) => ({ id: Number(r.id), name: String(r.display_name || r.username || "A reader").trim() }));
+    },
+    async grades() {
+      const raw = await storage.getSetting("user_grades");
+      try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+    },
+    statsBetween: (ids, from, to, fromDay, endDay) => storage.getWindowStatsBetween(ids, from, to, fromDay, endDay),
     async parentChildren(parentId) {
       const ids = await getParentStudentIds(parentId);
       const kids = await Promise.all(ids.map((id) => storage.getUser(id)));
