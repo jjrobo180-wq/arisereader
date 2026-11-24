@@ -1,74 +1,70 @@
-// Pre-filled hub templates in the LifeHub App Store: Finance hub, Health & fitness hub, and Home &
-// chores hub. Each is a ready-made bundle of existing App Store plugins that installs (or removes)
-// all at once, exactly as if every plugin in it had been added on its own. See shared/pluginStore.ts.
+// Plugin packs in the Plugin Gallery (shared/pluginStore.ts, HUB_TEMPLATES): ready-made sets of existing
+// plugins (Teacher essentials, Family, Couples, Health & wellness...) that add (or remove) all at once,
+// exactly as if every plugin in it had been added on its own.
+// Run: npx tsx --test tests/hub-templates.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { HUB_TEMPLATES, PLUGINS, setLifePlugin, setLifeTemplate, templateInstalledCount, templatePlugins } from "../shared/pluginStore";
+import { HUB_TEMPLATES, packsFor, pluginsFor, setLifePlugin, setLifeTemplate, templateInstalledCount, templatePlugins } from "../shared/pluginStore";
 import { emptyFamily } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("there are exactly the three templates the App Store offers, each in LifeHub, with a unique id", () => {
-  assert.equal(HUB_TEMPLATES.length, 3);
-  const names = HUB_TEMPLATES.map((t) => t.name);
-  assert.deepEqual(names, ["Finance hub", "Health & fitness hub", "Home & chores hub"]);
-  assert.ok(HUB_TEMPLATES.every((t) => t.hub === "life"));
-  assert.equal(new Set(HUB_TEMPLATES.map((t) => t.id)).size, 3, "no two templates share an id");
+test("WorkHub and LifeHub each have their packs, with unique ids, and Teacher essentials is first for teachers", () => {
+  assert.equal(new Set(HUB_TEMPLATES.map((t) => t.id)).size, HUB_TEMPLATES.length, "no two packs share an id");
+  const work = packsFor("work", { teacher: true }).map((t) => t.name);
+  assert.equal(work[0], "Teacher essentials");
+  for (const n of ["Working with families", "Special education", "Classroom management", "Planning & prep", "Teacher wellness", "Office & meetings"]) assert.ok(work.includes(n), n);
+  const life = packsFor("life", { teacher: false }).map((t) => t.name);
+  for (const n of ["Family", "Couples", "Health & wellness", "Baby & toddler", "Kids & school", "Money", "Home", "Get organized", "Family fun", "Student"]) assert.ok(life.includes(n), n);
 });
 
-test("every plugin id listed in a template actually exists, in that template's hub, and none repeat within a template", () => {
+test("teacher packs are only shown to teachers", () => {
+  const notTeacher = packsFor("work", { teacher: false }).map((t) => t.name);
+  assert.deepEqual(notTeacher, ["Office & meetings"]);
+});
+
+test("every plugin in every pack is one this person can really add today, with none repeated", () => {
   for (const t of HUB_TEMPLATES) {
-    assert.ok(t.plugins.length >= 5, `${t.name} should bundle a real handful of apps, not just one or two`);
+    assert.ok(t.plugins.length >= 5, `${t.name} should be a real handful of plugins`);
     assert.equal(new Set(t.plugins).size, t.plugins.length, `${t.name} lists an id more than once`);
-    for (const id of t.plugins) {
-      const p = PLUGINS.find((p) => p.id === id);
-      assert.ok(p, `${t.name} references "${id}", which isn't a real plugin id`);
-      assert.equal(p!.hub, t.hub, `${t.name} references "${id}", which belongs to the wrong hub`);
-    }
-    // templatePlugins resolves every one of them - nothing silently dropped.
-    assert.equal(templatePlugins(t).length, t.plugins.length, `${t.name} has a plugin id that failed to resolve`);
+    const offered = pluginsFor(t.hub, { teacher: !!t.teacherOnly, arise: false });
+    const got = templatePlugins(t, offered);
+    assert.deepEqual(got.map((p) => p.id), [...t.plugins], `${t.name} has a plugin that isn't offered (merged, retired or hidden)`);
+    for (const s of [t.name, t.tagline, t.description]) assert.doesNotMatch(s, /\p{Extended_Pictographic}/u, s);
   }
 });
 
-test("no plugin is bundled into more than one template, so adding every template never double-installs anything oddly", () => {
-  const seen = new Map<string, string>();
-  for (const t of HUB_TEMPLATES) for (const id of t.plugins) {
-    assert.ok(!seen.has(id), `"${id}" is bundled into both "${seen.get(id)}" and "${t.name}"`);
-    seen.set(id, t.name);
-  }
+test("Teacher essentials has all five class-records plugins", () => {
+  const t = HUB_TEMPLATES.find((x) => x.id === "work-pack-teacher")!;
+  for (const id of ["work-behavior", "work-passes", "work-attendance", "work-gradebook", "work-wall"]) assert.ok(t.plugins.includes(id), id);
 });
 
-test("installing a template adds every one of its plugins; removing it takes every one back off, and nothing else", () => {
-  const finance = HUB_TEMPLATES.find((t) => t.id === "life-template-finance")!;
+test("adding a pack adds every one of its plugins; removing it takes every one back off, and nothing else", () => {
+  const money = HUB_TEMPLATES.find((t) => t.id === "life-template-finance")!;
   const fresh = emptyFamily();
-  const installed = setLifeTemplate(fresh, finance, true);
-  assert.equal(templateInstalledCount(finance, installed), templatePlugins(finance).length, "every plugin in the bundle is now on");
-  for (const p of templatePlugins(finance)) assert.ok(p.target.kind === "section" && installed.sections[p.target.section], `${p.name} should be switched on`);
-  // A section outside the bundle is untouched.
-  assert.equal(installed.sections.journal, fresh.sections.journal);
-  const removed = setLifeTemplate(installed, finance, false);
-  // Removing turns every one of the bundle's apps off, the same as removing any single app always
-  // does - even "Budget & bills", which (like a few other core sections) happens to start on by
-  // default before anyone ever touches it. That's correct: once you've added or removed something
-  // through the Store, its state is yours, not the factory default.
-  assert.equal(templateInstalledCount(finance, removed), 0, "removing the template turns off every app in it, with no exceptions");
-  for (const p of templatePlugins(finance)) assert.ok(p.target.kind === "section" && removed.sections[p.target.section] === false, `${p.name} should be switched off`);
+  const installed = setLifeTemplate(fresh, money, true);
+  assert.equal(templateInstalledCount(money, installed), templatePlugins(money).length, "every plugin in the pack is now on");
+  assert.equal(installed.sections.journal, fresh.sections.journal, "a section outside the pack is untouched");
+  const removed = setLifeTemplate(installed, money, false);
+  assert.equal(templateInstalledCount(money, removed), 0, "removing the pack turns off every plugin in it");
 });
 
-test("installing a template is the same as adding each of its plugins one at a time, in order", () => {
+test("adding a pack is the same as adding each of its plugins one at a time, in order", () => {
   const home = HUB_TEMPLATES.find((t) => t.id === "life-template-home")!;
-  const viaTemplate = setLifeTemplate(emptyFamily(), home, true);
-  let viaOneByOne = emptyFamily();
-  for (const p of templatePlugins(home)) viaOneByOne = setLifePlugin(viaOneByOne, p, true);
-  assert.deepEqual(viaTemplate.sections, viaOneByOne.sections, "no special-casing: a template is just its plugins, added together");
+  const viaPack = setLifeTemplate(emptyFamily(), home, true);
+  let oneByOne = emptyFamily();
+  for (const p of templatePlugins(home)) oneByOne = setLifePlugin(oneByOne, p, true);
+  assert.deepEqual(viaPack.sections, oneByOne.sections, "a pack is just its plugins, added together");
 });
 
-test("the App Store shows a Hubs tab with a card per template, each able to add or remove every app in it at once", () => {
+test("the gallery shows Packs first, adds a pack one plugin at a time, and stops when the plan is full", () => {
   const store = read("client/src/components/plugin-store/PluginStore.tsx");
-  assert.match(store, /data-testid="plugin-store-templates"/, "a chip switches to the templates view");
-  assert.match(store, /const toggleTemplate = \(t: HubTemplate, on: boolean\) => \{/);
-  assert.match(store, /const list = templatePlugins\(t\);\s*for \(const p of list\) onToggle\(p, on\);/, "a template is installed by toggling each of its plugins");
-  assert.match(store, /data-testid=\{`template-\$\{t\.id\}`\}/, "each template renders as its own card");
-  assert.match(store, /data-testid="template-detail"/, "a template has its own detail page listing its apps");
+  assert.match(store, /data-testid="plugin-store-templates">Packs</, "a Packs chip");
+  assert.ok(store.indexOf('data-testid="plugin-store-templates"') < store.indexOf('data-testid="plugin-store-added"'), "Packs comes before Added");
+  assert.match(store, /data-testid="plugin-packs-row"/, "a row of packs at the top of Browse");
+  assert.match(store, /const packOf = \(t: HubTemplate\) => templatePlugins\(t, live\);/, "a pack only lists what this person is offered");
+  assert.match(store, /onToggle\(todo\[i\], true\);[\s\S]*?if \(installedNow\.current\(todo\[i\]\)\) step\(i \+ 1\);[\s\S]*?else finish\(\);/, "each add waits for the last to land, and a refused add stops the rest");
+  assert.match(store, /data-testid=\{`template-\$\{t\.id\}`\}/, "each pack is its own card");
+  assert.match(store, /data-testid="template-detail"/, "each pack has a page listing its plugins");
 });

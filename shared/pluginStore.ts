@@ -1056,10 +1056,13 @@ export function searchPlugins(list: readonly Plugin[], query: string): Plugin[] 
 /** The session-storage key that opens the store when a hub loads (used to switch hubs from inside the store). */
 export const OPEN_STORE_KEY = "arise_plugin_store";
 
-// ── Hub templates ────────────────────────────────────────────────────────────
-// A ready-made bundle of App Store plugins, for someone building a new hub around one area of life.
-// Adding a template adds every plugin in it in one go, each exactly as if added on its own: nothing
-// new is created to hold them, and removing any one of them afterward works the same as always.
+// ── Plugin packs ─────────────────────────────────────────────────────────────
+// A ready-made set of App Store plugins for one kind of person or job (Teacher essentials, Family,
+// Couples...), shown as "Packs" at the top of the Plugin Gallery. Adding a pack adds every plugin in it,
+// each exactly as if added on its own: nothing new is created to hold them, removing any one of them
+// afterward works the same as always, and a plugin can be in more than one pack. (Called hub templates
+// until Nov 23, 2026, when the three LifeHub ones were rebuilt: most of their plugins had since been
+// folded into Money, Home & Car and Kitchen, and health plugins are no longer offered.)
 
 export type HubTemplate = {
   id: string;
@@ -1069,25 +1072,77 @@ export type HubTemplate = {
   description: string;
   icon: string;
   color: string;
-  /** The plugin ids this template adds, in the order they'll show on its detail page. */
+  /** The plugin ids this pack adds, in the order they'll show on its detail page. */
   plugins: readonly string[];
+  /** Only teachers (and admins) see it. */
+  teacherOnly?: boolean;
 };
 
 export const HUB_TEMPLATES: readonly HubTemplate[] = [
-  { id: "life-template-finance", hub: "life", name: "Finance hub", tagline: "Bills, budget, savings and more, all at once", icon: "Wallet", color: "#16a34a",
-    description: "Everything for the money side of family life, added together: bills and budget, subscriptions, savings jars, who owes who, gift card balances, warranties, a loan calculator and a mileage log.",
-    plugins: ["life-money", "life-subscriptions", "life-jars", "life-tips", "life-ious", "life-giftcards", "life-warranties", "life-mortgage", "life-mileage"] },
-  { id: "life-template-health", hub: "life", name: "Health & fitness hub", tagline: "Food, exercise, sleep and checkups, all at once", icon: "HeartPulse", color: "#dc2626",
-    description: "Everything for tracking health as a family, added together: a food and fitness diary, workouts, sleep, checkups, cycle tracking, pill reminders, mood check-ins, meditation and habits.",
-    plugins: ["life-health", "life-workouts", "life-sleep", "life-sleepfinder", "life-checkups", "life-cycle", "life-pills", "life-mood", "life-meditate", "life-habits"] },
-  { id: "life-template-home", hub: "life", name: "Home & chores hub", tagline: "Chores, upkeep and the car, all at once", icon: "Wrench", color: "#64748b",
-    description: "Everything for running the household, added together: the chore chart, home upkeep schedules, a cleaning schedule, car care, plant care, home projects, the grocery list, lent items and pet care.",
-    plugins: ["life-chores", "life-upkeep", "life-cleaning", "life-car", "life-plants", "life-projects", "life-grocery", "life-loans", "life-pets"] },
+  // WorkHub
+  { id: "work-pack-teacher", hub: "work", teacherOnly: true, name: "Teacher essentials", tagline: "Everything a classroom teacher uses every day", icon: "GraduationCap", color: "#6e5ae0",
+    description: "The everyday classroom set, added together: behavior, hall passes, attendance and the gradebook, the Student wall for families, lessons, parents and email, plus a random student picker and a group maker. Choose what families see from the Student wall.",
+    plugins: ["work-behavior", "work-passes", "work-attendance", "work-gradebook", "work-wall", "work-lessons", "work-parents", "work-email", "work-brief", "work-kit-student-picker", "work-kit-group-maker"] },
+  { id: "work-pack-families", hub: "work", teacherOnly: true, name: "Working with families", tagline: "Posts, messages, conferences and volunteers", icon: "Users", color: "#0f766e",
+    description: "Everything for keeping families close: the Student wall for posts, newsletters and messages, parent contacts and email, a conference scheduler, parent volunteers, interpreters, email starters and positive calls home.",
+    plugins: ["work-wall", "work-parents", "work-email", "work-kit-conferences", "work-kit-volunteers", "work-kit-interpreters", "work-kit-parent-email-starters", "work-kit-conference-questions", "work-kit-positive-calls"] },
+  { id: "work-pack-sped", hub: "work", teacherOnly: true, name: "Special education", tagline: "Caseload, IEPs, goals, minutes and data", icon: "ClipboardList", color: "#2563eb",
+    description: "The special education set, added together: your caseload, IEP meetings, goals, service minutes, student profiles and schedules, accommodations, ABC behavior data, trial data, progress monitoring, related services and IEP meeting prep.",
+    plugins: ["work-caseload", "work-meetings", "work-goals", "work-minutes", "work-profiles", "work-schedules", "work-kit-accommodations", "work-kit-abc-data", "work-kit-trial-data", "work-kit-progress-probes", "work-kit-related-services", "work-kit-iep-prep"] },
+  { id: "work-pack-classroom", hub: "work", teacherOnly: true, name: "Classroom management", tagline: "Behavior, passes, jobs, rewards and routines", icon: "LayoutGrid", color: "#d97706",
+    description: "Running the room, added together: behavior points and hall passes, classroom jobs, a reward menu, seating notes, student of the week, shout-outs, attention getters, de-escalation strategies and brain breaks.",
+    plugins: ["work-behavior", "work-passes", "work-kit-class-jobs", "work-kit-reward-menu", "work-kit-seating-notes", "work-kit-student-of-week", "work-kit-shout-outs", "work-kit-attention-getters", "work-kit-de-escalation", "work-kit-brain-breaks"] },
+  { id: "work-pack-planning", hub: "work", teacherOnly: true, name: "Planning & prep", tagline: "Lessons, prep, sub plans and the week ahead", icon: "CalendarDays", color: "#7c3aed",
+    description: "Getting ready for the week, added together: lessons, prep, focus time, a lesson idea bank, sub plan essentials, a week planner, the testing calendar and your duty schedule.",
+    plugins: ["work-lessons", "work-prep", "work-focus", "work-kit-lesson-ideas", "work-kit-sub-plans", "work-kit-week-planner", "work-kit-testing-schedule", "work-kit-duty-schedule"] },
+  { id: "work-pack-teacher-wellness", hub: "work", teacherOnly: true, name: "Teacher wellness", tagline: "Lunch, leaving on time and something for you", icon: "Sun", color: "#16a34a",
+    description: "Looking after yourself, added together: teacher encouragement and self-care ideas, and simple trackers for eating lunch sitting down, leaving on time, hours worked, planning time and doing something for you.",
+    plugins: ["work-kit-teacher-encouragement", "work-kit-teacher-self-care", "work-kit-lunch-break", "work-kit-left-on-time", "work-kit-hours-worked", "work-kit-planning-time", "work-kit-self-care-teacher", "work-kit-teacher-productivity"] },
+  { id: "work-pack-office", hub: "work", name: "Office & meetings", tagline: "Docs, sheets, agendas, minutes and boards", icon: "Briefcase", color: "#334155",
+    description: "For the office side of work, added together: Docs and Sheets, meeting agendas and minutes, Kanban boards, a time tracker, a priority matrix and Find a Time.",
+    plugins: ["work-office-doc", "work-office-sheet", "work-ai-meeting-agenda", "work-ai-meeting-summary", "work-pro-kanban", "work-pro-time-tracker", "work-pro-matrix", "work-pro-find-time"] },
+  // LifeHub
+  { id: "life-pack-family", hub: "life", name: "Family", tagline: "Chores, behavior, trips and who's driving", icon: "Users", color: "#6e5ae0",
+    description: "Everything for running a family, added together: chores, behavior, family polls, trips, accountability, important contacts, carpool, school contacts, the kids' teachers, family dinners, dinner table questions and chore ideas by age.",
+    plugins: ["life-chores", "life-behavior", "life-polls", "life-trips", "life-accountability", "life-contacts", "life-kit-carpool", "life-kit-school-contacts", "life-kit-teachers-list", "life-kit-family-dinner", "life-kit-dinner-questions", "life-kit-kid-chores"] },
+  { id: "life-pack-couples", hub: "life", name: "Couples", tagline: "Dates, gifts, questions and places to go", icon: "Heart", color: "#e11d48",
+    description: "For the two of you, added together: gifts and dates, relationships, a date night jar, at-home date ideas, questions for couples, travel ideas, cafés to try, shows and events, and movies you've seen.",
+    plugins: ["life-datehub", "life-relationships", "life-kit-date-jar", "life-kit-home-dates", "life-kit-couple-questions", "life-kit-travel-ideas", "life-kit-coffee-shops", "life-kit-concerts", "life-kit-movies-seen"] },
+  { id: "life-pack-health", hub: "life", name: "Health & wellness", tagline: "Food, fitness, calm and a journal", icon: "HeartPulse", color: "#dc2626",
+    description: "Feeling good, added together: Cooked for food, Cooked PT for fitness, a journal with daily inspiration, focus and routines, goals, a calm corner, calm sounds, worry time and a thought record.",
+    plugins: ["life-cooked", "life-cookedpt", "life-inspire", "life-focushub", "life-goals", "life-pro-calm-corner", "life-pro-sounds", "life-pro-worry", "life-ai-thought-reframe"] },
+  { id: "life-pack-baby", hub: "life", name: "Baby & toddler", tagline: "Feedings, naps, diapers and firsts", icon: "Baby", color: "#0ea5e9",
+    description: "The early years, added together: feedings, naps, diapers and tummy time, baby's firsts, a growth chart, new baby essentials, baby-proofing, the diaper bag, calm-down strategies and parenting tips.",
+    plugins: ["life-kit-feedings", "life-kit-nap-log", "life-kit-diaper-log", "life-kit-tummy-time", "life-kit-first-words", "life-kit-growth-chart", "life-kit-new-baby", "life-kit-baby-proofing", "life-kit-toddler-bag", "life-kit-calm-down", "life-kit-parenting-tips"] },
+  { id: "life-pack-school", hub: "life", name: "Kids & school", tagline: "Homework, reading, friends and activities", icon: "Backpack", color: "#ea580c",
+    description: "School-age kids, added together: homework time and help, raising readers, library books, kids' journal prompts, kids' activities, friends and their parents, playdates, STEM challenges and screen-free ideas.",
+    plugins: ["life-kit-homework-time", "life-kit-homework-tips", "life-kit-reading-tips", "life-kit-library-books", "life-kit-kid-journal", "life-kit-kid-activities", "life-kit-kid-friends", "life-kit-playdates", "life-kit-stem-challenges", "life-kit-screen-free"] },
+  { id: "life-template-finance", hub: "life", name: "Money", tagline: "Budget, debts, savings and accounts", icon: "Wallet", color: "#16a34a",
+    description: "The money side of life, added together: Money (bills, budget and more), debt payoff, credit cards, bank accounts, a savings goal planner, no-spend days, money saved, coupons, insurance policies and money tips.",
+    plugins: ["life-moneyhub", "life-kit-debts", "life-kit-credit-cards", "life-kit-bank-accounts", "life-kit-savings-goal", "life-kit-no-spend", "life-kit-saved-today", "life-kit-coupons", "life-kit-insurance-policies", "life-kit-money-tips"] },
+  { id: "life-template-home", hub: "life", name: "Home", tagline: "Chores, repairs, upkeep and the garden", icon: "Wrench", color: "#64748b",
+    description: "Running the house, added together: Home & Car, chores, home projects, pet care, repairs, service pros, appliances, a home maintenance log, home inventory, a garden planner and cleaning hacks.",
+    plugins: ["life-homehub", "life-chores", "life-projects", "life-pets", "life-kit-repairs", "life-kit-service-pros", "life-kit-appliances", "life-kit-home-maintenance-log", "life-kit-home-inventory", "life-kit-garden", "life-kit-cleaning-hacks"] },
+  { id: "life-pack-organized", hub: "life", name: "Get organized", tagline: "Lists, routines, reminders and your week", icon: "ListChecks", color: "#334155",
+    description: "A calmer week, added together: lists, focus and routines, goals, sticky notes, the Daily Brief, AI reminders, daily reads, a week planner, a Sunday reset and a morning launch pad.",
+    plugins: ["life-listhub", "life-focushub", "life-goals", "life-stickies", "life-brief", "life-lifeplan", "life-dailyhub", "life-kit-week-planner", "life-kit-sunday-reset", "life-kit-morning-launch"] },
+  { id: "life-pack-fun", hub: "life", name: "Family fun", tagline: "Games, jokes and things to do together", icon: "PartyPopper", color: "#c026d3",
+    description: "Time together, added together: family game ideas, rainy day and free family fun, outdoor play, would you rather, jokes, riddles, road trip questions, your board game shelf and the randomizer.",
+    plugins: ["life-kit-family-games", "life-kit-rainy-day", "life-kit-free-family-fun", "life-kit-outdoor-play", "life-kit-would-you-rather", "life-kit-jokes", "life-kit-riddles", "life-kit-road-trip-questions", "life-kit-board-games", "life-randomizer"] },
+  { id: "life-pack-student", hub: "life", name: "Student", tagline: "Study, flashcards, grades and citations", icon: "BookOpen", color: "#2563eb",
+    description: "For high school and college, added together: a study planner, flashcards, a quiz maker, a study guide, an essay outliner, citations, a GPA calculator, a final grade calculator and a study time log.",
+    plugins: ["life-pro-study-planner", "life-ai-flashcards", "life-ai-quiz", "life-ai-study-guide", "life-ai-essay-outline", "life-pro-citations", "life-pro-gpa", "life-pro-final-grade", "life-kit-study-log"] },
 ];
 
+/** The packs this person sees in a hub. */
+export function packsFor(hub: PluginHub, opts: { teacher: boolean }): HubTemplate[] {
+  return HUB_TEMPLATES.filter((t) => t.hub === hub && (!t.teacherOnly || opts.teacher));
+}
+
 /** A template's plugins, resolved and in this hub (missing or wrong-hub ids are quietly skipped). */
-export function templatePlugins(t: HubTemplate): Plugin[] {
-  return t.plugins.map((id) => PLUGINS.find((p) => p.id === id && p.hub === t.hub)).filter((p): p is Plugin => !!p);
+export function templatePlugins(t: HubTemplate, offered?: readonly Plugin[]): Plugin[] {
+  const from = offered ?? pluginsFor(t.hub, { teacher: true, arise: true });
+  return t.plugins.map((id) => from.find((p) => p.id === id && p.hub === t.hub)).filter((p): p is Plugin => !!p);
 }
 
 /** How many of a template's plugins are already added (same test as the App Store uses per-plugin). */
