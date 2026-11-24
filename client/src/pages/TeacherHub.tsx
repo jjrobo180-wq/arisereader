@@ -353,6 +353,10 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
               <div><div className="font-semibold text-slate-950">Whole school</div><div className="mt-1 text-sm text-slate-600">Every teacher gets their own Hub, up to {H.schoolStudentCap.toLocaleString("en-US")} students.</div></div>
               <div className="shrink-0 text-right"><div className="text-xl font-bold text-slate-950">{usd(H.schoolYearlyCents)}</div><div className="text-xs text-slate-500">a year</div></div>
             </div>
+            <div className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-4">
+              <div><div className="font-semibold text-slate-950">Whole district</div><div className="mt-1 text-sm text-slate-600">Every school on one license, up to {H.districtStudentCap.toLocaleString("en-US")} students.</div></div>
+              <div className="shrink-0 text-right"><div className="text-xl font-bold text-slate-950">{usd(H.districtYearlyCents)}</div><div className="text-xs text-slate-500">a year</div></div>
+            </div>
           </div>
           <p className="text-sm text-slate-600">Arise WorkHub is sold on its own, and isn't included with A.R.I.S.E. Premium or a free school account. Everything you saved is kept if you add it later.</p>
           <div className="flex flex-col gap-3 sm:flex-row">

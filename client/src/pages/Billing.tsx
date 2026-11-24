@@ -334,6 +334,13 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
               </button>
               <small>Runs a full 12 months.</small>
             </div>
+            <div className="bl-card" data-testid="billing-hub-district">
+              <h3>Whole district</h3>
+              <p className="bl-price"><b>{usd(H.districtYearlyCents)}</b> a year</p>
+              <p>Every school in your district or charter network on one license, for up to {count(H.districtStudentCap)} students.</p>
+              <a className="pr-pill pr-pill-ghost pr-wide" href="https://arisetodo.com/support/" target="_blank" rel="noopener noreferrer">Ask about a district license</a>
+              <small>One bill. Pay by invoice or purchase order.</small>
+            </div>
           </div>
           <p className="bl-foot">Arise WorkHub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Arise WorkHub includes</button></p>
         </>

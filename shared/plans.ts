@@ -42,8 +42,12 @@ export const PLANS = {
     monthlyCents: 1000,
     studentsPerBlock: 100,
     maxBlocks: 50,
-    schoolYearlyCents: 70000,
+    /** Whole school: $2,000 a year, every teacher there, up to 1,000 students. */
+    schoolYearlyCents: 200000,
     schoolStudentCap: 1000,
+    /** Districts and charter networks: $10,000 a year for every school, up to 8,000 students, one bill. */
+    districtYearlyCents: 1000000,
+    districtStudentCap: 8000,
   },
   /**
    * Arise Social (/social/), the career-discovery add-on: $5 a month for each account that uses it.

@@ -33,7 +33,7 @@ export type HubInfo = {
   students: number;
   teacherPlan: PlanView | null;
   schoolPlan: PlanView | null;
-  prices: { monthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number };
+  prices: { monthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number; districtYearlyCents: number; districtStudentCap: number };
 };
 
 // A failed load is remembered too (as null), so a page doesn't wait on it again and again.

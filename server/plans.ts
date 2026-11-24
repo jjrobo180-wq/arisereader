@@ -736,7 +736,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           students: isTeacher && deps.countHubStudents ? await deps.countHubStudents(user.id) : 0,
           teacherPlan: isTeacher ? grantView(await readGrant("hub_teacher", user.id)) : null,
           schoolPlan: isTeacher && schoolOf(user) ? grantView(await readGrant("hub_school", schoolOf(user))) : null,
-          prices: { monthlyCents: PLANS.hub.monthlyCents, studentsPerBlock: PLANS.hub.studentsPerBlock, maxBlocks: PLANS.hub.maxBlocks, schoolYearlyCents: PLANS.hub.schoolYearlyCents, schoolStudentCap: PLANS.hub.schoolStudentCap },
+          prices: { monthlyCents: PLANS.hub.monthlyCents, studentsPerBlock: PLANS.hub.studentsPerBlock, maxBlocks: PLANS.hub.maxBlocks, schoolYearlyCents: PLANS.hub.schoolYearlyCents, schoolStudentCap: PLANS.hub.schoolStudentCap, districtYearlyCents: PLANS.hub.districtYearlyCents, districtStudentCap: PLANS.hub.districtStudentCap },
         };
       }
       res.set("Cache-Control", "no-store");
