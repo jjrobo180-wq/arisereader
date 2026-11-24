@@ -294,6 +294,8 @@ app.use(/^\/api\/math\/prep$/, (req, res, next) => { if (req.method !== "POST") 
 
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
 // its last events with sendBeacon (plain text) while it is closing.
+// Student wall photos (server/classRecords.ts): one picture per request, as raw bytes.
+app.use("/api/records/photos", express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: "8mb" }));
 app.use("/api/integrity/live", express.raw({ type: "image/jpeg", limit: "220kb" }));
 app.use("/api/integrity/live", express.text({ type: "text/plain", limit: "32kb" }));
 

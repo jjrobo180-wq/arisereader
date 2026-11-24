@@ -69,7 +69,9 @@ export function createSupabaseBehaviorStore(client?: any): BehaviorStore {
 const shortName = (n: string) => { const p = n.trim().split(/\s+/); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0]}.` : p[0] || "Student"; };
 const text = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
-export function registerClassBehaviorRoutes(app: Express, auth: RequestHandler, deps: { directory: BehaviorDirectory; store?: BehaviorStore; now?: () => number }) {
+export function registerClassBehaviorRoutes(app: Express, auth: RequestHandler, deps: { directory: BehaviorDirectory; store?: BehaviorStore; now?: () => number;
+  /** Whether a teacher shares Behavior or Hall passes with families (server/classRecords.ts). Not set: shared. */
+  familySees?: (teacherId: number, plugin: "behavior" | "passes") => Promise<boolean> }) {
   const store = deps.store ?? createSupabaseBehaviorStore();
   const dir = deps.directory, now = deps.now ?? Date.now;
   const iso = () => new Date(now()).toISOString();
@@ -191,11 +193,18 @@ export function registerClassBehaviorRoutes(app: Express, auth: RequestHandler, 
     const ids = await dir.childrenOf(u.id);
     const kids = (await Promise.all(ids.map((id) => dir.user(id)))).filter((k): k is BUser => !!k && k.role === "student" && !k.archived);
     const [events, passes] = await Promise.all([store.events({ studentIds: kids.map((k) => k.id), since: daysAgo(60), limit: 2000 }), store.passes({ studentIds: kids.map((k) => k.id), since: daysAgo(14) })]);
-    const shared = events.filter((e) => e.share), tot = totals(shared, now());
+    // Only what each teacher shares with families (the Behavior and Hall passes plugins' sharing switches).
+    const sees = new Map<string, boolean>();
+    const allowed = async (t: number, p: "behavior" | "passes") => { const k = `${t}:${p}`; if (!sees.has(k)) sees.set(k, deps.familySees ? await deps.familySees(t, p).catch(() => false) : true); return sees.get(k)!; };
+    const shared: BehaviorEvent[] = [];
+    for (const e of events) if (e.share && (await allowed(e.teacher_id, "behavior"))) shared.push(e);
+    const shownPasses: HallPass[] = [];
+    for (const p of passes) if (await allowed(p.teacher_id, "passes")) shownPasses.push(p);
+    const tot = totals(shared, now());
     res.json({ children: kids.map((k) => ({
       id: k.id, name: k.displayName.split(" ")[0], points: tot[k.id] ?? { all: 0, week: 0, today: 0, pos: 0, neg: 0 },
       recent: shared.filter((e) => e.student_id === k.id).slice(0, 25).map(eventOut),
-      passes: passes.filter((p) => p.student_id === k.id && p.status !== "denied").slice(0, 15).map(passOut),
+      passes: shownPasses.filter((p) => p.student_id === k.id && p.status !== "denied" && p.status !== "asked").slice(0, 15).map(passOut),
     })) });
   }));
 }

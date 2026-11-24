@@ -7,7 +7,7 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useS
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
-import { Lightbulb, NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
+import { Lightbulb, NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette, DoorOpen, Newspaper } from "lucide-react";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { STORE_KIND } from "@shared/hubSearch";
@@ -220,6 +220,10 @@ import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan 
 import { appsIn, countsAsApp } from "@shared/todoPlan";
 import { ADMIN_SECTIONS, SETTINGS_SECTIONS, adminSectionLabel, settingsSectionLabel, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 import HubBehavior from "@/components/teacher-hub/HubBehavior";
+import HubHallPasses from "@/components/teacher-hub/HubHallPasses";
+import HubClassAttendance from "@/components/teacher-hub/HubClassAttendance";
+import HubClassGradebook from "@/components/teacher-hub/HubClassGradebook";
+import HubStudentWall from "@/components/teacher-hub/HubStudentWall";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNote";
 import AccountPrivacy from "@/components/AccountPrivacy";
@@ -267,8 +271,10 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "arise", label: "Reading records", icon: <BookHeart className="h-4 w-4" /> },
   { id: "admin", label: "Admin console", icon: <Settings2 className="h-4 w-4" /> },
   { id: "behavior", label: "Behavior", icon: <Sparkles className="h-4 w-4" /> },
+  { id: "passes", label: "Hall passes", icon: <DoorOpen className="h-4 w-4" /> },
   { id: "attendance", label: "Attendance", icon: <ClipboardCheck className="h-4 w-4" /> },
   { id: "gradebook", label: "Gradebook", icon: <GraduationCap className="h-4 w-4" /> },
+  { id: "wall", label: "Student wall", icon: <Newspaper className="h-4 w-4" /> },
   { id: "parents", label: "Parents", icon: <MessageSquare className="h-4 w-4" /> },
   { id: "schedules", label: "Schedules", icon: <Clock3 className="h-4 w-4" /> },
   { id: "prep", label: "Prep", icon: <ClipboardCheck className="h-4 w-4" /> },
@@ -290,7 +296,7 @@ const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
   iep: <CalendarDays className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
-  behavior: <Sparkles className="h-4 w-4" />,
+  behavior: <Sparkles className="h-4 w-4" />, passes: <DoorOpen className="h-4 w-4" />, wall: <Newspaper className="h-4 w-4" />,
   arise: <BookHeart className="h-4 w-4" />,
   records: <BookHeart className="h-4 w-4" />,
   admin: <ShieldCheck className="h-4 w-4" />,
@@ -702,6 +708,11 @@ function TeacherHubPage() {
         setTab("tasks");
         const askId = params.get("ask");
         openAsk(askId && isAskId(askId) ? askId : "");
+      } else if (go === "wall") {
+        // A family wrote (server/classRecords.ts): the Student wall's messages.
+        closeApps();
+        try { localStorage.setItem("arise-choice:hub-wall-tab", "messages"); } catch { /* fine */ }
+        setTab("wall");
       } else if (go === "tasks" || go === "calendar" || go === "add" || go === "links" || go === "home") {
         // A Home Screen widget (lib/duoFocus.ts listenForWidgetGo): the section it shows, the task it's about, or a new to-do.
         closeApps();
@@ -2061,8 +2072,10 @@ function TeacherHubPage() {
           {tab === "admin" && user.isAdmin && adminSection !== "updates" && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <HubBehavior legacy={<Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />} />}
-          {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}
-          {tab === "gradebook" && <Gradebook workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
+          {tab === "passes" && <HubHallPasses />}
+          {tab === "attendance" && <><HubClassAttendance />{workspace.attendance.length > 0 && <EarlierRecords label="the earlier attendance list"><Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} /></EarlierRecords>}</>}
+          {tab === "gradebook" && <><HubClassGradebook />{(workspace.assignments.length > 0 || workspace.gradeScores.length > 0) && <EarlierRecords label="the earlier gradebook"><Gradebook workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} /></EarlierRecords>}</>}
+          {tab === "wall" && <HubStudentWall />}
           {tab === "parents" && <Parents workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "prep" && <PrepChecklist workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} />}
           {tab === "oneonone" && <HubOneOnOne workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
@@ -2566,6 +2579,15 @@ function Behavior({ workspace, setWorkspace, remove, studentOptions, totals }: S
       </div>
     </>
   );
+}
+
+/** What a teacher kept in the old Attendance and Gradebook lists, under the new plugin, until they no longer need it. */
+function EarlierRecords({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <section className="mt-6 rounded-2xl border border-[#e7e8f0] bg-white p-5 dark:border-white/10 dark:bg-white/[.03]">
+    <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-sm font-semibold text-slate-900 dark:text-white">{open ? "Hide" : "Show"} {label}</button>
+    {open && <div className="mt-4">{children}</div>}
+  </section>;
 }
 
 function Attendance({ workspace, setWorkspace, remove, studentOptions, exportAttendance }: SectionProps & { studentOptions: () => ReactNode; exportAttendance: () => void }) {

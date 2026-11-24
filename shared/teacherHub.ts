@@ -201,7 +201,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "coach", "lessons", "tasks", "notes", "journal", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
+  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "coach", "lessons", "tasks", "notes", "journal", "arise", "behavior", "passes", "attendance", "gradebook", "wall", "parents", "schedules", "email", "reader", "admin",
   "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
   "readerAdvisory", "readerCatalog",
 ] as const;
@@ -216,8 +216,8 @@ export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "cale
  *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
  *  not by the App Store. */
 export const WORK_ADD_ON_TABS: readonly HubTab[] = [
-  "caseload", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "coach", "lessons", "arise", "behavior", "attendance",
-  "gradebook", "parents", "schedules", "email",
+  "caseload", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "coach", "lessons", "arise", "behavior", "passes", "attendance",
+  "gradebook", "wall", "parents", "schedules", "email",
 ];
 
 /** Whether a WorkHub screen shows. The built-in four unless switched off; an App Store screen only

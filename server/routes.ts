@@ -141,7 +141,9 @@ import { createSupabaseKv } from "./fitKv";
 import { registerMathPrepRoutes } from "./ariseMathPrep";
 import { registerSpedExemplarRoutes } from "./spedExemplar";
 import { registerKhaElaRoutes } from "./khaEla";
-import { registerClassBehaviorRoutes } from "./classBehavior";
+import { registerClassBehaviorRoutes, createSupabaseBehaviorStore } from "./classBehavior";
+import { registerClassRecordsRoutes, createSupabaseRecordFiles, recordShareKey } from "./classRecords";
+import { cleanShare } from "../shared/classRecords";
 import { registerScholarRoutes } from "./scholar";
 import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
@@ -2323,6 +2325,25 @@ export async function registerRoutes(
       parentsOf: async (studentId) => Object.entries(await readParentStudentLinks()).filter(([, ids]) => normalizeLinkedIds(ids).includes(studentId)).map(([pid]) => Number(pid)).filter((n) => Number.isSafeInteger(n) && n > 0),
       notify: (id, message) => notifyUser(id, message),
     },
+    familySees: async (teacherId, plugin) => cleanShare(await createSupabaseKv().get(recordShareKey(teacherId))).parents[plugin],
+  });
+  // Class records (WorkHub's Behavior, Hall passes, Attendance, Gradebook and Student wall plugins): what
+  // teachers share with families (the family page, signed in or by private link), staff and admins. See server/classRecords.ts.
+  registerClassRecordsRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      parentsOf: async (studentId) => Object.entries(await readParentStudentLinks()).filter(([, ids]) => normalizeLinkedIds(ids).includes(studentId)).map(([pid]) => Number(pid)).filter((n) => Number.isSafeInteger(n) && n > 0),
+      staffOf: async (schoolId) => {
+        const rows = await pagedRows((a, b) => supabase.from("users").select("id").eq("school_id", schoolId).is("archived_at", null).or("role.eq.teacher,is_admin.eq.true").order("id", { ascending: true }).range(a, b));
+        return (await Promise.all(rows.map(async (r) => toSocialUser(await storage.getUser(Number(r.id)))))).filter((u): u is SocialUser => !!u);
+      },
+      notify: (id, message) => notifyUser(id, message),
+    },
+    kv: createSupabaseKv(),
+    files: createSupabaseRecordFiles(),
+    behavior: createSupabaseBehaviorStore(),
   });
   // AriseScholar (arisereader.com/scholar/): teachers tap to give academic points, students race on a school board. See server/scholar.ts.
   const scholarRoster = new Map<number, { at: number; rows: Promise<Array<{ id: number; name: string; group: string }>> }>();

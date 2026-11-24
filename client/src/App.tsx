@@ -142,6 +142,7 @@ const Register = lazyPage(() => import("./pages/Register"));
 const TeacherSignup = lazyPage(() => import("./pages/TeacherSignup"));
 const ParentSignup = lazyPage(() => import("./pages/ParentSignup"));
 const QuizPermission = lazyPage(() => import("./pages/QuizPermission"));
+const FamilyPortal = lazyPage(() => import("./pages/FamilyPortal"));
 const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
 const TodoAdmin = lazyPage(() => import("./pages/TodoAdmin"));
 const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
@@ -755,6 +756,11 @@ function AppRoutes() {
       <Route path="/quiz-permission">
         <QuizPermission />
       </Route>
+      {/* The family page: what teachers share about a child, and messages with them. Opens for a signed-in
+          parent, or with a teacher's private family link (#/family?k=...) and no account at all. */}
+      <Route path="/family">
+        <FamilyPortal />
+      </Route>
       {/* The parent portal and the teacher dashboard now live inside the hubs (Arise LifeHub and Arise WorkHub). */}
       <Route path="/parent-dashboard">
         <Redirect to="/reader" replace />
@@ -1182,7 +1188,7 @@ function AppRoutes() {
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
 // Cooked, Cooked PT, the trainer directory and Arise Talk are whole apps of their own on the
 // website too, so the site's side tabs (points, Avatar World) and pop-ups stay off them.
-const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/familyhub", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
+const FULLSCREEN_GAME_ROUTES = ["/to-do", "/lifehub", "/familyhub", "/family", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren", "/present", "/tutorial/present", "/fit", "/trainer", "/trainers", "/talk"];
 function useFullscreenGameRoute() {
   // Trainer websites (#/t/<slug>) belong to the trainer: no Arise pop-ups or install prompts for their visitors.
   const read = () => { const p = window.location.hash.replace(/^#/, "").split("?")[0]; return FULLSCREEN_GAME_ROUTES.includes(p) || p.startsWith("/t/") || p.startsWith("/c/") || p === "/buddy" || p.startsWith("/buddy/"); };

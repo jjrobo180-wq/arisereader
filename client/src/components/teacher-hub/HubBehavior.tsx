@@ -1,36 +1,33 @@
-// WorkHub's Behavior tab, built like LiveSchool: tap a student (or select a few, or the whole class) and
-// tap a behavior to give points, with an optional note that can go to parents. Hall passes run live: students
-// ask from their own account, the teacher approves with one tap, and a timer shows who's out and for how long.
-// Reports show each student's points; Settings holds the behaviors, pass places and limits.
-// The server side is server/classBehavior.ts. The old Hub-only points list stays under "My notes".
+// WorkHub's Behavior plugin: points for the behaviors a teacher chooses, given to one student, a few or the
+// whole class, with an optional note. Behavior only: hall passes are their own plugin (HubHallPasses.tsx).
+// Each teacher decides whether families and other staff see it (records/RecordsUI.tsx, ShareCard); a note
+// can also be kept private one at a time. The server side is server/classBehavior.ts.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AlertTriangle, Check, CheckSquare, Clock3, DoorOpen, Plus, Send, Settings2, Trash2, Undo2, Users, X } from "lucide-react";
+import { Check, Download, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { API_BASE } from "@/lib/queryClient";
-import { minutesOut, positiveRate, type BehaviorSettings } from "@shared/classBehavior";
-import { Card, Empty, Field, PrimaryButton } from "./ui";
+import { downloadCsv, shortDay } from "@/lib/records";
+import { positiveRate, type BehaviorSettings } from "@shared/classBehavior";
 import { HubModal } from "./HubModal";
+import { Avatar, Btn, ErrorNote, Loading, Panel, PluginHead, ShareCard, Toggle, ink, useRecordsSetup } from "./records/RecordsUI";
 
 type Student = { id: number; name: string; short: string; all: number; week: number; today: number; pos: number; neg: number };
 type Ev = { id: string; studentId: number; points: number; label: string; note: string; share: boolean; at: string };
-type Pass = { id: string; studentId: number; place: string; status: "asked" | "out" | "back" | "denied"; limit: number; askedAt: string; outAt: string | null; backAt: string | null };
-type ClassData = { settings: BehaviorSettings; students: Student[]; recent: Ev[]; passes: Pass[]; serverNow: number };
-type View = "class" | "passes" | "reports" | "settings" | "notes";
+type ClassData = { settings: BehaviorSettings; students: Student[]; recent: Ev[]; serverNow: number };
+type View = "class" | "reports" | "settings";
 
-const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-const clock = (min: number) => `${Math.floor(min)}:${String(Math.round((min % 1) * 60)).padStart(2, "0")}`;
+const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
+const pointTone = (n: number) => (n > 0 ? "text-emerald-700 dark:text-emerald-300" : n < 0 ? "text-rose-700 dark:text-rose-300" : "text-slate-500");
 
-export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
+export default function HubBehavior({ legacy }: { legacy?: ReactNode }) {
   const { token } = useAuth();
-  const [view, setView] = useState<View>(() => { try { return (sessionStorage.getItem("hub-behavior-view") as View) || "class"; } catch { return "class"; } });
-  const pickView = (v: View) => { setView(v); try { sessionStorage.setItem("hub-behavior-view", v); } catch { /* not kept */ } };
+  const [view, setView] = useSavedChoice<View>("hub-behavior-view-2", "class", ["class", "reports", "settings"]);
   const [data, setData] = useState<ClassData | null>(null);
   const [error, setError] = useState("");
-  const [setup, setSetup] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [now, setNow] = useState(Date.now());
+  const [setupNeeded, setSetupNeeded] = useState(false);
   const [flash, setFlash] = useState<{ text: string; undo?: string[] } | null>(null);
+  const records = useRecordsSetup();
 
   const request = useCallback(async (path: string, options: RequestInit = {}) => {
     const r = await fetch(`${API_BASE}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
@@ -39,17 +36,13 @@ export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
     return body;
   }, [token]);
   const load = useCallback(async () => {
-    try { const d = await request("/api/behavior/class"); setData(d); setOffset(d.serverNow - Date.now()); setError(""); }
-    catch (e: any) { if (e.body?.setup) setSetup(true); setError(e.message); }
+    try { setData(await request("/api/behavior/class")); setError(""); }
+    catch (e: any) { if (e.body?.setup) setSetupNeeded(true); setError(e.message); }
   }, [request]);
-  useEffect(() => { void load(); const t = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 10_000); return () => window.clearInterval(t); }, [load]);
-  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (!flash) return; const t = window.setTimeout(() => setFlash(null), 6000); return () => window.clearTimeout(t); }, [flash]);
-
-  const serverNow = now + offset;
-  const asked = data?.passes.filter((p) => p.status === "asked") ?? [];
-  const out = data?.passes.filter((p) => p.status === "out") ?? [];
   const nameOf = (id: number) => data?.students.find((s) => s.id === id)?.name ?? "Student";
+  const familiesSee = !!records.setup?.share.parents.behavior;
 
   /* ---- giving points ---- */
   const [selecting, setSelecting] = useState(false);
@@ -62,7 +55,7 @@ export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
     try {
       const r = await request("/api/behavior/points", { method: "POST", body: JSON.stringify({ studentIds: ids, note: note.trim(), share, ...body }) });
       const first = r.added[0];
-      setFlash({ text: `${first.points > 0 ? "+" : ""}${first.points} ${first.label} · ${ids.length === 1 ? nameOf(ids[0]) : `${ids.length} students`}${share ? " · shared with parents" : ""}`, undo: r.added.map((x: Ev) => x.id) });
+      setFlash({ text: `${sign(first.points)} ${first.label} · ${ids.length === 1 ? nameOf(ids[0]) : `${ids.length} students`}`, undo: r.added.map((x: Ev) => x.id) });
       setSheet(null); setPicked([]); setSelecting(false); void load();
     } catch (e: any) { setFlash({ text: e.message }); }
   }
@@ -71,186 +64,166 @@ export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
     setFlash({ text: "Taken back." }); void load();
   }
 
-  /* ---- passes ---- */
-  async function passAct(p: Pass, act: "approve" | "deny" | "back", force = false) {
-    try { await request(`/api/behavior/passes/${p.id}/${act}`, { method: "POST", body: JSON.stringify({ force }) }); void load(); }
-    catch (e: any) {
-      if (e.body?.full && window.confirm(`${e.message} Let ${nameOf(p.studentId).split(" ")[0]} go anyway?`)) return passAct(p, act, true);
-      setFlash({ text: e.message });
-    }
-  }
-  async function startPass(studentId: number, place: string) {
-    try { await request("/api/behavior/passes", { method: "POST", body: JSON.stringify({ studentId, place }) }); setSheet(null); setFlash({ text: `${nameOf(studentId).split(" ")[0]} is out: ${data?.settings.places.find((p) => p.id === place)?.label}.` }); void load(); }
-    catch (e: any) { setFlash({ text: e.message }); }
-  }
-
-  if (setup) return <div className="space-y-4">
-    <Card title="Behavior"><div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />Class behavior, hall passes and parent sharing need one more database step from the site owner: run <code>migrations/class_behavior.sql</code> in Supabase. Until then, your own points list below still works.</div></Card>
-    {legacy}
-  </div>;
-
-  const tabs: { id: View; label: string; icon: ReactNode; count?: number }[] = [
-    { id: "class", label: "Class", icon: <Users className="h-4 w-4" /> },
-    { id: "passes", label: "Hall passes", icon: <DoorOpen className="h-4 w-4" />, count: asked.length },
-    { id: "reports", label: "Reports", icon: <CheckSquare className="h-4 w-4" /> },
-    { id: "settings", label: "Settings", icon: <Settings2 className="h-4 w-4" /> },
-    { id: "notes", label: "My notes", icon: <Clock3 className="h-4 w-4" /> },
-  ];
+  if (setupNeeded) return <ErrorNote text="Behavior needs one database step from the site owner: run migrations/class_behavior.sql in Supabase." />;
   const sheetStudents = sheet?.map((id) => data?.students.find((s) => s.id === id)).filter(Boolean) as Student[] | undefined;
+  const classToday = data ? data.students.reduce((n, s) => n + s.today, 0) : 0;
 
-  return <div className="space-y-4" data-testid="hub-behavior">
-    <div role="tablist" className="flex gap-1.5 overflow-x-auto rounded-2xl bg-slate-100 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {tabs.map((t) => <button key={t.id} type="button" role="tab" aria-selected={view === t.id} onClick={() => pickView(t.id)}
-        className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold ${view === t.id ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}>
-        {t.icon}{t.label}{!!t.count && <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-bold leading-5 text-white">{t.count}</span>}</button>)}
-    </div>
+  return <div className="space-y-5" data-testid="hub-behavior">
+    <PluginHead title="Behavior" blurb="Points for the behaviors you choose, with an optional note." shared={records.setup ? familiesSee : undefined}
+      tabs={[{ id: "class", label: "Class" }, { id: "reports", label: "Reports" }, { id: "settings", label: "Settings and sharing" }]} tab={view} setTab={setView} />
 
-    {(asked.length > 0 || out.length > 0) && view !== "passes" && <button type="button" onClick={() => pickView("passes")} className="flex w-full flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-950">
-      <DoorOpen className="h-4 w-4" />{asked.length > 0 && <b>{asked.length} asking for a pass</b>}{out.length > 0 && <span>{out.map((p) => `${nameOf(p.studentId).split(" ")[0]} (${p.place}, ${clock(minutesOut({ out_at: p.outAt, back_at: null }, serverNow))})`).join(" · ")} out now</span>}
-    </button>}
+    <ErrorNote text={error && !data ? error : ""} retry={() => void load()} />
+    {!data && !error && <Loading label="Loading your class…" />}
 
-    {error && !data && <Card title="Behavior"><p className="text-sm text-red-700">{error}</p></Card>}
-    {!data && !error && <Card title="Behavior"><Empty>Loading your class…</Empty></Card>}
-
-    {data && view === "class" && <Card title={`Your class · ${data.students.length}`} right={<div className="flex gap-2">
-      {selecting ? <>
-        <button type="button" onClick={() => setPicked(picked.length === data.students.length ? [] : data.students.map((s) => s.id))} className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold">{picked.length === data.students.length ? "None" : "All"}</button>
-        <button type="button" disabled={!picked.length} onClick={() => openSheet(picked)} className="min-h-10 rounded-xl bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-40">Give points ({picked.length})</button>
-        <button type="button" onClick={() => { setSelecting(false); setPicked([]); }} aria-label="Stop selecting" className="min-h-10 rounded-xl px-2 text-slate-500"><X className="h-4 w-4" /></button>
-      </> : <>
-        <button type="button" onClick={() => setSelecting(true)} className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold">Select</button>
-        <button type="button" onClick={() => openSheet(data.students.map((s) => s.id))} disabled={!data.students.length} className="min-h-10 rounded-xl bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-40">Whole class</button>
-      </>}</div>}>
-      {data.students.length ? <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{data.students.map((s) => {
-        const on = picked.includes(s.id), pass = data.passes.find((p) => p.studentId === s.id && (p.status === "out" || p.status === "asked"));
-        return <li key={s.id}><button type="button" onClick={() => selecting ? setPicked((x) => on ? x.filter((y) => y !== s.id) : [...x, s.id]) : openSheet([s.id])} aria-pressed={selecting ? on : undefined}
-          className={`relative flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 p-3 text-center transition active:scale-95 ${on ? "border-teal-600 bg-teal-50" : "border-slate-200 hover:border-slate-300"}`}>
-          {s.today !== 0 && <span className={`absolute right-2 top-2 rounded-full px-1.5 text-xs font-bold ${s.today > 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"}`}>{s.today > 0 ? "+" : ""}{s.today}</span>}
-          <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full text-base font-bold ${on ? "bg-teal-700 text-white" : "bg-slate-900 text-white"}`}>{on ? <Check className="h-5 w-5" /> : initials(s.name)}</span>
-          <span className="w-full truncate text-sm font-semibold">{s.short}</span>
-          <span className="text-xs text-slate-500">{s.week} this week</span>
-          {pass && <span className={`rounded-full px-2 text-[11px] font-bold ${pass.status === "out" ? "bg-amber-100 text-amber-900" : "bg-sky-100 text-sky-900"}`}>{pass.status === "out" ? `Out · ${pass.place}` : "Asking for pass"}</span>}
-        </button></li>; })}</ul>
-        : <Empty>No students in your class yet. Approve students in the Reader's Approvals tab and they show up here.</Empty>}
-    </Card>}
-
-    {data && view === "class" && data.recent.length > 0 && <Card title="Today and recent" collapseKey="behavior-recent">
-      <ul className="space-y-1.5">{data.recent.slice(0, 12).map((e) => <li key={e.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 text-sm hover:bg-slate-50">
-        <span className={`w-10 text-center font-bold ${e.points > 0 ? "text-emerald-600" : e.points < 0 ? "text-rose-600" : "text-slate-400"}`}>{e.points > 0 ? "+" : ""}{e.points}</span>
-        <span className="min-w-0 flex-1"><b className="font-semibold">{nameOf(e.studentId)}</b> · {e.label}{e.note && <span className="text-slate-500"> — {e.note}</span>}</span>
-        {e.share && <Send className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Shared with parents" />}
-        <span className="shrink-0 text-xs text-slate-400">{new Date(e.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-      </li>)}</ul></Card>}
-
-    {data && view === "passes" && <>
-      <Card title={`Asking${asked.length ? ` (${asked.length})` : ""}`}>
-        {asked.length ? <ul className="space-y-2">{asked.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3">
-          <div className="min-w-0 flex-1"><b>{nameOf(p.studentId)}</b><div className="text-sm text-slate-600">{p.place} · up to {p.limit} min · asked {Math.max(0, Math.round((serverNow - Date.parse(p.askedAt)) / 60000))} min ago</div></div>
-          <button type="button" onClick={() => void passAct(p, "approve")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"><Check className="h-4 w-4" />Let go</button>
-          <button type="button" onClick={() => void passAct(p, "deny")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold"><X className="h-4 w-4" />Not now</button>
-        </li>)}</ul> : <Empty>No one is asking. Students ask from their A.R.I.S.E. account{data.settings.studentAsk ? "" : " once you turn that on in Settings"}.</Empty>}
-      </Card>
-      <Card title={`Out now · ${out.length} of ${data.settings.maxOut}`}>
-        {out.length ? <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">{out.map((p) => { const m = minutesOut({ out_at: p.outAt, back_at: null }, serverNow), over = m > p.limit;
-          return <li key={p.id} className={`flex items-center gap-3 rounded-2xl border-2 p-3 ${over ? "border-rose-400 bg-rose-50" : "border-amber-300 bg-amber-50"}`}>
-            <div className="min-w-0 flex-1"><b>{nameOf(p.studentId)}</b><div className="text-sm">{p.place}</div></div>
-            <div className={`text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-amber-900"}`}>{clock(m)}</div>
-            <button type="button" onClick={() => void passAct(p, "back")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-950 px-3 text-sm font-semibold text-white">Back</button>
-          </li>; })}</ul> : <Empty>Everyone's in class.</Empty>}
-      </Card>
-      <Card title="Start a pass" collapseKey="behavior-start-pass"><StartPass students={data.students} places={data.settings.places} onStart={startPass} /></Card>
-      <Card title="Today's passes" collapseKey="behavior-pass-log">
-        {data.passes.filter((p) => p.status === "back").length ? <ul className="space-y-1 text-sm">{data.passes.filter((p) => p.status === "back").map((p) => { const m = minutesOut({ out_at: p.outAt, back_at: p.backAt }, serverNow);
-          return <li key={p.id} className="flex justify-between gap-3 rounded-xl px-2 py-1.5 hover:bg-slate-50"><span><b className="font-semibold">{nameOf(p.studentId)}</b> · {p.place}</span><span className={m > p.limit ? "font-semibold text-rose-700" : "text-slate-500"}>{p.outAt && new Date(p.outAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · {clock(m)}</span></li>; })}</ul> : <Empty>No passes yet today.</Empty>}
-      </Card>
+    {data && view === "class" && <>
+      <div className="grid grid-cols-3 gap-3">
+        {[["Class today", sign(classToday)], ["Students", String(data.students.length)], ["Positive this week", `${positiveRate({ pos: data.students.reduce((n, s) => n + s.pos, 0), neg: data.students.reduce((n, s) => n + s.neg, 0) })}%`]].map(([k, v]) => (
+          <div key={k} className="rounded-2xl border border-[#e7e8f0] bg-white p-4 dark:border-white/10 dark:bg-white/[.03]"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{k}</p><p className={`mt-1 text-2xl font-bold tabular-nums ${ink}`}>{v}</p></div>
+        ))}
+      </div>
+      <Panel>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className={`text-base font-bold ${ink}`}>Your class</h3>
+          <div className="flex flex-wrap gap-2">
+            {selecting ? <>
+              <Btn onClick={() => setPicked(picked.length === data.students.length ? [] : data.students.map((s) => s.id))}>{picked.length === data.students.length ? "Select none" : "Select all"}</Btn>
+              <Btn kind="primary" disabled={!picked.length} onClick={() => openSheet(picked)}>Give points to {picked.length}</Btn>
+              <Btn onClick={() => { setSelecting(false); setPicked([]); }} title="Stop selecting"><X className="h-4 w-4" /></Btn>
+            </> : <>
+              <Btn onClick={() => setSelecting(true)} disabled={!data.students.length}>Select students</Btn>
+              <Btn kind="primary" onClick={() => openSheet(data.students.map((s) => s.id))} disabled={!data.students.length}>Whole class</Btn>
+            </>}
+          </div>
+        </div>
+        {data.students.length ? <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{data.students.map((s) => {
+          const on = picked.includes(s.id);
+          return <li key={s.id}><button type="button" onClick={() => (selecting ? setPicked((x) => (on ? x.filter((y) => y !== s.id) : [...x, s.id])) : openSheet([s.id]))} aria-pressed={selecting ? on : undefined}
+            className={`flex w-full flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition ${on ? "border-[#6e5ae0] bg-[#f4f2ff] ring-1 ring-[#6e5ae0] dark:bg-violet-500/15" : "border-slate-200 hover:border-slate-300 dark:border-white/10"}`}>
+            {on ? <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#6e5ae0] text-white"><Check className="h-5 w-5" /></span> : <Avatar id={s.id} name={s.name} size={44} />}
+            <span className={`w-full truncate text-sm font-semibold ${ink}`}>{s.short}</span>
+            <span className="text-xs tabular-nums text-slate-500"><span className={`font-semibold ${pointTone(s.today)}`}>{sign(s.today)}</span> today · {sign(s.week)} week</span>
+          </button></li>;
+        })}</ul> : <p className="py-6 text-center text-sm text-slate-500">No students yet. Approve students in the Reader's Approvals and they show up here.</p>}
+      </Panel>
+      {data.recent.length > 0 && <Panel>
+        <h3 className={`mb-3 text-base font-bold ${ink}`}>Recent</h3>
+        <ul className="divide-y divide-slate-100 dark:divide-white/10">{data.recent.slice(0, 15).map((e) => <li key={e.id} className="flex items-center gap-3 py-2.5 text-sm">
+          <span className={`w-9 text-right font-bold tabular-nums ${pointTone(e.points)}`}>{sign(e.points)}</span>
+          <span className="min-w-0 flex-1"><span className={`font-semibold ${ink}`}>{nameOf(e.studentId)}</span><span className="text-slate-600 dark:text-white/70"> · {e.label}</span>{e.note && <span className="text-slate-500"> · {e.note}</span>}</span>
+          <span className="shrink-0 text-xs text-slate-500">{e.share && familiesSee ? "Shared · " : e.share ? "" : "Private · "}{new Date(e.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+          <button type="button" onClick={() => void undo([e.id])} aria-label={`Remove ${e.label} for ${nameOf(e.studentId)}`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+        </li>)}</ul>
+      </Panel>}
     </>}
 
-    {data && view === "reports" && <Reports students={data.students} request={request} />}
-    {data && view === "settings" && <SettingsCard settings={data.settings} save={async (s) => { try { const r = await request("/api/behavior/settings", { method: "PUT", body: JSON.stringify(s) }); setData({ ...data, settings: r.settings }); setFlash({ text: "Settings saved." }); } catch (e: any) { setFlash({ text: e.message }); } }} />}
-    {view === "notes" && legacy}
+    {data && view === "reports" && <Reports students={data.students} request={request} legacy={legacy} />}
+    {data && view === "settings" && <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <SettingsCard settings={data.settings} save={async (s) => { try { const r = await request("/api/behavior/settings", { method: "PUT", body: JSON.stringify(s) }); setData({ ...data, settings: r.settings }); setFlash({ text: "Behaviors saved." }); } catch (e: any) { setFlash({ text: e.message }); } }} />
+      <div className="space-y-5">
+        <ShareCard plugin="behavior" share={records.setup?.share} onChange={records.saveShare} />
+        <Panel>
+          <label className="flex items-center gap-4">
+            <span className="min-w-0 flex-1"><span className={`block font-semibold ${ink}`}>Share each new note</span><span className="block text-sm text-slate-500">When families see Behavior, new points and notes go to them unless you switch a note to private.</span></span>
+            <Toggle on={data.settings.shareDefault} label="Share new notes with families" onChange={async (v) => { const s = { ...data.settings, shareDefault: v }; setData({ ...data, settings: s }); await request("/api/behavior/settings", { method: "PUT", body: JSON.stringify(s) }).catch(() => null); }} />
+          </label>
+        </Panel>
+      </div>
+    </div>}
 
     {sheet && sheetStudents && data && <HubModal title={sheetStudents.length === 1 ? sheetStudents[0].name : sheetStudents.length === data.students.length ? "Whole class" : `${sheetStudents.length} students`} onClose={() => setSheet(null)} closeOnBackdrop size="lg">
-      <div className="space-y-4">
-        {sheetStudents.length === 1 && <p className="text-sm text-slate-500">{sheetStudents[0].today >= 0 ? "+" : ""}{sheetStudents[0].today} today · {sheetStudents[0].week} this week · {positiveRate(sheetStudents[0])}% positive</p>}
-        <div><p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-700">Great job</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{data.settings.behaviors.filter((b) => b.points >= 0).map((b) => <button key={b.id} type="button" onClick={() => void give(sheet, { behaviorId: b.id })} className="flex min-h-16 items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-2.5 text-left active:scale-95"><span className="text-2xl" aria-hidden>{b.emoji}</span><span className="min-w-0 flex-1 text-sm font-semibold leading-tight">{b.label}</span><span className="font-black text-emerald-700">+{b.points}</span></button>)}</div></div>
-        <div><p className="mb-2 text-xs font-bold uppercase tracking-wide text-rose-700">Needs work</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{data.settings.behaviors.filter((b) => b.points < 0).map((b) => <button key={b.id} type="button" onClick={() => void give(sheet, { behaviorId: b.id })} className="flex min-h-16 items-center gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-2.5 text-left active:scale-95"><span className="text-2xl" aria-hidden>{b.emoji}</span><span className="min-w-0 flex-1 text-sm font-semibold leading-tight">{b.label}</span><span className="font-black text-rose-700">{b.points}</span></button>)}</div></div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <Field placeholder="Add a note (optional)" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} />
-          <button type="button" disabled={!note.trim()} onClick={() => void give(sheet, { label: "Note", points: 0 })} className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold disabled:opacity-40">Send note only</button>
+      <div className="space-y-5">
+        {sheetStudents.length === 1 && <p className="text-sm text-slate-500">{sign(sheetStudents[0].today)} today · {sign(sheetStudents[0].week)} this week · {positiveRate(sheetStudents[0])}% positive</p>}
+        {[{ title: "Positive", list: data.settings.behaviors.filter((b) => b.points >= 0), tone: "border-emerald-200 hover:bg-emerald-50 dark:border-emerald-400/30 dark:hover:bg-emerald-500/10", badge: "bg-emerald-600" },
+          { title: "Needs work", list: data.settings.behaviors.filter((b) => b.points < 0), tone: "border-rose-200 hover:bg-rose-50 dark:border-rose-400/30 dark:hover:bg-rose-500/10", badge: "bg-rose-600" }].map((g) => g.list.length > 0 && (
+          <div key={g.title}><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{g.title}</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{g.list.map((b) => (
+              <button key={b.id} type="button" onClick={() => void give(sheet, { behaviorId: b.id })} className={`flex min-h-14 items-center gap-3 rounded-xl border bg-white p-3 text-left transition dark:bg-transparent ${g.tone}`}>
+                <span className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-bold tabular-nums text-white ${g.badge}`}>{sign(b.points)}</span>
+                <span className={`font-semibold ${ink}`}>{b.label}</span>
+              </button>
+            ))}</div>
+          </div>
+        ))}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500" htmlFor="behavior-note">Note (optional)</label>
+          <div className="flex gap-2">
+            <input id="behavior-note" placeholder="What happened" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-[15px] dark:border-white/15 dark:bg-white/5 dark:text-white" />
+            <Btn disabled={!note.trim()} onClick={() => void give(sheet, { label: "Note", points: 0 })}>Note only</Btn>
+          </div>
         </div>
-        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} className="h-5 w-5" /><span><b>Share with parents</b> · they see it in LifeHub and get a notification</span></label>
-        {sheetStudents.length === 1 && <div><p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Hall pass</p>
-          <div className="flex flex-wrap gap-2">{data.settings.places.map((p) => <button key={p.id} type="button" onClick={() => void startPass(sheetStudents[0].id, p.id)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 text-sm font-semibold text-amber-950"><DoorOpen className="h-4 w-4" />{p.label} · {p.minutes}m</button>)}</div></div>}
+        <label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+          <span className="min-w-0 flex-1 text-sm"><span className={`block font-semibold ${ink}`}>Families see this</span><span className="text-slate-500">{familiesSee ? "The family gets a notification." : "Behavior isn't shared with families yet (Settings and sharing)."}</span></span>
+          <Toggle on={share} onChange={setShare} label="Share this with families" />
+        </label>
       </div>
     </HubModal>}
 
-    {flash && <div role="status" className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[700] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-sm text-white shadow-2xl">
+    {flash && <div role="status" className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[700] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-2xl">
       <span className="min-w-0 flex-1">{flash.text}</span>
       {flash.undo && <button type="button" onClick={() => void undo(flash.undo!)} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-white/15 px-2.5 font-semibold"><Undo2 className="h-4 w-4" />Undo</button>}
     </div>}
   </div>;
 }
 
-function StartPass({ students, places, onStart }: { students: Student[]; places: BehaviorSettings["places"]; onStart: (studentId: number, place: string) => void }) {
-  const [sid, setSid] = useState(0);
-  const [place, setPlace] = useState(places[0]?.id ?? "");
-  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-    <select value={sid} onChange={(e) => setSid(Number(e.target.value))} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Student"><option value={0}>Pick a student</option>{students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-    <select value={place} onChange={(e) => setPlace(e.target.value)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Where">{places.map((p) => <option key={p.id} value={p.id}>{p.label} ({p.minutes} min)</option>)}</select>
-    <PrimaryButton disabled={!sid} onClick={() => onStart(sid, place)}><DoorOpen className="h-4 w-4" /> Start pass</PrimaryButton>
-  </div>;
-}
-
-function Reports({ students, request }: { students: Student[]; request: (p: string) => Promise<any> }) {
+function Reports({ students, request, legacy }: { students: Student[]; request: (p: string) => Promise<any>; legacy?: ReactNode }) {
   const [sort, setSort] = useSavedChoice<"week" | "all" | "name">("hub-behavior-sort", "week", ["week", "all", "name"]);
   const [open, setOpen] = useState<Student | null>(null);
-  const [hist, setHist] = useState<{ events: Ev[]; passes: Pass[] } | null>(null);
-  useEffect(() => { if (!open) return; setHist(null); request(`/api/behavior/students/${open.id}`).then(setHist).catch(() => setHist({ events: [], passes: [] })); }, [open, request]);
-  const rows = useMemo(() => [...students].sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : b[sort] - a[sort]), [students, sort]);
-  return <Card title="Points by student" right={<select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm" aria-label="Sort"><option value="week">This week</option><option value="all">All time</option><option value="name">Name</option></select>}>
-    {rows.length ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Student</th><th className="pb-2 text-right">Today</th><th className="pb-2 text-right">Week</th><th className="pb-2 text-right">All</th><th className="pb-2 text-right">Positive</th></tr></thead>
-      <tbody>{rows.map((s) => <tr key={s.id} className="border-t border-slate-100"><td className="py-2"><button type="button" onClick={() => setOpen(s)} className="font-semibold text-teal-800 underline decoration-teal-200 underline-offset-4">{s.name}</button></td><td className="text-right tabular-nums">{s.today}</td><td className="text-right tabular-nums">{s.week}</td><td className="text-right tabular-nums">{s.all}</td>
-        <td className="text-right"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${positiveRate(s) >= 80 ? "bg-emerald-50 text-emerald-800" : positiveRate(s) >= 60 ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>{positiveRate(s)}%</span></td></tr>)}</tbody></table></div> : <Empty>No students yet.</Empty>}
+  const [hist, setHist] = useState<{ events: Ev[] } | null>(null);
+  const [showLegacy, setShowLegacy] = useState(false);
+  useEffect(() => { if (!open) return; setHist(null); request(`/api/behavior/students/${open.id}`).then(setHist).catch(() => setHist({ events: [] })); }, [open, request]);
+  const rows = useMemo(() => [...students].sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : b[sort] - a[sort])), [students, sort]);
+  const exportCsv = () => downloadCsv("behavior.csv", [["Student", "Today", "This week", "All time", "Positive points", "Needs-work points", "Positive %"], ...rows.map((s) => [s.name, s.today, s.week, s.all, s.pos, s.neg, positiveRate(s)])]);
+  return <div className="space-y-5">
+    <Panel>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className={`text-base font-bold ${ink}`}>Points by student</h3>
+        <div className="flex gap-2">
+          <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-white/15 dark:bg-white/5 dark:text-white" aria-label="Sort"><option value="week">This week</option><option value="all">All time</option><option value="name">Name</option></select>
+          <Btn onClick={exportCsv}><Download className="h-4 w-4" />CSV</Btn>
+        </div>
+      </div>
+      {rows.length ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm">
+        <thead className="text-xs uppercase tracking-wider text-slate-500"><tr><th className="pb-2 font-semibold">Student</th><th className="pb-2 text-right font-semibold">Today</th><th className="pb-2 text-right font-semibold">Week</th><th className="pb-2 text-right font-semibold">All</th><th className="pb-2 text-right font-semibold">Positive</th></tr></thead>
+        <tbody>{rows.map((s) => <tr key={s.id} className="border-t border-slate-100 dark:border-white/10">
+          <td className="py-2.5"><button type="button" onClick={() => setOpen(s)} className={`font-semibold underline decoration-slate-300 underline-offset-4 hover:decoration-[#6e5ae0] ${ink}`}>{s.name}</button></td>
+          <td className={`text-right tabular-nums ${pointTone(s.today)}`}>{sign(s.today)}</td><td className="text-right tabular-nums">{sign(s.week)}</td><td className="text-right tabular-nums">{sign(s.all)}</td>
+          <td className="text-right"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${positiveRate(s) >= 80 ? "bg-emerald-50 text-emerald-800" : positiveRate(s) >= 60 ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>{positiveRate(s)}%</span></td>
+        </tr>)}</tbody></table></div> : <p className="text-sm text-slate-500">No students yet.</p>}
+    </Panel>
+    {legacy && <Panel><button type="button" onClick={() => setShowLegacy((v) => !v)} className={`text-sm font-semibold ${ink}`}>{showLegacy ? "Hide" : "Show"} the earlier points list</button>{showLegacy && <div className="mt-4">{legacy}</div>}</Panel>}
     {open && <HubModal title={open.name} onClose={() => setOpen(null)} closeOnBackdrop size="lg">
-      {!hist ? <Empty>Loading…</Empty> : <div className="space-y-4">
-        <p className="text-sm text-slate-500">{open.week} this week · {open.all} all time · {positiveRate(open)}% positive</p>
-        <ul className="space-y-1.5">{hist.events.slice(0, 80).map((e) => <li key={e.id} className="flex gap-3 text-sm"><span className={`w-10 font-bold ${e.points > 0 ? "text-emerald-600" : e.points < 0 ? "text-rose-600" : "text-slate-400"}`}>{e.points > 0 ? "+" : ""}{e.points}</span><span className="min-w-0 flex-1">{e.label}{e.note && <span className="text-slate-500"> — {e.note}</span>}</span><span className="text-xs text-slate-400">{new Date(e.at).toLocaleDateString([], { month: "short", day: "numeric" })}</span></li>)}</ul>
-        {hist.passes.length > 0 && <div><p className="mb-1 text-xs font-bold uppercase text-slate-500">Hall passes (60 days)</p><ul className="space-y-1 text-sm">{hist.passes.filter((p) => p.status !== "denied").map((p) => <li key={p.id}>{new Date(p.askedAt).toLocaleDateString([], { month: "short", day: "numeric" })} · {p.place}{p.outAt ? ` · ${clock(minutesOut({ out_at: p.outAt, back_at: p.backAt }, Date.now()))}` : ""}</li>)}</ul></div>}
+      {!hist ? <Loading /> : <div className="space-y-3">
+        <p className="text-sm text-slate-500">{sign(open.week)} this week · {sign(open.all)} all time · {positiveRate(open)}% positive</p>
+        {hist.events.length ? <ul className="divide-y divide-slate-100 dark:divide-white/10">{hist.events.slice(0, 100).map((e) => <li key={e.id} className="flex gap-3 py-2 text-sm">
+          <span className={`w-9 text-right font-bold tabular-nums ${pointTone(e.points)}`}>{sign(e.points)}</span>
+          <span className="min-w-0 flex-1">{e.label}{e.note && <span className="text-slate-500"> · {e.note}</span>}</span>
+          <span className="shrink-0 text-xs text-slate-500">{shortDay(e.at, true)}</span>
+        </li>)}</ul> : <p className="text-sm text-slate-500">Nothing yet this year.</p>}
       </div>}
     </HubModal>}
-  </Card>;
+  </div>;
 }
 
 function SettingsCard({ settings, save }: { settings: BehaviorSettings; save: (s: BehaviorSettings) => void }) {
   const [s, setS] = useState(settings);
   useEffect(() => setS(settings), [settings]);
   const setB = (i: number, patch: Partial<BehaviorSettings["behaviors"][number]>) => setS({ ...s, behaviors: s.behaviors.map((b, k) => (k === i ? { ...b, ...patch } : b)) });
-  const setP = (i: number, patch: Partial<BehaviorSettings["places"][number]>) => setS({ ...s, places: s.places.map((p, k) => (k === i ? { ...p, ...patch } : p)) });
-  return <div className="space-y-4">
-    <Card title="Behaviors">
-      <ul className="space-y-2">{s.behaviors.map((b, i) => <li key={b.id} className="grid grid-cols-[3.5rem_minmax(0,1fr)_5rem_auto] gap-2">
-        <Field aria-label="Emoji" value={b.emoji} maxLength={4} onChange={(e) => setB(i, { emoji: e.target.value })} />
-        <Field aria-label="Behavior" value={b.label} maxLength={40} onChange={(e) => setB(i, { label: e.target.value })} />
-        <Field aria-label="Points" type="number" min={-10} max={10} value={b.points} onChange={(e) => setB(i, { points: Number(e.target.value) })} />
-        <button type="button" onClick={() => setS({ ...s, behaviors: s.behaviors.filter((_, k) => k !== i) })} aria-label={`Remove ${b.label}`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-      </li>)}</ul>
-      <button type="button" onClick={() => setS({ ...s, behaviors: [...s.behaviors, { id: "", label: "New behavior", points: 1, emoji: "⭐" }] })} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-teal-800"><Plus className="h-4 w-4" />Add a behavior</button>
-    </Card>
-    <Card title="Hall passes">
-      <ul className="space-y-2">{s.places.map((p, i) => <li key={p.id} className="grid grid-cols-[minmax(0,1fr)_6rem_auto] gap-2">
-        <Field aria-label="Place" value={p.label} maxLength={30} onChange={(e) => setP(i, { label: e.target.value })} />
-        <Field aria-label="Minutes" type="number" min={1} max={60} value={p.minutes} onChange={(e) => setP(i, { minutes: Number(e.target.value) })} />
-        <button type="button" onClick={() => setS({ ...s, places: s.places.filter((_, k) => k !== i) })} aria-label={`Remove ${p.label}`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-      </li>)}</ul>
-      <button type="button" onClick={() => setS({ ...s, places: [...s.places, { id: "", label: "New place", minutes: 5 }] })} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-teal-800"><Plus className="h-4 w-4" />Add a place</button>
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block text-sm font-semibold">Students out at once<Field type="number" min={1} max={30} value={s.maxOut} onChange={(e) => setS({ ...s, maxOut: Number(e.target.value) })} className="mt-1" /></label>
+  const dirty = JSON.stringify(s) !== JSON.stringify(settings);
+  return <Panel>
+    <h3 className={`text-base font-bold ${ink}`}>Behaviors</h3>
+    <p className="mt-1 text-sm text-slate-500">Name each behavior and its points: positive to reward, negative for needs work.</p>
+    <ul className="mt-4 space-y-2">{s.behaviors.map((b, i) => <li key={`${b.id}-${i}`} className="flex items-center gap-2">
+      <input aria-label="Behavior" value={b.label} maxLength={40} onChange={(e) => setB(i, { label: e.target.value })} className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-[15px] dark:border-white/15 dark:bg-white/5 dark:text-white" />
+      <div className="flex items-center rounded-xl border border-slate-200 dark:border-white/15">
+        <button type="button" aria-label="One point less" onClick={() => setB(i, { points: Math.max(-10, b.points - 1) })} className="flex h-11 w-10 items-center justify-center text-slate-600 dark:text-white/70"><Minus className="h-4 w-4" /></button>
+        <span className={`w-9 text-center font-bold tabular-nums ${pointTone(b.points)}`}>{sign(b.points)}</span>
+        <button type="button" aria-label="One point more" onClick={() => setB(i, { points: Math.min(10, b.points + 1) })} className="flex h-11 w-10 items-center justify-center text-slate-600 dark:text-white/70"><Plus className="h-4 w-4" /></button>
       </div>
-      <label className="mt-3 flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={s.studentAsk} onChange={(e) => setS({ ...s, studentAsk: e.target.checked })} />Students can ask for a pass from their own A.R.I.S.E. account</label>
-      <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={s.shareDefault} onChange={(e) => setS({ ...s, shareDefault: e.target.checked })} />Share points and notes with parents unless I turn it off</label>
-    </Card>
-    <div><PrimaryButton onClick={() => save(s)}><Check className="h-4 w-4" /> Save settings</PrimaryButton></div>
-  </div>;
+      <button type="button" onClick={() => setS({ ...s, behaviors: s.behaviors.filter((_, k) => k !== i) })} aria-label={`Remove ${b.label}`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+    </li>)}</ul>
+    <div className="mt-4 flex flex-wrap gap-2">
+      <Btn onClick={() => setS({ ...s, behaviors: [...s.behaviors, { id: "", label: "New behavior", points: 1, emoji: "" }] })}><Plus className="h-4 w-4" />Add a behavior</Btn>
+      <Btn kind="primary" disabled={!dirty} onClick={() => save(s)}><Check className="h-4 w-4" />Save behaviors</Btn>
+    </div>
+  </Panel>;
 }

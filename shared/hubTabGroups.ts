@@ -5,7 +5,7 @@ import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
   | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "oneonone" | "profiles" | "makeups" | "gradeplans" | "coach" | "goals"
-  | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
+  | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "passes" | "attendance" | "wall" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
@@ -46,7 +46,11 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "lessons", label: "Lessons", tabs: ["lessons"] },
   { id: "gradebook", label: "Gradebook", tabs: ["gradebook"] },
   { id: "behavior", label: "Behavior", tabs: ["behavior"] },
+  // Hall passes and the Student wall (posts, messages and family links) are their own plugins, shared
+  // with families and staff the same way as Behavior, Attendance and Gradebook (server/classRecords.ts).
+  { id: "passes", label: "Hall passes", tabs: ["passes"] },
   { id: "attendance", label: "Attendance", tabs: ["attendance"] },
+  { id: "wall", label: "Student wall", tabs: ["wall"] },
   { id: "parents", label: "Parents", tabs: ["parents"] },
   { id: "email", label: "Email", tabs: ["email"] },
   // A guide to everything in WorkHub (components/GettingStarted.tsx). Removable like any screen;
@@ -60,7 +64,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   goals: "Goals",
   tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",
-  behavior: "Behavior", attendance: "Attendance",
+  behavior: "Behavior", passes: "Hall passes", attendance: "Attendance", wall: "Student wall",
   parents: "Parents", email: "Email",
   reader: "Overview", readerLive: "Live quiz", readerScenes: "Scenes", readerStudents: "My Students", readerAdvisory: "View all students", readerApprovals: "Approvals", readerParents: "Parents", readerQuizzes: "Quizzes & grading",
   readerGames: "Game time", readerPrizes: "Prizes", readerCatalog: "Book catalog", arise: "Reading records", admin: "Admin console",
