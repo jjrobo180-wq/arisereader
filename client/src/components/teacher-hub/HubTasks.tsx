@@ -120,9 +120,10 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const setListPick = controls ? controls.setList : setSavedList;
   const listId = listPick === "all" || lists.some((l) => l.id === listPick) ? listPick : "all";
   const [sort, setSort] = useSavedChoice<TaskSort>("hub-tasks-sort", "due", TASK_SORTS.map((o) => o.id));
-  // How the page looks (components/teacher-hub/TaskLooks.tsx), switched at the top of the page. LifeHub and
-  // FamilyHub start on the List look; WorkHub keeps the Original until it's switched. Remembered on this device.
-  const [look, setLook] = useSavedChoice<TaskLook>(plain ? "life-tasks-look" : "hub-tasks-look", plain ? "calm" : "classic", TASK_LOOKS);
+  // How the page looks (components/teacher-hub/TaskLooks.tsx), switched from Customize. Every hub starts on
+  // the Today look, the standard since Nov 23, 2026; the "-v2" keys moved every account, old and new, onto
+  // it once (the earlier keys held List and Original). A look picked after that is remembered on this device.
+  const [look, setLook] = useSavedChoice<TaskLook>(plain ? "life-tasks-look-v2" : "hub-tasks-look-v2", "today", TASK_LOOKS);
   const [search, setSearch] = useState("");
   // A widget tap on one to-do (lib/taskFocus.ts): show the view and list it's in, then scroll to it and light it up.
   const tasksNow = useRef(workspace.tasks); tasksNow.current = workspace.tasks;

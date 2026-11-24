@@ -28,7 +28,7 @@ export function LookMenu({ look, setLook, dark = false }: { look: TaskLook; setL
   return (
     <div ref={box} className="relative shrink-0" data-testid="task-look-switcher">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="true" data-testid="task-look-customize"
-        className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-slate-900"}`}>
+        className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-slate-900"}`}>
         <SlidersHorizontal className="h-4 w-4" /><span>Customize</span>
       </button>
       {open && (
@@ -115,7 +115,7 @@ function AriseChip({ p, dark = false }: { p: LookProps; dark?: boolean }) {
 }
 function AriseButton({ p, dark }: { p: LookProps; dark: boolean }) {
   return (
-    <button type="button" onClick={p.onArise} className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-[#d9d3ff]" : "bg-[#ece9fd] text-[#3f2fb0]"}`} data-testid="task-look-arise">
+    <button type="button" onClick={p.onArise} className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-[#d9d3ff]" : "bg-[#ece9fd] text-[#3f2fb0]"}`} data-testid="task-look-arise">
       <Sparkles className="h-4 w-4" />Arise{p.newAsks > 0 && <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-black text-white">{p.newAsks}</span>}
     </button>
   );
@@ -172,17 +172,19 @@ function TodayLook({ p }: { p: LookProps }) {
   return (
     <div className="rounded-[28px] bg-[#4f3cc9]" data-testid="look-today">
       <header className="px-5 pb-6 pt-5 text-white">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[15px] font-bold text-[#d9d3ff]">{d.toLocaleDateString("en-US", { weekday: "long" })}</p>
-          <div className="flex items-center gap-2">
-            <label className="relative"><span className="sr-only">List</span>
-              <select value={p.listId} onChange={(e) => p.setList(e.target.value)} className="min-h-10 appearance-none rounded-full bg-white/15 pl-3 pr-8 text-[13px] font-bold text-white outline-none">
-                <option value="all" className="text-slate-900">All lists</option>{p.lists.map((l) => <option key={l.id} value={l.id} className="text-slate-900">{l.name}</option>)}
-              </select><ChevronDown className="pointer-events-none absolute right-2.5 top-3 h-4 w-4" /></label>
-            {p.customize(true)}
-            {p.onArise && <button type="button" onClick={p.onArise} className="min-h-10 rounded-full bg-white px-3 text-[13px] font-extrabold text-[#3f2fb0]">Arise{p.newAsks ? ` · ${p.newAsks}` : ""}</button>}
-          </div>
+        {/* The controls on one row, then the day and date (Nov 23, 2026: with the day on this row too, a
+            phone ran out of room and "Arise · 1" broke onto two lines). */}
+        <div className="flex items-center gap-2">
+          <label className="relative min-w-0 max-w-[11rem] shrink"><span className="sr-only">List</span>
+            <select value={p.listId} onChange={(e) => p.setList(e.target.value)} className="min-h-10 w-full appearance-none truncate rounded-full bg-white/15 pl-3 pr-8 text-[13px] font-bold text-white outline-none">
+              <option value="all" className="text-slate-900">All lists</option>{p.lists.map((l) => <option key={l.id} value={l.id} className="text-slate-900">{l.name}</option>)}
+            </select><ChevronDown className="pointer-events-none absolute right-2.5 top-3 h-4 w-4" /></label>
+          {p.customize(true)}
+          {p.onArise && <button type="button" onClick={p.onArise} aria-label={p.newAsks ? `Arise, ${p.newAsks} new` : "Arise"} className="ml-auto inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-3 text-[13px] font-extrabold text-[#3f2fb0]" data-testid="task-look-arise">
+            <Sparkles className="h-4 w-4" />Arise{p.newAsks > 0 && <span className="min-w-5 rounded-full bg-rose-500 px-1.5 text-center text-[11px] font-black leading-5 text-white">{p.newAsks}</span>}
+          </button>}
         </div>
+        <p className="mt-5 text-[15px] font-bold text-[#d9d3ff]">{d.toLocaleDateString("en-US", { weekday: "long" })}</p>
         <h2 className="mt-1 text-[56px] font-black leading-[.95] tracking-[-0.04em]">{d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</h2>
         <div className="mt-4 flex items-center gap-3">
           <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Today's to-dos done"><div className="h-full rounded-full bg-[#ffd75e]" style={{ width: `${pct}%` }} /></div>

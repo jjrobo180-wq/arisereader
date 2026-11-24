@@ -59,7 +59,8 @@ test("Notes and tiles use the lists' own colors, light enough to read on", () =>
 
 test("the switcher is at the top of Tasks; LifeHub starts on List, WorkHub on the Original", () => {
   const page = readFileSync("client/src/components/teacher-hub/HubTasks.tsx", "utf8");
-  assert.match(page, /useSavedChoice<TaskLook>\(plain \? "life-tasks-look" : "hub-tasks-look", plain \? "calm" : "classic", TASK_LOOKS\)/);
+  // Today is the standard look for every account, old and new (Nov 23, 2026): new keys, one default.
+  assert.match(page, /useSavedChoice<TaskLook>\(plain \? "life-tasks-look-v2" : "hub-tasks-look-v2", "today", TASK_LOOKS\)/);
   // One "Customize" button opens the looks in a menu (not a row of buttons), beside each look's own buttons.
   assert.match(page, /\{!looked && <div className="flex justify-end">\{lookMenu\(\)\}<\/div>\}/);
   assert.match(page, /empty=\{emptyText\} customize=\{lookMenu\} \/>/);
@@ -73,4 +74,13 @@ test("the switcher is at the top of Tasks; LifeHub starts on List, WorkHub on th
   assert.match(looks, /<SlidersHorizontal className="h-4 w-4" \/><span>Customize<\/span>/);
   assert.ok(!/data-testid="look-today"[^>]*overflow-hidden|overflow-hidden[^"]*" data-testid="look-today"/.test(looks), "the menu isn't cut off in the Today look");
   assert.match(looks, /type="checkbox"[^>]*aria-label=\{`Done: \$\{task\.title\}`\}/, "check-offs are real checkboxes");
+});
+
+test("Tasks has no big page title, and the Today look's Arise button stays on one line", () => {
+  const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
+  assert.match(hub, /&& tab !== "tasks" && tab !== "behavior"[^\n]*\(\s*<HubPageHead/);
+  const looks = readFileSync(new URL("../client/src/components/teacher-hub/TaskLooks.tsx", import.meta.url), "utf8");
+  const today = looks.slice(looks.indexOf('data-testid="look-today"'));
+  assert.match(today.slice(0, 2500), /whitespace-nowrap[^"]*"[^>]*data-testid="task-look-arise"/);
+  assert.doesNotMatch(today.slice(0, 2500), /Arise\{p\.newAsks \? ` · /, "no more 'Arise · 1' text that wraps");
 });

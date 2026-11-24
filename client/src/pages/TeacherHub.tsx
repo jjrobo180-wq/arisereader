@@ -2054,7 +2054,9 @@ function TeacherHubPage() {
             </>
           )}
 
-          {tab !== "overview" && tab !== "caseload" && tab !== "minutes" && tab !== "calendar" && tab !== "notes" && tab !== "journal" && !isReaderTab(tab) && tab !== "admin" && (
+          {/* No big title on Tasks (its look has its own top) or on the class-records plugins (each has its own). */}
+          {tab !== "overview" && tab !== "caseload" && tab !== "minutes" && tab !== "calendar" && tab !== "notes" && tab !== "journal" && !isReaderTab(tab) && tab !== "admin"
+            && tab !== "tasks" && tab !== "behavior" && tab !== "passes" && tab !== "attendance" && tab !== "gradebook" && tab !== "wall" && (
             <HubPageHead tab={tab} title={TAB_META.find((m) => m.id === tab)?.label ?? groupLabel(group.id, visible)} workspace={workspace} />
           )}
 
