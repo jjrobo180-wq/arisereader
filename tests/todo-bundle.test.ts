@@ -16,7 +16,7 @@ const read = (p: string) => readFileSync(p, "utf8");
 test("the To Duo build: its own config, one page, the stand-ins, and __TODO_APP__ on", () => {
   const cfg = read("vite.todo.config.ts");
   assert.match(cfg, /import base from "\.\/vite\.config";/);
-  assert.match(cfg, /plugins: \[leaveOutOtherProducts\(\)\]/);
+  assert.match(cfg, /plugins: \[leaveOutOtherProducts\(\), todoLoadingScreen\(\)\]/);
   assert.match(cfg, /define: \{ __TODO_APP__: "true" \}/);
   assert.match(cfg, /config\.build\.rollupOptions\.input = \{ main: path\.resolve\(ROOT, "client", "index\.html"\) \};/);
   assert.match(cfg, /const PREFIX = "\\0todo-left-out-";/, "stand-ins get plain names, so no file is named after a left-out page");
