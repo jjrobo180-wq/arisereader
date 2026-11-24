@@ -14,3 +14,10 @@ test("the district price is shown on the billing and hub pages", () => {
     assert.match(readFileSync(f, "utf8"), /H\.districtYearlyCents/);
   }
 });
+
+test("the To Duo website's Pricing section shows the school and district prices", () => {
+  const home = readFileSync("client/public/educator.html", "utf8");
+  const pricing = home.slice(home.indexOf('id="pricing"'), home.indexOf('id="faq"'));
+  assert.match(pricing, /\$2,000 <span>\/ year/);
+  assert.match(pricing, /\$10,000 <span>\/ year/);
+});
