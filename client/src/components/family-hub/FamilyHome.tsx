@@ -28,7 +28,10 @@ import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type S
 const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote, links: Link2 };
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
-export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles }: SectionProps & {
+export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles, setupFamily = false }: SectionProps & {
+  /** Show "Set up your family" while nobody is added: FamilyHub only (Nov 23, 2026). LifeHub is one
+   *  person's own space, so it doesn't ask. */
+  setupFamily?: boolean;
   tasks: CalendarTask[]; go: (section: FamilySection) => void; onToggleTask: (id: string) => void; name: string;
   /** Opens an installed Notes app (see shared/notesApp.ts) full-page, by its App Store plugin id. */
   openNotesApp: (id: string) => void;
@@ -185,7 +188,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const weatherTile: StartTile = { id: "live-weather", label: "Weather", icon: <CloudSun />, size: "medium", color: "#0e8a8a", onClick: openWeather,
     body: (size) => <WeatherBody size={size} w={weatherOn ? { data: feed.data, busy: feed.busy, error: feed.error, place } : { data: null, busy: false, error: "", place: "" }} /> };
   const startLeads: StartTile[] = [
-    ...(!family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large" as const, color: "#f2600c", onClick: () => go("family") }] : []),
+    ...(setupFamily && !family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large" as const, color: "#f2600c", onClick: () => go("family") }] : []),
     clockTile, weatherTile,
   ];
   /** Each app's tile with what it has to say; the weather is its own tile above, and Drive's tile becomes the photo slideshow. */
@@ -195,7 +198,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
     return { ...t, faces: faces[key], photos: shots?.length ? shots : undefined };
   });
   return <WidgetLinksProvider page={family.linkPage} open={() => go("links")}><div className="space-y-4 sm:space-y-6">
-    {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
+    {setupFamily && !family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
       <span className="self-start rounded-2xl bg-white/10 p-3 text-[#bcb2ff] sm:self-auto"><UserPlus size={26} /></span>
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
