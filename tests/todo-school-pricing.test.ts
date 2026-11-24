@@ -21,3 +21,11 @@ test("the To Duo website's Pricing section shows the school and district prices"
   assert.match(pricing, /\$2,000 <span>\/ year/);
   assert.match(pricing, /\$10,000 <span>\/ year/);
 });
+
+test("arisetodo.com uses the Arise Reader look", () => {
+  const home = readFileSync("client/public/educator.html", "utf8");
+  assert.match(home, /<style id="reader-theme">/);
+  assert.match(home, /Plus\+Jakarta\+Sans/);
+  assert.doesNotMatch(home, /Manrope/);
+  assert.match(home, /--purple:#5b53df/);
+});
