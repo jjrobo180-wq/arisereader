@@ -137,8 +137,11 @@ test("students see it at sign-in, in the library and on the leaderboards; teache
   const popup = read("client/src/components/AdvisoryChallenge.tsx");
   assert.match(popup, /<TopReaderPopup onNavigate=\{onNavigate\} fallback=\{<LeaderboardPopup/);
   const ui = read("client/src/components/TopReader.tsx");
-  assert.match(ui, /A new challenge starts today!/);
-  assert.match(ui, /This time it's you against everyone\./);
+  // Plain: no emoji, no gradients; the facts once (prize, winners, end), the headline says what you can win.
+  assert.match(ui, /New challenge · Starts today/);
+  assert.match(ui, /`Read the most, win \$\{prizeShort\(v\)\}\.`/);
+  assert.match(ui, /\["Prize", /);
+  assert.doesNotMatch(ui, /gradient|[\u{1F300}-\u{1FAFF}]/u);
   assert.match(read("client/src/pages/Library.tsx"), /<TopReaderBanner onOpen=\{\(\) => navigate\("\/leaderboard"\)\} \/>/);
   assert.match(read("client/src/pages/LeaderboardPage.tsx"), /topReader\?\.challenge && <div className="mb-6"><TopReaderCard view=\{topReader\} \/>/);
   assert.match(read("client/src/pages/StudentProgress.tsx"), /tab === "leaderboard" && topReader\?\.challenge && <TopReaderCard view=\{topReader\} \/>/);
