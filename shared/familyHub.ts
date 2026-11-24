@@ -35,7 +35,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["risescore", "start", "goal
  *  plan's apps (shared/todoPlan.ts). Nothing is deleted by not having one: adding it back brings
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
-  "risescore", "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
+  "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
   "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
