@@ -1,8 +1,8 @@
 // The Tasks page's looks (shared/taskLooks.ts): the same to-dos, lists, check-offs and edit pop-up as the
 // Original page (HubTasks.tsx), laid out six ways. The row of looks at the top of Tasks switches between
 // them in one tap, and the pick is remembered on this device.
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Check, ChevronDown, Columns3, LayoutGrid, ListTodo, Minus, Plus, Search, Sparkles, StickyNote, Sun, ListOrdered, History } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Check, ChevronDown, Columns3, LayoutGrid, ListTodo, Minus, Plus, Search, Sparkles, StickyNote, Sun, ListOrdered, History, SlidersHorizontal } from "lucide-react";
 import { friendlyDate, dueState } from "@shared/hubDates";
 import { clock12, type Task } from "@shared/teacherHub";
 import { TASK_SORTS, type TaskSort, type TaskView } from "@shared/hubTasks";
@@ -13,16 +13,37 @@ const LOOK_ICON: Record<TaskLook, ReactNode> = {
   minimal: <Minus className="h-4 w-4" />, board: <Columns3 className="h-4 w-4" />, notes: <StickyNote className="h-4 w-4" />, classic: <History className="h-4 w-4" />,
 };
 
-/** One tap between looks, right at the top of Tasks. */
-export function LookSwitcher({ look, setLook }: { look: TaskLook; setLook: (l: TaskLook) => void }) {
+/** "Customize": one small button that opens the looks in a menu, so the page stays uncluttered. */
+export function LookMenu({ look, setLook, dark = false }: { look: TaskLook; setLook: (l: TaskLook) => void; dark?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
   return (
-    <div role="group" aria-label="How Tasks looks" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" data-testid="task-look-switcher">
-      {TASK_LOOKS.map((l) => (
-        <button key={l} type="button" onClick={() => setLook(l)} aria-pressed={look === l} title={TASK_LOOK_INFO[l].blurb} data-testid={`task-look-${l}`}
-          className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition ${look === l ? "bg-[#1d1b33] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:text-slate-900"}`}>
-          {LOOK_ICON[l]}{TASK_LOOK_INFO[l].name}
-        </button>
-      ))}
+    <div ref={box} className="relative shrink-0" data-testid="task-look-switcher">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="true" data-testid="task-look-customize"
+        className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-slate-900"}`}>
+        <SlidersHorizontal className="h-4 w-4" /><span>Customize</span>
+      </button>
+      {open && (
+        <div role="menu" aria-label="How Tasks looks" className="absolute right-0 top-12 z-40 w-[min(19rem,calc(100vw-2rem))] rounded-2xl bg-white p-1.5 text-slate-900 shadow-[0_16px_40px_#1d1b3333] ring-1 ring-slate-200">
+          <p className="px-3 pb-1 pt-2 text-[12px] font-extrabold uppercase tracking-[.12em] text-slate-500">Look</p>
+          {TASK_LOOKS.map((l) => (
+            <button key={l} type="button" role="menuitemradio" aria-checked={look === l} onClick={() => { setLook(l); setOpen(false); }} data-testid={`task-look-${l}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${look === l ? "bg-[#f4f2ff]" : "hover:bg-slate-50"}`}>
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${look === l ? "bg-[#6e5ae0] text-white" : "bg-slate-100 text-slate-600"}`}>{LOOK_ICON[l]}</span>
+              <span className="min-w-0 flex-1"><span className="block text-[15px] font-bold">{TASK_LOOK_INFO[l].name}</span><span className="block text-[12px] leading-snug text-slate-500">{TASK_LOOK_INFO[l].blurb}</span></span>
+              {look === l && <Check className="h-4 w-4 shrink-0 text-[#6e5ae0]" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -41,6 +62,8 @@ export type LookProps = {
   search: string; setSearch: (s: string) => void; sort: TaskSort; setSort: (s: TaskSort) => void;
   /** What shows when a view has nothing in it. */
   empty: string;
+  /** The Customize button (LookMenu), shown with each look's own buttons. */
+  customize: (dark?: boolean) => ReactNode;
 };
 
 const listOf = (p: LookProps, t: Task) => p.lists.find((l) => l.id === t.listId);
@@ -88,7 +111,9 @@ function AddBar({ p, dark = false }: { p: LookProps; dark?: boolean }) {
 }
 
 function AriseChip({ p, dark = false }: { p: LookProps; dark?: boolean }) {
-  if (!p.onArise) return null;
+  return <span className="inline-flex shrink-0 items-center gap-2">{p.customize(dark)}{p.onArise && <AriseButton p={p} dark={dark} />}</span>;
+}
+function AriseButton({ p, dark }: { p: LookProps; dark: boolean }) {
   return (
     <button type="button" onClick={p.onArise} className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-[#d9d3ff]" : "bg-[#ece9fd] text-[#3f2fb0]"}`} data-testid="task-look-arise">
       <Sparkles className="h-4 w-4" />Arise{p.newAsks > 0 && <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-black text-white">{p.newAsks}</span>}
@@ -145,7 +170,7 @@ function TodayLook({ p }: { p: LookProps }) {
   );
   const nothing = !g.overdue.length && !g.today.length && !g.soon.length && !g.someday.length && !g.doneToday.length;
   return (
-    <div className="overflow-hidden rounded-[28px] bg-[#4f3cc9]" data-testid="look-today">
+    <div className="rounded-[28px] bg-[#4f3cc9]" data-testid="look-today">
       <header className="px-5 pb-6 pt-5 text-white">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[15px] font-bold text-[#d9d3ff]">{d.toLocaleDateString("en-US", { weekday: "long" })}</p>
@@ -154,6 +179,7 @@ function TodayLook({ p }: { p: LookProps }) {
               <select value={p.listId} onChange={(e) => p.setList(e.target.value)} className="min-h-10 appearance-none rounded-full bg-white/15 pl-3 pr-8 text-[13px] font-bold text-white outline-none">
                 <option value="all" className="text-slate-900">All lists</option>{p.lists.map((l) => <option key={l.id} value={l.id} className="text-slate-900">{l.name}</option>)}
               </select><ChevronDown className="pointer-events-none absolute right-2.5 top-3 h-4 w-4" /></label>
+            {p.customize(true)}
             {p.onArise && <button type="button" onClick={p.onArise} className="min-h-10 rounded-full bg-white px-3 text-[13px] font-extrabold text-[#3f2fb0]">Arise{p.newAsks ? ` · ${p.newAsks}` : ""}</button>}
           </div>
         </div>
@@ -163,7 +189,7 @@ function TodayLook({ p }: { p: LookProps }) {
           <p className="text-[15px] font-extrabold">{prog.total ? `${prog.done} of ${prog.total} done` : "Nothing due today"}</p>
         </div>
       </header>
-      <div className="rounded-t-[28px] bg-white pb-4 dark:bg-[#151325]">
+      <div className="rounded-[28px] bg-white pb-4 dark:bg-[#151325]">
         <div className="px-4 pt-4"><AddBar p={p} /></div>
         {section("Late", g.overdue, "text-red-700")}{section("Today", g.today)}{section("This week", g.soon)}{section("No date", g.someday)}{section("Done today", g.doneToday)}
         {nothing && <Empty text="Nothing to do. Enjoy the breathing room." />}

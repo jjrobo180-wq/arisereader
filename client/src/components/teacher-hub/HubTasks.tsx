@@ -17,7 +17,7 @@ import { AriseAsks } from "@/components/teacher-hub/AriseAsks";
 import { openAsk, startTaskAsk } from "@/lib/ariseAsks";
 import { parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
 import { TASK_LOOKS, type TaskLook } from "@shared/taskLooks";
-import { LookSwitcher, TaskLookView } from "@/components/teacher-hub/TaskLooks";
+import { LookMenu, TaskLookView } from "@/components/teacher-hub/TaskLooks";
 
 /** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
 function linkSummary(workspace: Workspace, links: HubLink[]): string {
@@ -224,9 +224,11 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   const emptyText = search ? "No matching tasks. Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Nothing archived." : "A fresh start. Add your first to-do above.";
   const quickPlaceholder = arise ? "Add a to-do, or type @arise" : `Add a to-do${listId !== "all" ? ` to ${listName}` : ""}`;
   const looked = look !== "classic";
+  // "Customize" (TaskLooks.tsx): the looks in one pop-up menu, beside each look's own buttons.
+  const lookMenu = (dark = false) => <LookMenu look={look} setLook={(l) => { setLook(l); setAiTab(false); openAsk(null); }} dark={dark} />;
   return (
     <div className="space-y-3" data-testid="hub-todo">
-    <LookSwitcher look={look} setLook={(l) => { setLook(l); setAiTab(false); openAsk(null); }} />
+    {!looked && <div className="flex justify-end">{lookMenu()}</div>}
     {looked && aiTab && arise ? <div className="space-y-3"><button type="button" onClick={() => { setAiTab(false); openAsk(null); }} className="min-h-10 rounded-full bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200">← Back to to-dos</button><AriseAsks asks={arise.asks} loaded={arise.loaded} open={arise.open} say={(t) => toast(t)} /></div>
     : looked ? <>
       <TaskLookView look={look as Exclude<TaskLook, "classic">} tasks={workspace.tasks} shown={shown} lists={lists} today={today} view={view} setView={setView} views={views}
@@ -234,7 +236,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
         add={(lid) => { if (lid !== undefined) setListPick(lid || "all"); setEditing({ id: null }); }}
         quick={quick} setQuick={setQuick} onQuickAdd={quickAdd} quickPlaceholder={quickPlaceholder}
         newAsks={newAsks} onArise={arise ? () => { setAiTab(true); openAsk(null); } : undefined}
-        search={search} setSearch={setSearch} sort={sort} setSort={setSort} empty={emptyText} />
+        search={search} setSearch={setSearch} sort={sort} setSort={setSort} empty={emptyText} customize={lookMenu} />
       {arise && parseTaskAsk(quick) && <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="arise-hint"><Sparkles className="h-3.5 w-3.5" />Arise's AI will make this and send you a notification when it's ready.</p>}
       {extra && (view === "all" || view === "today") && <div>{extra}</div>}
       {(view === "all" || view === "today") && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}

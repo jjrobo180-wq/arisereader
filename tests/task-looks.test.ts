@@ -60,11 +60,17 @@ test("Notes and tiles use the lists' own colors, light enough to read on", () =>
 test("the switcher is at the top of Tasks; LifeHub starts on List, WorkHub on the Original", () => {
   const page = readFileSync("client/src/components/teacher-hub/HubTasks.tsx", "utf8");
   assert.match(page, /useSavedChoice<TaskLook>\(plain \? "life-tasks-look" : "hub-tasks-look", plain \? "calm" : "classic", TASK_LOOKS\)/);
-  assert.match(page, /data-testid="hub-todo">\s*<LookSwitcher look=\{look\}/);
+  // One "Customize" button opens the looks in a menu (not a row of buttons), beside each look's own buttons.
+  assert.match(page, /\{!looked && <div className="flex justify-end">\{lookMenu\(\)\}<\/div>\}/);
+  assert.match(page, /empty=\{emptyText\} customize=\{lookMenu\} \/>/);
   assert.match(page, /looked \? <>\s*<TaskLookView look=/);
   // The edit pop-up is shared by every look.
   assert.equal(page.match(/<TaskModal /g)?.length, 1);
   const looks = readFileSync("client/src/components/teacher-hub/TaskLooks.tsx", "utf8");
   for (const l of ["look-calm", "look-today", "look-tiles", "look-minimal", "look-board", "look-notes"]) assert.ok(looks.includes(`data-testid="${l}"`), l);
+  assert.match(looks, /role="menu" aria-label="How Tasks looks"/);
+  assert.match(looks, /role="menuitemradio" aria-checked=\{look === l\}/);
+  assert.match(looks, /<SlidersHorizontal className="h-4 w-4" \/><span>Customize<\/span>/);
+  assert.ok(!/data-testid="look-today"[^>]*overflow-hidden|overflow-hidden[^"]*" data-testid="look-today"/.test(looks), "the menu isn't cut off in the Today look");
   assert.match(looks, /type="checkbox"[^>]*aria-label=\{`Done: \$\{task\.title\}`\}/, "check-offs are real checkboxes");
 });
