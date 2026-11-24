@@ -7,6 +7,7 @@
 // Used by .github/workflows/arisetodo-signed-release.yml and arisetodo-ios.yml; the website keeps vite.config.ts.
 import { defineConfig, mergeConfig, type Plugin } from "vite";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import base from "./vite.config";
 import { TODO_STAND_IN, todoLeavesOut } from "./script/todoBundle.mjs";
 
@@ -32,8 +33,19 @@ function leaveOutOtherProducts(): Plugin {
   };
 }
 
+/** The To Duo loading screen (client/todo-loading.html), first thing in <body>, so the app never opens on
+ *  a blank or black screen while it starts. Only in this build: the websites don't show it. */
+function todoLoadingScreen(): Plugin {
+  return {
+    name: "arise-todo-loading-screen",
+    transformIndexHtml(html) {
+      return html.replace("<body>", "<body>\n" + readFileSync(path.resolve(ROOT, "client", "todo-loading.html"), "utf8"));
+    },
+  };
+}
+
 const config = mergeConfig(base, {
-  plugins: [leaveOutOtherProducts()],
+  plugins: [leaveOutOtherProducts(), todoLoadingScreen()],
   define: { __TODO_APP__: "true" },
 });
 // mergeConfig adds inputs together; To Duo has only its own page.

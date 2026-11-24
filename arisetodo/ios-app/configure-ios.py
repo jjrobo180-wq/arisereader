@@ -79,3 +79,14 @@ if os.path.exists(DELEGATE):
             print("AppDelegate: push notification token goes to the app")
         else:
             print("AppDelegate: could not add the push token hook")
+
+
+# The launch screen: navy with the Arise To Duo icon (splash-2732.png), not Capacitor's placeholder "X".
+# It is the first frame of the app's own loading screen (client/todo-loading.html), so the two join up.
+import glob, os, shutil
+HERE = os.path.dirname(os.path.abspath(__file__))
+SPLASH_SET = os.path.join(os.path.dirname(PLIST), "Assets.xcassets", "Splash.imageset")
+splash_pngs = glob.glob(os.path.join(SPLASH_SET, "*.png"))
+for png in splash_pngs:
+    shutil.copyfile(os.path.join(HERE, "splash-2732.png"), png)
+print(f"Launch screen: Arise To Duo splash ({len(splash_pngs)} images)" if splash_pngs else "Launch screen: no Splash.imageset found")
