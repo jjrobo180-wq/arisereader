@@ -58,3 +58,25 @@ test("plugins start at the top: no logo, the tabs share the name's row, less spa
     assert.match(readFileSync(`client/src/components/super-apps/${f}.tsx`, "utf8"), /<SuperHead [^\n]*tabs=\{<PageStrip /, f);
   assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /\$\{isSuperApp\(shown\) \? "pt-2 sm:pt-3 lg:pt-4" : "pt-4 sm:pt-6 lg:pt-10"\}/);
 });
+
+test("inside To Duo, Health & Fitness is a few tabs of grouped parts (Nov 25, 2026)", async () => {
+  const g = await import("../shared/fitGroups");
+  const ids = (id: string) => g.FIT_GROUP_BY_ID.get(id as never)!.parts.map((p) => p.id);
+  for (const x of ["water", "meds", "period", "mind", "sleep", "fast"]) assert.ok(ids("g-daily").includes(x as never), x);
+  for (const x of ["food", "prep", "grocery", "recipes", "eat"]) assert.ok(ids("g-food").includes(x as never), x);
+  assert.ok(ids("g-train").includes("train" as never) && ids("g-yoga").includes("yoga" as never));
+  // Every part of Cooked has a home.
+  const { FIT_APPS } = await import("../shared/fitApps");
+  for (const a of FIT_APPS) assert.ok(g.groupOf(a.id), a.id);
+  // Period starts off unless it was added; tabs and parts switch off and on.
+  const p = g.defaultGroupPrefs(["train"]);
+  assert.ok(p.partsOff.includes("period"));
+  assert.ok(!g.defaultGroupPrefs(["period"]).partsOff.includes("period"));
+  const off = g.setGroupOn(p, "g-yoga", false);
+  assert.ok(!g.groupsOn(off).some((x) => x.id === "g-yoga"));
+  assert.deepEqual(g.moveGroup(p, "g-food", -1).order.slice(0, 2), ["g-food", "g-daily"]);
+  assert.deepEqual(g.cleanGroupPrefs({ order: ["g-yoga", "bad"], off: ["g-friends"], partsOff: ["period", "x"] }), { order: ["g-yoga", "g-daily", "g-food", "g-train", "g-progress", "g-friends"], off: ["g-friends"], partsOff: ["period"] });
+  const app = readFileSync("client/src/pages/fit/FitApp.tsx", "utf8");
+  assert.match(app, /<FitGroupPage group=\{g\} parts=\{partsOn\(gprefs, g\)\}/);
+  assert.match(app, /case "prep": return <MealPrep inline=\{inline\}/);
+});

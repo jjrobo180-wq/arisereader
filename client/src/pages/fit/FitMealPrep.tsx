@@ -24,7 +24,7 @@ export async function sendToDuo(token: string | null, items: { name: string; qty
 const MEALS: { id: Meal; label: string }[] = [{ id: "breakfast", label: "Breakfast" }, { id: "lunch", label: "Lunch" }, { id: "dinner", label: "Dinner" }, { id: "snack", label: "Snacks" }];
 const dayName = (d: string, opts: Intl.DateTimeFormatOptions = { weekday: "short" }) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, opts);
 
-export function MealPrep({ token, data, update, say, onClose, onGrocery }: { token: string | null; data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onGrocery: () => void }) {
+export function MealPrep({ token, data, update, say, onClose, onGrocery , inline}: { token: string | null; data: FitData; update: Update; say: (m: string) => void; inline?: boolean; onClose: () => void; onGrocery: () => void }) {
   const prep = data.prep && (weekDays(data.prep.start).includes(dayKey()) || data.prep.start > dayKey()) ? data.prep : null;
   const start = prep?.start ?? prepStart();
   const days = weekDays(start);
@@ -45,7 +45,7 @@ export function MealPrep({ token, data, update, say, onClose, onGrocery }: { tok
   };
   const left = g.kcal - t.kcal;
 
-  return <Sheet title="Meal prep" onClose={onClose} testId="fit-meal-prep" right={<button type="button" onClick={() => setView(view === "plan" ? "week" : "plan")} className="h-10 rounded-full px-4 text-[14px] font-semibold" style={{ background: C.card2 }} data-testid="fit-prep-view">{view === "plan" ? "Week view" : "Plan a day"}</button>}>
+  return <Sheet inline={inline} title="Meal prep" onClose={onClose} testId="fit-meal-prep" right={<button type="button" onClick={() => setView(view === "plan" ? "week" : "plan")} className="h-10 rounded-full px-4 text-[14px] font-semibold" style={{ background: C.card2 }} data-testid="fit-prep-view">{view === "plan" ? "Week view" : "Plan a day"}</button>}>
     <p className="-mt-1 mb-3 px-1 text-[14px]" style={{ color: C.dim }}>Plan the week's food ahead. Each day adds up against your goals as you go; tap "Log this day" when you eat it.</p>
     {view === "plan" ? <>
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist">{days.map((d) => { const s = sum.days.find((x) => x.date === d)!; const on = d === day;
@@ -103,7 +103,7 @@ function WeekView({ data, sum, onDay }: { data: FitData; sum: ReturnType<typeof 
   </div>;
 }
 
-export function GroceryList({ token, data, update, say, onClose }: { token?: string | null; data: FitData; update: Update; say: (m: string) => void; onClose: () => void }) {
+export function GroceryList({ token, data, update, say, onClose , inline}: { token?: string | null; data: FitData; update: Update; say: (m: string) => void; inline?: boolean; onClose: () => void }) {
   const list = data.grocery;
   const [extra, setExtra] = useState("");
   const [sending, setSending] = useState(false);
@@ -124,7 +124,7 @@ export function GroceryList({ token, data, update, say, onClose }: { token?: str
   };
   const aisles = list ? [...new Set(list.items.map((i) => i.aisle))] : [];
   const left = list ? list.items.filter((i) => !i.done).length : 0;
-  return <Sheet title="Grocery list" onClose={onClose} testId="fit-grocery" right={list ? <button type="button" onClick={() => void share()} aria-label="Share the list" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card2 }}><Share2 className="h-5 w-5" /></button> : undefined}>
+  return <Sheet inline={inline} title="Grocery list" onClose={onClose} testId="fit-grocery" right={list ? <button type="button" onClick={() => void share()} aria-label="Share the list" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: C.card2 }}><Share2 className="h-5 w-5" /></button> : undefined}>
     {!list ? <>
       <p className="-mt-1 mb-3 px-1 text-[14px]" style={{ color: C.dim }}>Make a week's shopping list in one tap.</p>
       {prepFoods.length > 0 && <Card onClick={() => build("prep")} className="!p-4" testId="fit-grocery-from-prep"><p className="text-[18px] leading-tight" style={display}>From my meal prep</p><p className="mt-1 text-[13px]" style={{ color: C.dim }}>Every food you planned this week, added up and sorted by aisle.</p></Card>}

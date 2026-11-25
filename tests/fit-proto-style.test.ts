@@ -28,7 +28,7 @@ test("motion: entrances, fills, shine, scan, rest sheet and route draw, off for 
 
 test("tabs: Today, the apps you pin (Train, Food and Run to start) and Apps, with a sliding highlight", () => {
   const app = read("FitApp.tsx");
-  assert.match(app, /\[\["today", "Today", Home\], \.\.\.tabIds\.map/);
+  assert.match(app, /: \[\["today", "Today", Home\], \.\.\.\(tabIds as FitAppId\[\]\)\.map/); // the iPhone app's tab bar (To Duo uses groups)
   // The Cooked app keeps its Plugins tab; inside To Duo there's Edit tabs instead (FitTabsEditor.tsx).
   assert.match(app, /\.\.\.\(embed \? \[\] : \[\["apps", "Plugins", LayoutGrid\] as \[Tab, string, typeof Home\]\]\)\]/);
   assert.match(read("FitLayouts.tsx"), /transition: "left \.35s/);

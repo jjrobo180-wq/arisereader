@@ -52,6 +52,9 @@ export const SUPER_APPS: readonly SuperApp[] = [
     features: ["Programs, live workouts and personal bests", "Food log with macros, meal photos and barcodes", "Runs, sleep, water, fasting and recovery", "Work with a real trainer and choose what they see"],
     pages: [
       { id: "today", label: "Today", icon: "Home", detail: "Your day at a glance" },
+      // Inside To Duo (Nov 25, 2026) the tabs are these groups (shared/fitGroups.ts); the parts below still open from links.
+      { id: "g-daily", label: "Daily", icon: "HeartPulse" }, { id: "g-food", label: "Food", icon: "Apple" }, { id: "g-train", label: "Training", icon: "Dumbbell" },
+      { id: "g-yoga", label: "Yoga", icon: "Flower2" }, { id: "g-progress", label: "Progress", icon: "BarChart3" }, { id: "g-friends", label: "Friends", icon: "Users" },
       { id: "train", label: "Train", icon: "Dumbbell" }, { id: "food", label: "Food", icon: "Apple" }, { id: "run", label: "Run", icon: "Route" },
       { id: "maxes", label: "My maxes", icon: "Trophy" }, { id: "templates", label: "Templates", icon: "ClipboardList" },
       { id: "sleep", label: "Sleep", icon: "Moon" }, { id: "water", label: "Water", icon: "Droplets" }, { id: "fast", label: "Fasting", icon: "Timer" },

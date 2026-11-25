@@ -30,6 +30,9 @@ import { MaxesApp, TemplatesApp } from "./FitMaxes";
 import { AppsTab, APP_ICONS, FriendsApp, GuidedApp, RecoveryApp, StepsApp, WaterApp, YourAppsRow } from "./FitApps";
 import { FormCheck } from "./FitForm";
 import { FIT_APP_BY_ID, appsOf, type FitAppId } from "@shared/fitApps";
+import { FIT_GROUP_BY_ID, INLINE_PARTS, groupOf, groupPrefsOf, groupsOn, isGroupId, partsOn, type FitGroupId, type FitPartId } from "@shared/fitGroups";
+import { FitGroupPage } from "./FitGroupPage";
+import { GroceryList, MealPrep } from "./FitMealPrep";
 import { readiness } from "@shared/fitReadiness";
 import { addNight, emptySleep } from "@shared/fitSleep";
 import { SplitCard, VacationCard, VacationSheet } from "./FitVacation";
@@ -55,9 +58,9 @@ import { ProPlusAnalysis, ProPlusBoard } from "./FitProPlus";
 import { computeInsights } from "@shared/fitInsights";
 import { TipCard } from "./FitVideo";
 
-type Tab = "today" | "apps" | FitAppId;
+type Tab = "today" | "apps" | FitAppId | FitGroupId;
 /** Sheets that open over any tab (from Today, Siri or a link). */
-type Over = "" | "sounds" | "counter" | "pillow" | "vacation" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
+type Over = "" | "grocery" | "sounds" | "counter" | "pillow" | "vacation" | "circle" | "buddy" | "gyms" | "eat" | "recipes" | "siri" | "scan";
 
 /** Ticks once a second while `on` (live timers on Today). */
 function useClock(on: boolean) {
@@ -406,7 +409,20 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const apps = appsOf(data.apps);
   // Inside To Duo the row of pages has room for every added plugin with a screen of its own (the iPhone
   // app's tab bar holds three).
-  const tabIds = (embed ? apps.added : apps.tabs).filter((id) => FIT_APP_BY_ID.get(id)?.tab);
+  // Inside To Duo (Nov 25, 2026) the tabs are groups of parts (shared/fitGroups.ts): Daily, Food, Training, Yoga,
+  // Progress and Friends, each a page with its parts in a row at the top. The iPhone app keeps its own tab bar.
+  const gprefs = groupPrefsOf(apps.groups, apps.added);
+  const groups = embed ? groupsOn(gprefs) : [];
+  const [partOf, setPartOf] = useState<Partial<Record<FitGroupId, FitPartId>>>({});
+  const tabIds: Tab[] = embed ? groups.map((g) => g.id) : apps.tabs.filter((id) => FIT_APP_BY_ID.get(id)?.tab);
+  /** Inside To Duo: shows a part in its tab, if that tab and part are on. */
+  const showPart = (id: FitPartId): boolean => {
+    const g = groupOf(id);
+    if (!embed || !g || !groups.some((x) => x.id === g) || gprefs.partsOff.includes(id) || !INLINE_PARTS.has(id)) return false;
+    if (id === "eat" && !plus) { ask("eat-out"); return true; }
+    setApp(null); setPartOf((p) => ({ ...p, [g]: id })); go(g);
+    return true;
+  };
   const sleepAuto = useSleepAuto(data, update, loaded, say);
   // Siri, Shortcuts and links: run once the data is here (a link can arrive before it loads).
   const [pending, setPending] = useState<SiriAction | null>(null);
@@ -416,7 +432,13 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   // Inside To Duo there's no plugin store page: "apps" opens Edit tabs (FitTabsEditor.tsx) instead.
   const [editTabs, setEditTabs] = useState(false);
   useEffect(() => { if (embed && tab === "apps") { setTab("today"); setEditTabs(true); } }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (tab !== "today" && tab !== "apps" && !tabIds.includes(tab)) setTab("today"); }, [tab, tabIds.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (tab === "today" || tab === "apps" || tabIds.includes(tab)) return;
+    // Inside To Duo a part's name (from a link, Today or an older saved tab) opens it in its tab.
+    const g = embed ? groupOf(tab) : null;
+    if (g && groups.some((x) => x.id === g)) { setPartOf((p) => ({ ...p, [g]: tab as FitPartId })); setTab(g); return; }
+    setTab("today");
+  }, [tab, tabIds.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* not kept */ } }, [tab]);
   // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
   useEffect(() => { if (loaded) publishWidgets(fitWidgetSlots(data, latestKg(data))); }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -457,6 +479,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   /** Opens an app: its tab when it's on the tab bar, otherwise over whatever's showing. */
   const openApp = (id: FitAppId) => {
+    if (showPart(id)) return;
     if (id === "sounds" || id === "pillow") { if (!plus) { ask("sleep-lab"); return; } setOverRaw(id); return; }
     if (id === "counter") { setOverRaw("counter"); return; }
     if (id === "gyms" || id === "eat" || id === "recipes" || id === "scan") { setOver(id); return; }
@@ -496,12 +519,16 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "circle");
   }, [pending, loaded, plusLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
-  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ...(embed ? [] : [["apps", "Plugins", LayoutGrid] as [Tab, string, typeof Home]])];
+  const tabs: [Tab, string, typeof Home][] = embed ? [["today", "Today", Home], ...groups.map((g): [Tab, string, typeof Home] => [g.id, g.label, APP_ICONS[g.icon] ?? LayoutGrid])] : [["today", "Today", Home], ...(tabIds as FitAppId[]).map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ...(embed ? [] : [["apps", "Plugins", LayoutGrid] as [Tab, string, typeof Home]])];
   const startNow = (a: NonNullable<ReturnType<typeof readActive>>) => { setCoach(false); setActive(a); };
 
   /** One app's screen: as a tab (inline) or a sheet over everything. */
-  const screen = (id: FitAppId, inline: boolean, close: () => void) => {
+  const screen = (id: FitPartId, inline: boolean, close: () => void) => {
     switch (id) {
+      case "prep": return <MealPrep inline={inline} token={token} data={data} update={update} say={say} onClose={close} onGrocery={() => { if (!showPart("grocery")) setOverRaw("grocery"); }} />;
+      case "grocery": return <GroceryList inline={inline} token={token} data={data} update={update} say={say} onClose={close} />;
+      case "recipes": return <RecipesSheet inline={inline} data={data} update={update} say={say} onClose={close} />;
+      case "eat": return <EatOut inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "train": return <Sheet inline={inline} title="Train" onClose={close} testId="fit-app-train"><TrainExtras token={token} data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} onCoach={() => setCoach(true)} onVacation={() => setOver("vacation")} /><TrainTab data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} say={say} onCoach={() => setCoach(true)} onMaxes={() => openApp("maxes")} onTemplates={() => openApp("templates")} onGyms={() => setOver("gyms")} /></Sheet>;
       case "food": return <Sheet inline={inline} title="Food" onClose={close} testId="fit-app-food"><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></Sheet>;
       case "fast": return <FastingSheet inline={inline} data={data} update={update} onClose={close} />;
@@ -526,7 +553,13 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     <div key={tab} className="fit-in">
       {tab === "today" && <TodayTab layout={layout} data={data} update={update} onApp={openApp} onAllApps={() => go("apps")} onStartProgram={startProgram} onSettings={() => setSettings(true)} onCoach={() => setCoach(true)} onStart={startNow} onOver={setOver} token={token} user={first} list={list} sleepGuess={sleepAuto.guess} onSkipSleep={sleepAuto.skip} say={say} />}
       {tab === "apps" && <AppsTab data={data} update={update} say={say} onOpen={openApp} />}
-      {tab !== "today" && tab !== "apps" && screen(tab, true, goBack)}
+      {embed && isGroupId(tab) && (() => {
+        const g = FIT_GROUP_BY_ID.get(tab)!;
+        return <FitGroupPage group={g} parts={partsOn(gprefs, g)} current={partOf[g.id] ?? partsOn(gprefs, g)[0]?.id}
+          onPick={(id) => setPartOf((p) => ({ ...p, [g.id]: id }))} onTool={(id) => openApp(id as FitAppId)}
+          render={(id) => screen(id, true, () => go("today"))} />;
+      })()}
+      {tab !== "today" && tab !== "apps" && !isGroupId(tab) && screen(tab, true, goBack)}
     </div>
     {saving === "offline" && <p className="mt-6 text-center text-[12px]" style={{ color: C.dim }}>Offline: changes are kept on this phone and will save when you're back online.</p>}
   </>;
@@ -553,6 +586,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     {over === "sounds" && <SoundsScreen onClose={() => setOver("")} />}
     {over === "pillow" && <PillowTracker data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "counter" && <CounterScreen kind="mind" update={update} say={say} onClose={() => setOver("")} />}
+    {over === "grocery" && <GroceryList token={token} data={data} update={update} say={say} onClose={() => setOver("")} />}
     {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
   </>;

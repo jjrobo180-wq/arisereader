@@ -61,7 +61,9 @@ export const FIT_APPS: FitApp[] = [
 export const FIT_APP_BY_ID = new Map(FIT_APPS.map((a) => [a.id, a]));
 const IDS = new Set<string>(FIT_APPS.map((a) => a.id));
 
-export type FitApps = { added: FitAppId[]; tabs: FitAppId[] };
+import { cleanGroupPrefs, type FitGroupPrefs } from "./fitGroups";
+/** `groups`: the tabs inside Arise To Duo (shared/fitGroups.ts). */
+export type FitApps = { added: FitAppId[]; tabs: FitAppId[]; groups?: FitGroupPrefs };
 export const TAB_MAX = 3;
 /** What a new person starts with: the main parts of Cooked, and Train, Food and Run on the tab bar. */
 export const defaultApps = (): FitApps => ({ added: ["train", "maxes", "templates", "food", "run", "fast", "sleep", "recovery", "yoga", "mind", "water", "progress", "recipes", "friends"], tabs: ["train", "food", "run"] });
@@ -72,7 +74,8 @@ export function cleanApps(raw: any): FitApps | undefined {
   const list = (v: unknown) => [...new Set((Array.isArray(v) ? v : []).map(String).filter((x) => IDS.has(x)))] as FitAppId[];
   const added = list(raw.added).slice(0, FIT_APPS.length);
   const tabs = list(raw.tabs).filter((t) => added.includes(t) && FIT_APP_BY_ID.get(t)!.tab).slice(0, TAB_MAX);
-  return { added, tabs };
+  const groups = cleanGroupPrefs(raw.groups);
+  return groups ? { added, tabs, groups } : { added, tabs };
 }
 export const appsOf = (a: FitApps | undefined): FitApps => a ?? defaultApps();
 
@@ -83,7 +86,7 @@ export function addApp(a: FitApps | undefined, id: FitAppId): FitApps {
 /** Removing an app also takes it off the tab bar. */
 export function removeApp(a: FitApps | undefined, id: FitAppId): FitApps {
   const x = appsOf(a);
-  return { added: x.added.filter((y) => y !== id), tabs: x.tabs.filter((y) => y !== id) };
+  return { ...x, added: x.added.filter((y) => y !== id), tabs: x.tabs.filter((y) => y !== id) };
 }
 /** Puts an app on the tab bar (adding it if needed) or takes it off. A full tab bar swaps out its last tab. */
 export function toggleTab(a: FitApps | undefined, id: FitAppId): FitApps {

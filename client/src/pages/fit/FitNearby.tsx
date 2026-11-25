@@ -276,7 +276,7 @@ function ChainPicks({ chain, filter, update, say }: { chain: FoodChain; filter: 
   </div>;
 }
 
-export function EatOut({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
+export function EatOut({ data, update, onClose, say , inline}: { data: FitData; update: Update; inline?: boolean; onClose: () => void; say: (m: string) => void }) {
   const [tab, setTab] = useState<"near" | "chains" | "match">("near");
   const [open, setOpen] = useState<string | null>(null);
   const [goal, setGoal] = useState<Goal>("all");
@@ -285,7 +285,7 @@ export function EatOut({ data, update, onClose, say }: { data: FitData; update: 
   // One meal's share of the day (a third), for "Fits my day".
   const filter: Filter = { goal, lim, meal: { kcal: Math.max(250, g.kcal / 3), p: g.p / 3, c: g.c / 3, f: g.f / 3 } };
   const everything = useMemo(() => FOOD_CHAINS.flatMap((c) => c.picks.map((p) => ({ chain: c, p }))).filter((x) => matches(x.p, filter)).sort((a, b) => (goal === "lowcal" || goal === "lowcarb" || goal === "lowfat" ? a.p.kcal - b.p.kcal : b.p.p / Math.max(1, b.p.kcal) - a.p.p / Math.max(1, a.p.kcal))), [goal, lim.maxKcal, lim.minP, lim.maxC, g.kcal, g.p]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <Sheet title="Eat out" onClose={onClose} testId="fit-eat-out">
+  return <Sheet inline={inline} title="Eat out" onClose={onClose} testId="fit-eat-out">
     <p className="px-1 text-[15px]" style={{ color: C.steel }}>Healthier picks at places around you. Tap + to add one to today.</p>
     <div className="mt-3 grid grid-cols-3 gap-1 rounded-[12px] p-1" style={{ background: C.card2 }} role="tablist">
       {([["near", "Near me"], ["chains", "Every chain"], ["match", "Match goals"]] as const).map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className="h-9 rounded-[9px] text-[13px] font-semibold" style={tab === id ? { background: C.card, color: C.text } : { color: C.dim }} data-testid={`fit-eat-${id}`}>{l}</button>)}
@@ -377,7 +377,7 @@ function FoodNear({ data, update, say, filter }: { data: FitData; update: Update
 }
 
 // ——— Recipes ————————————————————————————————————————————————————————————————————————————————————
-export function RecipesSheet({ data, update, onClose, say }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void }) {
+export function RecipesSheet({ data, update, onClose, say , inline}: { data: FitData; update: Update; inline?: boolean; onClose: () => void; say: (m: string) => void }) {
   const { token } = useAuth();
   const [tag, setTag] = useState<RecipeTag | "all">("all");
   const pts = usePointsMode();
@@ -400,7 +400,7 @@ export function RecipesSheet({ data, update, onClose, say }: { data: FitData; up
     } catch (e: any) { if (isPlusError(e)) ask("ai-recipes"); else setErr(e.message); } finally { setCooking(false); }
   };
   const tags: (RecipeTag | "all")[] = ["all", "high-protein", "post-workout", "quick", "low-cal", "breakfast", "lunch", "dinner", "snack", "vegetarian", "meal-prep"];
-  return <Sheet title="Recipes" onClose={onClose} testId="fit-recipes">
+  return <Sheet inline={inline} title="Recipes" onClose={onClose} testId="fit-recipes">
     <p className="px-1 text-[15px]" style={{ color: C.steel }}>{left.kcal > 0 ? <>You have about <b>{left.kcal} calories</b> and <b>{left.p} g protein</b> left today. Best fits first.</> : "Healthy recipes, most protein per calorie first."}</p>
     <Card className="mt-3 !p-4">
       <p className="flex items-center gap-2 text-[17px] leading-none" style={display}><Sparkles className="h-5 w-5" style={{ color: C.lime }} />Make one from what I have<PlusTag /></p>
