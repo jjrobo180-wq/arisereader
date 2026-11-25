@@ -1,5 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
-import { emptyDaily } from "@shared/dailySettings";
+import { fillDaily } from "@shared/dailySettings";
 import { listenForDuoLinks } from "@/lib/duoLinks";
 import { focusTask } from "@/lib/taskFocus";
 import AllAccessPopup from "@/components/AllAccessPopup";
@@ -154,7 +154,7 @@ import { isSuperApp, type SuperAppId } from "@shared/superApps";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
 import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 // Today's check-ins keep their done list current for reminders (components/daily/useDailyCheckins.ts).
-const DailyDoneSync = lazy(() => import("@/components/daily/useDailyCheckins").then((m) => ({ default: m.DailyDoneSync })));
+const DailyDoneSync = lazy(() => import("@/components/daily/WithDaily").then((m) => ({ default: m.SafeDailyDoneSync })));
 // Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
 const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
 const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
@@ -1805,7 +1805,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} daily={{
                 family, setFamily, say: setMessage,
-                settings: family.daily, setSettings: (update) => setFamily((f) => ({ ...f, daily: update(f.daily ?? emptyDaily()) })),
+                settings: family.daily, setSettings: (update) => setFamily((f) => ({ ...f, daily: update(fillDaily(f.daily)) })),
                 // LifeHub: your own (Cooked and Accountability are yours). FamilyHub: the family's, shared by everyone in it,
                 // and each tick is saved under the name of whoever ticked it.
                 on: { cooked: !familySpace && isOn("cooked", family), accountability: !familySpace && isOn("accountability", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family) },

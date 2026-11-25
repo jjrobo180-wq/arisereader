@@ -10,7 +10,7 @@ import { useFitData } from "@/pages/fit/fitStore";
 import type { Family } from "@shared/familyHub";
 import type { FitData, Meal as FitMeal } from "@shared/fit";
 import type { AcctTask, Checkin as AcctCheckin } from "@shared/accountability";
-import { emptyDaily, type DailySettings } from "@shared/dailySettings";
+import { fillDaily, type DailySettings } from "@shared/dailySettings";
 import {
   addWater, buildCheckins, logMeal, logWeight, logWorkout, markChore, markHabit, markMed, markPill, markRoutine, removeCustom, removeFood, saveCustom, shownCheckins, tickCooked, tickCustom, withDone,
   type AcctInput, type Checkin, type FoodIn,
@@ -99,7 +99,7 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
     return () => { document.removeEventListener("visibilitychange", again); window.clearInterval(t); };
   }, [loadAcct]);
 
-  const settings = input.settings ?? emptyDaily();
+  const settings = useMemo(() => fillDaily(input.settings), [input.settings]);
   const cookedOn = input.on.cooked && (!input.cookedIfUsed || !!(fit.onboarded || fit.foods.length || fit.workouts.length));
   const all = useMemo(() => buildCheckins({
     date, settings, fit: cookedOn ? fit : null, family: input.family, shared: input.shared,
@@ -191,7 +191,7 @@ export function DailyDoneSync({ family, setFamily, on }: { family: Family; setFa
     last.current = key;
     // Accountability isn't read here, so what the Tasks screen knows about it is kept.
     setFamily((f) => {
-      const keep = f.daily?.done?.date === date ? f.daily.done.ids.filter((x) => x.startsWith("acct:")) : [];
+      const keep = f.daily?.done?.date === date && Array.isArray(f.daily.done.ids) ? f.daily.done.ids.filter((x) => x.startsWith("acct:")) : [];
       const next = withDone(f.daily, date, all);
       const merged = keep.length ? { ...next, done: { date, ids: [...new Set([...(next.done?.ids ?? []), ...keep])].sort() } } : next;
       return merged.done && f.daily?.done && merged.done.date === f.daily.done.date && merged.done.ids.join("|") === f.daily.done.ids.join("|") ? f : { ...f, daily: merged };

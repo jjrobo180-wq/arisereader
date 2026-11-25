@@ -241,3 +241,15 @@ test("WorkHub keeps its own check-in settings with its data", () => {
   assert.deepEqual(ws.daily?.off, ["cooked:water"]);
   assert.equal("daily" in normalizeWorkspace({}), false, "nothing saved until something's changed");
 });
+
+test("settings saved by an older version (no hand-made check-ins yet) never break the list or reminders", () => {
+  const old: any = { on: true, off: [], times: {}, remind: true, mute: [], extra: [], done: { date: DAY, ids: [] } };
+  assert.doesNotThrow(() => buildCheckins({ date: DAY, settings: old, fit: fit() }));
+  assert.doesNotThrow(() => dailyReminderPlan({ settings: old, cooked: true, family: emptyFamily() as any, habits: true, routines: true }, DAY));
+  assert.equal(tickCustom(old, "x", DAY, true).log[DAY].x, "");
+  assert.equal(saveCustom(old, { title: "A", time: "", days: [] }, "", () => "a").custom.length, 1);
+  assert.deepEqual(removeCustom(old, "a").custom, []);
+  assert.deepEqual(withDone(old, DAY, []).custom, []);
+  assert.doesNotThrow(() => dueTodoReminders({ family: { ...emptyFamily(), sections: { cooked: true }, daily: old }, tasks: [] }, at("08:01"), ZONE, {}));
+  assert.doesNotThrow(() => buildCheckins({ date: DAY, settings: { garbage: 1 } as any }));
+});

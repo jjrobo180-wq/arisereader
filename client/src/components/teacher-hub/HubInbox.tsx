@@ -1,6 +1,7 @@
 // Arise WorkHub: emails forwarded in. The open Hub picks up what arrived at the teacher's forwarding address
 // and adds each one to Emails, flagged, and to the to-do list. The Emails tab shows the address.
 // The rules are in shared/hubInbox.ts; the server side is server/hubInbox.ts.
+import { ForwardHowTo } from "@/components/ForwardHowTo";
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Copy, Inbox, RefreshCw } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -117,6 +118,7 @@ export function ForwardingCard({ token, isAdmin }: { token: string | null; isAdm
               <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={anyone} onChange={(e) => setAnyone(e.target.checked)} className="h-4 w-4" /> Accept from anyone (for an automatic forwarding rule, which keeps the original sender)</label>
               <div className="mt-2"><GhostButton onClick={() => void run(async () => { const r = await call(token, "/api/teacher-hub/inbox/senders", { method: "PUT", body: JSON.stringify({ senders, anyone }) }); setSenders(r.senders.join(", ")); setAnyone(r.anyone); return "Saved."; })}>Save</GhostButton></div>
             </div>
+            {view.address && <ForwardHowTo />}
             {isAdmin && (
               <details className="rounded-xl border border-slate-200 p-3" data-testid="hub-forwarding-admin">
                 <summary className="cursor-pointer font-semibold text-slate-700">Site setup (admin)</summary>

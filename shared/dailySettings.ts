@@ -31,6 +31,15 @@ export type DailySettings = {
 
 export const DAILY_LIMITS = { ids: 200, idLength: 80, custom: 60, title: 80, logDays: 60 };
 export const emptyDaily = (): DailySettings => ({ on: true, off: [], times: {}, remind: true, mute: [], extra: [], custom: [], log: {} });
+/** Settings as the code expects them, whatever was saved: anything missing (saved by an older version, before
+ *  hand-made check-ins existed) is filled in, so reading them can never fail. */
+export function fillDaily(s: Partial<DailySettings> | null | undefined): DailySettings {
+  const e = emptyDaily();
+  if (!s || typeof s !== "object") return e;
+  const arr = <T,>(v: unknown, d: T[]): T[] => (Array.isArray(v) ? v as T[] : d);
+  const obj = <T,>(v: unknown, d: T): T => (v && typeof v === "object" && !Array.isArray(v) ? v as T : d);
+  return { ...e, ...s, on: s.on !== false, remind: s.remind !== false, off: arr(s.off, e.off), mute: arr(s.mute, e.mute), extra: arr(s.extra, e.extra), custom: arr(s.custom, e.custom), times: obj(s.times, e.times), log: obj(s.log, e.log) };
+}
 
 const ID = /^[a-z]{2,12}:[A-Za-z0-9_@:.-]{1,66}$/;
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;

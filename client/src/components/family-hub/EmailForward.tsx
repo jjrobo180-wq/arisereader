@@ -1,5 +1,6 @@
 // Forward emails into Arise LifeHub: each forwarded email becomes a task in the "Email" list.
 // Same forwarding system as the Arise WorkHub (server/hubInbox.ts), under /api/arise-todo/inbox.
+import { ForwardHowTo } from "@/components/ForwardHowTo";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Mail, RefreshCw } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -64,6 +65,7 @@ export function EmailForwardCard({ token }: { token: string | null }) {
           <button onClick={() => { if (window.confirm("Make a new address? The old one stops working right away.")) void run(() => call(token, "/address", { method: "POST" }), "New address ready."); }} disabled={busy} className={plain + " min-h-9 text-xs"}><RefreshCw size={13} /> New address</button>
         </div>
         <p className="mt-2 text-[11px] text-slate-400">Only emails forwarded from these addresses are accepted, so strangers can't fill your list.</p>
+        <ForwardHowTo />
       </>}
       {note && <p className="mt-2 text-xs font-semibold text-violet-700">{note}</p>}
     </>}

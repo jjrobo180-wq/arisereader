@@ -14,7 +14,7 @@ import { choreDueOn, choreOwner, toggleChore, type Family } from "./familyHub";
 import { dosesOn as pillDosesOn, markDose as markPillDose } from "./pills";
 import type { AcctTask, Checkin as AcctCheckin } from "./accountability";
 import { checkinFor, dueOn, isDone } from "./accountability";
-import { emptyDaily, type CustomCheckin, type DailySettings } from "./dailySettings";
+import { fillDaily, type CustomCheckin, type DailySettings } from "./dailySettings";
 
 export type CheckinKind = "meal" | "workout" | "water" | "weight" | "sleep" | "fast" | "med" | "pill" | "habit" | "routine" | "acct" | "chore" | "custom";
 export type CheckinSource = "cooked" | "habits" | "routines" | "pills" | "accountability" | "chores" | "mine" | "family";
@@ -83,7 +83,7 @@ export const clock12 = (hm: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm
 
 /** The check-ins for a day, in time order (ones without a time last). Hidden ones are included with `hidden`. */
 export function buildCheckins(input: CheckinInput): Checkin[] {
-  const s = input.settings ?? emptyDaily();
+  const s = fillDaily(input.settings);
   const { date } = input;
   const out: Checkin[] = [];
   const off = new Set(s.off), extra = new Set(s.extra), mute = new Set(s.mute);
@@ -227,7 +227,7 @@ export function buildCheckins(input: CheckinInput): Checkin[] {
 
 /** The check-ins shown in the list (not hidden), with the counts the Tasks header uses. */
 export function shownCheckins(all: Checkin[], settings?: DailySettings): { items: Checkin[]; done: number; total: number } {
-  if (settings && !settings.on) return { items: [], done: 0, total: 0 };
+  if (settings && settings.on === false) return { items: [], done: 0, total: 0 };
   const items = all.filter((c) => !c.hidden);
   return { items, done: items.filter((c) => c.done).length, total: items.length };
 }
@@ -310,7 +310,8 @@ export const markChore = (f: Family, choreId: string, date: string, makeId: () =
 };
 
 /** A hand-made check-in ticked (by someone, in FamilyHub) or unticked for a day. Old days are let go after 60. */
-export function tickCustom(s: DailySettings, customId: string, date: string, on: boolean, by = ""): DailySettings {
+export function tickCustom(given: DailySettings, customId: string, date: string, on: boolean, by = ""): DailySettings {
+  const s = fillDaily(given);
   const row = { ...(s.log[date] ?? {}) };
   if (on) row[customId] = by.slice(0, 60); else delete row[customId];
   const log = { ...s.log, [date]: row };
@@ -319,7 +320,8 @@ export function tickCustom(s: DailySettings, customId: string, date: string, on:
   return { ...s, log: Object.fromEntries(keep.map((k) => [k, log[k]])) };
 }
 /** Adds a hand-made check-in (or changes one, when `id` is one already there). */
-export function saveCustom(s: DailySettings, c: { id?: string; title: string; time: string; days: number[] }, by = "", makeId: () => string = uidNow): DailySettings {
+export function saveCustom(given: DailySettings, c: { id?: string; title: string; time: string; days: number[] }, by = "", makeId: () => string = uidNow): DailySettings {
+  const s = fillDaily(given);
   const title = c.title.replace(/\s+/g, " ").trim().slice(0, 80);
   if (!title) return s;
   const days = c.days.length ? [...new Set(c.days)].sort() : [0, 1, 2, 3, 4, 5, 6];
@@ -329,7 +331,8 @@ export function saveCustom(s: DailySettings, c: { id?: string; title: string; ti
   return { ...s, custom: [...s.custom, made].slice(0, 60) };
 }
 /** Removes a hand-made check-in (and its ticks). */
-export function removeCustom(s: DailySettings, id: string): DailySettings {
+export function removeCustom(given: DailySettings, id: string): DailySettings {
+  const s = fillDaily(given);
   const log: Record<string, Record<string, string>> = {};
   for (const [day, row] of Object.entries(s.log)) { const { [id]: _gone, ...rest } = row; if (Object.keys(rest).length) log[day] = rest; }
   return { ...s, custom: s.custom.filter((x) => x.id !== id), log, off: s.off.filter((x) => x !== `custom:${id}`), mute: s.mute.filter((x) => x !== `custom:${id}`) };
@@ -339,7 +342,7 @@ export function removeCustom(s: DailySettings, id: string): DailySettings {
 
 /** Today's done list to keep in the settings, so reminders skip what's already done. Unchanged when nothing changed. */
 export function withDone(settings: DailySettings | undefined, date: string, all: Checkin[]): DailySettings {
-  const s = settings ?? emptyDaily();
+  const s = fillDaily(settings);
   const ids = all.filter((c) => c.done).map((c) => c.id).sort();
   if (s.done && s.done.date === date && s.done.ids.length === ids.length && s.done.ids.every((x, i) => x === ids[i])) return s;
   return { ...s, done: { date, ids } };
@@ -350,7 +353,7 @@ export type DailyReminder = { id: string; title: string; body: string; time: str
  *  weigh-in and sleep (when Cooked is on), and habits and routines given a time. Medicines and pills remind
  *  through their own plugins, and accountability through its own nudges. */
 export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boolean; family: Pick<Family, "habits" | "routines" | "notify">; habits: boolean; routines: boolean }, date: string): DailyReminder[] {
-  const s = input.settings ?? emptyDaily();
+  const s = fillDaily(input.settings);
   if (!s.on || !s.remind) return [];
   const off = new Set([...s.off, ...s.mute]);
   const done = s.done?.date === date ? new Set(s.done.ids) : new Set<string>();

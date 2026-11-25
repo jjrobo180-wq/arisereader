@@ -1,6 +1,6 @@
 import { useAutoHideHeader } from "@/hooks/useAutoHideHeader";
 import { WithDaily } from "@/components/daily/WithDaily";
-import { emptyDaily } from "@shared/dailySettings";
+import { fillDaily } from "@shared/dailySettings";
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
 import { PICTURE_ART } from "@/lib/pictureArt";
 import { useParaTeamAutoAdd } from "@/lib/paraTeam";
@@ -2075,7 +2075,7 @@ function TeacherHubPage() {
           {tab === "tasks" && <><WithDaily input={{
             // WorkHub: your own check-ins (Cooked once you've used it, Accountability, and ones you add), kept with WorkHub.
             family: null, setFamily: () => {}, say: (text) => toasts.show(text),
-            settings: workspace.daily, setSettings: (update) => setWorkspace((p) => ({ ...p, daily: update(p.daily ?? emptyDaily()) })),
+            settings: workspace.daily, setSettings: (update) => setWorkspace((p) => ({ ...p, daily: update(fillDaily(p.daily)) })),
             on: { cooked: true, accountability: true, habits: false, routines: false, pills: false, chores: false }, cookedIfUsed: true,
             // Cooked and Accountability live in LifeHub, so a row's "Open" goes there.
             open: (c) => { window.location.hash = c.open.acctTask ? `#/lifehub?go=accountability&task=${encodeURIComponent(c.open.acctTask)}` : `#/lifehub?go=${c.open.section}`; },
