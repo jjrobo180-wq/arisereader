@@ -12,8 +12,7 @@ export default function CookedPtInDuo({ say, night, start }: { say: (m: string) 
     night, say, start,
     // Its notifications are the bell on Clients and Schedule, as in the app.
     top: ({ tabs, tab, go }) => <>
-      <SuperHead app={app} />
-      <PageStrip app={app} pages={tabs.map((t) => t.id)} current={tab} onPick={go} badges={Object.fromEntries(tabs.map((t) => [t.id, t.badge]))} />
+      <SuperHead app={app} tabs={<PageStrip app={app} pages={tabs.map((t) => t.id)} current={tab} onPick={go} badges={Object.fromEntries(tabs.map((t) => [t.id, t.badge]))} />} />
     </>,
   }), [night, say, start]); // eslint-disable-line react-hooks/exhaustive-deps
   return <InDuoCtx.Provider value><div className="super-cookedpt" data-testid="super-app-cookedpt"><TrainerApp embed={embed} /></div></InDuoCtx.Provider>;

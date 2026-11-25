@@ -18,14 +18,14 @@ export function useSuperPages(app: SuperApp, family: Family, setFamily: (update:
   return { pages, save };
 }
 
-/** To Duo's heading for the app (Nov 25, 2026: one slim row, so the app itself starts near the top): its icon and
- *  name, To Duo's extras, and its settings button. Colours come from the hub's look (super-shell.css). */
-export function SuperHead({ app, onSettings, settingsLabel, right }: { app: SuperApp; onSettings?: () => void; settingsLabel?: string; right?: ReactNode }) {
-  const Icon = superIcon(app.icon);
+/** To Duo's heading for the app (Nov 25, 2026): one slim row with no logo, so the app starts at the top. On a wide
+ *  screen the page tabs sit in the same row; on a phone they go just under the name. Colours come from the hub's look
+ *  (super-shell.css). A screen that isn't one of the picked pages still shows in the tabs where it belongs. */
+export function SuperHead({ app, onSettings, settingsLabel, right, tabs }: { app: SuperApp; onSettings?: () => void; settingsLabel?: string; right?: ReactNode; tabs?: ReactNode }) {
   const extra = useContext(SuperHeadExtra);
   return <header className="sx-head" data-testid={`super-head-${app.id}`} title={app.tagline}>
-    <span className="sx-head-icon" style={{ background: `linear-gradient(145deg, ${app.color}, ${app.color}cc)` }}><Icon size={18} /></span>
     <h1 className="sx-head-name">{app.name}</h1>
+    {tabs && <div className="sx-head-tabs">{tabs}</div>}
     <span className="sx-head-right">
       {extra && <span className="sx-head-extra">{extra}</span>}
       {right}

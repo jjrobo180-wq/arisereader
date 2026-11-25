@@ -1,9 +1,14 @@
 /* The heading row and page tabs of the plugins inside Arise To Duo (Health & Fitness, Notes, Podcasts, Cooked PT).
    Colours come from the hub's look (--an-* from shared/notesThemes.ts themeVars), with To Duo's own as the default,
    and night mode is handled here, so the bar never shows a light outline on a dark page. */
-.sx-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; min-height: 40px; }
-.sx-head-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: #fff; box-shadow: 0 2px 6px -2px rgba(0,0,0,.35); }
-.sx-head-name { margin: 0; min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+.sx-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name right" "tabs tabs"; align-items: center; column-gap: 12px; row-gap: 8px; margin: 0 0 12px; }
+.sx-head-tabs { grid-area: tabs; min-width: 0; }
+.sx-head-tabs .sx-tabs { margin: 0; }
+.sx-head-right { grid-area: right; }
+@media (min-width: 900px) {
+  .sx-head { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "name tabs right"; }
+}
+.sx-head-name { grid-area: name; margin: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font-size: 20px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: var(--an-ink, #1c1a2e); }
 .sx-head-right { display: flex; align-items: center; gap: 8px; flex: none; }
 .sx-head-extra button { margin: 0 !important; min-height: 34px !important; }

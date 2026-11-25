@@ -16,8 +16,7 @@ export default function CookedInDuo({ say, night, start, coach }: { say: (m: str
       // Cooked's own names for its pages, with the shorter To Duo labels where they exist.
       const known = { ...app, pages: tabs.map((t) => ({ id: t.id, label: t.label, icon: app.pages.find((p) => p.id === t.id)?.icon ?? "Circle" })) };
       return <>
-        <SuperHead app={app} onSettings={openSettings} settingsLabel="Health & Fitness settings" />
-        <PageStrip app={known} pages={tabs.map((t) => t.id)} current={tab} onPick={go} onEdit={editTabs} />
+        <SuperHead app={app} onSettings={openSettings} settingsLabel="Health & Fitness settings" tabs={<PageStrip app={known} pages={tabs.map((t) => t.id)} current={tab} onPick={go} onEdit={editTabs} />} />
       </>;
     },
   }), [night, start, coach]); // eslint-disable-line react-hooks/exhaustive-deps

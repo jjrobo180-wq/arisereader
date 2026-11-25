@@ -49,3 +49,12 @@ test("the plugin's heading is one slim row and To Duo's Move button sits in it, 
   assert.equal((duo.match(/<SuperHeadExtra\.Provider value=\{moveButton\}>/g) || []).length, 4);
   assert.match(duo, /isSuperApp\(shown\) \? null : moveButton/);
 });
+
+test("plugins start at the top: no logo, the tabs share the name's row, less space above", () => {
+  const shell = readFileSync("client/src/components/super-apps/SuperShell.tsx", "utf8");
+  assert.doesNotMatch(shell, /sx-head-icon|superIcon\(app\.icon\)/);
+  assert.match(shell, /\{tabs && <div className="sx-head-tabs">\{tabs\}<\/div>\}/);
+  for (const f of ["NotesInDuo", "PodsterInDuo", "CookedInDuo", "CookedPtInDuo", "NotesInWork"])
+    assert.match(readFileSync(`client/src/components/super-apps/${f}.tsx`, "utf8"), /<SuperHead [^\n]*tabs=\{<PageStrip /, f);
+  assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /\$\{isSuperApp\(shown\) \? "pt-2 sm:pt-3 lg:pt-4" : "pt-4 sm:pt-6 lg:pt-10"\}/);
+});

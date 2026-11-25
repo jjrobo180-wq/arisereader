@@ -180,8 +180,7 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const setup = editing || (onPlayer && !es.setupDone);
   const day = !night;
   return <div className={`pod-duo ${night ? "pod-duo-night" : ""}`} data-testid="super-app-podster">
-    <SuperHead app={app} onSettings={() => setPicking(true)} settingsLabel="Pick your Podster pages" />
-    <PageStrip app={app} pages={strip} current={page} onPick={pick} />
+    <SuperHead app={app} onSettings={() => setPicking(true)} settingsLabel="Pick your Podster pages" tabs={<PageStrip app={app} pages={strip} current={page} onPick={pick} />} />
     {setup && <div className={`overflow-hidden rounded-[1.5rem] px-3 py-6 ${day ? "ps-light bg-white ring-1 ring-[#e7e8f0]" : "bg-[#120e14]"}`} data-testid="podster-setup">
       {day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
       <Setup brand="Arise Podcasts" initial={es} student={student} onCancel={() => setEditing(false)} onDone={(genres, pace) => {
