@@ -2,6 +2,7 @@
 // #/fit on the website). Tabs: Today, up to three apps you pin (Train, Food and Run to start) and Apps,
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Cooked prototype (fitUi.tsx).
+import { FitTabsEditor } from "./FitTabsEditor";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
@@ -348,7 +349,7 @@ export default function FitApp() {
 export type FitEmbed = {
   night: boolean;
   /** To Duo's heading and page row, given Cooked's pages: Today, every Cooked plugin with a screen, Plugins. */
-  top: (p: { tabs: { id: string; label: string }[]; tab: string; go: (id: string) => void; openSettings: () => void }) => ReactNode;
+  top: (p: { tabs: { id: string; label: string }[]; tab: string; go: (id: string) => void; openSettings: () => void; editTabs: () => void }) => ReactNode;
   /** The page to open on (a link into To Duo, like go=cooked&page=food). */
   start?: string | null;
   /** A trainer's invite code from a link (#/to-do?go=cooked&coach=…). */
@@ -412,6 +413,9 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass) onPass(l.pass); if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
   // A tab that was taken off the tab bar (here or on another device) goes back to Today.
+  // Inside To Duo there's no plugin store page: "apps" opens Edit tabs (FitTabsEditor.tsx) instead.
+  const [editTabs, setEditTabs] = useState(false);
+  useEffect(() => { if (embed && tab === "apps") { setTab("today"); setEditTabs(true); } }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab !== "today" && tab !== "apps" && !tabIds.includes(tab)) setTab("today"); }, [tab, tabIds.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* not kept */ } }, [tab]);
   // Widgets (Home Screen and Lock Screen): what they show, and taps on their buttons (a glass of water).
@@ -430,6 +434,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   // always to Today. Opening a screen pushes the one you were on; closing pops it.
   const trail = useRef<Tab[]>([]);
   const go = (t: Tab, back = false) => {
+    if (embed && t === "apps") { setEditTabs(true); return; }
     if (t === tab) return;
     haptic("light");
     if (!back) trail.current = [...trail.current.filter((x) => x !== t), tab].slice(-12);
@@ -491,7 +496,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "circle");
   }, [pending, loaded, plusLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
-  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ["apps", "Plugins", LayoutGrid]];
+  const tabs: [Tab, string, typeof Home][] = [["today", "Today", Home], ...tabIds.map((id): [Tab, string, typeof Home] => { const a = FIT_APP_BY_ID.get(id)!; return [id, TAB_LABEL[id] ?? a.name, APP_ICONS[a.icon] ?? LayoutGrid]; }), ...(embed ? [] : [["apps", "Plugins", LayoutGrid] as [Tab, string, typeof Home]])];
   const startNow = (a: NonNullable<ReturnType<typeof readActive>>) => { setCoach(false); setActive(a); };
 
   /** One app's screen: as a tab (inline) or a sheet over everything. */
@@ -553,9 +558,10 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   </>;
   // Inside To Duo: To Duo's heading and row of pages, then the page, in the page's own flow (To Duo scrolls).
   if (embed) return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="min-w-0" style={{ color: C.text, ...font }} data-testid="fit-app" data-fit-embed="duo">
-    {embed.top({ tabs: tabs.map(([id, label]) => ({ id, label })), tab, go: (id) => go(id as Tab), openSettings: () => setSettings(true) })}
+    {embed.top({ tabs: tabs.map(([id, label]) => ({ id, label })), tab, go: (id) => go(id as Tab), openSettings: () => setSettings(true), editTabs: () => setEditTabs(true) })}
     {page}
     {sheets}
+    {editTabs && <FitTabsEditor data={data} update={update} onClose={() => setEditTabs(false)} />}
   </div></PointsModeCtx.Provider>;
   return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="fixed inset-0 flex flex-col" style={{ background: glowBg, backgroundColor: C.bg, color: C.text, ...font }} data-testid="fit-app">
     <StatusShade />

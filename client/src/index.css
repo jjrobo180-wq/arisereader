@@ -1132,3 +1132,6 @@ html.duo-focus main[data-tour="life-content"] { padding-top: max(3.25rem, calc(e
 .arise-sheet-shade { animation: arise-sheet-shade .22s ease both; }
 @media (min-width: 640px) { .arise-sheet { animation: arise-sheet-pop .2s ease-out both; } }
 @media (prefers-reduced-motion: reduce) { .arise-sheet, .arise-sheet-shade { animation: none; } }
+
+/* TTS Buddy inside To Duo (components/super-apps/BuddyInDuo.tsx): its full-screen pages fit the hub's page. */
+.buddy-in-duo .min-h-\[100dvh\] { min-height: 68vh; }

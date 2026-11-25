@@ -17,7 +17,7 @@ const PERKS: [string, string][] = [
   ["Arise To Duo", "Unlimited: every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
   ["Arise Notes", "Plus: 1,500 minutes a month, speaker labels, IEP mode and rollover."],
   ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, plus a free guest pass for one friend."],
-  ["Podster", "Ad-free: ads are found and skipped in the episodes you play."],
+  ["Arise Podcasts", "Ad-free: ads are found and skipped in the episodes you play."],
 ];
 
 export default function AllAccessPage() {
@@ -31,7 +31,7 @@ export default function AllAccessPage() {
   const brand = ALL_ACCESS_APPS[app];
   // The app they came from first in the list.
   // The app they came from first in the list. The iPhone app has no ad-free Podster.
-  const list = native ? PERKS.filter(([t]) => t !== "Podster") : PERKS;
+  const list = native ? PERKS.filter(([t]) => t !== "Arise Podcasts") : PERKS;
   const perks = [...list.filter(([t]) => t === brand.perk), ...list.filter(([t]) => t !== brand.perk)];
   const call = (path: string, body?: unknown) => fetch(`${API_BASE}${path}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
   const load = () => call("/api/all-access").then((r) => r.json()).then(setS).catch(() => setNote("Your plan couldn't be loaded. Check your connection and try again."));

@@ -11,7 +11,7 @@ export const ALL_ACCESS = {
     { app: "Plugins", detail: "Every plugin in the Plugin Gallery and unlimited AI" },
     { app: "Notes", detail: "1,500 recording minutes a month" },
     { app: "Cooked Fitness by Arise", detail: "Premium All in one Health & Fitness App, with a guest pass for a friend" },
-    { app: "Podster", detail: "Ad-free listening" },
+    { app: "Arise Podcasts", detail: "Ad-free listening" },
   ],
 } as const;
 

@@ -77,7 +77,7 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
       {shownPrice && <p className={`text-[15px] font-bold ${ink}`}>{shownPrice}<span className={`ml-1 text-[13px] font-medium ${soft}`}>{ALL_ACCESS.per}</span></p>}
     </div>
     <p className={`mt-0.5 text-[13px] ${soft}`}>Everything in Arise To Duo. Signing up is free.</p>
-    <ul className="mt-3 space-y-2.5">{ALL_ACCESS.perks.filter((p) => !(isNativeApp() && p.app === "Podster")).map((p) => <li key={p.app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#5b4fe0]" aria-hidden /><span className="min-w-0"><span className={`block text-[14px] font-semibold leading-snug ${ink}`}>{p.app}</span><span className={`block text-[12px] leading-snug ${soft}`}>{p.detail}</span></span></li>)}</ul>
+    <ul className="mt-3 space-y-2.5">{ALL_ACCESS.perks.filter((p) => !(isNativeApp() && p.app === "Arise Podcasts")).map((p) => <li key={p.app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#5b4fe0]" aria-hidden /><span className="min-w-0"><span className={`block text-[14px] font-semibold leading-snug ${ink}`}>{p.app}</span><span className={`block text-[12px] leading-snug ${soft}`}>{p.detail}</span></span></li>)}</ul>
     {inApp && (authToken
       ? <>
           <button type="button" onClick={() => void buy()} disabled={!!busy} data-testid="all-access-apple-buy" className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[#5b4fe0] text-[15px] font-semibold text-white active:opacity-80 disabled:opacity-60">{busy === "buy" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{trialDays ? `Start ${trialDays}-day free trial` : `Subscribe · ${applePrice} a month`}</button>

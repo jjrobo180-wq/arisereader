@@ -45,10 +45,10 @@ export type SuperApp = {
 
 export const SUPER_APPS: readonly SuperApp[] = [
   {
-    id: "cooked", section: "cooked", name: "Cooked", icon: "Dumbbell", color: "#ea580c",
+    id: "cooked", section: "cooked", name: "Arise Health & Fitness", icon: "Dumbbell", color: "#ea580c",
     appStore: "https://apps.apple.com/app/id6829228586",
     tagline: "Workouts, food, sleep and a real coach",
-    description: "Cooked Fitness by Arise, right inside To Duo: lifting programs with every set and rest timer, a food log with macros and barcode scans, runs, sleep, water, fasting and recovery, and a personal trainer when you want one. Add only the Cooked plugins you use.",
+    description: "Arise Health & Fitness, right inside To Duo: lifting programs with every set and rest timer, a food log with macros and barcode scans, runs, sleep, water, fasting and recovery, and a personal trainer when you want one. Add only the Cooked plugins you use.",
     features: ["Programs, live workouts and personal bests", "Food log with macros, meal photos and barcodes", "Runs, sleep, water, fasting and recovery", "Work with a real trainer and choose what they see"],
     pages: [
       { id: "today", label: "Today", icon: "Home", detail: "Your day at a glance" },
@@ -93,11 +93,11 @@ export const SUPER_APPS: readonly SuperApp[] = [
     fixed: ["pages"], defaults: ["pages", "record", "upload", "ask", "apps", "settings"], pickable: true,
   },
   {
-    id: "podster", section: "podster", name: "Podster", icon: "Podcast", color: "#db2777",
+    id: "podster", section: "podster", name: "Arise Podcasts", icon: "Podcast", color: "#db2777",
     appStore: "https://apps.apple.com/app/id6828271468",
     tagline: "Podcasts, audiobooks, radio and music",
-    description: "Podster inside To Duo: a home page of podcasts picked for you and a swipe feed, plus free audiobooks, music, live radio and news. Turn your own notes into a study episode, post on Podster Social, and keep your library on every device with your To Duo account.",
-    features: ["Podcasts picked for you, and a swipe feed", "Audiobooks, music, radio and live news", "Study Podster turns your notes into an episode", "New-episode alerts for the shows you follow"],
+    description: "Arise Podcasts inside To Duo: a home page of podcasts picked for you and a swipe feed, plus free audiobooks, music, live radio and news. Turn your own notes into a study episode, post on Podster Social, and keep your library on every device with your To Duo account.",
+    features: ["Podcasts picked for you, and a swipe feed", "Audiobooks, music, radio and live news", "Study mode turns your notes into an episode", "New-episode alerts for the shows you follow"],
     pages: [
       { id: "home", label: "Home", icon: "Home", detail: "Podcasts picked for you" },
       { id: "feed", label: "Swipe feed", icon: "GalleryVertical", detail: "One episode at a time, swipe for the next" },
@@ -107,7 +107,7 @@ export const SUPER_APPS: readonly SuperApp[] = [
       { id: "now", label: "News", icon: "Zap", detail: "Up to the minute news" },
       { id: "newsstations", label: "News stations", icon: "Radio", detail: "Live news radio" },
       { id: "standup", label: "Stand-up", icon: "Mic2", detail: "Comedy sets" },
-      { id: "study", label: "Study Podster", icon: "GraduationCap", detail: "Your notes, turned into an episode" },
+      { id: "study", label: "Study", icon: "GraduationCap", detail: "Your notes, turned into an episode" },
       { id: "meeting", label: "Meeting Pod", icon: "Briefcase", detail: "A meeting, turned into a summary episode" },
       { id: "wiki", label: "Wiki podcasts", icon: "Library", detail: "Any Wikipedia article, read aloud" },
       { id: "live", label: "Live", icon: "Mic", detail: "Audio rooms happening now" },

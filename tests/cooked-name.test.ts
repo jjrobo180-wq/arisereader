@@ -36,5 +36,5 @@ test("the in-app upgrade sheet and popup use the new name", () => {
 test("All Access perks are the app name, then a smaller description", () => {
   const offer = read("client/src/components/AllAccessOffer.tsx");
   assert.match(offer, /\{p\.app\}<\/span><span className=\{`block text-\[12px\]/);
-  assert.match(read("shared/allAccess.ts"), /\{ app: "Podster", detail: "Ad-free listening" \}/);
+  assert.match(read("shared/allAccess.ts"), /\{ app: "Arise Podcasts", detail: "Ad-free listening" \}/);
 });

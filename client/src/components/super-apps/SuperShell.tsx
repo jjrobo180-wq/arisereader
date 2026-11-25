@@ -1,8 +1,8 @@
 // The frame Cooked, Cooked PT, Arise Notes and Podster share inside Arise To Duo: To Duo's own heading, its
-// row of pages (the same pills as Health Lite or Kitchen, components/family-hub/BundleApp.tsx), a settings
+// row of pages (a tab bar in To Duo's look), a settings
 // button that picks which pages show, and the page below. Each app's pages are in shared/superApps.ts.
-import { useState, type ReactNode } from "react";
-import { Check, Settings2, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { superPagesFor, type SuperApp } from "@shared/superApps";
 import type { Family } from "@shared/familyHub";
 import { Modal, plain, primary } from "@/components/family-hub/ui";
@@ -30,19 +30,28 @@ export function SuperHead({ app, onSettings, settingsLabel, right }: { app: Supe
   </header>;
 }
 
-/** The row of pages: one pill each, the open one dark. A number on a pill is something waiting there. */
-export function PageStrip({ app, pages, current, onPick, badges }: { app: SuperApp; pages: string[]; current: string; onPick: (id: string) => void; badges?: Record<string, number> }) {
+/** The row of pages, as a tab bar in To Duo's look: a white bar, the open tab in the accent colour, a number on a
+ *  tab for something waiting there. `onEdit` adds an Edit button at the end (Health & Fitness's tabs). The open tab
+ *  is kept in view when there are more than fit. */
+export function PageStrip({ app, pages, current, onPick, badges, onEdit }: { app: SuperApp; pages: string[]; current: string; onPick: (id: string) => void; badges?: Record<string, number>; onEdit?: () => void }) {
   const label = (id: string) => app.pages.find((p) => p.id === id)?.label ?? id;
-  return <div className="no-scrollbar -mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label={`${app.name} pages`} data-testid={`super-strip-${app.id}`}>
-    {pages.map((id) => {
-      const on = id === current, n = badges?.[id] ?? 0;
-      const Icon = superIcon(app.pages.find((p) => p.id === id)?.icon ?? "");
-      return <button key={id} type="button" role="tab" aria-selected={on} onClick={() => onPick(id)} data-testid={`super-page-${app.id}-${id}`}
-        className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition ${on ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
-        <Icon size={15} />{label(id)}
-        {n > 0 && <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] ${on ? "bg-white text-slate-900" : "bg-[#6e5ae0] text-white"}`}>{n}</span>}
-      </button>;
-    })}
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => { row.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [current]);
+  return <div className="mb-4 flex items-stretch gap-1 rounded-2xl bg-white p-1.5 shadow-[0_1px_2px_#1d1b330d] ring-1 ring-[#ececf3] dark:bg-white/[.04] dark:ring-white/10" data-testid={`super-tabbar-${app.id}`}>
+    <div ref={row} className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto [mask-image:linear-gradient(90deg,#000_92%,transparent)]" role="tablist" aria-label={`${app.name} pages`} data-testid={`super-strip-${app.id}`}>
+      {pages.map((id) => {
+        const on = id === current, n = badges?.[id] ?? 0;
+        const Icon = superIcon(app.pages.find((p) => p.id === id)?.icon ?? "");
+        return <button key={id} type="button" role="tab" aria-selected={on} onClick={() => onPick(id)} data-testid={`super-page-${app.id}-${id}`}
+          className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[14px] font-semibold transition active:scale-[.97] ${on ? "bg-[#6e5ae0] text-white shadow-[0_4px_12px_#6e5ae040]" : "text-slate-600 hover:bg-[#f4f2ff] hover:text-[#5b47d6] dark:text-white/70 dark:hover:bg-white/10"}`}>
+          <Icon size={16} />{label(id)}
+          {n > 0 && <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold ${on ? "bg-white text-[#5b47d6]" : "bg-[#6e5ae0] text-white"}`}>{n}</span>}
+        </button>;
+      })}
+    </div>
+    {onEdit && <button type="button" onClick={onEdit} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border-l border-[#ececf3] pl-3 pr-2.5 text-[14px] font-semibold text-[#5b47d6] hover:bg-[#f4f2ff] dark:border-white/10 dark:text-[#c9bfff]" data-testid={`super-edit-${app.id}`}>
+      <SlidersHorizontal size={16} />Edit
+    </button>}
   </div>;
 }
 

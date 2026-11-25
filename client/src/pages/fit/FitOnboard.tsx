@@ -9,7 +9,7 @@ import { GYM_BY_ID, GYM_TYPES } from "@shared/fitGym";
 import { FEATURE_CHOICES, PACES, appsForFeatures, cmToFtIn, defaultPace, finishDate, ftInToCm, goalWeightFits, planFor, weeksToGoal } from "@shared/fitOnboard";
 import type { Update } from "./fitStore";
 import { latestKg } from "./FitFood";
-import { Btn, C, Layer, display, font, glowBg, haptic, inputCls, inputStyle } from "./fitUi";
+import { Btn, C, Layer, display, font, glowBg, haptic, inputCls, inputStyle, useFitBrand } from "./fitUi";
 import { applyReminders, canUseNative, connectHealth, healthConnected, readHealth, readReminders } from "./fitNative";
 import { mergeWeights } from "./FitHealth";
 import { keepPlace, locate } from "./FitRun";
@@ -75,6 +75,7 @@ const digits = (s: string, n: number) => s.replace(/\D/g, "").slice(0, n);
 const decimal = (s: string) => s.replace(/[^\d.]/g, "").slice(0, 5);
 
 export function Onboarding({ data, update, onDone, edit = false }: { data: FitData; update: Update; onDone: () => void; edit?: boolean }) {
+  const brand = useFitBrand();
   const p = data.profile;
   const start = useMemo(() => latestKg(data), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [units, setUnits] = useState<Units>(p.units);
@@ -136,7 +137,7 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
   };
   const back = () => { if (i > 0) setI((n) => n - 1); };
 
-  const title: Record<StepId, string> = { welcome: "", goal: "What's your goal?", features: "What do you want from Cooked?", body: "About you", target: "Your target", activity: "How active are you?", diet: "How do you eat?", gym: "Where do you train?", track: "How do you want to track food?", plan: "Your plan", access: "Connect your phone", tour: "" };
+  const title: Record<StepId, string> = { welcome: "", goal: "What's your goal?", features: `What do you want from ${brand.short}?`, body: "About you", target: "Your target", activity: "How active are you?", diet: "How do you eat?", gym: "Where do you train?", track: "How do you want to track food?", plan: "Your plan", access: "Connect your phone", tour: "" };
 
   if (step === "tour") return <Layer><style>{ONB_CSS}</style><FeatureTour onClose={finish} /></Layer>;
 
@@ -230,13 +231,14 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
 }
 
 function Welcome() {
+  const brand = useFitBrand();
   return <div className="flex flex-col items-center pt-8 text-center">
     <div className="relative grid h-44 w-44 place-items-center">
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25 }} />
       <span className="ob-pulse absolute inset-0 rounded-full" style={{ background: C.lime, opacity: 0.25, animationDelay: "1.2s" }} />
       <span className="ob-pop relative"><span className="ob-float grid h-28 w-28 place-items-center rounded-[32px]" style={{ background: `linear-gradient(145deg, ${C.lime}, var(--fit-accent-hi))`, boxShadow: "0 24px 50px -16px rgba(var(--fit-accent-rgb),.8)" }}><Dumbbell className="h-14 w-14" style={{ color: "var(--fit-on-accent)" }} /></span></span>
     </div>
-    <h1 className="mt-8 text-[54px] leading-[.9]" style={display}>Welcome to<br /><span style={{ color: C.lime }}>Cooked</span></h1>
+    <h1 className="mt-8 text-[54px] leading-[.9]" style={display}>Welcome to<br /><span style={{ color: C.lime }}>{brand.short}</span></h1>
   </div>;
 }
 
@@ -330,6 +332,8 @@ export function FeatureTour({ onClose }: { onClose: () => void }) {
   const [k, setK] = useState(0);
   const [hold, setHold] = useState(false);
   const timer = useRef<number | null>(null);
+  const brand = useFitBrand();
+  const named = (t: string) => t.replace(/\bCooked\b/g, brand.short);
   const s = SLIDES[k];
   const end = k === SLIDES.length - 1;
   useEffect(() => {
@@ -345,7 +349,7 @@ export function FeatureTour({ onClose }: { onClose: () => void }) {
       {SLIDES.map((_, n) => <span key={n} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/25">{n < k ? <span className="block h-full w-full bg-white" /> : n === k ? <span key={`${k}-${hold}`} className="ob-bar block h-full bg-white" style={{ animationDuration: `${SLIDE_MS}ms`, animationPlayState: hold ? "paused" : "running"}} /> : null}</span>)}
     </div>
     <div className="relative z-[2] flex items-center justify-between px-4 pt-3">
-      <span className="text-[13px] font-bold tracking-[.14em]" style={display}>How Cooked works</span>
+      <span className="text-[13px] font-bold tracking-[.14em]" style={display}>How {brand.short} works</span>
       <button type="button" onClick={onClose} aria-label="Close tour" className="grid h-10 w-10 place-items-center rounded-full bg-black/25"><X className="h-5 w-5" /></button>
     </div>
     <div className="relative z-[1] min-h-0 flex-1" onPointerDown={() => setHold(true)} onPointerUp={() => setHold(false)} onPointerLeave={() => setHold(false)} onPointerCancel={() => setHold(false)}>
@@ -353,9 +357,9 @@ export function FeatureTour({ onClose }: { onClose: () => void }) {
       <button type="button" aria-label="Next" className="absolute inset-y-0 right-0 z-[2] w-1/3" onClick={() => go(1)} />
       <div key={k} className="ob-in flex h-full flex-col items-center px-7 pt-4">
         <div className="relative mt-2 h-[min(42vh,300px)] w-[min(78vw,300px)] shrink-0 overflow-hidden rounded-[36px] bg-black/20 shadow-[0_30px_60px_-24px_rgba(0,0,0,.6)] ring-1 ring-white/20">{s.art}</div>
-        <h2 className="mt-8 text-center text-[42px] leading-[.95]" style={display}>{s.title}</h2>
-        <p className="mt-3 max-w-[340px] text-center text-[17px] leading-snug text-white/85">{s.line}</p>
-        <p className="mt-4 rounded-full bg-black/25 px-4 py-2 text-[13px] font-semibold text-white/90">{s.tip}</p>
+        <h2 className="mt-8 text-center text-[42px] leading-[.95]" style={display}>{named(s.title)}</h2>
+        <p className="mt-3 max-w-[340px] text-center text-[17px] leading-snug text-white/85">{named(s.line)}</p>
+        <p className="mt-4 rounded-full bg-black/25 px-4 py-2 text-[13px] font-semibold text-white/90">{named(s.tip)}</p>
       </div>
     </div>
     <div className="relative z-[3] px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-2">

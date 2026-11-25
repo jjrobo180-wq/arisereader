@@ -84,6 +84,12 @@ export const DUO_CSS = `html[data-fit-duo="light"]{${important({ ...DUO_TOKENS.l
   + `html[data-fit-duo] [data-fit-embed] input.h-12,html[data-fit-duo] [data-fit-duo-modal] input.h-12,html[data-fit-duo] [data-fit-embed] select.h-12,html[data-fit-duo] [data-fit-duo-modal] select.h-12{height:2.75rem;font-size:15px;background:var(--fit-card)!important;box-shadow:inset 0 0 0 1px var(--fit-line)}`;
 /** True inside Arise To Duo (Cooked and Cooked PT as plugins): pieces draw in To Duo's own way. Given by the To Duo wrapper. */
 export const InDuoCtx = createContext(false);
+/** The app's name where people read it: "Arise Health & Fitness" inside Arise To Duo (Nov 24, 2026), "Cooked" in the
+ *  Cooked app itself. `short` is for sentences ("Health & Fitness"). */
+export function useFitBrand(): { name: string; short: string; duo: boolean } {
+  const duo = useContext(InDuoCtx);
+  return duo ? { name: "Arise Health & Fitness", short: "Health & Fitness", duo } : { name: "Cooked", short: "Cooked", duo };
+}
 /** To Duo's Day or Night while Cooked or Cooked PT shows inside it; null on their own. */
 let duoLook: "light" | "dark" | null = null;
 export const inDuo = () => duoLook !== null;

@@ -160,7 +160,7 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
     {/* Cooked, Cooked PT, Arise Notes and Podster inside To Duo: their alerts come here and open them here. */}
     {(["cooked", "cookedpt", "arisenotes", "podster"] as const).some((id) => isOn(id, family)) && <Panel eyebrow="Your plugins" title="From your apps">
       <ul className="divide-y divide-slate-100" data-testid="notify-super-apps">
-        {isOn("cooked", family) && <Info icon={<Dumbbell size={18} />} tint="bg-orange-50 text-orange-600" title="Cooked" open="cooked"
+        {isOn("cooked", family) && <Info icon={<Dumbbell size={18} />} tint="bg-orange-50 text-orange-600" title="Arise Health & Fitness" open="cooked"
           detail="Messages from your trainer, new workouts and reminders. Pick which ones in Cooked: settings, then Notifications." />}
         {isOn("cookedpt", family) && <Info icon={<HeartHandshake size={18} />} tint="bg-teal-50 text-teal-600" title="Cooked PT" open="cookedpt"
           detail="New client requests, messages, check-ins and session reminders. Pick which ones with the bell in Cooked PT." />}

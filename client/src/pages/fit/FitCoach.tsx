@@ -19,7 +19,7 @@ import { startApplePush } from "@/lib/applePush";
 import { isNativeApp } from "@/lib/nativeApp";
 import type { LibraryExercise, Update } from "./fitStore";
 import { planned, startWorkout } from "./FitTrain";
-import { Btn, C, Card, Chips, Field, Sheet, Title, display, inputCls, inputStyle, stagger } from "./fitUi";
+import { Btn, C, Card, Chips, Field, Sheet, Title, display, inputCls, inputStyle, stagger, useFitBrand } from "./fitUi";
 
 type StartFn = (a: ReturnType<typeof startWorkout>) => void;
 
@@ -80,13 +80,14 @@ export function CoachCard({ token, data, list, onStart, onOpen }: { token: strin
 
 /** Choosing what Cooked shares, then asking the trainer. */
 function RequestSheet({ token, t, onClose, onSent, initialMsg = "" }: { token: string | null; t: PublicTrainer; onClose: () => void; onSent: () => void; initialMsg?: string }) {
+  const brand = useFitBrand();
   const [consent, setConsent] = useState<Consent>(ALL_CONSENT);
   const [msg, setMsg] = useState(initialMsg);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return <Sheet title={`Ask ${t.name.split(" ")[0]}`} onClose={onClose} testId="fit-coach-request">
     <Card className="mt-1 flex items-center gap-3 !p-3"><Avatar t={t} size={52} /><div className="min-w-0"><p className="truncate text-[20px] leading-none" style={display}>{t.name}</p><p className="truncate text-[13px]" style={{ color: C.dim }}>{t.headline}</p></div></Card>
-    <Title><ShieldCheck className="h-4 w-4" />What Cooked shares</Title>
+    <Title><ShieldCheck className="h-4 w-4" />What {brand.short} shares</Title>
     <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>Once {t.name.split(" ")[0]} accepts, these go to them automatically, so you never type anything twice. Change it or stop sharing any time.</p>
     <div className="space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
@@ -100,6 +101,7 @@ function RequestSheet({ token, t, onClose, onSent, initialMsg = "" }: { token: s
 
 /** A trainer's invite link (#/fit?coach=CODE): see who it's from, choose what to share, and you're connected at once. */
 export function InviteJoinSheet({ token, code, onClose, onJoined }: { token: string | null; code: string; onClose: () => void; onJoined: () => void }) {
+  const brand = useFitBrand();
   const [t, setT] = useState<{ name: string; photo: string; headline: string } | null>(null);
   const [consent, setConsent] = useState<Consent>(ALL_CONSENT);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
@@ -108,7 +110,7 @@ export function InviteJoinSheet({ token, code, onClose, onJoined }: { token: str
   return <Sheet title={t ? `Train with ${first}` : "Trainer invite"} onClose={onClose} testId="fit-coach-invite">
     {!t ? <p className="mt-8 text-center text-[15px]" style={{ color: err ? C.red : C.dim }}>{err || "Opening your invite…"}</p> : <>
       <Card className="mt-1 flex items-center gap-3 !p-3"><Avatar t={{ name: t.name, photo: t.photo } as PublicTrainer} size={52} /><div className="min-w-0"><p className="truncate text-[20px] leading-none" style={display}>{t.name}</p>{t.headline && <p className="truncate text-[13px]" style={{ color: C.dim }}>{t.headline}</p>}</div></Card>
-      <Title><ShieldCheck className="h-4 w-4" />What Cooked shares with {first}</Title>
+      <Title><ShieldCheck className="h-4 w-4" />What {brand.short} shares with {first}</Title>
       <p className="-mt-1 mb-2 px-1 text-[13px]" style={{ color: C.dim }}>So you never type anything twice. Change it or stop sharing any time.</p>
       <div className="space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
         <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
@@ -303,12 +305,13 @@ function Photos({ link, side, saveSide }: { link: MyLink; side: ClientSide; save
 }
 
 function Sharing({ token, link, reload }: { token: string | null; link: MyLink; reload: () => void }) {
+  const brand = useFitBrand();
   const t = link.trainer!;
   const [consent, setConsent] = useState<Consent>(link.consent);
   const [stars, setStars] = useState(0); const [text, setText] = useState(""); const [sent, setSent] = useState(false); const [err, setErr] = useState("");
   const change = async (next: Consent) => { setConsent(next); await put(token, `/links/${link.id}/consent`, { consent: next }).catch(() => {}); reload(); };
   return <div>
-    <p className="px-1 text-[13px]" style={{ color: C.dim }}>What {t.name.split(" ")[0]} can see from Cooked. Turning something off stops it right away.</p>
+    <p className="px-1 text-[13px]" style={{ color: C.dim }}>What {t.name.split(" ")[0]} can see from {brand.short}. Turning something off stops it right away.</p>
     <div className="mt-2 space-y-2">{(Object.keys(CONSENT_LABEL) as (keyof Consent)[]).map((k) => <label key={k} className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: C.card }}>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{CONSENT_LABEL[k][0]}</span><span className="block text-[12px]" style={{ color: C.dim }}>{CONSENT_LABEL[k][1]}</span></span>
       <input type="checkbox" checked={consent[k]} onChange={(e) => void change({ ...consent, [k]: e.target.checked })} className="h-6 w-6 shrink-0 accent-[var(--fit-accent)]" /></label>)}</div>
@@ -318,7 +321,7 @@ function Sharing({ token, link, reload }: { token: string | null; link: MyLink; 
       <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 1200))} rows={3} placeholder="What's it like training with them?" className="mt-2 w-full rounded-[12px] p-3 text-[17px] outline-none" style={inputStyle} />
       {err && <p className="mt-1 text-[13px]" style={{ color: C.red }}>{err}</p>}
       <Btn className="mt-2 w-full" disabled={!stars} onClick={async () => { try { await post(token, `/trainers/${t.id}/review`, { stars, text }); setSent(true); } catch (e: any) { setErr(e.message); } }} testId="fit-review-send">Post review</Btn></>}</Card>
-    <button type="button" onClick={async () => { if (window.confirm(`End coaching with ${t.name}? They'll stop seeing your Cooked data right away.`)) { await post(token, `/links/${link.id}/end`); reload(); } }} className="mt-6 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }} data-testid="fit-coach-end">End coaching</button>
+    <button type="button" onClick={async () => { if (window.confirm(`End coaching with ${t.name}? They'll stop seeing your ${brand.short} data right away.`)) { await post(token, `/links/${link.id}/end`); reload(); } }} className="mt-6 h-12 w-full text-[15px] font-semibold" style={{ color: C.red }} data-testid="fit-coach-end">End coaching</button>
   </div>;
 }
 

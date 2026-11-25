@@ -156,7 +156,7 @@ test("the gallery splits into Premium apps and Mini plugins, and every plugin si
     }
     const premium = new Set(all.filter((p) => p.tier === "premium").map((p) => p.name));
     for (const name of ["A.R.I.S.E. Docs", "A.R.I.S.E. Sheets", "A.R.I.S.E. Slides", "Drive", "Drop", "A.R.I.S.E. Standby"]) assert.ok(premium.has(name), `${hub}: ${name} is Premium`);
-    if (hub === "life") for (const name of ["Cooked", "Cooked PT", "Podster", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
+    if (hub === "life") for (const name of ["Arise Health & Fitness", "Cooked PT", "Arise Podcasts", "Arise Notes"]) assert.ok(premium.has(name), `${name} is Premium`);
     const mini = new Set(all.filter((p) => p.tier === "mini").map((p) => p.name));
     for (const name of ["Final Grade Calculator", "AI Gift Ideas", "GPA Calculator", "Widgets"]) assert.ok(mini.has(name), `${hub}: ${name} is Mini`);
     if (hub === "life") assert.ok(mini.has("Gifts & Dates"));
@@ -178,13 +178,13 @@ test("Health Lite is gone from the gallery, even for anyone who had it; its tool
   assert.ok(!read("client/src/components/DuoSetup.tsx").includes('"life-healthlite"'));
 });
 
-test("Arise Buddy (TTS Buddy) is a Premium app in both hubs' galleries", () => {
+test("TTS Buddy is a Premium app in both hubs' galleries, and opens inside the hub", () => {
   for (const hub of ["life", "work"] as const) {
     const b = pluginsFor(hub, { teacher: true }).find((p) => p.id === `${hub}-buddy`);
     assert.ok(b, hub);
-    assert.equal(b!.name, "Arise Buddy"); assert.equal(b!.tier, "premium"); assert.equal(b!.shelf, "Learning apps");
-    assert.deepEqual(b!.target, { kind: "officeApp", id: `${hub}-buddy`, href: "#/buddy" });
-    assert.equal(searchPlugins(pluginsFor(hub, { teacher: true }), "buddy")[0]?.name, "Arise Buddy");
+    assert.equal(b!.name, "TTS Buddy"); assert.equal(b!.tier, "premium"); assert.equal(b!.shelf, "Learning apps");
+    assert.deepEqual(b!.target, { kind: "officeApp", id: `${hub}-buddy`, href: "#/pro?app=buddy" });
+    assert.equal(searchPlugins(pluginsFor(hub, { teacher: true }), "buddy")[0]?.name, "TTS Buddy");
   }
 });
 
@@ -195,9 +195,9 @@ test("search finds things by what people call them, best match first", () => {
   assert.equal(top("gift dates"), "Gifts & Dates");
   assert.equal(top("gifts & dates"), "Gifts & Dates");
   assert.equal(top("docs"), "A.R.I.S.E. Docs");
-  assert.equal(top("podcast"), "Podster");
+  assert.equal(top("podcast"), "Arise Podcasts");
   assert.equal(top("spreadsheet")?.endsWith("Sheets"), true);
-  assert.equal(top("calorie"), "Cooked");
+  assert.equal(top("calorie"), "Arise Health & Fitness");
   assert.equal(top("resume"), "Résumé Builder");
   // A plural finds the plain word, and "notes" isn't cut to "not".
   assert.ok(searchPlugins(life, "notes").every((p) => !/\bnot\b|nothing/i.test(p.name)));

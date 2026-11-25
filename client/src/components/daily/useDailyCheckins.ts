@@ -161,11 +161,11 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
 
   return {
     date, all, items: shown.items, done: shown.done, total: shown.total, settings, setSettings, toggle,
-    logMeal: (c, foods) => { fitDo((d) => logMeal(d, date, c.meal as FitMeal, foods)); say(`Logged ${c.title.toLowerCase()} in Cooked.`); },
+    logMeal: (c, foods) => { fitDo((d) => logMeal(d, date, c.meal as FitMeal, foods)); say(`Logged ${c.title.toLowerCase()} in Health & Fitness.`); },
     removeFood: (id) => fitDo((d) => removeFood(d, id)),
-    logWorkout: (name, minutes) => { fitDo((d) => logWorkout(d, name, minutes)); say(`Logged ${minutes} min of ${name.toLowerCase()} in Cooked.`); },
+    logWorkout: (name, minutes) => { fitDo((d) => logWorkout(d, name, minutes)); say(`Logged ${minutes} min of ${name.toLowerCase()} in Health & Fitness.`); },
     addWater: (ml) => fitDo((d) => addWater(d, date, ml)),
-    logWeight: (v) => { fitDo((d) => logWeight(d, date, v)); say("Weight logged in Cooked."); },
+    logWeight: (v) => { fitDo((d) => logWeight(d, date, v)); say("Weight logged in Health & Fitness."); },
     dose: (c, status) => { if (c.kind === "med") fitDo((d) => markMed(d, c, date, status)); else setFamily((f) => markPill(f, c, date, status, new Date().toISOString())); },
     routineStep: (c, stepId, on) => setFamily((f) => markRoutine(f, c.ref!, date, on, stepId)),
     open: input.open,

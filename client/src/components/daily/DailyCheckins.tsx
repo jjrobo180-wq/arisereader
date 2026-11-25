@@ -112,7 +112,7 @@ function MealPanel({ c, d }: { c: Checkin; d: DailyApi }) {
     {err && <div className="flex flex-wrap items-center gap-2"><p className="text-[13px] text-rose-700" role="alert">{err}</p>{text.trim() && <button type="button" className={soft} onClick={() => add([{ name: text.trim(), kcal: 0 }])}>Add without calories</button>}</div>}
     {!found && recent.length > 0 && <div><p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Again</p>
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">{recent.map((r) => <button key={r.name} type="button" onClick={() => add([{ ...r, servings: r.servings }])} className={`${soft} max-w-[14rem]`}><Plus className="h-3.5 w-3.5" /><span className="truncate">{r.name}</span></button>)}</div></div>}
-    <div className="flex flex-wrap items-center justify-between gap-2">{!c.done && <button type="button" className="min-h-10 text-[14px] font-semibold text-slate-500" onClick={() => d.toggle(c)}>I ate, skip logging</button>}<OpenIn c={c} d={d} label="Search foods in Cooked" /></div>
+    <div className="flex flex-wrap items-center justify-between gap-2">{!c.done && <button type="button" className="min-h-10 text-[14px] font-semibold text-slate-500" onClick={() => d.toggle(c)}>I ate, skip logging</button>}<OpenIn c={c} d={d} label="Search foods" /></div>
   </div>;
 }
 
@@ -128,8 +128,8 @@ function WorkoutPanel({ c, d, close }: { c: Checkin; d: DailyApi; close: () => v
       <button type="button" className="grid h-11 w-11 place-items-center rounded-xl bg-[#f2f2f7] dark:bg-white/10" onClick={() => setMins((m) => Math.min(300, m + 5))} aria-label="5 minutes more"><Plus className="h-4 w-4" /></button>
       <button type="button" className={`${primary} ml-auto`} onClick={() => { d.logWorkout(type, mins); close(); }} data-testid="checkin-workout-log">Log it</button>
     </div>
-    {routines.length > 0 && <div><p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Start one of yours in Cooked</p><div className="flex flex-wrap gap-1.5">{routines.map((r) => <button key={r.id} type="button" className={soft} onClick={() => d.open(c)}>{r.name}</button>)}</div></div>}
-    <div className="flex flex-wrap items-center justify-between gap-2">{!c.done && <button type="button" className="min-h-10 text-[14px] font-semibold text-slate-500" onClick={() => { d.toggle(c); close(); }}>Rest day</button>}<OpenIn c={c} d={d} label="Train in Cooked" /></div>
+    {routines.length > 0 && <div><p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Start one of yours</p><div className="flex flex-wrap gap-1.5">{routines.map((r) => <button key={r.id} type="button" className={soft} onClick={() => d.open(c)}>{r.name}</button>)}</div></div>}
+    <div className="flex flex-wrap items-center justify-between gap-2">{!c.done && <button type="button" className="min-h-10 text-[14px] font-semibold text-slate-500" onClick={() => { d.toggle(c); close(); }}>Rest day</button>}<OpenIn c={c} d={d} label="Open workouts" /></div>
   </div>;
 }
 
@@ -252,7 +252,7 @@ export function DailySettingsSheet({ d, onClose }: { d: DailyApi; onClose: () =>
         {s.custom.map((x) => <SheetRow key={x.id} icon={d.shared ? <Users /> : <CircleCheck />} color="#6e5ae0" label={x.title} sub={[daysWords(x.days), x.time ? clock12(x.time) : ""].filter(Boolean).join(" · ")} onClick={() => setEditing(x)} />)}
         <SheetRow icon={<Plus />} color="#34c759" label={<span className="text-[#6e5ae0]">New Check-in</span>} onClick={() => setEditing("new")} testId="daily-add-custom" />
       </SheetGroup>
-      {d.on.cooked && <SheetGroup caption="Add more from Cooked">{EXTRAS.map((e) => <SheetRow key={e.id} label={e.label} sub={e.sub} right={<SheetSwitch on={s.extra.includes(e.id)} label={e.label} onChange={(on) => toggleIn("extra", e.id, on)} />} />)}</SheetGroup>}
+      {d.on.cooked && <SheetGroup caption="Add more from Health & Fitness">{EXTRAS.map((e) => <SheetRow key={e.id} label={e.label} sub={e.sub} right={<SheetSwitch on={s.extra.includes(e.id)} label={e.label} onChange={(on) => toggleIn("extra", e.id, on)} />} />)}</SheetGroup>}
       {[...bySource.entries()].map(([source, list]) => (
         <SheetGroup key={source} caption={source}>{list.map((c) => {
           const Icon = ICON[c.kind];
@@ -265,7 +265,7 @@ export function DailySettingsSheet({ d, onClose }: { d: DailyApi; onClose: () =>
             </span>} />;
         })}</SheetGroup>
       ))}
-      {!bySource.size && <SheetGroup note={d.shared ? "Chores, habits, routines and pills added to FamilyHub show up here for everyone too." : "Add Cooked, Habits, Routines, Pills, Chores or Accountability from the Plugin Gallery, and their daily things show up here."}><SheetRow label="Nothing from plugins yet" /></SheetGroup>}
+      {!bySource.size && <SheetGroup note={d.shared ? "Chores, habits, routines and pills added to FamilyHub show up here for everyone too." : "Add Arise Health & Fitness, Habits, Routines, Pills, Chores or Accountability from the Plugin Gallery, and their daily things show up here."}><SheetRow label="Nothing from plugins yet" /></SheetGroup>}
     </>}
     {editing && <CustomEditor d={d} start={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
   </NativeSheet>;

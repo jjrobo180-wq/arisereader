@@ -46,7 +46,7 @@ test("App Review: one paid plan, no ad stripping or trainer online-coaching paym
   const offer = readFileSync("client/src/components/AllAccessOffer.tsx", "utf8");
   assert.match(offer, />Everything in Arise To Duo\. Signing up is free\.</);
   assert.doesNotMatch(offer, /every Arise app/i);
-  assert.match(offer, /ALL_ACCESS\.perks\.filter\(\(p\) => !\(isNativeApp\(\) && p\.app === "Podster"\)\)/);
+  assert.match(offer, /ALL_ACCESS\.perks\.filter\(\(p\) => !\(isNativeApp\(\) && p\.app === "Arise Podcasts"\)\)/);
   // Podster plays episodes as published in the iPhone app: no ad skipping, no ad-free copies, nothing selling it.
   const pod = readFileSync("client/src/components/super-apps/PodsterInDuo.tsx", "utf8");
   assert.match(pod, /const adFreeHere = paid && !isNativeApp\(\);\n\s+useEffect\(\(\) => \{ setCleanEnabled\(adFreeHere\); \}, \[adFreeHere\]\);\n\s+const adMode = adFreeHere \?/);

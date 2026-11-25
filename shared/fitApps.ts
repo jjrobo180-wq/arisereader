@@ -100,3 +100,21 @@ export function moveTab(a: FitApps | undefined, id: FitAppId, by: -1 | 1): FitAp
   const tabs = [...x.tabs]; [tabs[i], tabs[j]] = [tabs[j], tabs[i]];
   return { ...x, tabs };
 }
+
+/* Inside Arise To Duo (Nov 24, 2026) there's no separate plugin store: every part of Health & Fitness is a tab (or,
+   for ones without a screen of their own, a tool opened from Today), switched on and off and put in order in
+   one "Edit tabs" sheet. The order of `added` is the order of the tabs. */
+/** Turns a part on (at the end) or off. */
+export function setAdded(a: FitApps | undefined, id: FitAppId, on: boolean): FitApps {
+  return on ? addApp(a, id) : removeApp(a, id);
+}
+/** Moves a part one place earlier (-1) or later (+1) among the tabs (parts that can be tabs). */
+export function moveAdded(a: FitApps | undefined, id: FitAppId, by: -1 | 1): FitApps {
+  const x = appsOf(a);
+  const tabs = x.added.filter((y) => FIT_APP_BY_ID.get(y)?.tab);
+  const i = tabs.indexOf(id), j = i + by;
+  if (i < 0 || j < 0 || j >= tabs.length) return x;
+  const swap = tabs[j];
+  const added = x.added.map((y) => (y === id ? swap : y === swap ? id : y));
+  return { ...x, added };
+}

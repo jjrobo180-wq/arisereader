@@ -18,7 +18,7 @@ import { fillDaily, type CustomCheckin, type DailySettings } from "./dailySettin
 
 export type CheckinKind = "meal" | "workout" | "water" | "weight" | "sleep" | "fast" | "med" | "pill" | "habit" | "routine" | "acct" | "chore" | "custom";
 export type CheckinSource = "cooked" | "habits" | "routines" | "pills" | "accountability" | "chores" | "mine" | "family";
-export const SOURCE_NAMES: Record<CheckinSource, string> = { cooked: "Cooked", habits: "Habits", routines: "Routines", pills: "Pills", accountability: "Accountability", chores: "Chores", mine: "Check-in", family: "Family" };
+export const SOURCE_NAMES: Record<CheckinSource, string> = { cooked: "Health & Fitness", habits: "Habits", routines: "Routines", pills: "Pills", accountability: "Accountability", chores: "Chores", mine: "Check-in", family: "Family" };
 
 export type Checkin = {
   id: string;
