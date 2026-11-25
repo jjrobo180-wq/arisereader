@@ -103,7 +103,8 @@ test("it runs from LifeHub and FamilyHub, and every app page and Family & settin
   const todo = readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
   assert.match(todo, /useFamilyTransfer\(\{ space: familySpace \? "family" : "life", on: sync\.loaded && !sync\.recovery/);
   assert.match(todo, /shown === "family" \? <div className="space-y-6">\{LIFE_VIEWS\.family!\(appProps\)\}<MoveBetweenHubs /);
-  assert.match(todo, /sharedApp\.bar\}\{moveButton\}/);
+  assert.match(todo, /sharedApp\.bar\}\{isSuperApp\(shown\) \? null : moveButton\}/);
+  assert.match(todo, /<SuperHeadExtra\.Provider value=\{moveButton\}>/, "a plugin's Move button sits in its heading row");
   assert.match(todo, /banner=\{<>\{moveButton\}/);
   const hook = readFileSync("client/src/lib/useFamilyTransfer.ts", "utf8");
   assert.match(hook, /if \(put\?\.status !== 409\) return "failed";/, "a save that crossed another is tried once more");

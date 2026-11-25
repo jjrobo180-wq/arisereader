@@ -26,7 +26,8 @@ test("FamilyHub: its own route, the Family switch, its own shared copy, and no L
   assert.match(app, /<AriseTodo key="life" \/>/);
   const todo = read("client/src/pages/AriseTodo.tsx");
   assert.match(todo, /useTodoCloud<Data>\(\{ userId: user\?\.id, token: user \? token : null, blank: fresh, isValid: isValidTodo, space \}\)/);
-  assert.match(todo, /if \(!user \|\| !isNativeApp\(\) \|\| familySpace\) return;/);
+  // FamilyHub schedules its own reminders on the phone (its shared check-ins and chores), apart from LifeHub's.
+  assert.match(todo, /scheduleNativeReminders\(familySpace \? "family" : "life", data\)/);
   assert.match(read("client/src/lib/useTodoCloud.ts"), /\/api\/family-space\/workspace/);
   const server = read("server/familySpace.ts");
   for (const route of ['"/api/family-space"', '"/api/family-space/join"', '"/api/family-space/leave"', '"/api/family-space/remove"', '"/api/family-space/workspace"']) assert.ok(server.includes(route), route);

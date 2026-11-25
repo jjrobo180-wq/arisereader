@@ -169,7 +169,7 @@ test("each app runs inside To Duo's frame: To Duo's heading and row of pages, it
   const todo = read("client/src/pages/AriseTodo.tsx");
   for (const [section, comp] of [["cooked", "CookedInDuo"], ["cookedpt", "CookedPtInDuo"], ["arisenotes", "NotesInDuo"], ["podster", "PodsterInDuo"]]) {
     assert.match(todo, new RegExp(`const ${comp} = lazy\\(\\(\\) => import\\("@/components/super-apps/${comp}"\\)\\);`), `${comp} loads when opened`);
-    assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperBoundary key="${section}" name="[^"]+"><Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Duo, and a crash in it stays in it`);
+    assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperHeadExtra\\.Provider value=\\{moveButton\\}><SuperBoundary key="${section}" name="[^"]+"><Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Duo, and a crash in it stays in it`);
   }
   assert.match(todo, /cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3,/);
   assert.doesNotMatch(todo, /arise-fam-|arise-from-duo/, "no shortcuts that leave To Duo");
@@ -207,7 +207,8 @@ test("each app runs inside To Duo's frame: To Duo's heading and row of pages, it
 test("the row of pages and the picker are To Duo's own (the same pills as Health Lite)", () => {
   const shell = read("client/src/components/super-apps/SuperShell.tsx");
   assert.match(shell, /role="tablist" aria-label=\{`\$\{app\.name\} pages`\}/);
-  assert.match(shell, /\$\{on \? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"\}/);
+  // A segmented control in the hub's own look (super-shell.css): the open page lifts out on a card.
+  assert.match(shell, /role="tab" aria-selected=\{on\}[^\n]*className="sx-tab"/);
   assert.match(shell, /<Modal title=\{`Pick your \$\{app\.name\} pages`\} eyebrow=\{app\.name\}/);
   assert.match(shell, /superPages: \{ \.\.\.\(f\.superPages \?\? \{\}\), \[app\.id\]: superPagesFor\(app, ids\) \}/);
   // Anyone who had added Arise Notes from the Office apps keeps it, moved to the plugin once.
