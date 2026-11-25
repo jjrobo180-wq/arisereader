@@ -80,3 +80,13 @@ test("inside To Duo, Health & Fitness is a few tabs of grouped parts (Nov 25, 20
   assert.match(app, /<FitGroupPage group=\{g\} parts=\{partsOn\(gprefs, g\)\}/);
   assert.match(app, /case "prep": return <MealPrep inline=\{inline\}/);
 });
+
+test("plugin settings use To Duo's own sheets: Edit Tabs on the tab row, the gear for the plugin's settings", () => {
+  const app = readFileSync("client/src/pages/fit/FitApp.tsx", "utf8");
+  assert.match(app, /return duo \? <DuoSettings \{\.\.\.p\} \/> : <AppSettings \{\.\.\.p\} \/>;/);
+  const duo = app.slice(app.indexOf("function DuoSettings"), app.indexOf("function SettingsSheet"));
+  assert.match(duo, /<NativeSheet title="Health & Fitness"/);
+  for (const gone of ["LayoutsSetting", "ThemePicker", "fit-signout"]) assert.ok(!duo.includes(gone), gone);
+  assert.match(readFileSync("client/src/components/super-apps/NotesInDuo.tsx", "utf8"), /onSettings=\{\(\) => go\("settings"\)\}[^\n]*onEdit=\{\(\) => setPicking\(true\)\}/);
+  assert.match(readFileSync("client/src/components/super-apps/PodsterInDuo.tsx", "utf8"), /onSettings=\{\(\) => setEditing\(true\)\}[^\n]*onEdit=\{\(\) => setPicking\(true\)\}/);
+});

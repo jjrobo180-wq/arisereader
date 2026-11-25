@@ -16,7 +16,7 @@ export default function NotesInDuo({ family, setFamily, night, start }: { family
   const duo = useMemo<NotesDuo>(() => ({
     night, start,
     top: ({ page, go }) => <>
-      <SuperHead app={app} onSettings={() => setPicking(true)} settingsLabel="Pick your Arise Notes pages" tabs={<PageStrip app={app} pages={pages.includes(page) ? pages : [...pages, page]} current={page} onPick={go} />} />
+      <SuperHead app={app} onSettings={() => go("settings")} settingsLabel="Arise Notes settings" tabs={<PageStrip app={app} pages={pages.includes(page) ? pages : [...pages, page]} current={page} onPick={go} onEdit={() => setPicking(true)} />} />
     </>,
   }), [night, start, pageKey]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div className="super-arisenotes" data-testid="super-app-arisenotes">

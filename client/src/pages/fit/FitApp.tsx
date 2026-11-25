@@ -5,7 +5,7 @@
 import { FitTabsEditor } from "./FitTabsEditor";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Timer, Trophy } from "lucide-react";
+import { Bell, Check, Crown, ChevronRight, Utensils, Plus, Droplets, Footprints, HeartPulse, Flame, Home, LayoutGrid, LogOut, Mic, Moon, Play, Scale, Settings, ShieldCheck, Target, Timer, Trophy } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import AccountPrivacy from "@/components/AccountPrivacy";
@@ -32,6 +32,7 @@ import { FormCheck } from "./FitForm";
 import { FIT_APP_BY_ID, appsOf, type FitAppId } from "@shared/fitApps";
 import { FIT_GROUP_BY_ID, INLINE_PARTS, groupOf, groupPrefsOf, groupsOn, isGroupId, partsOn, type FitGroupId, type FitPartId } from "@shared/fitGroups";
 import { FitGroupPage } from "./FitGroupPage";
+import { NativeSheet, SheetGroup, SheetRow } from "@/components/NativeSheet";
 import { GroceryList, MealPrep } from "./FitMealPrep";
 import { readiness } from "@shared/fitReadiness";
 import { addNight, emptySleep } from "@shared/fitSleep";
@@ -279,7 +280,47 @@ function ProgressSheet({ data, update, list, onSettings, onClose, inline }: { da
   </Sheet>;
 }
 
-function SettingsSheet({ data, update, say, onClose, onGoals, onTour, onAccount, onSiri, onApps }: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void; onApps: () => void }) {
+/** Settings inside Arise To Duo (Nov 25, 2026): To Duo's own grouped list, with only what belongs to Health & Fitness.
+ *  To Duo looks after the look, the theme and signing out, so Cooked's layouts, themes and Sign out aren't here. */
+function DuoSettings({ data, update, say, onClose, onGoals, onTour, onAccount, onSiri, onApps }: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void; onApps: () => void }) {
+  const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
+  const g = goals(data.profile, latestKg(data));
+  const [kcal, setKcal] = useState(data.profile.kcalGoal ? String(data.profile.kcalGoal) : "");
+  const { plus, status, ask } = usePlus();
+  const saveKcal = () => { const n = Number(kcal); if (kcal && n < 900) { say("Goals under 900 calories aren't safe without a doctor. Using the automatic goal."); setKcal(""); } update((d) => ({ ...d, profile: { ...d.profile, kcalGoal: n >= 900 ? n : undefined } })); if (n >= 900) say(`Calorie goal set to ${fmtNum(n)}.`); };
+  const go = <ChevronRight className="h-5 w-5 text-slate-300" />;
+  return <>
+    <NativeSheet title="Health & Fitness" onClose={onClose} cancelLabel="" doneLabel="Done" testId="fit-duo-settings">
+      <SheetGroup caption="Tabs"><SheetRow icon={<LayoutGrid />} color="#6e5ae0" label="Edit tabs" sub="Turn tabs and their parts on or off" onClick={onApps} right={go} testId="fit-settings-apps" /></SheetGroup>
+      <SheetGroup caption="Goals" note={`Automatic goal: ${fmtNum(g.kcal)} calories (maintenance about ${fmtNum(g.tdee)}). Leave blank to use it.`}>
+        <SheetRow icon={<Target />} color="#ff9500" label="Body and goal" sub={`${fmtNum(g.kcal)} cal · P ${g.p}g · C ${g.c}g · F ${g.f}g`} onClick={onGoals} right={go} />
+        <SheetRow icon={<Flame />} color="#ff3b30" label="Daily calories" right={<input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} onBlur={saveKcal} placeholder={String(g.kcal)} aria-label="Daily calorie goal" className="w-24 rounded-lg bg-slate-100 px-2 py-1.5 text-right text-[15px] tabular-nums text-slate-900" />} />
+      </SheetGroup>
+      <SheetGroup caption="Units">
+        <div className="grid grid-cols-2 gap-1 p-1.5" role="radiogroup" aria-label="Units" data-testid="fit-units">{(["lb", "kg"] as const).map((v) => { const on = data.profile.units === v; return <button key={v} type="button" role="radio" aria-checked={on} onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))}
+          className={`rounded-xl px-3 py-2 text-left transition ${on ? "bg-[#6e5ae0] text-white" : "text-slate-600"}`}><span className="block text-[15px] font-bold">{v === "lb" ? "US" : "Metric"}</span><span className="block text-[12px] opacity-80">{v === "lb" ? "lb · miles · oz" : "kg · km · liters"}</span></button>; })}</div>
+      </SheetGroup>
+      <SheetGroup caption="iPhone">
+        <SheetRow icon={<HeartPulse />} color="#ff2d55" label="Apple Health" onClick={() => setSheet("health")} right={go} testId="fit-open-health" />
+        <SheetRow icon={<Bell />} color="#ff3b30" label="Notifications" onClick={() => setSheet("reminders")} right={go} testId="fit-open-reminders" />
+        <SheetRow icon={<Mic />} color="#5856d6" label="Siri & Shortcuts" onClick={onSiri} right={go} testId="fit-open-siri" />
+      </SheetGroup>
+      <SheetGroup caption="Premium"><SheetRow icon={<Crown />} color="#ffcc00" label={plus ? "You have Premium" : `Get Premium · ${status.price}`} onClick={() => ask()} right={go} testId="fit-settings-plus" /></SheetGroup>
+      <SheetGroup caption="Help & privacy" note="How-to videos play from YouTube. Exercise photos from wger.de. Food data from USDA FoodData Central and Open Food Facts.">
+        <SheetRow icon={<Play />} color="#34c759" label="How it works" onClick={onTour} right={go} testId="fit-open-tour" />
+        <SheetRow icon={<ShieldCheck />} color="#8e8e93" label="Account & privacy" onClick={onAccount} right={go} />
+      </SheetGroup>
+    </NativeSheet>
+    {sheet === "health" && <HealthSheet data={data} update={update} onClose={() => setSheet("")} />}
+    {sheet === "reminders" && <RemindersSheet data={data} update={update} onClose={() => setSheet("")} />}
+  </>;
+}
+
+function SettingsSheet(p: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void; onApps: () => void }) {
+  const duo = useContext(InDuoCtx);
+  return duo ? <DuoSettings {...p} /> : <AppSettings {...p} />;
+}
+function AppSettings({ data, update, say, onClose, onGoals, onTour, onAccount, onSiri, onApps }: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void; onApps: () => void }) {
   const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
   const { logout } = useAuth();
   const g = goals(data.profile, latestKg(data));

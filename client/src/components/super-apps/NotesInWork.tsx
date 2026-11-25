@@ -15,11 +15,11 @@ export default function NotesInWork({ picked, savePicked, night }: { picked?: st
   const duo = useMemo<NotesDuo>(() => ({
     night, start: null,
     top: ({ page, go }) => <>
-      <SuperHead app={app} onSettings={() => setPicking(true)} settingsLabel="Pick your Arise Notes pages" tabs={<PageStrip app={app} pages={pages.includes(page) ? pages : [...pages, page]} current={page} onPick={go} />} />
+      <SuperHead app={app} onSettings={() => go("settings")} settingsLabel="Arise Notes settings" tabs={<PageStrip app={app} pages={pages.includes(page) ? pages : [...pages, page]} current={page} onPick={go} onEdit={() => setPicking(true)} />} />
     </>,
   }), [night, pageKey]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div className="super-arisenotes" data-testid="work-super-app-arisenotes">
     <NotesApp mode="embedded" hub="work" duo={duo} />
-    {picking && <PagePicker app={app} pages={pages} onSave={(ids) => { savePicked(superPagesFor(app, ids)); setPicking(false); }} onClose={() => setPicking(false)} />}
+    {picking && <PagePicker app={app} pages={pages} onSave={(ids) => savePicked(superPagesFor(app, ids))} onClose={() => setPicking(false)} />}
   </div>;
 }

@@ -209,7 +209,7 @@ test("the row of pages and the picker are To Duo's own (the same pills as Health
   assert.match(shell, /role="tablist" aria-label=\{`\$\{app\.name\} pages`\}/);
   // A segmented control in the hub's own look (super-shell.css): the open page lifts out on a card.
   assert.match(shell, /role="tab" aria-selected=\{on\}[^\n]*className="sx-tab"/);
-  assert.match(shell, /<Modal title=\{`Pick your \$\{app\.name\} pages`\} eyebrow=\{app\.name\}/);
+  assert.match(shell, /<NativeSheet title="Edit Tabs" onClose=\{onClose\} cancelLabel="" doneLabel="Done" testId=\{`super-picker-\$\{app\.id\}`\}>/);
   assert.match(shell, /superPages: \{ \.\.\.\(f\.superPages \?\? \{\}\), \[app\.id\]: superPagesFor\(app, ids\) \}/);
   // Anyone who had added Arise Notes from the Office apps keeps it, moved to the plugin once.
   assert.match(read("client/src/pages/AriseTodo.tsx"), /sheetsInstalled: \(f\.sheetsInstalled \?\? \[\]\)\.filter\(\(id\) => id !== "life-arise-notes"\), sections: f\.sections\.arisenotes === undefined/);
