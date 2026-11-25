@@ -16,7 +16,7 @@ import type { AcctTask, Checkin as AcctCheckin } from "./accountability";
 import { checkinFor, dueOn, isDone } from "./accountability";
 import { fillDaily, type CustomCheckin, type DailySettings } from "./dailySettings";
 
-export type CheckinKind = "meal" | "workout" | "water" | "weight" | "sleep" | "fast" | "med" | "pill" | "habit" | "routine" | "acct" | "chore" | "custom";
+export type CheckinKind = "meal" | "workout" | "water" | "weight" | "sleep" | "fast" | "yoga" | "breathe" | "stretch" | "med" | "pill" | "habit" | "routine" | "acct" | "chore" | "custom";
 export type CheckinSource = "cooked" | "habits" | "routines" | "pills" | "accountability" | "chores" | "mine" | "family";
 export const SOURCE_NAMES: Record<CheckinSource, string> = { cooked: "Health & Fitness", habits: "Habits", routines: "Routines", pills: "Pills", accountability: "Accountability", chores: "Chores", mine: "Check-in", family: "Family" };
 
@@ -72,7 +72,13 @@ const MEALS: { meal: FitMeal; title: string; notify: "breakfast" | "lunch" | "di
   { meal: "snack", title: "Snack", notify: "snacks", extra: true },
 ];
 /** Times used when nothing else says (LifeHub's notification settings usually do). */
-export const DEFAULT_TIMES = { breakfast: "08:00", lunch: "12:30", dinner: "18:30", snack: "15:30", workout: "17:30", weight: "07:30", sleep: "07:00" } as const;
+export const DEFAULT_TIMES = { breakfast: "08:00", lunch: "12:30", dinner: "18:30", snack: "15:30", workout: "17:30", weight: "07:30", sleep: "07:00", yoga: "07:15", breathe: "21:00", stretch: "20:00", fast: "12:00" } as const;
+/** Health & Fitness check-ins you can add (Nov 25, 2026): each ticks itself off when you do it in Health & Fitness. */
+export const SESSION_CHECKINS = [
+  { id: "cooked:yoga", kind: "yoga", hand: "yoga", program: "session-yoga", title: "Yoga", app: "yoga", time: DEFAULT_TIMES.yoga, todo: "Do a yoga flow" },
+  { id: "cooked:breathe", kind: "breathe", hand: "breathe", program: "session-meditation", title: "Breathe or meditate", app: "mind", time: DEFAULT_TIMES.breathe, todo: "A few calm minutes" },
+  { id: "cooked:stretch", kind: "stretch", hand: "stretch", program: "session-mobility", title: "Stretch", app: "mobility", time: DEFAULT_TIMES.stretch, todo: "A short stretch routine" },
+] as const;
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const keyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const localDay = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : keyOf(d); };
@@ -138,10 +144,19 @@ export function buildCheckins(input: CheckinInput): Checkin[] {
         detail: night ? `${hrs} hours` : "Not logged yet", done: !!night || hand.has("sleep"), byHand: !night && hand.has("sleep"), open: { section: "cooked", app: "sleep" } });
     }
 
-    if (fit.fasting && (fit.fasting.start || fit.fasting.log.length)) {
-      const finished = (fit.fasting.log ?? []).some((f) => localDay(f.end) === date && new Date(f.end).getTime() - new Date(f.start).getTime() >= f.goalH * 3_600_000 - 60_000);
+    for (const x of SESSION_CHECKINS) {
+      if (!extra.has(x.id)) continue;
+      const done = fit.workouts.filter((w) => w.programId === x.program && localDay(w.date) === date);
+      const mins = Math.round(done.reduce((n, w) => n + (w.secs || 0), 0) / 60);
+      push({ id: x.id, kind: x.kind, source: "cooked", title: x.title, time: timeOf(x.id, x.time),
+        detail: done.length ? `Done${mins ? ` · ${mins} min` : ""}` : hand.has(x.hand) ? "Ticked off" : x.todo,
+        done: done.length > 0 || hand.has(x.hand), byHand: !done.length && hand.has(x.hand), open: { section: "cooked", app: x.app } });
+    }
+
+    if ((fit.fasting && (fit.fasting.start || fit.fasting.log.length)) || extra.has("cooked:fast")) {
+      const finished = (fit.fasting?.log ?? []).some((f) => localDay(f.end) === date && new Date(f.end).getTime() - new Date(f.start).getTime() >= f.goalH * 3_600_000 - 60_000);
       push({ id: "cooked:fast", kind: "fast", source: "cooked", title: "Finish your fast", time: s.times["cooked:fast"] || "",
-        detail: finished ? "Fast completed" : fit.fasting.start ? "Fast in progress" : "No fast logged", done: finished || hand.has("fast"), byHand: !finished && hand.has("fast"), open: { section: "cooked", app: "fast" } });
+        detail: finished ? "Fast completed" : fit.fasting?.start ? "Fast in progress" : "No fast logged", done: finished || hand.has("fast"), byHand: !finished && hand.has("fast"), open: { section: "cooked", app: "fast" } });
     }
 
     for (const dose of medDosesOn(fit.meds, date)) {
@@ -236,7 +251,7 @@ export function shownCheckins(all: Checkin[], settings?: DailySettings): { items
 
 const uidNow = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 /** The ids Cooked's hand ticks use (shared/fitChecklist.ts keeps them short). */
-const handId = (c: Checkin) => (c.kind === "meal" ? c.meal! : c.kind === "workout" ? "workout" : c.kind === "water" ? "water" : c.kind === "weight" ? "weight" : c.kind === "sleep" ? "sleep" : c.kind === "fast" ? "fast" : "");
+const handId = (c: Checkin) => (c.kind === "meal" ? c.meal! : c.kind === "workout" ? "workout" : c.kind === "water" ? "water" : c.kind === "weight" ? "weight" : c.kind === "sleep" ? "sleep" : c.kind === "fast" ? "fast" : c.kind === "yoga" ? "yoga" : c.kind === "breathe" ? "breathe" : c.kind === "stretch" ? "stretch" : "");
 function setHand(fit: FitData, date: string, id: string, on: boolean): FitData {
   if (!id) return fit;
   const mine = new Set(fit.checks?.[date] ?? []);
@@ -372,6 +387,8 @@ export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boo
     }
     add({ id: "cooked:workout", title: "Time to move", body: "Log a workout, or tick it off for a rest day.", time: s.times["cooked:workout"] || input.family.notify?.workout?.time || DEFAULT_TIMES.workout, section: "tasks" });
     if (s.extra.includes("cooked:weight") || s.times["cooked:weight"]) add({ id: "cooked:weight", title: "Weigh in", body: "Log today's weight from your list.", time: s.times["cooked:weight"] || DEFAULT_TIMES.weight, section: "tasks" });
+    for (const x of SESSION_CHECKINS) if (s.extra.includes(x.id)) add({ id: x.id, title: `Time for: ${x.title.toLowerCase()}`, body: "Open it from your list, or tick it off.", time: s.times[x.id] || x.time, section: "tasks" });
+    if (s.extra.includes("cooked:fast") && s.times["cooked:fast"]) add({ id: "cooked:fast", title: "Your fast", body: "Check on your fast from your list.", time: s.times["cooked:fast"], section: "tasks" });
     if (s.extra.includes("cooked:sleep") || s.times["cooked:sleep"]) add({ id: "cooked:sleep", title: "How did you sleep?", body: "Log last night's sleep.", time: s.times["cooked:sleep"] || DEFAULT_TIMES.sleep, section: "tasks" });
   }
   if (input.habits) for (const h of input.family.habits) if (s.times[`habit:${h.id}`] && !h.days.includes(date)) add({ id: `habit:${h.id}`, title: h.name, body: "Tick it off when it's done.", time: s.times[`habit:${h.id}`], section: "tasks" });

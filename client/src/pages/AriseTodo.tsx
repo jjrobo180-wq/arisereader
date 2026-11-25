@@ -124,6 +124,7 @@ import News from "@/components/family-hub/News";
 import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { HubAutoOpenSettings } from "@/components/duo/HubAutoOpenSettings";
 import { saveHubOpenCopy } from "@/lib/hubAutoOpen";
+import { usePluginDots } from "@/lib/pluginDots";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
@@ -894,7 +895,10 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     linksApi(token).list().then((r) => { if (live) setLinkInvites(r.withMe.filter((l) => l.status === "pending").map((l) => ({ ownerName: l.ownerName }))); }).catch(() => {});
     return () => { live = false; };
   }, [token, shown === "home" || shown === "linked"]);
-  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue : id === "linked" ? linkInvites.length : 0;
+  // Red dots (shared/pluginDots.ts): a plugin with something still to track today.
+  const pluginDots = usePluginDots();
+  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue || (pluginDots.pills ?? 0) : id === "linked" ? linkInvites.length : (pluginDots[id] ?? 0);
+  const dotted = (id: FamilySection) => id !== "tasks" && id !== "linked" && (pluginDots[id] ?? 0) > 0;
   // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
   // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
   const pinnableNotes = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
@@ -1441,7 +1445,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
                   data-testid={`life-section-${id}`}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${!kitOpen && !notesAppOpen && !sheetsAppOpen && shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
-                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{dotted(id) ? <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff3b30] ring-2 ring-white/70" aria-label={`${badge(id)} to track`} data-testid={`life-dot-${id}`} />
+                    : badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
                 </button>
                 {movable && dsk !== "compact" && (
                   <button type="button" onClick={() => removeFromMenu(id)} aria-label={`Remove ${SECTION_INFO[id].label} from the menu`} title="Remove from the menu"
@@ -1805,8 +1810,9 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{isSuperApp(shown) ? null : moveButton}{shown === "home" && <Recaps family={family} setFamily={setFamily} tasks={data.tasks} go={goSection} />}{familySpace && shown === "home" && <FamilyShared go={goSection} openApp={(app) => { dismissOverlays(); setKitOpenState(`pro:${app}`); }} turnOn={(id) => { if ((FAMILY_SECTIONS as readonly string[]).includes(id)) setFamily((f) => (f.sections[id as FamilySection] ? f : { ...f, sections: { ...f.sections, [id]: true } })); }} />}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {/* Today's check-ins keep their done list current everywhere in LifeHub, so a meal logged in Health & Fitness
               stops its reminder, and the iPhone's Health & Fitness widget stays current (components/daily/useDailyCheckins.ts). */}
-          {!familySpace && isOn("cooked", family) && <Suspense fallback={null}><DailyDoneSync family={family} setFamily={setFamily}
-            on={{ cooked: true, habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family), accountability: false }} /></Suspense>}
+          {/* Also works out the red dots on plugins (shared/pluginDots.ts), in LifeHub and FamilyHub. */}
+          {(isOn("cooked", family) || ["habits", "routines", "pills", "chores"].some((x) => isOn(x as FamilySection, family))) && <Suspense fallback={null}><DailyDoneSync family={family} setFamily={setFamily}
+            on={{ cooked: isOn("cooked", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family), accountability: false }} /></Suspense>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
               <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} daily={{
@@ -1814,7 +1820,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
                 settings: family.daily, setSettings: (update) => setFamily((f) => ({ ...f, daily: update(fillDaily(f.daily)) })),
                 // LifeHub: your own (Cooked and Accountability are yours). FamilyHub: the family's, shared by everyone in it,
                 // and each tick is saved under the name of whoever ticked it.
-                on: { cooked: !familySpace && isOn("cooked", family), accountability: !familySpace && isOn("accountability", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family) },
+                // Each hub shows check-ins only from the plugins installed in that hub (Nov 25, 2026).
+                on: { cooked: isOn("cooked", family), accountability: isOn("accountability", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family) },
                 shared: familySpace, by: familySpace ? (user?.displayName || "") : "", writeDone: !familySpace,
                 // Where a check-in is tracked in full: Cooked on the right screen, or Accountability on that task.
                 open: (c) => {

@@ -124,7 +124,7 @@ function kitPlugin(d: KitDef): Plugin {
 }
 const section = (s: FamilySection): PluginTarget => ({ kind: "section", section: s });
 
-const ARISE_APPS = (hub: PluginHub): Plugin[] => [
+export const ARISE_APPS_RETIRED = (hub: PluginHub): Plugin[] => [
   { id: `${hub}-app-history`, hub, name: "Arise History", tagline: "True stories and quizzes", category: "Arise apps", icon: "Landmark", color: "#b7791f",
     description: "Short true stories from history, each with a quiz. Readers earn points right next to their reading.",
     features: ["Stories at every reading level", "A quiz after each story", "Points that count toward prizes"], target: { kind: "app", app: "history", href: "/history/" } },
@@ -377,7 +377,7 @@ export const PLUGINS: readonly Plugin[] = [
     target: { kind: "officeApp", id: "work-para-team", href: "#/para-team" },
     description: "A shared space for a teacher and their paraprofessionals: schedules, student notes and messages, so everyone knows the plan.",
     features: ["Make a team or join one", "Shared schedules and notes", "Works with free accounts"] },
-  ...ARISE_APPS("work"),
+  // Arise Math, History and Social are no longer offered (Nov 25, 2026): ARISE_APPS stays out of the store.
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
   ...BUNDLES.filter((b) => true).map((b): Plugin => ({ id: `life-${b.id}`, hub: "life", name: b.name, tagline: b.tagline, category: b.category, icon: b.icon, color: b.color, featured: true, target: section(b.section), description: b.description, features: b.features })),
@@ -628,7 +628,7 @@ export const PLUGINS: readonly Plugin[] = [
     target: { kind: "officeApp", id: "life-para-team", href: "#/para-team" },
     description: "For paraprofessionals and 1:1 aides: join the team your teacher made, with the day's schedule, student notes and messages in one place.",
     features: ["Join with your teacher's code", "The day's schedule", "Notes and messages"] },
-  ...ARISE_APPS("life"),
+  // (Arise Math, History and Social left out, Nov 25, 2026.)
   // The Plugin Kit: 400 plugins drawn by shared tools (shared/pluginKit.ts).
   // The kit list "makeup-tests" is replaced by the Makeup tests plugin (its rows can be brought in from there).
   ...KIT_DEFS.filter((d) => d.id !== "makeup-tests").map(kitPlugin),

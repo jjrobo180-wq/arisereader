@@ -2082,10 +2082,10 @@ function TeacherHubPage() {
             minutes={<MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><WithDaily input={{
-            // WorkHub: your own check-ins (Cooked once you've used it, Accountability, and ones you add), kept with WorkHub.
+            // WorkHub: the check-ins you add here, kept with WorkHub. Each hub shows check-ins only from plugins installed in it, and Health & Fitness and Accountability are LifeHub plugins (Nov 25, 2026).
             family: null, setFamily: () => {}, say: (text) => toasts.show(text),
             settings: workspace.daily, setSettings: (update) => setWorkspace((p) => ({ ...p, daily: update(fillDaily(p.daily)) })),
-            on: { cooked: true, accountability: true, habits: false, routines: false, pills: false, chores: false }, cookedIfUsed: true,
+            on: { cooked: false, accountability: false, habits: false, routines: false, pills: false, chores: false },
             // Cooked and Accountability live in LifeHub, so a row's "Open" goes there.
             open: (c) => { window.location.hash = c.open.acctTask ? `#/lifehub?go=accountability&task=${encodeURIComponent(c.open.acctTask)}` : `#/lifehub?go=${c.open.section}`; },
           }}>{(daily) => <Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: [], hub: "work" }} daily={daily} />}</WithDaily><AppleRemindersCard token={token} check={checkApple} /><GoogleCard token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={id} syncClassroom={syncClassroom} status={google.status} check={google.check} /></>}

@@ -177,12 +177,14 @@ test("the list draws check-ins as rows of Today, and a to-do's details are a nat
   assert.match(looks, /const done = prog\.done \+ checksDone\.length, total = prog\.total \+ \(daily \? daily\.total : 0\);/);
   const app = readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
   // LifeHub: yours. FamilyHub: the family's (no Cooked or Accountability, which are personal), ticks saved by name.
-  assert.match(app, /on: \{ cooked: !familySpace && isOn\("cooked", family\), accountability: !familySpace && isOn\("accountability", family\)/);
+  // Each hub shows check-ins only from the plugins installed in that hub (Nov 25, 2026).
+  assert.match(app, /on: \{ cooked: isOn\("cooked", family\), accountability: isOn\("accountability", family\)/);
   assert.match(app, /shared: familySpace, by: familySpace \? \(user\?\.displayName \|\| ""\) : "", writeDone: !familySpace,/);
   // WorkHub: your own, with Cooked once it's been used, kept with WorkHub.
   const work = readFileSync("client/src/pages/TeacherHub.tsx", "utf8");
   assert.match(work, /settings: workspace\.daily, setSettings: \(update\) => setWorkspace/);
-  assert.match(work, /cookedIfUsed: true/);
+  // Health & Fitness is installed in LifeHub only, so WorkHub never shows its check-ins (Nov 25, 2026).
+  assert.match(work, /on: \{ cooked: false, accountability: false, habits: false, routines: false, pills: false, chores: false \},/);
   assert.match(work, /daily=\{daily\} \/>\}<\/WithDaily>/);
   const edit = readFileSync("client/src/components/teacher-hub/HubTaskEdit.tsx", "utf8");
   assert.match(edit, /<NativeSheet title=\{task \? "Details" : "New To-do"\}/);

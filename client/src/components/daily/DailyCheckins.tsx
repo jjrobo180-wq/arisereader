@@ -4,7 +4,7 @@
 // calories) or snap a photo of it, log a workout, add water, weigh in, take or skip a dose, tick a routine's steps,
 // or check off what someone asked for. Nothing opens over the list, and everything is saved to the plugin.
 import { useRef, useState, type ReactNode } from "react";
-import { BellOff, Camera, Check, ChevronRight, CircleCheck, Droplets, Dumbbell, Home, ListChecks, Loader2, Minus, Moon, Pill, Plus, Repeat, Scale, Settings2, Timer, Trash2, Users, Utensils, X } from "lucide-react";
+import { BellOff, Camera, Check, ChevronRight, CircleCheck, Droplets, Dumbbell, Flower2, Home, ListChecks, Loader2, Minus, Moon, PersonStanding, Pill, Plus, Repeat, Scale, Settings2, Timer, Trash2, Users, Utensils, Wind, X } from "lucide-react";
 import { estimateMeal, shrinkPhoto } from "@/lib/foodLookup";
 import { NativeSheet, SheetGroup, SheetRow, SheetSwitch } from "@/components/NativeSheet";
 import { SOURCE_NAMES, WORKOUT_TYPES, clock12, daysWords, type Checkin, type CheckinKind, type FoodIn } from "@shared/dailyCheckins";
@@ -12,8 +12,8 @@ import type { CustomCheckin } from "@shared/dailySettings";
 import type { FoundFood } from "@shared/foodLookup";
 import type { DailyApi } from "./useDailyCheckins";
 
-const ICON: Record<CheckinKind, typeof Utensils> = { meal: Utensils, workout: Dumbbell, water: Droplets, weight: Scale, sleep: Moon, fast: Timer, med: Pill, pill: Pill, habit: Repeat, routine: ListChecks, acct: Users, chore: Home, custom: CircleCheck };
-const TINT: Record<CheckinKind, string> = { meal: "#f97316", workout: "#6e5ae0", water: "#0ea5e9", weight: "#14b8a6", sleep: "#6366f1", fast: "#f59e0b", med: "#ec4899", pill: "#ec4899", habit: "#22c55e", routine: "#0d9488", acct: "#0d9488", chore: "#ea580c", custom: "#6e5ae0" };
+const ICON: Record<CheckinKind, typeof Utensils> = { meal: Utensils, workout: Dumbbell, water: Droplets, weight: Scale, sleep: Moon, fast: Timer, yoga: Flower2, breathe: Wind, stretch: PersonStanding, med: Pill, pill: Pill, habit: Repeat, routine: ListChecks, acct: Users, chore: Home, custom: CircleCheck };
+const TINT: Record<CheckinKind, string> = { meal: "#f97316", workout: "#6e5ae0", water: "#0ea5e9", weight: "#14b8a6", sleep: "#6366f1", fast: "#f59e0b", yoga: "#9333ea", breathe: "#0d9488", stretch: "#16a34a", med: "#ec4899", pill: "#ec4899", habit: "#22c55e", routine: "#0d9488", acct: "#0d9488", chore: "#ea580c", custom: "#6e5ae0" };
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const pill = "inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold transition active:scale-[.97] disabled:opacity-50";
 const primary = `${pill} bg-[#6e5ae0] text-white`;
@@ -204,22 +204,43 @@ export function CustomEditor({ d, start, onClose }: { d: DailyApi; start?: Custo
   const [title, setTitle] = useState(start?.title ?? "");
   const [time, setTime] = useState(start?.time ?? "");
   const [days, setDays] = useState<number[]>(start?.days ?? [0, 1, 2, 3, 4, 5, 6]);
-  const save = () => { if (!title.trim()) return; d.saveCustom({ id: start?.id, title, time, days }); onClose(); };
+  const [track, setTrack] = useState<string | null>(null);
+  const tracker = TRACKERS.find((t) => t.id === track);
+  const save = () => {
+    if (tracker) {
+      // A Health & Fitness check-in: on in the list (and not hidden), at the time picked; it ticks itself off there.
+      d.setSettings((x) => ({ ...x, extra: tracker.always ? x.extra : [...new Set([...x.extra, tracker.id])], off: x.off.filter((y) => y !== tracker.id),
+        times: time ? { ...x.times, [tracker.id]: time } : x.times }));
+      onClose(); return;
+    }
+    if (!title.trim()) return; d.saveCustom({ id: start?.id, title, time, days }); onClose();
+  };
   const ideas = d.shared ? ["Walk the dog", "Feed the pets", "Take out the trash", "Kids' reading time", "Pack lunches", "Water the plants"] : ["Stretch", "Read 10 pages", "Plan tomorrow", "Inbox zero", "Call home", "Take a walk"];
-  return <NativeSheet title={start ? "Edit Check-in" : "New Check-in"} onClose={onClose} onDone={save} doneLabel={start ? "Done" : "Add"} doneDisabled={!title.trim()} testId="custom-checkin-editor">
+  return <NativeSheet title={start ? "Edit Check-in" : "New Check-in"} onClose={onClose} onDone={save} doneLabel={start ? "Done" : "Add"} doneDisabled={!tracker && !title.trim()} testId="custom-checkin-editor">
+    {!start && d.on.cooked && <SheetGroup caption="Track from Health & Fitness" note={tracker ? `${tracker.label} shows in your list every day and ticks itself off when you do it in Health & Fitness.` : "These tick themselves off when you do them in Health & Fitness."}>
+      <div className="grid grid-cols-3 gap-2 p-3 sm:grid-cols-5" role="radiogroup" aria-label="Track from Health & Fitness" data-testid="checkin-trackers">
+        {TRACKERS.map((t) => { const on = track === t.id; const I = t.icon; return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => { setTrack(on ? null : t.id); if (!on) { setTitle(""); setTime(d.settings.times[t.id] || ""); } }}
+          className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5 text-[12.5px] font-semibold transition ${on ? "bg-[#6e5ae0] text-white" : "bg-[#f2f2f7] text-slate-700 dark:bg-white/10 dark:text-white"}`} data-testid={`checkin-track-${t.id.split(":")[1]}`}>
+          <span className="grid h-8 w-8 place-items-center rounded-full text-white" style={{ background: on ? "rgba(255,255,255,.25)" : t.color }}><I className="h-4 w-4" /></span>{t.label}</button>; })}
+      </div>
+    </SheetGroup>}
+    {!tracker && <>
     <SheetGroup note={d.shared ? "Everyone in the family sees it in Tasks each day, and anyone can tick it off. It says who did." : "It shows in Tasks on the days you pick, and ticks off like a to-do."}>
       <div className="px-4 py-3"><input data-autofocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder={d.shared ? "Walk the dog" : "Stretch"} aria-label="Check-in" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }}
         className="block w-full bg-transparent text-[17px] font-semibold outline-none placeholder:text-slate-400" data-testid="custom-checkin-title" /></div>
     </SheetGroup>
     {!start && <div className="mt-3 flex flex-wrap gap-1.5 px-1">{ideas.map((x) => <button key={x} type="button" className="min-h-9 rounded-full bg-white px-3 text-[14px] font-medium text-slate-700 dark:bg-white/10 dark:text-white" onClick={() => setTitle(x)}>{x}</button>)}</div>}
+    </>}
     <SheetGroup>
       <SheetRow label="Time" sub={time ? clock12(time) : undefined} right={<SheetSwitch on={!!time} label="At a time" onChange={(on) => setTime(on ? "08:00" : "")} />}>
         {time && <input type="time" aria-label="Time" value={time} onChange={(e) => setTime(e.target.value)} className="min-h-10 w-full rounded-[10px] bg-[#f2f2f7] px-3 text-[16px] outline-none dark:bg-white/10" />}
       </SheetRow>
+      {!tracker && <>
       <SheetRow label="Days" sub={daysWords(days)}>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days">{[1, 2, 3, 4, 5, 6, 0].map((x) => { const on = days.includes(x); return <button key={x} type="button" aria-pressed={on} onClick={() => setDays(on ? (days.length > 1 ? days.filter((y) => y !== x) : days) : [...days, x])}
           className={`h-9 w-11 rounded-full text-[14px] font-semibold ${on ? "bg-[#6e5ae0] text-white" : "bg-[#f2f2f7] text-slate-700 dark:bg-white/10 dark:text-white"}`}>{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][x]}</button>; })}</div>
       </SheetRow>
+      </>}
     </SheetGroup>
     {start && <SheetGroup><button type="button" onClick={() => { d.removeCustom(start.id); onClose(); }} className="flex min-h-[44px] w-full items-center justify-center gap-2 text-[17px] text-[#ff3b30]"><Trash2 className="h-4 w-4" />Delete Check-in</button></SheetGroup>}
   </NativeSheet>;
@@ -227,11 +248,28 @@ export function CustomEditor({ d, start, onClose }: { d: DailyApi; start?: Custo
 
 /* ---------------- settings ---------------- */
 
-const TIMED: CheckinKind[] = ["meal", "workout", "weight", "sleep", "habit", "routine", "water", "fast", "chore"];
+const TIMED: CheckinKind[] = ["meal", "workout", "weight", "sleep", "habit", "routine", "water", "fast", "yoga", "breathe", "stretch", "chore"];
 const EXTRAS: { id: string; label: string; sub: string }[] = [
   { id: "cooked:snack", label: "Snack", sub: "A snack row each day" },
   { id: "cooked:weight", label: "Weigh in", sub: "A weigh-in row each day" },
   { id: "cooked:sleep", label: "Sleep", sub: "Log last night's sleep each morning" },
+  { id: "cooked:yoga", label: "Yoga", sub: "Ticks off when you do a yoga flow" },
+  { id: "cooked:breathe", label: "Breathe or meditate", sub: "Ticks off after a breathing or meditation session" },
+  { id: "cooked:stretch", label: "Stretch", sub: "Ticks off after a mobility routine" },
+  { id: "cooked:fast", label: "Fasting", sub: "Ticks off when you finish a fast" },
+];
+/** What the New Check-in pop-up offers from Health & Fitness (Nov 25, 2026): each one ticks itself off there.
+ *  Water and workouts are always in the list, so tapping them just turns them back on if they were hidden. */
+const TRACKERS: { id: string; label: string; icon: typeof Utensils; color: string; always?: boolean }[] = [
+  { id: "cooked:yoga", label: "Yoga", icon: Flower2, color: "#9333ea" },
+  { id: "cooked:water", label: "Water", icon: Droplets, color: "#0ea5e9", always: true },
+  { id: "cooked:sleep", label: "Sleep", icon: Moon, color: "#6366f1" },
+  { id: "cooked:breathe", label: "Breathe", icon: Wind, color: "#0d9488" },
+  { id: "cooked:stretch", label: "Stretch", icon: PersonStanding, color: "#16a34a" },
+  { id: "cooked:workout", label: "Workout", icon: Dumbbell, color: "#6e5ae0", always: true },
+  { id: "cooked:weight", label: "Weigh in", icon: Scale, color: "#14b8a6" },
+  { id: "cooked:fast", label: "Fasting", icon: Timer, color: "#f59e0b" },
+  { id: "cooked:snack", label: "Snack", icon: Utensils, color: "#f97316" },
 ];
 
 /** Which check-ins show, their times and which ones remind, laid out like iPhone Settings. */

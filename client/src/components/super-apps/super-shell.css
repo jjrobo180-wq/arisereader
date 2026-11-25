@@ -41,3 +41,6 @@
 .hub-night .sx-tab:hover, .dark .sx-tab:hover { color: var(--an-ink, #fff); }
 .hub-night .sx-tab[aria-selected="true"], .dark .sx-tab[aria-selected="true"] { background: var(--an-card, #2a2740); color: var(--an-ink, #fff); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .hub-night .sx-edit, .dark .sx-edit { color: var(--an-violet, #b7a9ff); }
+
+/* Red dot: something in this tab is waiting to be tracked today (shared/pluginDots.ts). */
+.sx-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3b30; flex: none; margin-left: 2px; }

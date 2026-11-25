@@ -32,6 +32,7 @@ import { FormCheck } from "./FitForm";
 import { FIT_APP_BY_ID, appsOf, type FitAppId } from "@shared/fitApps";
 import { FIT_GROUP_BY_ID, INLINE_PARTS, groupOf, groupPrefsOf, groupsOn, isGroupId, partsOn, type FitGroupId, type FitPartId } from "@shared/fitGroups";
 import { FitGroupPage } from "./FitGroupPage";
+import { usePluginDots } from "@/lib/pluginDots";
 import { NativeSheet, SheetGroup, SheetRow } from "@/components/NativeSheet";
 import { GroceryList, MealPrep } from "./FitMealPrep";
 import { readiness } from "@shared/fitReadiness";
@@ -393,7 +394,7 @@ export default function FitApp() {
 export type FitEmbed = {
   night: boolean;
   /** To Duo's heading and page row, given Cooked's pages: Today, every Cooked plugin with a screen, Plugins. */
-  top: (p: { tabs: { id: string; label: string }[]; tab: string; go: (id: string) => void; openSettings: () => void; editTabs: () => void }) => ReactNode;
+  top: (p: { tabs: { id: string; label: string }[]; tab: string; go: (id: string) => void; openSettings: () => void; editTabs: () => void; groupWaiting: (id: string) => boolean }) => ReactNode;
   /** The page to open on (a link into To Duo, like go=cooked&page=food). */
   start?: string | null;
   /** A trainer's invite code from a link (#/to-do?go=cooked&coach=…). */
@@ -455,6 +456,10 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const gprefs = groupPrefsOf(apps.groups, apps.added);
   const groups = embed ? groupsOn(gprefs) : [];
   const [partOf, setPartOf] = useState<Partial<Record<FitGroupId, FitPartId>>>({});
+  // Red dots (shared/pluginDots.ts): parts with something still to track today, and the tabs they're in.
+  const dots = usePluginDots();
+  const waiting = (part: string) => (dots[`fit:${part}`] ?? 0) > 0;
+  const groupWaiting = (id: string) => isGroupId(id) && partsOn(gprefs, FIT_GROUP_BY_ID.get(id)!).some((p) => waiting(p.id));
   const tabIds: Tab[] = embed ? groups.map((g) => g.id) : apps.tabs.filter((id) => FIT_APP_BY_ID.get(id)?.tab);
   /** Inside To Duo: shows a part in its tab, if that tab and part are on. */
   const showPart = (id: FitPartId): boolean => {
@@ -597,7 +602,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
       {embed && isGroupId(tab) && (() => {
         const g = FIT_GROUP_BY_ID.get(tab)!;
         return <FitGroupPage group={g} parts={partsOn(gprefs, g)} current={partOf[g.id] ?? partsOn(gprefs, g)[0]?.id}
-          onPick={(id) => setPartOf((p) => ({ ...p, [g.id]: id }))} onTool={(id) => openApp(id as FitAppId)}
+          onPick={(id) => setPartOf((p) => ({ ...p, [g.id]: id }))} onTool={(id) => openApp(id as FitAppId)} waiting={waiting}
           render={(id) => screen(id, true, () => go("today"))} />;
       })()}
       {tab !== "today" && tab !== "apps" && !isGroupId(tab) && screen(tab, true, goBack)}
@@ -633,7 +638,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   </>;
   // Inside To Duo: To Duo's heading and row of pages, then the page, in the page's own flow (To Duo scrolls).
   if (embed) return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="min-w-0" style={{ color: C.text, ...font }} data-testid="fit-app" data-fit-embed="duo">
-    {embed.top({ tabs: tabs.map(([id, label]) => ({ id, label })), tab, go: (id) => go(id as Tab), openSettings: () => setSettings(true), editTabs: () => setEditTabs(true) })}
+    {embed.top({ tabs: tabs.map(([id, label]) => ({ id, label })), tab, go: (id) => go(id as Tab), openSettings: () => setSettings(true), editTabs: () => setEditTabs(true), groupWaiting })}
     {page}
     {sheets}
     {editTabs && <FitTabsEditor data={data} update={update} onClose={() => setEditTabs(false)} />}

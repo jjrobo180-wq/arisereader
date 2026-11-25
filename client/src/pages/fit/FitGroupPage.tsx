@@ -10,8 +10,10 @@ import { C } from "./fitUi";
 const EXTRA_ICONS: Record<string, LucideIcon> = { CalendarRange, ShoppingCart };
 const iconOf = (name: string): LucideIcon | null => APP_ICONS[name] ?? EXTRA_ICONS[name] ?? null;
 
-export function FitGroupPage({ group, parts, current, onPick, onTool, render }: {
+export function FitGroupPage({ group, parts, current, onPick, onTool, render, waiting }: {
   group: FitGroup; parts: FitPart[]; current: FitPartId; onPick: (id: FitPartId) => void; onTool: (id: FitPartId) => void; render: (id: FitPartId) => ReactNode;
+  /** A red dot on a part with something still to track today (shared/pluginDots.ts). */
+  waiting?: (id: FitPartId) => boolean;
 }) {
   const pages = parts.filter((p) => INLINE_PARTS.has(p.id));
   const tools = parts.filter((p) => !INLINE_PARTS.has(p.id));
@@ -25,6 +27,7 @@ export function FitGroupPage({ group, parts, current, onPick, onTool, render }: 
       className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13.5px] font-semibold transition active:scale-[0.97]"
       style={on ? { background: C.text, color: C.bg } : { background: C.card2, color: C.dim }}>
       {I && <I className="h-4 w-4" />}{p.label}{tool && <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />}
+      {waiting?.(p.id) && <span className="h-2 w-2 rounded-full bg-[#ff3b30]" aria-label="Something to track" data-testid={`fit-dot-${p.id}`} />}
     </button>;
   };
   return <section data-testid={`fit-group-${group.id}`}>

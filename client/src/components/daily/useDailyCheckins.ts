@@ -6,6 +6,8 @@
 import { publishWidgets } from "@/lib/widgets";
 import { fitDuoSlot } from "@/lib/fitWidgets";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { setPluginDots } from "@/lib/pluginDots";
+import { pendingDots } from "@shared/pluginDots";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useFitData } from "@/pages/fit/fitStore";
@@ -140,7 +142,7 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
 
   const toggle = (c: Checkin): "open" | void => {
     switch (c.kind) {
-      case "meal": case "workout": case "water": case "weight": case "sleep": case "fast":
+      case "meal": case "workout": case "water": case "weight": case "sleep": case "fast": case "yoga": case "breathe": case "stretch":
         if (c.done && !c.byHand) return "open"; // logged: the row opens to show (or take back) what was logged
         fitDo((d) => tickCooked(d, c, date, !c.done));
         if (!c.done) say(c.kind === "meal" ? `${c.title} ticked off. Add what you had any time.` : c.kind === "workout" ? "Marked as a rest day." : `${c.title} ticked off.`);
@@ -193,6 +195,11 @@ export function DailyDoneSync({ family, setFamily, on }: { family: Family; setFa
     const t = window.setTimeout(() => publishWidgets([fitDuoSlot(fit, fit.weights.length ? fit.weights[fit.weights.length - 1].kg : undefined)]), 1500);
     return () => window.clearTimeout(t);
   }, [fit, on.cooked]);
+  // Red dots on plugins (shared/pluginDots.ts), checked again every minute as times come round.
+  const [minute, setMinute] = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); });
+  useEffect(() => { const t = window.setInterval(() => { const n = new Date(); setMinute(n.getHours() * 60 + n.getMinutes()); }, 60_000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { setPluginDots(pendingDots(all, minute)); }, [all, minute]);
+  useEffect(() => () => setPluginDots({}), []);
   const key = `${date}#${all.filter((c) => c.done).map((c) => c.id).sort().join("|")}`;
   const last = useRef("");
   useEffect(() => {

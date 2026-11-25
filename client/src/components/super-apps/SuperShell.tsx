@@ -38,7 +38,7 @@ export function SuperHead({ app, onSettings, settingsLabel, right, tabs }: { app
 /** The row of pages as a segmented control in To Duo's look: the open page lifts out on a card in the accent
  *  colour, a number on a page for something waiting there. `onEdit` adds Edit at the end (Health & Fitness's tabs).
  *  The open page is kept in view when there are more than fit. */
-export function PageStrip({ app, pages, current, onPick, badges, onEdit }: { app: SuperApp; pages: string[]; current: string; onPick: (id: string) => void; badges?: Record<string, number>; onEdit?: () => void }) {
+export function PageStrip({ app, pages, current, onPick, badges, dots, onEdit }: { app: SuperApp; pages: string[]; current: string; onPick: (id: string) => void; badges?: Record<string, number>; dots?: Record<string, boolean>; onEdit?: () => void }) {
   const label = (id: string) => app.pages.find((p) => p.id === id)?.label ?? id;
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => { row.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [current]);
@@ -50,6 +50,7 @@ export function PageStrip({ app, pages, current, onPick, badges, onEdit }: { app
         return <button key={id} type="button" role="tab" aria-selected={on} onClick={() => onPick(id)} data-testid={`super-page-${app.id}-${id}`} className="sx-tab">
           <Icon size={15} />{label(id)}
           {n > 0 && <span className="sx-badge">{n}</span>}
+          {!n && dots?.[id] && <span className="sx-dot" aria-label="Something to track" data-testid={`super-dot-${app.id}-${id}`} />}
         </button>;
       })}
     </div>
