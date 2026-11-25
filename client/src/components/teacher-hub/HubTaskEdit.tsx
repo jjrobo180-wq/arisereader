@@ -1,15 +1,15 @@
-// Arise WorkHub: the pop-up that adds a to-do or changes one that is already on the list, and
+// Arise WorkHub and LifeHub: the sheet that adds a to-do or changes one that is already on the list, and
 // checking to-dos off with a way back. Used by Reminders & to-dos and by the To do card on Home.
 import { useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { smartDate, smartLabel } from "@shared/smartDate";
-import { Trash2, Undo2 } from "lucide-react";
+import { CalendarDays, ChevronsUpDown, Clock, Flag, List as ListIcon, Repeat as RepeatIcon, Trash2, Undo2 } from "lucide-react";
 import { addDays, friendlyDate } from "@shared/hubDates";
 import { recentlyDone, toggleTask, undoTask, type TaskFields } from "@shared/hubTasks";
 import type { Task, Workspace } from "@shared/teacherHub";
 import { localDay } from "./HubImport";
 import type { ToastAction } from "./HubToast";
-import { Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
-import { HubModal } from "./HubModal";
+import { NativeSheet, SheetGroup, SheetRow, SheetSwitch } from "@/components/NativeSheet";
+import { clock12 } from "@shared/teacherHub";
 import { WEEKDAY_NAMES, repeatDays, weekdayRepeat } from "@shared/hubTasks";
 import { LinkEditor, useHubLinks } from "./HubLinks";
 import { cleanLinks, type HubLink } from "@shared/hubLinks";
@@ -56,44 +56,68 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
     onSave(smart ? { ...draft, title: smart.title } : draft);
     onClose();
   }
-  const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
+  const chip = (active: boolean) => `inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-[15px] font-medium ${active ? "bg-[#6e5ae0] text-white" : "bg-[#f2f2f7] text-slate-800 dark:bg-white/10 dark:text-white"}`;
+  const repeatValue = repeatDays(draft.recurring).length ? "Days" : draft.recurring;
+  const repeatName = repeatValue === "Days" ? repeatDays(draft.recurring).map((d) => WEEKDAY_NAMES[d]).join(", ") : draft.recurring || "Never";
+  const list = lists?.find((l) => l.id === draft.listId);
+  // A to-do's details, laid out like the iPhone's Reminders (components/NativeSheet.tsx): Cancel and Done at the
+  // top, the title and notes, then grouped rows with switches for the date, time, repeat, list and importance.
   return (
-    <HubModal title={task ? "Edit to-do" : "New to-do"} onClose={onClose} size="sm"
-      footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => save()} disabled={!draft.title.trim()}>{task ? "Save changes" : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>
-        {task && onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
-      <form onSubmit={save} className="grid grid-cols-1 gap-3" data-testid="task-form">
-        <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => typeTitle(e.target.value)} required maxLength={200} placeholder="e.g. Call a parent tomorrow 3pm" data-testid="work-task-title" /></Labeled>
-        {smart && <p className="-mt-1 text-xs font-semibold text-violet-700" data-testid="work-task-smart">Due {smartLabel(smart)} · from “{smart.matched}”</p>}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Labeled label="Due date"><Field type="date" value={draft.dueDate} onChange={(e) => { auto.current = null; setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" }); }} /></Labeled>
-          <Labeled label="Due time (optional)"><Field type="time" aria-label="Due time (optional)" disabled={!draft.dueDate} value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></Labeled>
-        </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Quick due dates">
-          {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)]].map(([label, value]) => <button key={label} type="button" className={chip(draft.dueDate === value)} onClick={() => setDraft({ ...draft, dueDate: value })}>{label}</button>)}
-          {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "", dueTime: "" })}>No date</button>}
-        </div>
-        {lists && lists.length > 0 && (
-          <div role="group" aria-label="List">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">List</span>
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" className={chip(!draft.listId)} onClick={() => setDraft({ ...draft, listId: "" })}>No list</button>
-              {lists.map((l) => <button key={l.id} type="button" className={chip(draft.listId === l.id)} onClick={() => setDraft({ ...draft, listId: l.id })}><span className="h-2.5 w-2.5 rounded-full" style={{ background: l.color }} />{l.name}</button>)}
-            </div>
+    <NativeSheet title={task ? "Details" : "New To-do"} onClose={onClose} onDone={() => save()} doneLabel={task ? "Done" : "Add"} doneDisabled={!draft.title.trim()} testId="task-sheet" label={task ? "Edit to-do" : "New to-do"}>
+      <form onSubmit={save} data-testid="task-form">
+        <SheetGroup>
+          <div className="px-4 py-3">
+            <textarea data-autofocus value={draft.title} onChange={(e) => typeTitle(e.target.value.replace(/\n/g, " "))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }} required maxLength={200} rows={1}
+              placeholder="Title" aria-label="To-do" data-testid="work-task-title" className="block w-full resize-none bg-transparent text-[17px] font-semibold leading-snug outline-none [field-sizing:content] placeholder:text-slate-400" />
+            {smart && <p className="mt-1 text-[13px] font-medium text-[#6e5ae0]" data-testid="work-task-smart">Due {smartLabel(smart)} · from “{smart.matched}”</p>}
           </div>
-        )}
-        <Labeled label="Repeats"><Select value={repeatDays(draft.recurring).length ? "Days" : draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value === "Days" ? weekdayRepeat([1, 2, 3, 4, 5]) : e.target.value })} data-testid="task-repeat"><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option value="Days">On certain days of the week…</option></Select></Labeled>
-        {repeatDays(draft.recurring).length > 0 && <div role="group" aria-label="Repeat on these days" className="flex flex-wrap gap-1.5" data-testid="task-repeat-days">
-          {[1, 2, 3, 4, 5, 6, 0].map((d) => { const on = repeatDays(draft.recurring).includes(d); return <button key={d} type="button" aria-pressed={on}
-            onClick={() => { const cur = repeatDays(draft.recurring); const next = on ? cur.filter((x) => x !== d) : [...cur, d]; setDraft({ ...draft, recurring: weekdayRepeat(next.length ? next : cur) }); }}
-            className={`min-h-10 min-w-12 rounded-full px-3 text-sm font-bold ring-1 ${on ? "bg-slate-900 text-white ring-slate-900" : "bg-white text-slate-700 ring-slate-300"}`}>{WEEKDAY_NAMES[d]}</button>; })}
-        </div>}
-        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm font-semibold text-slate-900" data-testid="task-important-label"><input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /><span className="text-slate-900">Mark as important</span></label>
-        {workspace && <div className="rounded-2xl border border-slate-200 p-3"><LinkEditor workspace={workspace} links={draft.links || []} onChange={(links) => setDraft({ ...draft, links })} text={`${draft.title} ${draft.notes || ""}`} self={task ? { kind: "task", id: task.id } : undefined} onOpen={onOpenLink} /></div>}
+          <div className="px-4 py-3"><textarea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} rows={2} placeholder="Notes" aria-label="Notes"
+            className="block w-full resize-none bg-transparent text-[15px] leading-snug text-slate-700 outline-none [field-sizing:content] placeholder:text-slate-400 dark:text-white/80" /></div>
+        </SheetGroup>
+
+        <SheetGroup>
+          <SheetRow icon={<CalendarDays />} color="#ff3b30" label="Date" sub={draft.dueDate ? friendlyDate(draft.dueDate, today) : undefined}
+            right={<SheetSwitch on={!!draft.dueDate} label="Due date" onChange={(on) => { auto.current = null; setDraft({ ...draft, dueDate: on ? today : "", dueTime: on ? draft.dueTime : "" }); }} testId="task-date-switch" />}>
+            {draft.dueDate && <div className="space-y-2">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick due dates">
+                {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)]].map(([label, value]) => <button key={label} type="button" className={chip(draft.dueDate === value)} onClick={() => { auto.current = null; setDraft({ ...draft, dueDate: value }); }}>{label}</button>)}
+              </div>
+              <input type="date" aria-label="Due date" value={draft.dueDate} onChange={(e) => { auto.current = null; setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" }); }} className="min-h-10 w-full rounded-[10px] bg-[#f2f2f7] px-3 text-[16px] outline-none dark:bg-white/10" />
+            </div>}
+          </SheetRow>
+          <SheetRow icon={<Clock />} color="#007aff" label="Time" sub={draft.dueTime ? clock12(draft.dueTime) : undefined}
+            right={<SheetSwitch on={!!draft.dueTime} disabled={!draft.dueDate} label="Due time (optional)" onChange={(on) => setDraft({ ...draft, dueTime: on ? "09:00" : "" })} testId="task-time-switch" />}>
+            {draft.dueTime && <input type="time" aria-label="Due time" value={draft.dueTime} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} className="min-h-10 w-full rounded-[10px] bg-[#f2f2f7] px-3 text-[16px] outline-none dark:bg-white/10" />}
+          </SheetRow>
+          <SheetRow icon={<RepeatIcon />} color="#8e8e93" label="Repeat"
+            right={<label className="relative flex min-h-11 max-w-[55%] items-center gap-1 text-[17px] text-slate-500 dark:text-white/60"><span className="truncate">{repeatName}</span><ChevronsUpDown className="h-4 w-4 shrink-0" />
+              <select aria-label="Repeats" value={repeatValue} onChange={(e) => setDraft({ ...draft, recurring: e.target.value === "Days" ? weekdayRepeat([1, 2, 3, 4, 5]) : e.target.value })} data-testid="task-repeat" className="absolute inset-0 cursor-pointer opacity-0">
+                <option value="">Never</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option value="Days">On certain days…</option>
+              </select></label>}>
+            {repeatDays(draft.recurring).length > 0 && <div role="group" aria-label="Repeat on these days" className="flex flex-wrap gap-1.5" data-testid="task-repeat-days">
+              {[1, 2, 3, 4, 5, 6, 0].map((d) => { const on = repeatDays(draft.recurring).includes(d); return <button key={d} type="button" aria-pressed={on}
+                onClick={() => { const cur = repeatDays(draft.recurring); const next = on ? cur.filter((x) => x !== d) : [...cur, d]; setDraft({ ...draft, recurring: weekdayRepeat(next.length ? next : cur) }); }}
+                className={`h-9 w-11 rounded-full text-[14px] font-semibold ${on ? "bg-[#6e5ae0] text-white" : "bg-[#f2f2f7] text-slate-700 dark:bg-white/10 dark:text-white"}`}>{WEEKDAY_NAMES[d]}</button>; })}
+            </div>}
+          </SheetRow>
+        </SheetGroup>
+
+        <SheetGroup>
+          {lists && lists.length > 0 && <SheetRow icon={<ListIcon />} color={list?.color || "#5856d6"} label="List"
+            right={<label className="relative flex min-h-11 max-w-[55%] items-center gap-1 text-[17px] text-slate-500 dark:text-white/60"><span className="truncate">{list?.name || "None"}</span><ChevronsUpDown className="h-4 w-4 shrink-0" />
+              <select aria-label="List" value={draft.listId || ""} onChange={(e) => setDraft({ ...draft, listId: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" data-testid="task-list">
+                <option value="">None</option>{lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select></label>} />}
+          <div data-testid="task-important-label"><SheetRow icon={<Flag />} color="#ff9500" label={<span className="text-slate-900 dark:text-white">Mark as important</span>}
+            right={<SheetSwitch on={draft.priority} label="Mark as important" onChange={(on) => setDraft({ ...draft, priority: on })} />} /></div>
+        </SheetGroup>
+
+        {workspace && <SheetGroup caption="Linked"><div className="p-3"><LinkEditor workspace={workspace} links={draft.links || []} onChange={(links) => setDraft({ ...draft, links })} text={`${draft.title} ${draft.notes || ""}`} self={task ? { kind: "task", id: task.id } : undefined} onOpen={onOpenLink} /></div></SheetGroup>}
         {task && <TaskFocus task={task} />}
-        <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>
+        {task && onDelete && <SheetGroup><button type="button" onClick={() => { onDelete(); onClose(); }} className="flex min-h-[44px] w-full items-center justify-center gap-2 text-[17px] text-[#ff3b30] active:bg-black/5" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete To-do</button></SheetGroup>}
         <button type="submit" hidden />
       </form>
-    </HubModal>
+    </NativeSheet>
   );
 }
 

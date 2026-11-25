@@ -63,7 +63,7 @@ test("the switcher is at the top of Tasks; LifeHub starts on List, WorkHub on th
   assert.match(page, /useSavedChoice<TaskLook>\(plain \? "life-tasks-look-v2" : "hub-tasks-look-v2", "today", TASK_LOOKS\)/);
   // One "Customize" button opens the looks in a menu (not a row of buttons), beside each look's own buttons.
   assert.match(page, /\{!looked && <div className="flex justify-end">\{lookMenu\(\)\}<\/div>\}/);
-  assert.match(page, /empty=\{emptyText\} customize=\{lookMenu\} \/>/);
+  assert.match(page, /empty=\{emptyText\} customize=\{lookMenu\} daily=\{daily\} \/>/);
   assert.match(page, /looked \? <>\s*<TaskLookView look=/);
   // The edit pop-up is shared by every look.
   assert.equal(page.match(/<TaskModal /g)?.length, 1);

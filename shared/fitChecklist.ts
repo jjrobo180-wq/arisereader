@@ -39,7 +39,8 @@ export function dayChecklist(data: FitData, date: string, steps: number | null =
 
   // Food: breakfast, lunch and dinner (two when they fast), worded by what the goal is.
   const foods = data.foods.filter((f) => f.date === date);
-  const meals = MEALS.filter((m) => foods.some((f) => f.meal === m)).length;
+  // A meal ticked off from the task list without logging it (shared/dailyCheckins.ts) counts too.
+  const meals = MEALS.filter((m) => foods.some((f) => f.meal === m) || hand.has(m)).length;
   const kcal = Math.round(foods.reduce((n, f) => n + f.kcal * f.servings, 0));
   const fasts = !!(data.fasting && (data.fasting.start || data.fasting.log.length));
   const need = fasts ? 2 : 3;

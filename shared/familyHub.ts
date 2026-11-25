@@ -7,6 +7,7 @@ import { isLinkTheme, type LinkPageTheme } from "./linkPageLook";
 import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan";
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
+import { cleanDaily, type DailySettings } from "./dailySettings";
 import { cleanRecaps } from "./recaps";
 import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
 import { cleanDriveFiles, type DriveFile } from "./driveApp";
@@ -274,6 +275,8 @@ export type Family = {
   linkPage: LinkPage;
   /** AI Reminders: the life plan and its reminders (shared/lifePlan.ts). Not set until one is made. */
   lifePlan?: LifePlan;
+  /** Daily check-ins in the task list (shared/dailyCheckins.ts): what's hidden, times, reminders. Not set until changed. */
+  daily?: DailySettings;
   habits: Habit[];
   gratitude: GratitudeDay[];
   focusLog: FocusLog[];
@@ -665,6 +668,7 @@ export function cleanFamily(input: unknown): Family {
       return { id: id(r.id), url, title: typedEnd(str(r.title, BROWSER_LIMITS.title)) || hostOf(url) };
     }),
     ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
+    ...(() => { const daily = cleanDaily(raw.daily); return daily ? { daily } : {}; })(),
     linkPage: cleanLinkPage(raw.linkPage),
     habits: rows(raw.habits, LIMITS.habits, (r) => {
       const name = typedEnd(str(r.name, 60));

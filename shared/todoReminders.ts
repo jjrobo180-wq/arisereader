@@ -16,6 +16,7 @@ import { caloriesLeft, dayTotals, goalsFor, healthPeople, ME_ID } from "./family
 import { dosesOn, needsRefill } from "./pills";
 import { cycleSummary } from "./familyCycle";
 import { duePlanReminders } from "./lifePlan";
+import { dailyReminderPlan } from "./dailyCheckins";
 
 export const TODO_REMINDER_URL = "/#/lifehub";
 /** Where tapping a reminder lands: the screen it's about (AriseTodo reads `go`). */
@@ -87,6 +88,19 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
   /** A scheduled time has come, and it's not so long ago that the reminder would be stale. */
   const now = (hm: string) => { const at = clockMinutes(hm); return minutes >= at && minutes < at + SEND_WINDOW_MINUTES; };
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay() as Weekday;
+
+  // Daily check-ins (shared/dailyCheckins.ts): log each meal, train, weigh in, habits and routines with a time.
+  // They come back (when "Keep after me" is on) until done; "done" comes from the phone, which sees Cooked too.
+  const dailyPlan = dailyReminderPlan({ settings: family.daily, cooked: isOn("cooked", family), family, habits: isOn("habits", family), routines: isOn("routines", family) }, date);
+  const dailyCovers = isOn("cooked", family) && family.daily?.on !== false;
+  for (const r of dailyPlan) {
+    const at = clockMinutes(r.time);
+    const times: [string, string][] = [[r.time, ""]];
+    if (prefs.level === "persistent") for (let i = 1; i <= FOLLOW_UPS; i++) if (at + i * FOLLOW_UP_EVERY < 1440) times.push([fromMinutes(at + i * FOLLOW_UP_EVERY), `:f${i}`]);
+    const due = times.find(([hm, suffix]) => now(hm) && !sent[`todo:daily:${r.id}:${date}${suffix}`]);
+    if (!due) continue;
+    out.push({ key: `todo:daily:${r.id}:${date}${due[1]}`, title: due[1] ? `Still to do: ${r.title.replace(/^Log your /, "log your ")}` : r.title, body: r.body, url: goUrl("tasks", "view=today") });
+  }
 
   const events = isOn("calendar", family) ? eventsFor(ws, family, date) : [];
   for (const e of events) {
@@ -233,7 +247,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
         : `Nothing logged yet today${forWho}. Tap to log a cup.`, url: goUrl("health") });
     });
   }
-  if (healthOn && prefs.meals.on) {
+  if (healthOn && prefs.meals.on && !dailyCovers) {
     for (const meal of prefs.meals.which) {
       // Persistent: the reminder comes back until the meal is logged (follow-ups never go to a logged meal).
       const due = withFollowUps(prefs.meals.times[meal]).find(([at, suffix]) => now(at) && !sent[`todo:meal:${meal}:${date}${suffix}`]);
@@ -243,7 +257,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
       out.push({ key, title: due[1] ? `Still need to log ${MEAL_WORD[meal]}` : `Log your ${MEAL_WORD[meal]}`, body: kid ? `What did ${member.name} have for ${MEAL_WORD[meal]}?` : `Add ${MEAL_WORD[meal]} to the food diary${forWho} while it's fresh.`, url: goUrl("health") });
     }
   }
-  if (healthOn && prefs.workout.on && prefs.workout.days.includes(weekday)) {
+  if (healthOn && prefs.workout.on && prefs.workout.days.includes(weekday) && !dailyCovers) {
     const key = `todo:workout:${date}`;
     const moved = health.exercise.some((x) => x.memberId === member.id && x.date === date);
     if (!sent[key] && now(prefs.workout.time) && !(prefs.workout.skipIfLogged && moved)) {

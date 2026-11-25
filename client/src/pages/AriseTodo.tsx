@@ -152,6 +152,8 @@ import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { isSuperApp, type SuperAppId } from "@shared/superApps";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
 import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
+// Today's check-ins keep their done list current for reminders (components/daily/useDailyCheckins.ts).
+const DailyDoneSync = lazy(() => import("@/components/daily/useDailyCheckins").then((m) => ({ default: m.DailyDoneSync })));
 // Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
 const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
 const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
@@ -187,7 +189,6 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 // The parents' Arise Reader tab, built from LifeHub parts (loaded when opened).
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 const LifeTasksScreen = lazy(() => import("@/components/family-hub/LifeTasksScreen"));
-const CookedGoalsInTasks = lazy(() => import("@/components/super-apps/CookedGoalsInTasks"));
 import "./todoNight.css";
 import "./hubThemes.css";
 import { HubWaiting } from "@/lib/hubBackdrop";
@@ -1795,9 +1796,22 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{appGroupStrip}{shown !== "home" && shown !== "linked" && shown !== "family" && sharedApp.bar}{moveButton}{shown === "home" && <Recaps family={family} setFamily={setFamily} tasks={data.tasks} go={goSection} />}{familySpace && shown === "home" && <FamilyShared go={goSection} openApp={(app) => { dismissOverlays(); setKitOpenState(`pro:${app}`); }} turnOn={(id) => { if ((FAMILY_SECTIONS as readonly string[]).includes(id)) setFamily((f) => (f.sections[id as FamilySection] ? f : { ...f, sections: { ...f.sections, [id]: true } })); }} />}{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {/* Away from Tasks, today's check-ins still keep their done list current, so a meal logged in Cooked
+              stops its reminder (components/daily/useDailyCheckins.ts). */}
+          {!familySpace && isOn("cooked", family) && shown !== "tasks" && <Suspense fallback={null}><DailyDoneSync family={family} setFamily={setFamily}
+            on={{ cooked: true, habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), accountability: false }} /></Suspense>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
-              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} extra={isOn("cooked", family) ? <CookedGoalsInTasks open={(app) => { setSuperStart({ app: "cooked", page: app, s: null, e: null, coach: null, at: Date.now() }); setSection("cooked" as FamilySection); }} /> : null} />
+              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} daily={familySpace ? undefined : {
+                family, setFamily, say: setMessage,
+                on: { cooked: isOn("cooked", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), accountability: isOn("accountability", family) },
+                // Where a check-in is tracked in full: Cooked on the right screen, or Accountability on that task.
+                open: (c) => {
+                  if (c.open.section === "cooked") { setSuperStart({ app: "cooked", page: c.open.app || null, s: null, e: null, coach: null, at: Date.now() }); setSection("cooked" as FamilySection); return; }
+                  if (c.open.acctTask) { const h = window.location.hash.split("?")[0] || "#/lifehub"; window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${h}?task=${encodeURIComponent(c.open.acctTask)}`); }
+                  goSection(c.open.section);
+                },
+              }} />
             </Suspense>
             <div className="mt-5 max-w-xl"><EmailForwardCard token={token} /></div>
           </>}

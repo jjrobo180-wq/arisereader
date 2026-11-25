@@ -1122,3 +1122,13 @@ html.duo-focus main[data-tour="life-content"] { padding-top: max(3.25rem, calc(e
   html.duo-focus [data-duo-grid],
   html.duo-focus main[data-tour="life-content"] { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
 }
+
+/* Native sheets (components/NativeSheet.tsx): slide up from the bottom on a phone like an iPhone sheet,
+   and settle in place on a computer. Nothing moves for people who turn motion down. */
+@keyframes arise-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes arise-sheet-pop { from { transform: translateY(10px) scale(.985); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes arise-sheet-shade { from { opacity: 0; } to { opacity: 1; } }
+.arise-sheet { animation: arise-sheet-up .34s cubic-bezier(.22,.9,.25,1) both; }
+.arise-sheet-shade { animation: arise-sheet-shade .22s ease both; }
+@media (min-width: 640px) { .arise-sheet { animation: arise-sheet-pop .2s ease-out both; } }
+@media (prefers-reduced-motion: reduce) { .arise-sheet, .arise-sheet-shade { animation: none; } }

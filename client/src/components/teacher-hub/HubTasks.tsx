@@ -18,6 +18,8 @@ import { openAsk, startTaskAsk } from "@/lib/ariseAsks";
 import { parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
 import { TASK_LOOKS, type TaskLook } from "@shared/taskLooks";
 import { LookMenu, TaskLookView } from "@/components/teacher-hub/TaskLooks";
+import { DailySection } from "@/components/daily/DailyCheckins";
+import type { DailyApi } from "@/components/daily/useDailyCheckins";
 
 /** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
 function linkSummary(workspace: Workspace, links: HubLink[]): string {
@@ -96,7 +98,9 @@ function DueChip({ date, time, today }: { date: string; time?: string; today: st
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}{time ? ` · ${clock12(time)}` : ""}</span>;
 }
 
-export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls, plain = false, arise, extra }: SectionProps & {
+export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls, plain = false, arise, extra, daily }: SectionProps & {
+  /** LifeHub: the daily check-ins (components/daily/), rows of the list next to the to-dos. */
+  daily?: DailyApi;
   /** LifeHub: today's goals from other apps (Cooked's food, water, sleep…), shown above the list. */
   extra?: ReactNode;
   makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void;
@@ -237,8 +241,9 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
         add={(lid) => { if (lid !== undefined) setListPick(lid || "all"); setEditing({ id: null }); }}
         quick={quick} setQuick={setQuick} onQuickAdd={quickAdd} quickPlaceholder={quickPlaceholder}
         newAsks={newAsks} onArise={arise ? () => { setAiTab(true); openAsk(null); } : undefined}
-        search={search} setSearch={setSearch} sort={sort} setSort={setSort} empty={emptyText} customize={lookMenu} />
+        search={search} setSearch={setSearch} sort={sort} setSort={setSort} empty={emptyText} customize={lookMenu} daily={daily} />
       {arise && parseTaskAsk(quick) && <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="arise-hint"><Sparkles className="h-3.5 w-3.5" />Arise's AI will make this and send you a notification when it's ready.</p>}
+      {daily && look !== "today" && (view === "all" || view === "today") && <DailySection d={daily} dark={look === "tiles"} />}
       {extra && (view === "all" || view === "today") && <div>{extra}</div>}
       {(view === "all" || view === "today") && !search.trim() && <RecentlyDone tasks={workspace.tasks} onUndo={(taskId) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }))} />}
     </> :
@@ -284,6 +289,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
                 <PrimaryButton type="submit" disabled={!quick.trim()}>{arise && parseTaskAsk(quick) ? "Ask Arise" : "Add"}</PrimaryButton>
               </form>
             )}
+            {daily && (view === "all" || view === "today") && <div className="mb-4"><DailySection d={daily} /></div>}
             {extra && (view === "all" || view === "today") && <div className="mb-4">{extra}</div>}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>{renaming && listId !== "all"

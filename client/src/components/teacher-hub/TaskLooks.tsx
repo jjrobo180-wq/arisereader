@@ -7,6 +7,9 @@ import { friendlyDate, dueState } from "@shared/hubDates";
 import { clock12, type Task } from "@shared/teacherHub";
 import { TASK_SORTS, type TaskSort, type TaskView } from "@shared/hubTasks";
 import { TASK_LOOKS, TASK_LOOK_INFO, boardColumns, dayGroups, listTiles, noteTilt, textOn, tint, todayProgress, type TaskLook } from "@shared/taskLooks";
+import { CheckinRow, DailySettingsButton } from "@/components/daily/DailyCheckins";
+import type { DailyApi } from "@/components/daily/useDailyCheckins";
+import type { Checkin } from "@shared/dailyCheckins";
 
 const LOOK_ICON: Record<TaskLook, ReactNode> = {
   calm: <ListTodo className="h-4 w-4" />, today: <Sun className="h-4 w-4" />, tiles: <LayoutGrid className="h-4 w-4" />,
@@ -64,6 +67,8 @@ export type LookProps = {
   empty: string;
   /** The Customize button (LookMenu), shown with each look's own buttons. */
   customize: (dark?: boolean) => ReactNode;
+  /** LifeHub's daily check-ins (components/daily/): the Today look mixes them into its own sections. */
+  daily?: DailyApi;
 };
 
 const listOf = (p: LookProps, t: Task) => p.lists.find((l) => l.id === t.listId);
@@ -164,11 +169,25 @@ function TodayLook({ p }: { p: LookProps }) {
   const g = dayGroups(p.tasks, p.today, p.listId);
   const prog = todayProgress(p.tasks, p.today, p.listId);
   const d = new Date(`${p.today}T12:00:00`);
-  const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
-  const section = (title: string, rows: Task[], tone = "text-slate-500") => rows.length > 0 && (
-    <section aria-label={title}><h3 className={`px-4 pt-4 text-[13px] font-extrabold ${tone}`}>{title}</h3><ul>{rows.map((t) => <Row key={t.id} p={p} task={t} />)}</ul></section>
+  // Daily check-ins (meals, workouts, water, doses, habits…) are rows of Today and Done today like the to-dos,
+  // in time order with them, and count toward how far along today is. Only on the "All lists" view of today.
+  const daily = p.daily && p.daily.settings.on && p.listId === "all" ? p.daily : undefined;
+  const [openCheck, setOpenCheck] = useState<string | null>(null);
+  const [dailySettings, setDailySettings] = useState(false);
+  const checksLeft = daily ? daily.items.filter((c) => !c.done) : [];
+  const checksDone = daily ? daily.items.filter((c) => c.done) : [];
+  const done = prog.done + checksDone.length, total = prog.total + (daily ? daily.total : 0);
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  type Entry = { t: Task } | { c: Checkin };
+  const timed = (e: Entry) => ("t" in e ? e.t.dueTime || "" : e.c.time);
+  const merge = (tasks: Task[], checks: Checkin[]): Entry[] => [...tasks.map((t) => ({ t })), ...checks.map((c) => ({ c }))]
+    .map((e, i) => ({ e, i })).sort((a, b) => (timed(a.e) || "99:99").localeCompare(timed(b.e) || "99:99") || a.i - b.i).map((x) => x.e);
+  const row = (e: Entry) => ("t" in e ? <Row key={e.t.id} p={p} task={e.t} /> : <CheckinRow key={e.c.id} c={e.c} d={daily!} open={openCheck} setOpen={setOpenCheck} />);
+  const section = (title: string, rows: Entry[], tone = "text-slate-500", extra?: ReactNode) => (rows.length > 0 || extra) && (
+    <section aria-label={title}><div className="flex items-center px-4 pt-4"><h3 className={`text-[13px] font-extrabold ${tone}`}>{title}</h3>{extra}</div>{rows.length > 0 && <ul>{rows.map(row)}</ul>}</section>
   );
-  const nothing = !g.overdue.length && !g.today.length && !g.soon.length && !g.someday.length && !g.doneToday.length;
+  const plainRows = (rows: Task[]) => rows.map((t) => ({ t }));
+  const nothing = !g.overdue.length && !g.today.length && !g.soon.length && !g.someday.length && !g.doneToday.length && !daily?.items.length;
   return (
     <div className="rounded-[28px] bg-[#4f3cc9]" data-testid="look-today">
       <header className="px-5 pb-6 pt-5 text-white">
@@ -188,12 +207,15 @@ function TodayLook({ p }: { p: LookProps }) {
         <h2 className="mt-1 text-[56px] font-black leading-[.95] tracking-[-0.04em]">{d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</h2>
         <div className="mt-4 flex items-center gap-3">
           <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Today's to-dos done"><div className="h-full rounded-full bg-[#ffd75e]" style={{ width: `${pct}%` }} /></div>
-          <p className="text-[15px] font-extrabold">{prog.total ? `${prog.done} of ${prog.total} done` : "Nothing due today"}</p>
+          <p className="text-[15px] font-extrabold">{total ? `${done} of ${total} done` : "Nothing due today"}</p>
         </div>
       </header>
       <div className="rounded-[28px] bg-white pb-4 dark:bg-[#151325]">
         <div className="px-4 pt-4"><AddBar p={p} /></div>
-        {section("Late", g.overdue, "text-red-700")}{section("Today", g.today)}{section("This week", g.soon)}{section("No date", g.someday)}{section("Done today", g.doneToday)}
+        {section("Late", plainRows(g.overdue), "text-red-700")}
+        {section("Today", merge(g.today, checksLeft), "text-slate-500", p.daily && p.listId === "all" ? <DailySettingsButton d={p.daily} open={dailySettings} setOpen={setDailySettings} /> : undefined)}
+        {section("This week", plainRows(g.soon))}{section("No date", plainRows(g.someday))}
+        {section("Done today", [...plainRows(g.doneToday), ...checksDone.map((c) => ({ c }))])}
         {nothing && <Empty text="Nothing to do. Enjoy the breathing room." />}
       </div>
     </div>

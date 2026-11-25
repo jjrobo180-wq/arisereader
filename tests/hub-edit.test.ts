@@ -93,9 +93,11 @@ test("to-dos retain an optional due time, and editing can clear it", () => {
 test("WorkHub visibly labels important checkboxes and displays due times", () => {
   const modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx");
   const page = read("client/src/pages/TeacherHub.tsx") + read("client/src/components/teacher-hub/HubTasks.tsx");
+  // A to-do's details are an iPhone-style sheet (Nov 24, 2026): the time is a switch, then a time picker.
   assert.ok(modal.includes('label="Due time (optional)"'), "due-time control is visible in the form");
+  assert.ok(modal.includes('type="time" aria-label="Due time"'), "and a time picker once it's on");
   assert.ok(modal.includes('data-testid="task-important-label"'), "important label is separately identifiable");
-  assert.ok(modal.includes('className="text-slate-900">Mark as important'), "important label has explicit readable contrast");
+  assert.ok(modal.includes('className="text-slate-900 dark:text-white">Mark as important'), "important label has explicit readable contrast");
   assert.ok(page.includes("time={task.dueTime}"), "task list receives the saved time");
 });
 
@@ -104,5 +106,5 @@ test("the screens offer Edit on events and to-dos", () => {
   for (const part of ['data-testid="event-edit"', '"edit-event-form"', "updateEvent(p, editing.event.id, changes)", "Save changes", "onEdit={setEditing}"]) assert.ok(cal.includes(part), part);
   assert.equal(cal.split("onEdit={setEditing}").length - 1, 3, "the agenda, the month's day list and the timeline");
   for (const part of ['data-testid="task-edit"', 'onEdit={(t) => setHomeTask(t.id)}', "saveTask(p.tasks, editing.id, fields, makeId)", "saveTask(p.tasks, homeTask, fields, id)"]) assert.ok(page.includes(part), part);
-  for (const part of ['"Edit to-do"', "Save changes", "Mark as important"]) assert.ok(modal.includes(part), part);
+  for (const part of ['"Edit to-do"', 'doneLabel={task ? "Done" : "Add"}', "Mark as important", "Delete To-do"]) assert.ok(modal.includes(part), part);
 });
