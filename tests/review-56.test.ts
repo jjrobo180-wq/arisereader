@@ -57,7 +57,7 @@ test("App Review: one paid plan, no ad stripping or trainer online-coaching paym
   assert.match(pay, /const payUrl = native \? "" : data\.payUrl;/);
   // Permission sentences say what the app really does.
   const plist = readFileSync("arisetodo/ios-app/configure-ios.py", "utf8");
-  assert.match(plist, /only in the plugins that need it, like weather and mileage/);
+  assert.match(plist, /only while you use it: in the plugins that need it, like weather and mileage/);
   assert.doesNotMatch(plist, /apps in the App Store|speaking practice/);
   // The admin console isn't in the iPhone app.
   const work = readFileSync("client/src/pages/TeacherHub.tsx", "utf8");

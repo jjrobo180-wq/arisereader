@@ -1,5 +1,6 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import NativeBack from "@/components/NativeBack";
+import { useHubAutoOpen } from "@/lib/hubAutoOpen";
 
 import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
@@ -571,6 +572,8 @@ function AppRoutes() {
   const { user, isLoading, token } = useAuth();
   // In the iPhone apps: hand Apple's running To Duo Unlimited subscriptions (renewals) to the server.
   useEffect(() => { if (user && token) startAppleSync(token); }, [user, token]);
+  // Arise To Duo: open the hub a time or place rule picks when the app opens (lib/hubAutoOpen.ts).
+  useHubAutoOpen(user?.id, !!user && !isLoading);
   // The routes below remount when the page changes. A page that redirects lands on another page that
   // often redirects too (a game → "/" → the hub); without a fresh mount React reused the first Redirect,
   // the next hop never ran, and the screen stayed blank.

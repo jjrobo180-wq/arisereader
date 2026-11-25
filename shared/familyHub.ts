@@ -8,6 +8,7 @@ import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan"
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
 import { cleanDaily, type DailySettings } from "./dailySettings";
+import { cleanHubOpen, type HubOpenRule } from "./hubAutoOpen";
 import { cleanRecaps } from "./recaps";
 import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
 import { cleanDriveFiles, type DriveFile } from "./driveApp";
@@ -277,6 +278,8 @@ export type Family = {
   lifePlan?: LifePlan;
   /** Daily check-ins in the task list (shared/dailyCheckins.ts): what's hidden, times, reminders. Not set until changed. */
   daily?: DailySettings;
+  /** Open a chosen hub by time or place when To Duo opens (shared/hubAutoOpen.ts). */
+  hubOpen?: HubOpenRule[];
   habits: Habit[];
   gratitude: GratitudeDay[];
   focusLog: FocusLog[];
@@ -669,6 +672,7 @@ export function cleanFamily(input: unknown): Family {
     }),
     ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
     ...(() => { const daily = cleanDaily(raw.daily); return daily ? { daily } : {}; })(),
+    ...(() => { const hubOpen = cleanHubOpen(raw.hubOpen); return hubOpen ? { hubOpen } : {}; })(),
     linkPage: cleanLinkPage(raw.linkPage),
     habits: rows(raw.habits, LIMITS.habits, (r) => {
       const name = typedEnd(str(r.name, 60));

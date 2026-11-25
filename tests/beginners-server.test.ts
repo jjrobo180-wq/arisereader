@@ -229,5 +229,5 @@ test("it's wired into Reader: routes, prizes, the page and the library", () => {
   const app = readFileSync(new URL("../client/src/App.tsx", import.meta.url), "utf8");
   assert.match(app, /<Route path="\/beginners">/);
   const library = readFileSync(new URL("../client/src/pages/Library.tsx", import.meta.url), "utf8");
-  assert.match(library, /navigate\("\/beginners"\)/);
+  assert.doesNotMatch(library, /navigate\("\/beginners"\)/, "Beginners is no longer offered (Nov 25, 2026); its page stays for old links");
 });

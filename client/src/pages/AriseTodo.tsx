@@ -122,6 +122,8 @@ import { dosesOn } from "@shared/pills";
 import Mood from "@/components/family-hub/Mood";
 import News from "@/components/family-hub/News";
 import NotificationSettings from "@/components/family-hub/NotificationSettings";
+import { HubAutoOpenSettings } from "@/components/duo/HubAutoOpenSettings";
+import { saveHubOpenCopy } from "@/lib/hubAutoOpen";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
@@ -851,6 +853,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   ];
 
   const family = data.family;
+  // Open hubs automatically (lib/hubAutoOpen.ts): this device keeps a copy of LifeHub's rules for every hub.
+  useEffect(() => { if (!familySpace && user) saveHubOpenCopy(user.id, family.hubOpen); }, [familySpace, user?.id, family.hubOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The Arise Reader tab is the parent portal, so only parents have it.
@@ -1301,7 +1305,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     : shown === "podster" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="podster" name="Arise Podcasts"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     : shown === "risescore" ? <RiseScorePlugin scores={(extra) => riseScores(riseInputFrom(family, [...data.tasks.filter((t) => !t.archived).map((t) => ({ title: t.title, due: t.due, time: t.time, done: t.done })), ...extra], riseOff), currentDay)} extraTasks={(h: RiseHubs) => riseHubTasks(h, token, familySpace)} />
     // Family & settings ends with "Move between hubs" (LifeHub ⇄ FamilyHub).
-    : shown === "family" ? <div className="space-y-6">{LIFE_VIEWS.family!(appProps)}<MoveBetweenHubs space={familySpace ? "family" : "life"} token={token} data={data as unknown as HubWorkspace} setData={setData as unknown as (fn: (d: HubWorkspace) => HubWorkspace) => void} say={setMessage} /></div>
+    : shown === "family" ? <div className="space-y-6">{LIFE_VIEWS.family!(appProps)}{!familySpace && <HubAutoOpenSettings family={family} setFamily={setFamily} say={setMessage} />}<MoveBetweenHubs space={familySpace ? "family" : "life"} token={token} data={data as unknown as HubWorkspace} setData={setData as unknown as (fn: (d: HubWorkspace) => HubWorkspace) => void} say={setMessage} /></div>
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;

@@ -102,7 +102,7 @@ test("it runs from LifeHub and FamilyHub, and every app page and Family & settin
   assert.match(readFileSync("client/src/pages/FamilyHub.tsx", "utf8"), /useState<FamilyInfo \| null \| undefined>\(\(\) => readInfo\(user\?\.id\)\)/);
   const todo = readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
   assert.match(todo, /useFamilyTransfer\(\{ space: familySpace \? "family" : "life", on: sync\.loaded && !sync\.recovery/);
-  assert.match(todo, /shown === "family" \? <div className="space-y-6">\{LIFE_VIEWS\.family!\(appProps\)\}<MoveBetweenHubs /);
+  assert.match(todo, /shown === "family" \? <div className="space-y-6">\{LIFE_VIEWS\.family!\(appProps\)\}\{!familySpace && <HubAutoOpenSettings [^\n]*\/>\}<MoveBetweenHubs /);
   assert.match(todo, /sharedApp\.bar\}\{isSuperApp\(shown\) \? null : moveButton\}/);
   assert.match(todo, /<SuperHeadExtra\.Provider value=\{moveButton\}>/, "a plugin's Move button sits in its heading row");
   assert.match(todo, /banner=\{<>\{moveButton\}/);

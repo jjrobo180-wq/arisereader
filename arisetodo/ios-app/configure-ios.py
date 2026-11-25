@@ -28,7 +28,7 @@ KEYS = {
     "NSPhotoLibraryUsageDescription": f"{NAME} lets you pick photos to add to your notes, tasks and posts.",
     "NSPhotoLibraryAddUsageDescription": f"{NAME} saves pictures you choose to your photo library.",
     "NSMicrophoneUsageDescription": f"{NAME} uses the microphone when you choose to record a voice note or a meeting in Notes, or the sound of a video for your trainer.",
-    "NSLocationWhenInUseUsageDescription": f"{NAME} uses your location only in the plugins that need it, like weather and mileage, while you use them.",
+    "NSLocationWhenInUseUsageDescription": f"{NAME} uses your location only while you use it: in the plugins that need it, like weather and mileage, and to open the hub you chose for a place.",
     "ITSAppUsesNonExemptEncryption": False,
     "NSSupportsLiveActivities": True,
 }
