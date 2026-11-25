@@ -1,12 +1,15 @@
 // Family Hub home: today across every switched-on part of the hub.
 // Its parts can be arranged right here, like WorkHub's Home: press and hold (or Edit Home) to drag, resize or remove them.
 import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, Clock, CloudSun, LayoutGrid, Link2, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
+import { Flame } from "lucide-react";
+const FitHomeCard = lazy(() => import("@/components/super-apps/FitHomeCard"));
+const FitTileBody = lazy(() => import("@/components/super-apps/FitHomeCard").then((m) => ({ default: m.FitTileBody })));
 import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
 import { LinkPageCard } from "./LinkPageCard";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
 import { withSharedLook } from "@/lib/sharedLook";
-import { pinId } from "@shared/hubLayout";
+import { pinId, type HomeSize } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
 import { hubThemeOf } from "@shared/appThemes";
@@ -28,7 +31,9 @@ import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type S
 const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote, links: Link2 };
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
-export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles, setupFamily = false }: SectionProps & {
+export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles, openFitness, setupFamily = false }: SectionProps & {
+  /** Health & Fitness is on in this space (LifeHub in To Duo): Home shows its stats card, and opens it on a tap. */
+  openFitness?: () => void;
   /** Show "Set up your family" while nobody is added: FamilyHub only (Nov 23, 2026). LifeHub is one
    *  person's own space, so it doesn't ask. */
   setupFamily?: boolean;
@@ -190,6 +195,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const startLeads: StartTile[] = [
     ...(setupFamily && !family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large" as const, color: "#f2600c", onClick: () => go("family") }] : []),
     clockTile, weatherTile,
+    ...(openFitness ? [{ id: "live-fitness", label: "Health & Fitness", icon: <Flame />, size: "medium" as const, color: "#ff5a1f", onClick: openFitness, body: (size: HomeSize) => <Suspense fallback={null}><FitTileBody size={size} /></Suspense> }] : []),
   ];
   /** Each app's tile with what it has to say; the weather is its own tile above, and Drive's tile becomes the photo slideshow. */
   const liveApps = (appTiles ?? []).filter((t) => t.id !== "app-weather").map((t) => {
@@ -203,6 +209,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
+    {openFitness && !tileMode && <Suspense fallback={null}><FitHomeCard onOpen={openFitness} /></Suspense>}
     <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
       leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined}
       partLive={tileMode ? { greeting: { faces: [{ big: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), text: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }] }, stats: { faces: faces.tasks }, agenda: { faces: faces.calendar }, chores: { faces: faces.chores }, bills: { faces: faces.money } } : undefined} />

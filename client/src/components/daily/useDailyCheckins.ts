@@ -3,6 +3,8 @@
 // partner asked for today, and (LifeHub) habits, routines, pills and chores. FamilyHub: the family's own
 // shared check-ins, chores, habits, routines and pills, which anyone in the family can add, change and tick
 // (each tick says who). Every action writes to the plugin itself.
+import { publishWidgets } from "@/lib/widgets";
+import { fitDuoSlot } from "@/lib/fitWidgets";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -177,13 +179,20 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
 }
 
 /** Keeps today's done list (for reminders) current while LifeHub is open, even when Tasks isn't: a meal logged in
- *  Cooked then stops its reminder without the list ever being opened. Draws nothing. */
+ *  Health & Fitness then stops its reminder without the list ever being opened. It also keeps the iPhone's Health &
+ *  Fitness widget (lib/fitWidgets.ts, fitDuoSlot) up to date. Draws nothing. */
 export function DailyDoneSync({ family, setFamily, on }: { family: Family; setFamily: DailyInput["setFamily"]; on: DailyInput["on"] }) {
   const { token } = useAuth();
   const { data: fit } = useFitData(token);
   const date = dayNow();
   const all = useMemo(() => buildCheckins({ date, settings: family.daily, fit: on.cooked ? fit : null, family, on: { habits: on.habits, routines: on.routines, pills: on.pills, chores: on.chores } }),
     [date, family, fit, on.cooked, on.habits, on.routines, on.pills, on.chores]);
+  // The Home Screen widget, a moment after the numbers change.
+  useEffect(() => {
+    if (!on.cooked) return;
+    const t = window.setTimeout(() => publishWidgets([fitDuoSlot(fit, fit.weights.length ? fit.weights[fit.weights.length - 1].kg : undefined)]), 1500);
+    return () => window.clearTimeout(t);
+  }, [fit, on.cooked]);
   const key = `${date}#${all.filter((c) => c.done).map((c) => c.id).sort().join("|")}`;
   const last = useRef("");
   useEffect(() => {

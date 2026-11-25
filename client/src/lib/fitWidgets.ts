@@ -89,3 +89,29 @@ export function applyWatchActions(data: FitData, actions: { type: string; at: nu
   }
   return next;
 }
+
+/** Arise To Duo's one Health & Fitness widget (arisetodo/ios-app/widgets.json, "duo.fit.today"): today's stats in one
+ *  place, built from the same numbers as the Cooked widgets above. A tap opens Health & Fitness inside To Duo. */
+export function fitDuoSlot(data: FitData, kg: number | undefined, now = Date.now()): WidgetSlot {
+  const all = fitWidgetSlots(data, kg, now);
+  const by = (id: string) => all.find((s) => s.id === id);
+  const cal = by("fit.calories"), water = by("fit.water"), workouts = by("fit.workouts"), streak = by("fit.streak"), protein = by("fit.protein");
+  return {
+    id: "duo.fit.today", title: "Health & Fitness", tint: "#ff5a1f",
+    value: cal ? `${cal.value} cal` : "Today", detail: cal?.detail ?? "",
+    progress: cal?.progress, open: "arisetodo://open?s=cooked",
+    lines: [
+      water ? `Water ${water.value} of ${water.detail?.replace(/^Goal /, "") ?? ""}` : "",
+      protein ? `Protein ${protein.value} · ${protein.detail ?? ""}` : "",
+      workouts ? `Workouts this week ${workouts.value}` : "",
+      streak ? `Streak ${streak.value}` : "",
+    ].filter(Boolean),
+  };
+}
+
+/** The same numbers for To Duo's Home card (components/super-apps/FitHomeCard.tsx). */
+export function fitHomeStats(data: FitData, kg: number | undefined, now = Date.now()) {
+  const all = fitWidgetSlots(data, kg, now);
+  const pick = (id: string) => all.find((s) => s.id === id);
+  return { calories: pick("fit.calories"), water: pick("fit.water"), protein: pick("fit.protein"), workouts: pick("fit.workouts"), streak: pick("fit.streak") };
+}
