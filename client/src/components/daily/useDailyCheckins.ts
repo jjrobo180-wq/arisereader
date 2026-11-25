@@ -1,6 +1,8 @@
-// Today's check-ins for LifeHub's task list (shared/dailyCheckins.ts), live: Cooked's diary (the same saved copy
-// Cooked uses, so a meal logged in either place shows in both), LifeHub's habits, routines and pills, and what
-// an accountability partner asked for today. Every action writes to the plugin itself.
+// Today's check-ins for a hub's task list (shared/dailyCheckins.ts), live. LifeHub and WorkHub: Cooked's diary
+// (the same saved copy Cooked uses, so a meal logged in either place shows in both), what an accountability
+// partner asked for today, and (LifeHub) habits, routines, pills and chores. FamilyHub: the family's own
+// shared check-ins, chores, habits, routines and pills, which anyone in the family can add, change and tick
+// (each tick says who). Every action writes to the plugin itself.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -10,16 +12,27 @@ import type { FitData, Meal as FitMeal } from "@shared/fit";
 import type { AcctTask, Checkin as AcctCheckin } from "@shared/accountability";
 import { emptyDaily, type DailySettings } from "@shared/dailySettings";
 import {
-  addWater, buildCheckins, logMeal, logWeight, logWorkout, markHabit, markMed, markPill, markRoutine, removeFood, shownCheckins, tickCooked, withDone,
+  addWater, buildCheckins, logMeal, logWeight, logWorkout, markChore, markHabit, markMed, markPill, markRoutine, removeCustom, removeFood, saveCustom, shownCheckins, tickCooked, tickCustom, withDone,
   type AcctInput, type Checkin, type FoodIn,
 } from "@shared/dailyCheckins";
 
 const dayNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 export type DailyInput = {
-  family: Family;
+  /** The hub's LifeHub-style data (habits, routines, pills, chores); null in WorkHub. */
+  family: Family | null;
   setFamily: (update: (f: Family) => Family) => void;
-  on: { cooked: boolean; habits: boolean; routines: boolean; pills: boolean; accountability: boolean };
+  /** Where the settings are kept: LifeHub's and FamilyHub's family.daily, or WorkHub's workspace.daily. */
+  settings: DailySettings | undefined;
+  setSettings: (update: (s: DailySettings) => DailySettings) => void;
+  on: { cooked: boolean; habits: boolean; routines: boolean; pills: boolean; accountability: boolean; chores: boolean };
+  /** FamilyHub: the family's shared check-ins; `by` is the name a tick is saved under. */
+  shared?: boolean;
+  by?: string;
+  /** LifeHub only: keep today's done list for reminders. */
+  writeDone?: boolean;
+  /** WorkHub: Cooked's rows only once Cooked has been used (WorkHub can't see which LifeHub plugins are added). */
+  cookedIfUsed?: boolean;
   /** Opens where a check-in is tracked in full. */
   open: (c: Checkin) => void;
   say: (text: string) => void;
@@ -45,9 +58,16 @@ export type DailyApi = {
   dose: (c: Checkin, status: "taken" | "skipped" | null) => void;
   routineStep: (c: Checkin, stepId: string, on: boolean) => void;
   open: (c: Checkin) => void;
+  /** Hand-made check-ins: add or change one, or take it away. */
+  saveCustom: (c: { id?: string; title: string; time: string; days: number[] }) => void;
+  removeCustom: (id: string) => void;
+  /** FamilyHub: shared with the family. */
+  shared: boolean;
+  /** Which plugins are feeding the list (the settings say what can be added). */
+  on: DailyInput["on"];
   /** Cooked's data, for the meal panel (what's logged, recent foods) and units. */
   fit: FitData;
-  family: Family;
+  family: Family | null;
   token: string | null;
 };
 
@@ -79,21 +99,22 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
     return () => { document.removeEventListener("visibilitychange", again); window.clearInterval(t); };
   }, [loadAcct]);
 
-  const settings = input.family.daily ?? emptyDaily();
+  const settings = input.settings ?? emptyDaily();
+  const cookedOn = input.on.cooked && (!input.cookedIfUsed || !!(fit.onboarded || fit.foods.length || fit.workouts.length));
   const all = useMemo(() => buildCheckins({
-    date, settings, fit: input.on.cooked ? fit : null, family: input.family,
-    on: { habits: input.on.habits, routines: input.on.routines, pills: input.on.pills }, acct,
-  }), [date, settings, fit, input.family, input.on.cooked, input.on.habits, input.on.routines, input.on.pills, acct]);
+    date, settings, fit: cookedOn ? fit : null, family: input.family, shared: input.shared,
+    on: { habits: input.on.habits, routines: input.on.routines, pills: input.on.pills, chores: input.on.chores }, acct: input.on.accountability ? acct : null,
+  }), [date, settings, fit, input.family, input.shared, cookedOn, input.on.habits, input.on.routines, input.on.pills, input.on.chores, input.on.accountability, acct]);
   const shown = shownCheckins(all, settings);
 
-  const { setFamily } = input;
-  const setSettings = useCallback((update: (s: DailySettings) => DailySettings) => setFamily((f) => ({ ...f, daily: update(f.daily ?? emptyDaily()) })), [setFamily]);
+  const { setFamily, setSettings } = input;
 
   // Today's done list goes with LifeHub's data, so a reminder (sent by the server or scheduled on the phone,
   // neither of which can see Cooked) isn't sent for something already done.
   const doneKey = all.filter((c) => c.done).map((c) => c.id).sort().join("|");
   const lastDone = useRef("");
   useEffect(() => {
+    if (!input.writeDone) return;
     const key = `${date}#${doneKey}`;
     if (lastDone.current === key) return;
     lastDone.current = key;
@@ -130,6 +151,11 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
         if (c.done) return "open";
         if (c.quick) { void acctDone(c); return; }
         return "open";
+      case "chore": setFamily((f) => markChore(f, c.ref!, date)); return;
+      case "custom":
+        setSettings((x) => tickCustom(x, c.ref!, date, !c.done, input.by || ""));
+        if (!c.done && input.shared) say(`Checked off "${c.title}" for the family.`);
+        return;
     }
   };
 
@@ -143,18 +169,21 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
     dose: (c, status) => { if (c.kind === "med") fitDo((d) => markMed(d, c, date, status)); else setFamily((f) => markPill(f, c, date, status, new Date().toISOString())); },
     routineStep: (c, stepId, on) => setFamily((f) => markRoutine(f, c.ref!, date, on, stepId)),
     open: input.open,
+    saveCustom: (c) => setSettings((x) => saveCustom(x, c, input.by || "")),
+    removeCustom: (id) => setSettings((x) => removeCustom(x, id)),
+    shared: !!input.shared, on: { ...input.on, cooked: cookedOn },
     fit, family: input.family, token,
   };
 }
 
 /** Keeps today's done list (for reminders) current while LifeHub is open, even when Tasks isn't: a meal logged in
  *  Cooked then stops its reminder without the list ever being opened. Draws nothing. */
-export function DailyDoneSync({ family, setFamily, on }: Pick<DailyInput, "family" | "setFamily" | "on">) {
+export function DailyDoneSync({ family, setFamily, on }: { family: Family; setFamily: DailyInput["setFamily"]; on: DailyInput["on"] }) {
   const { token } = useAuth();
   const { data: fit } = useFitData(token);
   const date = dayNow();
-  const all = useMemo(() => buildCheckins({ date, settings: family.daily, fit: on.cooked ? fit : null, family, on: { habits: on.habits, routines: on.routines, pills: on.pills } }),
-    [date, family, fit, on.cooked, on.habits, on.routines, on.pills]);
+  const all = useMemo(() => buildCheckins({ date, settings: family.daily, fit: on.cooked ? fit : null, family, on: { habits: on.habits, routines: on.routines, pills: on.pills, chores: on.chores } }),
+    [date, family, fit, on.cooked, on.habits, on.routines, on.pills, on.chores]);
   const key = `${date}#${all.filter((c) => c.done).map((c) => c.id).sort().join("|")}`;
   const last = useRef("");
   useEffect(() => {

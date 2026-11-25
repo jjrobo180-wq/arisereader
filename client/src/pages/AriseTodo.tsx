@@ -1,4 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type PointerEvent as RPointerEvent, type MouseEvent as RMouseEvent } from "react";
+import { emptyDaily } from "@shared/dailySettings";
 import { listenForDuoLinks } from "@/lib/duoLinks";
 import { focusTask } from "@/lib/taskFocus";
 import AllAccessPopup from "@/components/AllAccessPopup";
@@ -1799,12 +1800,16 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
           {/* Away from Tasks, today's check-ins still keep their done list current, so a meal logged in Cooked
               stops its reminder (components/daily/useDailyCheckins.ts). */}
           {!familySpace && isOn("cooked", family) && shown !== "tasks" && <Suspense fallback={null}><DailyDoneSync family={family} setFamily={setFamily}
-            on={{ cooked: true, habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), accountability: false }} /></Suspense>}
+            on={{ cooked: true, habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family), accountability: false }} /></Suspense>}
           {!osCore && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
             <Suspense fallback={<div className="grid min-h-[40vh] grid-cols-1 place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}>
-              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} daily={familySpace ? undefined : {
+              <LifeTasksScreen data={data} setData={setData} makeId={makeId} say={setMessage} view={view} setView={setView} list={selectedList} setList={setSelectedList} arise={{ asks: ariseAsks.asks, loaded: ariseAsks.loaded, open: ariseAsks.open, people: data.family.members.map((m) => m.name).filter(Boolean) }} daily={{
                 family, setFamily, say: setMessage,
-                on: { cooked: isOn("cooked", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), accountability: isOn("accountability", family) },
+                settings: family.daily, setSettings: (update) => setFamily((f) => ({ ...f, daily: update(f.daily ?? emptyDaily()) })),
+                // LifeHub: your own (Cooked and Accountability are yours). FamilyHub: the family's, shared by everyone in it,
+                // and each tick is saved under the name of whoever ticked it.
+                on: { cooked: !familySpace && isOn("cooked", family), accountability: !familySpace && isOn("accountability", family), habits: isOn("habits", family), routines: isOn("routines", family), pills: isOn("pills", family), chores: isOn("chores", family) },
+                shared: familySpace, by: familySpace ? (user?.displayName || "") : "", writeDone: !familySpace,
                 // Where a check-in is tracked in full: Cooked on the right screen, or Accountability on that task.
                 open: (c) => {
                   if (c.open.section === "cooked") { setSuperStart({ app: "cooked", page: c.open.app || null, s: null, e: null, coach: null, at: Date.now() }); setSection("cooked" as FamilySection); return; }

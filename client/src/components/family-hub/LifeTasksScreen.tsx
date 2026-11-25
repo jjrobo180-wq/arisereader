@@ -6,12 +6,13 @@ import { applyWorkTasksToLife, workspaceFromLifeTasks, type LifeListShape, type 
 import type { Workspace } from "@shared/teacherHub";
 import type { TaskView } from "@shared/hubTasks";
 import type { AriseAsk } from "@shared/ariseAsks";
-import { useDailyCheckins, type DailyInput } from "@/components/daily/useDailyCheckins";
+import type { DailyInput } from "@/components/daily/useDailyCheckins";
+import { WithDaily } from "@/components/daily/WithDaily";
 
 type Life = { tasks: LifeTaskShape[]; lists: LifeListShape[] };
 
 export default function LifeTasksScreen<T extends Life>({ data, setData, makeId, say, view, setView, list, setList, arise, extra, daily }: {
-  /** LifeHub (not FamilyHub): the plugins' daily check-ins as rows of the list (components/daily/). */
+  /** The hub's daily check-ins as rows of the list (components/daily/): LifeHub's are yours, FamilyHub's the family's. */
   daily?: DailyInput;
   extra?: import("react").ReactNode;
   data: T;
@@ -34,11 +35,6 @@ export default function LifeTasksScreen<T extends Life>({ data, setData, makeId,
     if (key === "tasks") setData((previous) => ({ ...previous, tasks: previous.tasks.filter((t) => t.id !== rowId) }));
   };
   const props = { workspace, setWorkspace, remove, makeId, toast: (text: string) => say(text), plain: true, controls: { view, setView, list, setList }, arise, extra };
-  return daily ? <WithDaily input={daily} props={props} /> : <Tasks {...props} />;
-}
-
-/** The check-ins read Cooked, Accountability and the rest, so they're only set up where they're shown. */
-function WithDaily({ input, props }: { input: DailyInput; props: Parameters<typeof Tasks>[0] }) {
-  const daily = useDailyCheckins(input);
-  return <Tasks {...props} daily={daily} />;
+  // The check-ins read Cooked, Accountability and the rest, so they're only set up where they're shown.
+  return daily ? <WithDaily input={daily}>{(d) => <Tasks {...props} daily={d} />}</WithDaily> : <Tasks {...props} />;
 }

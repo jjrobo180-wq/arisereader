@@ -11,8 +11,9 @@ import { dueTodoReminders } from "../shared/todoReminders";
 import { dayChecklist } from "../shared/fitChecklist";
 import { cleanDaily, emptyDaily } from "../shared/dailySettings";
 import {
-  addWater, buildCheckins, dailyReminderPlan, logMeal, logWeight, logWorkout, markHabit, markMed, markPill, markRoutine, removeFood, shownCheckins, tickCooked, withDone,
+  addWater, buildCheckins, dailyReminderPlan, daysWords, logMeal, logWeight, logWorkout, markChore, markHabit, markMed, markPill, markRoutine, removeCustom, removeFood, saveCustom, shownCheckins, tickCooked, tickCustom, withDone,
 } from "../shared/dailyCheckins";
+import { normalizeWorkspace } from "../shared/teacherHub";
 
 const DAY = "2026-11-24";
 const ZONE = "America/Denver";
@@ -175,11 +176,68 @@ test("the list draws check-ins as rows of Today, and a to-do's details are a nat
   assert.match(looks, /section\("Today", merge\(g\.today, checksLeft\)/);
   assert.match(looks, /const done = prog\.done \+ checksDone\.length, total = prog\.total \+ \(daily \? daily\.total : 0\);/);
   const app = readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
-  assert.match(app, /daily=\{familySpace \? undefined : \{/, "LifeHub only; FamilyHub is shared, check-ins are yours");
+  // LifeHub: yours. FamilyHub: the family's (no Cooked or Accountability, which are personal), ticks saved by name.
+  assert.match(app, /on: \{ cooked: !familySpace && isOn\("cooked", family\), accountability: !familySpace && isOn\("accountability", family\)/);
+  assert.match(app, /shared: familySpace, by: familySpace \? \(user\?\.displayName \|\| ""\) : "", writeDone: !familySpace,/);
+  // WorkHub: your own, with Cooked once it's been used, kept with WorkHub.
+  const work = readFileSync("client/src/pages/TeacherHub.tsx", "utf8");
+  assert.match(work, /settings: workspace\.daily, setSettings: \(update\) => setWorkspace/);
+  assert.match(work, /cookedIfUsed: true/);
+  assert.match(work, /daily=\{daily\} \/>\}<\/WithDaily>/);
   const edit = readFileSync("client/src/components/teacher-hub/HubTaskEdit.tsx", "utf8");
   assert.match(edit, /<NativeSheet title=\{task \? "Details" : "New To-do"\}/);
   assert.doesNotMatch(edit, /HubModal/);
   const sheet = readFileSync("client/src/components/NativeSheet.tsx", "utf8");
   assert.match(sheet, /arise-sheet relative/);
   assert.match(readFileSync("client/src/index.css", "utf8"), /@keyframes arise-sheet-up/);
+});
+
+test("hand-made check-ins: add, show on their days, tick (saying who in FamilyHub), change and remove", () => {
+  let s = saveCustom(emptyDaily(), { title: "  Walk the   dog ", time: "07:15", days: [] }, "Maria", () => "walk1");
+  assert.deepEqual(s.custom, [{ id: "walk1", title: "Walk the dog", time: "07:15", days: [0, 1, 2, 3, 4, 5, 6], by: "Maria" }]);
+  s = saveCustom(s, { title: "Trash", time: "", days: [1] }, "Dad", () => "trash1"); // 2026-11-24 is a Tuesday
+  const list = buildCheckins({ date: DAY, settings: s, shared: true });
+  assert.deepEqual(list.map((c) => c.id), ["custom:walk1"], "Monday-only trash isn't on a Tuesday");
+  assert.equal(list[0].source, "family");
+  assert.match(list[0].detail, /Every day · added by Maria/);
+  s = tickCustom(s, "walk1", DAY, true, "Jordan");
+  const done = buildCheckins({ date: DAY, settings: s, shared: true })[0];
+  assert.equal(done.done, true); assert.equal(done.detail, "Done by Jordan"); assert.equal(done.by, "Jordan");
+  assert.equal(buildCheckins({ date: DAY, settings: tickCustom(s, "walk1", DAY, false) })[0].done, false);
+  s = saveCustom(s, { id: "walk1", title: "Walk Rex", time: "06:30", days: [2] });
+  assert.equal(s.custom.length, 2); assert.equal(s.custom[0].title, "Walk Rex"); assert.equal(s.custom[0].by, "Maria", "who added it stays");
+  s = removeCustom(s, "walk1");
+  assert.deepEqual(s.custom.map((x) => x.id), ["trash1"]);
+  assert.equal(s.log[DAY], undefined, "its ticks go with it");
+  assert.equal(daysWords([1, 2, 3, 4, 5]), "Weekdays"); assert.equal(daysWords([6, 0]), "Weekends"); assert.equal(daysWords([5, 1]), "Mon, Fri");
+  // Kept and cleaned with the hub's data.
+  const kept = cleanDaily({ custom: [{ id: "a b", title: "x" }, { id: "ok", title: "Feed fish", days: [9, 2], time: "7am" }], log: { [DAY]: { ok: "Sam", "bad id": "x" }, nope: {} } })!;
+  assert.deepEqual(kept.custom, [{ id: "ok", title: "Feed fish", time: "", days: [2], by: "" }]);
+  assert.deepEqual(kept.log, { [DAY]: { ok: "Sam" } });
+});
+
+test("hand-made check-ins with a time remind like the rest", () => {
+  const s = saveCustom(emptyDaily(), { title: "Stretch", time: "21:00", days: [] }, "", () => "st");
+  const fam: any = emptyFamily();
+  assert.deepEqual(dailyReminderPlan({ settings: s, cooked: false, family: fam, habits: false, routines: false }, DAY).map((r) => r.id), ["custom:st"]);
+  assert.deepEqual(dailyReminderPlan({ settings: tickCustom(s, "st", DAY, true), cooked: false, family: fam, habits: false, routines: false }, DAY), []);
+});
+
+test("chores due today are check-ins: whose turn it is, ticked from the list with the points", () => {
+  let fam: any = { ...emptyFamily(), members: [{ id: "k1", name: "Ava", emoji: "", color: "", kind: "kid" }],
+    chores: [{ id: "c1", title: "Feed the cat", memberId: "k1", rotation: [], days: [], points: 2 }, { id: "c2", title: "Mow", memberId: "k1", rotation: [], days: [6], points: 5 }] };
+  const list = buildCheckins({ date: DAY, family: fam, on: { chores: true } });
+  assert.deepEqual(list.map((c) => c.id), ["chore:c1"]);
+  assert.match(list[0].detail, /Ava's turn · 2 points/);
+  fam = markChore(fam, "c1", DAY, () => "d1");
+  const done = buildCheckins({ date: DAY, family: fam, on: { chores: true } })[0];
+  assert.equal(done.done, true); assert.match(done.detail, /Done by Ava · \+2/);
+  assert.equal(fam.choreDone[0].points, 2);
+});
+
+test("WorkHub keeps its own check-in settings with its data", () => {
+  const ws = normalizeWorkspace({ daily: { custom: [{ id: "x", title: "Inbox zero" }], off: ["cooked:water"] } });
+  assert.equal(ws.daily?.custom[0].title, "Inbox zero");
+  assert.deepEqual(ws.daily?.off, ["cooked:water"]);
+  assert.equal("daily" in normalizeWorkspace({}), false, "nothing saved until something's changed");
 });

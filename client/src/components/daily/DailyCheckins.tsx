@@ -4,15 +4,16 @@
 // calories) or snap a photo of it, log a workout, add water, weigh in, take or skip a dose, tick a routine's steps,
 // or check off what someone asked for. Nothing opens over the list, and everything is saved to the plugin.
 import { useRef, useState, type ReactNode } from "react";
-import { BellOff, Camera, Check, ChevronRight, Droplets, Dumbbell, ListChecks, Loader2, Minus, Moon, Pill, Plus, Repeat, Scale, Settings2, Timer, Users, Utensils, X } from "lucide-react";
+import { BellOff, Camera, Check, ChevronRight, CircleCheck, Droplets, Dumbbell, Home, ListChecks, Loader2, Minus, Moon, Pill, Plus, Repeat, Scale, Settings2, Timer, Trash2, Users, Utensils, X } from "lucide-react";
 import { estimateMeal, shrinkPhoto } from "@/lib/foodLookup";
 import { NativeSheet, SheetGroup, SheetRow, SheetSwitch } from "@/components/NativeSheet";
-import { SOURCE_NAMES, WORKOUT_TYPES, clock12, type Checkin, type CheckinKind, type FoodIn } from "@shared/dailyCheckins";
+import { SOURCE_NAMES, WORKOUT_TYPES, clock12, daysWords, type Checkin, type CheckinKind, type FoodIn } from "@shared/dailyCheckins";
+import type { CustomCheckin } from "@shared/dailySettings";
 import type { FoundFood } from "@shared/foodLookup";
 import type { DailyApi } from "./useDailyCheckins";
 
-const ICON: Record<CheckinKind, typeof Utensils> = { meal: Utensils, workout: Dumbbell, water: Droplets, weight: Scale, sleep: Moon, fast: Timer, med: Pill, pill: Pill, habit: Repeat, routine: ListChecks, acct: Users };
-const TINT: Record<CheckinKind, string> = { meal: "#f97316", workout: "#6e5ae0", water: "#0ea5e9", weight: "#14b8a6", sleep: "#6366f1", fast: "#f59e0b", med: "#ec4899", pill: "#ec4899", habit: "#22c55e", routine: "#0d9488", acct: "#0d9488" };
+const ICON: Record<CheckinKind, typeof Utensils> = { meal: Utensils, workout: Dumbbell, water: Droplets, weight: Scale, sleep: Moon, fast: Timer, med: Pill, pill: Pill, habit: Repeat, routine: ListChecks, acct: Users, chore: Home, custom: CircleCheck };
+const TINT: Record<CheckinKind, string> = { meal: "#f97316", workout: "#6e5ae0", water: "#0ea5e9", weight: "#14b8a6", sleep: "#6366f1", fast: "#f59e0b", med: "#ec4899", pill: "#ec4899", habit: "#22c55e", routine: "#0d9488", acct: "#0d9488", chore: "#ea580c", custom: "#6e5ae0" };
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const pill = "inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold transition active:scale-[.97] disabled:opacity-50";
 const primary = `${pill} bg-[#6e5ae0] text-white`;
@@ -67,6 +68,7 @@ function Panel({ c, d, close }: { c: Checkin; d: DailyApi; close: () => void }) 
     case "med": case "pill": return <DosePanel c={c} d={d} close={close} />;
     case "routine": return <RoutinePanel c={c} d={d} />;
     case "acct": return <AcctPanel c={c} d={d} close={close} />;
+    case "custom": return <CustomPanel c={c} d={d} close={close} />;
     default: return <div className="flex flex-wrap items-center gap-2">
       <button type="button" className={c.done ? soft : primary} onClick={() => { d.toggle(c); close(); }}>{c.done ? "Not done" : "Mark done"}</button>
       <OpenIn c={c} d={d} />
@@ -164,7 +166,7 @@ function DosePanel({ c, d, close }: { c: Checkin; d: DailyApi; close: () => void
 }
 
 function RoutinePanel({ c, d }: { c: Checkin; d: DailyApi }) {
-  const r = d.family.routines.find((x) => x.id === c.ref);
+  const r = d.family?.routines.find((x) => x.id === c.ref);
   if (!r) return null;
   const doneSteps = r.doneDate === d.date ? r.doneSteps : [];
   return <div className="space-y-1">
@@ -185,6 +187,44 @@ function AcctPanel({ c, d, close }: { c: Checkin; d: DailyApi; close: () => void
   </div>;
 }
 
+/** A hand-made check-in: tick it (in FamilyHub it says who), change it, or take it away. */
+function CustomPanel({ c, d, close }: { c: Checkin; d: DailyApi; close: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const mine = d.settings.custom.find((x) => x.id === c.ref);
+  return <div className="flex flex-wrap items-center gap-2">
+    <button type="button" className={c.done ? soft : primary} onClick={() => { d.toggle(c); close(); }}>{c.done ? "Not done" : "Mark done"}</button>
+    <button type="button" className={soft} onClick={() => setEditing(true)}>Edit</button>
+    {mine?.by && d.shared && <span className="text-[13px] text-slate-500">Added by {mine.by}</span>}
+    {editing && mine && <CustomEditor d={d} start={mine} onClose={() => setEditing(false)} />}
+  </div>;
+}
+
+/** Adding or changing a hand-made check-in: what, when, which days. */
+export function CustomEditor({ d, start, onClose }: { d: DailyApi; start?: CustomCheckin; onClose: () => void }) {
+  const [title, setTitle] = useState(start?.title ?? "");
+  const [time, setTime] = useState(start?.time ?? "");
+  const [days, setDays] = useState<number[]>(start?.days ?? [0, 1, 2, 3, 4, 5, 6]);
+  const save = () => { if (!title.trim()) return; d.saveCustom({ id: start?.id, title, time, days }); onClose(); };
+  const ideas = d.shared ? ["Walk the dog", "Feed the pets", "Take out the trash", "Kids' reading time", "Pack lunches", "Water the plants"] : ["Stretch", "Read 10 pages", "Plan tomorrow", "Inbox zero", "Call home", "Take a walk"];
+  return <NativeSheet title={start ? "Edit Check-in" : "New Check-in"} onClose={onClose} onDone={save} doneLabel={start ? "Done" : "Add"} doneDisabled={!title.trim()} testId="custom-checkin-editor">
+    <SheetGroup note={d.shared ? "Everyone in the family sees it in Tasks each day, and anyone can tick it off. It says who did." : "It shows in Tasks on the days you pick, and ticks off like a to-do."}>
+      <div className="px-4 py-3"><input data-autofocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder={d.shared ? "Walk the dog" : "Stretch"} aria-label="Check-in" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }}
+        className="block w-full bg-transparent text-[17px] font-semibold outline-none placeholder:text-slate-400" data-testid="custom-checkin-title" /></div>
+    </SheetGroup>
+    {!start && <div className="mt-3 flex flex-wrap gap-1.5 px-1">{ideas.map((x) => <button key={x} type="button" className="min-h-9 rounded-full bg-white px-3 text-[14px] font-medium text-slate-700 dark:bg-white/10 dark:text-white" onClick={() => setTitle(x)}>{x}</button>)}</div>}
+    <SheetGroup>
+      <SheetRow label="Time" sub={time ? clock12(time) : undefined} right={<SheetSwitch on={!!time} label="At a time" onChange={(on) => setTime(on ? "08:00" : "")} />}>
+        {time && <input type="time" aria-label="Time" value={time} onChange={(e) => setTime(e.target.value)} className="min-h-10 w-full rounded-[10px] bg-[#f2f2f7] px-3 text-[16px] outline-none dark:bg-white/10" />}
+      </SheetRow>
+      <SheetRow label="Days" sub={daysWords(days)}>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days">{[1, 2, 3, 4, 5, 6, 0].map((x) => { const on = days.includes(x); return <button key={x} type="button" aria-pressed={on} onClick={() => setDays(on ? (days.length > 1 ? days.filter((y) => y !== x) : days) : [...days, x])}
+          className={`h-9 w-11 rounded-full text-[14px] font-semibold ${on ? "bg-[#6e5ae0] text-white" : "bg-[#f2f2f7] text-slate-700 dark:bg-white/10 dark:text-white"}`}>{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][x]}</button>; })}</div>
+      </SheetRow>
+    </SheetGroup>
+    {start && <SheetGroup><button type="button" onClick={() => { d.removeCustom(start.id); onClose(); }} className="flex min-h-[44px] w-full items-center justify-center gap-2 text-[17px] text-[#ff3b30]"><Trash2 className="h-4 w-4" />Delete Check-in</button></SheetGroup>}
+  </NativeSheet>;
+}
+
 /* ---------------- settings ---------------- */
 
 const TIMED: CheckinKind[] = ["meal", "workout", "weight", "sleep", "habit", "routine", "water", "fast"];
@@ -199,15 +239,20 @@ export function DailySettingsSheet({ d, onClose }: { d: DailyApi; onClose: () =>
   const s = d.settings;
   const set = d.setSettings;
   const toggleIn = (key: "off" | "mute" | "extra", id: string, on: boolean) => set((x) => ({ ...x, [key]: on ? [...new Set([...x[key], id])] : x[key].filter((y) => y !== id) }));
+  const [editing, setEditing] = useState<CustomCheckin | "new" | null>(null);
   const bySource = new Map<string, Checkin[]>();
-  for (const c of d.all) { const k = SOURCE_NAMES[c.source]; bySource.set(k, [...(bySource.get(k) || []), c]); }
+  for (const c of d.all) { if (c.kind === "custom") continue; const k = SOURCE_NAMES[c.source]; bySource.set(k, [...(bySource.get(k) || []), c]); }
   return <NativeSheet title="Check-ins" onClose={onClose} cancelLabel="" doneLabel="Done" testId="daily-settings">
-    <SheetGroup note="Your plugins' daily things (meals, workouts, water, medicines, habits, routines and what someone asked you to do) sit in your task list, and tick themselves when you do them anywhere.">
+    <SheetGroup note={d.shared ? "The family's daily things (your own check-ins, chores, habits, routines and pills) sit in FamilyHub's task list for everyone. Anyone can tick one off, and it says who did." : "Your plugins' daily things (meals, workouts, water, medicines, habits, routines and what someone asked you to do) sit in your task list, and tick themselves when you do them anywhere."}>
       <SheetRow icon={<ListChecks />} color="#6e5ae0" label="Show in Tasks" right={<SheetSwitch on={s.on} label="Show check-ins in Tasks" onChange={(on) => set((x) => ({ ...x, on }))} testId="daily-on" />} />
-      <SheetRow icon={<BellOff />} color="#ff3b30" label="Remind me" sub={s.remind ? "At each check-in's time, until it's done" : undefined} right={<SheetSwitch on={s.remind} label="Remind me" onChange={(remind) => set((x) => ({ ...x, remind }))} testId="daily-remind" />} />
+      {!d.shared && <SheetRow icon={<BellOff />} color="#ff3b30" label="Remind me" sub={s.remind ? "At each check-in's time, until it's done" : undefined} right={<SheetSwitch on={s.remind} label="Remind me" onChange={(remind) => set((x) => ({ ...x, remind }))} testId="daily-remind" />} />}
     </SheetGroup>
     {s.on && <>
-      <SheetGroup caption="Add more">{EXTRAS.map((e) => <SheetRow key={e.id} label={e.label} sub={e.sub} right={<SheetSwitch on={s.extra.includes(e.id)} label={e.label} onChange={(on) => toggleIn("extra", e.id, on)} />} />)}</SheetGroup>
+      <SheetGroup caption={d.shared ? "The family's check-ins" : "Your own check-ins"} note={d.shared ? "Anyone in the family can add, change and tick these." : undefined}>
+        {s.custom.map((x) => <SheetRow key={x.id} icon={d.shared ? <Users /> : <CircleCheck />} color="#6e5ae0" label={x.title} sub={[daysWords(x.days), x.time ? clock12(x.time) : ""].filter(Boolean).join(" · ")} onClick={() => setEditing(x)} />)}
+        <SheetRow icon={<Plus />} color="#34c759" label={<span className="text-[#6e5ae0]">New Check-in</span>} onClick={() => setEditing("new")} testId="daily-add-custom" />
+      </SheetGroup>
+      {d.on.cooked && <SheetGroup caption="Add more from Cooked">{EXTRAS.map((e) => <SheetRow key={e.id} label={e.label} sub={e.sub} right={<SheetSwitch on={s.extra.includes(e.id)} label={e.label} onChange={(on) => toggleIn("extra", e.id, on)} />} />)}</SheetGroup>}
       {[...bySource.entries()].map(([source, list]) => (
         <SheetGroup key={source} caption={source}>{list.map((c) => {
           const Icon = ICON[c.kind];
@@ -220,8 +265,9 @@ export function DailySettingsSheet({ d, onClose }: { d: DailyApi; onClose: () =>
             </span>} />;
         })}</SheetGroup>
       ))}
-      {!d.all.length && <SheetGroup note="Add Cooked, Habits, Routines, Pills or Accountability from the Plugin Gallery, and their daily things show up here."><SheetRow label="Nothing to check in yet" /></SheetGroup>}
+      {!bySource.size && <SheetGroup note={d.shared ? "Chores, habits, routines and pills added to FamilyHub show up here for everyone too." : "Add Cooked, Habits, Routines, Pills, Chores or Accountability from the Plugin Gallery, and their daily things show up here."}><SheetRow label="Nothing from plugins yet" /></SheetGroup>}
     </>}
+    {editing && <CustomEditor d={d} start={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
   </NativeSheet>;
 }
 const BellIcon = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>;
@@ -233,17 +279,20 @@ export function DailySection({ d, dark = false, header }: { d: DailyApi; dark?: 
   if (!d.settings.on) return null;
   return <section className={`overflow-hidden rounded-3xl ${dark ? "bg-white/5" : "bg-white shadow-[0_1px_3px_#1d1b330f] ring-1 ring-slate-100 dark:bg-[#151325] dark:ring-white/10"}`} aria-label="Your day" data-testid="daily-section">
     <div className="flex items-center gap-2 px-4 pt-3">
-      <h3 className={`text-[13px] font-extrabold ${dark ? "text-white/60" : "text-slate-500"}`}>{header ?? "Your day"} <span className="tabular-nums">· {d.done} of {d.total}</span></h3>
+      <h3 className={`text-[13px] font-extrabold ${dark ? "text-white/60" : "text-slate-500"}`}>{header ?? (d.shared ? "The family's day" : "Your day")} <span className="tabular-nums">· {d.done} of {d.total}</span></h3>
       <DailySettingsButton d={d} open={settings} setOpen={setSettings} dark={dark} />
     </div>
     {d.items.length ? <ul>{d.items.map((c) => <CheckinRow key={c.id} c={c} d={d} open={open} setOpen={setOpen} dark={dark} />)}</ul>
-      : <p className={`px-4 pb-4 pt-2 text-[14px] ${dark ? "text-white/60" : "text-slate-500"}`}>Nothing to check in today.</p>}
+      : <p className={`px-4 pb-4 pt-2 text-[14px] ${dark ? "text-white/60" : "text-slate-500"}`}>{d.shared ? "Add the family's daily things (walk the dog, pack lunches) and anyone can tick them off." : "Nothing to check in today. Add one with Add."}</p>}
   </section>;
 }
 
 export function DailySettingsButton({ d, open, setOpen, dark = false }: { d: DailyApi; open: boolean; setOpen: (o: boolean) => void; dark?: boolean }) {
+  const [adding, setAdding] = useState(false);
   return <>
-    <button type="button" onClick={() => setOpen(true)} className={`ml-auto inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold ${dark ? "text-white/70 hover:bg-white/10" : "text-[#5b47d6] hover:bg-[#f4f2ff]"}`} data-testid="daily-settings-open"><Settings2 className="h-4 w-4" />Check-ins</button>
+    <button type="button" onClick={() => setAdding(true)} aria-label="Add a check-in" className={`ml-auto inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold ${dark ? "text-white/70 hover:bg-white/10" : "text-[#5b47d6] hover:bg-[#f4f2ff]"}`} data-testid="daily-add"><Plus className="h-4 w-4" />Add</button>
+    {adding && <CustomEditor d={d} onClose={() => setAdding(false)} />}
+    <button type="button" onClick={() => setOpen(true)} className={`inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold ${dark ? "text-white/70 hover:bg-white/10" : "text-[#5b47d6] hover:bg-[#f4f2ff]"}`} data-testid="daily-settings-open"><Settings2 className="h-4 w-4" />Check-ins</button>
     {open && <DailySettingsSheet d={d} onClose={() => setOpen(false)} />}
   </>;
 }

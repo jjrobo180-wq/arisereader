@@ -10,15 +10,15 @@
 
 import type { FitData, FoodEntry, Meal as FitMeal } from "./fit";
 import { dosesOn as medDosesOn, markDose as markMedDose } from "./fitMeds";
-import type { Family } from "./familyHub";
+import { choreDueOn, choreOwner, toggleChore, type Family } from "./familyHub";
 import { dosesOn as pillDosesOn, markDose as markPillDose } from "./pills";
 import type { AcctTask, Checkin as AcctCheckin } from "./accountability";
 import { checkinFor, dueOn, isDone } from "./accountability";
-import { emptyDaily, type DailySettings } from "./dailySettings";
+import { emptyDaily, type CustomCheckin, type DailySettings } from "./dailySettings";
 
-export type CheckinKind = "meal" | "workout" | "water" | "weight" | "sleep" | "fast" | "med" | "pill" | "habit" | "routine" | "acct";
-export type CheckinSource = "cooked" | "habits" | "routines" | "pills" | "accountability";
-export const SOURCE_NAMES: Record<CheckinSource, string> = { cooked: "Cooked", habits: "Habits", routines: "Routines", pills: "Pills", accountability: "Accountability" };
+export type CheckinKind = "meal" | "workout" | "water" | "weight" | "sleep" | "fast" | "med" | "pill" | "habit" | "routine" | "acct" | "chore" | "custom";
+export type CheckinSource = "cooked" | "habits" | "routines" | "pills" | "accountability" | "chores" | "mine" | "family";
+export const SOURCE_NAMES: Record<CheckinSource, string> = { cooked: "Cooked", habits: "Habits", routines: "Routines", pills: "Pills", accountability: "Accountability", chores: "Chores", mine: "Check-in", family: "Family" };
 
 export type Checkin = {
   id: string;
@@ -41,6 +41,8 @@ export type Checkin = {
   slot?: string;
   /** Accountability: can be checked off right here (no photo, worksheet or quiz needed). */
   quick?: boolean;
+  /** Who did it (a FamilyHub check-in or chore), when known. */
+  by?: string;
   /** Where it's tracked in full: a LifeHub section and, for Cooked, the Cooked app inside it. */
   open: { section: string; app?: string; acctTask?: string };
   /** Hidden in settings: kept so the settings screen can list it. */
@@ -56,9 +58,11 @@ export type CheckinInput = {
   /** Cooked's data, when Cooked is added. */
   fit?: FitData | null;
   /** LifeHub's data: habits, routines and pills are read when their plugins are on (`on`). */
-  family?: Pick<Family, "habits" | "routines" | "pills" | "pillDoses" | "members" | "notify"> | null;
-  on?: Partial<Record<"habits" | "routines" | "pills", boolean>>;
+  family?: (Pick<Family, "habits" | "routines" | "pills" | "pillDoses" | "members" | "notify"> & Partial<Pick<Family, "chores" | "choreDone">>) | null;
+  on?: Partial<Record<"habits" | "routines" | "pills" | "chores", boolean>>;
   acct?: AcctInput | null;
+  /** FamilyHub: the check-ins are the family's, shared by everyone in it. */
+  shared?: boolean;
 };
 
 const MEALS: { meal: FitMeal; title: string; notify: "breakfast" | "lunch" | "dinner" | "snacks"; extra?: boolean }[] = [
@@ -179,6 +183,31 @@ export function buildCheckins(input: CheckinInput): Checkin[] {
     }
   }
 
+  if (fam && input.on?.chores && fam.chores) {
+    const nameOf = (id: string) => fam.members.find((m) => m.id === id)?.name || "";
+    for (const ch of fam.chores) {
+      if (!choreDueOn(ch, date)) continue;
+      const id = `chore:${ch.id}`;
+      const doneRow = (fam.choreDone ?? []).find((x) => x.choreId === ch.id && x.date === date);
+      const owner = nameOf(doneRow?.memberId || choreOwner(ch, date));
+      push({ id, kind: "chore", source: "chores", title: ch.title, ref: ch.id, time: s.times[id] || "",
+        detail: doneRow ? `Done${owner ? ` by ${owner}` : ""}${ch.points ? ` · +${ch.points}` : ""}` : [owner ? `${owner}'s turn` : "", ch.points ? `${ch.points} points` : ""].filter(Boolean).join(" · ") || "Chore",
+        done: !!doneRow, byHand: false, by: doneRow ? owner : undefined, open: { section: "chores" } });
+    }
+  }
+
+  // Check-ins made by hand: in FamilyHub, the family's, ticked by anyone (and it says who).
+  const today = dow(date);
+  for (const c of s.custom) {
+    if (!c.days.includes(today)) continue;
+    const id = `custom:${c.id}`;
+    const ticked = s.log[date]?.[c.id];
+    const done = ticked !== undefined;
+    push({ id, kind: "custom", source: input.shared ? "family" : "mine", title: c.title, ref: c.id, time: c.time,
+      detail: done ? (ticked ? `Done by ${ticked}` : "Done") : [daysWords(c.days), input.shared && c.by ? `added by ${c.by}` : ""].filter(Boolean).join(" · "),
+      done, byHand: false, by: ticked || undefined, open: { section: "tasks" } });
+  }
+
   const acct = input.acct;
   if (acct) {
     for (const t of acct.tasks) {
@@ -267,6 +296,45 @@ export function markRoutine<F extends Pick<Family, "routines">>(f: F, routineId:
 /** A pill dose taken, skipped or cleared. */
 export const markPill = <F extends Pick<Family, "pills" | "pillDoses">>(f: F, c: Checkin, date: string, status: "taken" | "skipped" | null, at: string): F => markPillDose(f, c.ref!, date, c.slot!, status, at);
 
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** "Every day", "Weekdays", "Weekends", or the days. */
+export function daysWords(days: number[]): string {
+  const d = [...days].sort().join(",");
+  return d === "0,1,2,3,4,5,6" ? "Every day" : d === "1,2,3,4,5" ? "Weekdays" : d === "0,6" ? "Weekends" : [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((x) => DAY_SHORT[x]).join(", ");
+}
+
+/** A chore done or undone for today (its owner gets the points, as on the Chores screen). */
+export const markChore = (f: Family, choreId: string, date: string, makeId: () => string = uidNow): Family => {
+  const ch = f.chores.find((x) => x.id === choreId);
+  return ch ? toggleChore(f, ch, date, makeId) : f;
+};
+
+/** A hand-made check-in ticked (by someone, in FamilyHub) or unticked for a day. Old days are let go after 60. */
+export function tickCustom(s: DailySettings, customId: string, date: string, on: boolean, by = ""): DailySettings {
+  const row = { ...(s.log[date] ?? {}) };
+  if (on) row[customId] = by.slice(0, 60); else delete row[customId];
+  const log = { ...s.log, [date]: row };
+  if (!Object.keys(row).length) delete log[date];
+  const keep = Object.keys(log).sort().slice(-60);
+  return { ...s, log: Object.fromEntries(keep.map((k) => [k, log[k]])) };
+}
+/** Adds a hand-made check-in (or changes one, when `id` is one already there). */
+export function saveCustom(s: DailySettings, c: { id?: string; title: string; time: string; days: number[] }, by = "", makeId: () => string = uidNow): DailySettings {
+  const title = c.title.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!title) return s;
+  const days = c.days.length ? [...new Set(c.days)].sort() : [0, 1, 2, 3, 4, 5, 6];
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(c.time) ? c.time : "";
+  if (c.id && s.custom.some((x) => x.id === c.id)) return { ...s, custom: s.custom.map((x) => (x.id === c.id ? { ...x, title, time, days } : x)) };
+  const made: CustomCheckin = { id: makeId().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40) || uidNow(), title, time, days, by: by.slice(0, 60) };
+  return { ...s, custom: [...s.custom, made].slice(0, 60) };
+}
+/** Removes a hand-made check-in (and its ticks). */
+export function removeCustom(s: DailySettings, id: string): DailySettings {
+  const log: Record<string, Record<string, string>> = {};
+  for (const [day, row] of Object.entries(s.log)) { const { [id]: _gone, ...rest } = row; if (Object.keys(rest).length) log[day] = rest; }
+  return { ...s, custom: s.custom.filter((x) => x.id !== id), log, off: s.off.filter((x) => x !== `custom:${id}`), mute: s.mute.filter((x) => x !== `custom:${id}`) };
+}
+
 /* ---------------- reminders (shared/todoReminders.ts sends them; the phone writes `done`) ---------------- */
 
 /** Today's done list to keep in the settings, so reminders skip what's already done. Unchanged when nothing changed. */
@@ -300,6 +368,7 @@ export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boo
     if (s.extra.includes("cooked:sleep") || s.times["cooked:sleep"]) add({ id: "cooked:sleep", title: "How did you sleep?", body: "Log last night's sleep.", time: s.times["cooked:sleep"] || DEFAULT_TIMES.sleep, section: "tasks" });
   }
   if (input.habits) for (const h of input.family.habits) if (s.times[`habit:${h.id}`] && !h.days.includes(date)) add({ id: `habit:${h.id}`, title: h.name, body: "Tick it off when it's done.", time: s.times[`habit:${h.id}`], section: "tasks" });
+  for (const c of s.custom) if (c.time && c.days.includes(dow(date)) && s.log[date]?.[c.id] === undefined) add({ id: `custom:${c.id}`, title: c.title, body: "Tick it off in your list when it's done.", time: c.time, section: "tasks" });
   if (input.routines) for (const r of input.family.routines) if (s.times[`routine:${r.id}`] && r.doneDate !== date) add({ id: `routine:${r.id}`, title: r.name, body: r.steps.length ? `${r.steps.length} steps. Tap to start.` : "Tap to start.", time: s.times[`routine:${r.id}`], section: "tasks" });
   return out.sort((a, b) => a.time.localeCompare(b.time));
 }

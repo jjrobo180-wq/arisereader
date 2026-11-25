@@ -4,6 +4,7 @@
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
 // JSON object per teacher (server/teacherHub.ts).
 
+import { cleanDaily } from "./dailySettings";
 import { cleanIepDrafts } from "./iepWriter";
 import { cleanLock } from "./privacyLock";
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
@@ -316,6 +317,8 @@ export type Workspace = {
   extraCalendars?: import("./familyHub").FamilyCalendar[];
   /** The Work calendar and linked calendars switched off on the Calendar screen (shared/hubSwap.ts). */
   hiddenCalendars?: string[];
+  /** Daily check-ins in Tasks (shared/dailyCheckins.ts): what's shown, times, hand-made ones. Not set until changed. */
+  daily?: import("./dailySettings").DailySettings;
 };
 export type TaskList = { id: string; name: string; color: string };
 
@@ -366,6 +369,7 @@ export function normalizeWorkspace(raw: any): Workspace {
     ...base,
     ...raw,
     lock: cleanLock(raw.lock),
+    daily: cleanDaily(raw.daily),
     profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}), accent: cleanAccent(raw.profile?.accent) || undefined },
     // Workspaces saved before the App Store had WorkHub screens had every tab written as `true`
     // by the old default, which would read as "already added" and leave nothing to add. Those are
@@ -412,6 +416,7 @@ export function normalizeWorkspace(raw: any): Workspace {
   if (optional) out.minuteOptionalDays = optional; else delete out.minuteOptionalDays;
   // Phone reminder choices (shared/hubNotify.ts). Not set means the defaults.
   if (raw.notify && typeof raw.notify === "object") out.notify = cleanHubNotify(raw.notify); else delete out.notify;
+  if (!out.daily) delete out.daily;
   return out as Workspace;
 }
 

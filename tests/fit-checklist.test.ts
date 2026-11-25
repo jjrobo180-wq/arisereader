@@ -115,6 +115,6 @@ test("the checklist sits on Today in every layout (in To Duo it's on the Tasks s
   assert.equal((app.match(/\{logFood\}\{goalsHere\}/g) || []).length, 6);
   assert.match(app, /const goalsHere = !duo && dayCard;/);
   // Cooked's goals are rows of LifeHub's task list now, as daily check-ins (shared/dailyCheckins.ts, Nov 24, 2026).
-  assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /daily=\{familySpace \? undefined : \{/);
+  assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /on: \{ cooked: !familySpace && isOn\("cooked", family\)/);
   assert.match(app, /import FitChecklist from "\.\/FitChecklist"/);
 });
