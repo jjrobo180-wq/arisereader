@@ -1,7 +1,7 @@
 // The Top Reader Challenge on screen: the board, the card for the leaderboards, the library banner and the
 // sign-in pop-up that announces it. The rules are in shared/topReader.ts. Plain on purpose: one dark
 // surface, one gold accent for the prize, each fact said once, and numbers that line up.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { introSeen, markIntroSeen, useTopReader } from "@/lib/topReader";
@@ -13,8 +13,12 @@ const over = (v: View) => v.challenge.phase === "over";
 /** "a $5 gift card or snacks": the prize without the list of snacks. */
 const prizeShort = (v: View) => v.challenge.prize.split(" (")[0];
 
-const GOLD = "#ffc93c";
-const SURFACE = "bg-[#16141f]";
+// Each challenge's own look (shared/topReader.ts, ChallengeLook): set as CSS variables on the outer box.
+const GOLD = "var(--tr-accent, #ffc93c)";
+const SURFACE = "bg-[var(--tr-bg,#16141f)]";
+/** The look's colours, for the outer box's style. */
+export const lookVars = (v: { challenge: { look?: { accent: string; background: string } } | null }) =>
+  (v.challenge?.look ? { "--tr-accent": v.challenge.look.accent, "--tr-bg": v.challenge.look.background } : {}) as CSSProperties;
 
 /** "You're in 3rd place with 80 points.", "tied for 3rd", or how to get on the board. */
 export function myPlaceText(v: View, child?: string): string {
@@ -30,6 +34,7 @@ export function myPlaceText(v: View, child?: string): string {
 
 /** The headline: what you can win, or who won. */
 function headline(v: View): string {
+  if (v.challenge.look?.headline && !over(v)) return v.challenge.look.headline;
   if (!over(v)) return `Read the most, win ${prizeShort(v)}.`;
   const won = topReaderWinners(v.standings, v.challenge.winners);
   return won.length ? `${won.map((w) => w.name).join(" and ")} won.` : "No one scored this time.";
@@ -96,7 +101,7 @@ export function TopReaderCard({ view, child, limit }: { view: TopReaderView; /**
   const v = view as View;
   const mine = myPlaceText(v, child);
   return (
-    <section className={`space-y-4 rounded-2xl border border-white/10 ${SURFACE} p-5 text-white`} data-testid="top-reader-card">
+    <section className={`space-y-4 rounded-2xl border border-white/10 ${SURFACE} p-5 text-white`} style={lookVars(v)} data-testid="top-reader-card">
       <div className="space-y-1"><p className="text-[13px] font-semibold" style={{ color: GOLD }}>{kicker(v)}</p><h2 className="text-2xl font-bold leading-tight tracking-tight">{headline(v)}</h2></div>
       <Facts v={v} />
       {mine && <p className="text-[15px] text-white/80" data-testid="top-reader-mine">{mine}</p>}
@@ -113,7 +118,7 @@ export function TopReaderBanner({ onOpen }: { onOpen: () => void }) {
   if (!raw || !raw.challenge) return null;
   const v = raw as View;
   return (
-    <button type="button" onClick={onOpen} data-testid="top-reader-banner"
+    <button type="button" onClick={onOpen} data-testid="top-reader-banner" style={lookVars(v)}
       className={`mb-4 grid w-full gap-4 rounded-2xl border border-white/10 ${SURFACE} p-4 text-left text-white transition hover:border-white/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:grid-cols-[1fr_minmax(0,17rem)]`}>
       <span className="min-w-0 space-y-1">
         <span className="block text-[13px] font-semibold" style={{ color: GOLD }}>{kicker(v)}</span>
@@ -147,7 +152,7 @@ export function TopReaderPopup({ onNavigate, fallback }: { onNavigate: (path: st
   const mine = myPlaceText(v);
   return (
     <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/75 p-3 sm:p-4" onClick={close} data-testid="top-reader-popup">
-      <div role="dialog" aria-modal="true" aria-labelledby="top-reader-title" className={`flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 ${SURFACE} text-white shadow-2xl`} onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="top-reader-title" className={`flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 ${SURFACE} text-white shadow-2xl`} style={lookVars(v)} onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4 overflow-y-auto p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">

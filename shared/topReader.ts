@@ -20,7 +20,63 @@ export type TopReaderChallenge = {
   /** How many students win. */
   winners: number;
   prize: string;
+  /** Made in the admin (Nov 25, 2026): the schools it runs at (empty = every school), whether it's on, and how it
+   *  looks. The built-in Conservatory Green challenge has none of these and runs at the schools with advisories. */
+  schoolIds?: number[];
+  on?: boolean;
+  look?: ChallengeLook;
 };
+
+/** How a challenge looks: the accent (prize places, headings, the button), the card's background and an optional
+ *  headline in place of the usual one. Kept to colours that read well on a dark card. */
+export type ChallengeLook = { accent: string; background: string; headline?: string };
+export const DEFAULT_LOOK: ChallengeLook = { accent: "#ffc93c", background: "#16141f" };
+export const LOOK_PRESETS: { name: string; look: ChallengeLook }[] = [
+  { name: "Gold", look: { accent: "#ffc93c", background: "#16141f" } },
+  { name: "Ocean", look: { accent: "#38bdf8", background: "#0b1726" } },
+  { name: "Forest", look: { accent: "#4ade80", background: "#0d1a13" } },
+  { name: "Berry", look: { accent: "#f472b6", background: "#1c0f1a" } },
+  { name: "Violet", look: { accent: "#a78bfa", background: "#15112a" } },
+  { name: "Ember", look: { accent: "#fb923c", background: "#1d120b" } },
+];
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const HEX = /^#[0-9a-f]{6}$/i;
+const text = (v: unknown, max: number, fallback = "") => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "") || fallback;
+
+/** The admin's challenges, cleaned: real dates in order, 1 to 50 winners, colours as hex. */
+export function cleanChallenges(raw: unknown): TopReaderChallenge[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TopReaderChallenge[] = [];
+  for (const r of raw.slice(0, 50)) {
+    if (!r || typeof r !== "object") continue;
+    const x = r as Record<string, any>;
+    if (!DAY.test(x.starts) || !DAY.test(x.lastDay) || x.lastDay < x.starts) continue;
+    const prizeDay = DAY.test(x.prizeDay) && x.prizeDay >= x.lastDay ? x.prizeDay : nextDay(x.lastDay);
+    const showUntil = DAY.test(x.showUntil) && x.showUntil >= x.lastDay ? x.showUntil : prizeDay;
+    const look = x.look && typeof x.look === "object" ? x.look : {};
+    out.push({
+      id: text(x.id, 60, `challenge-${out.length + 1}`).replace(/[^a-z0-9-]/gi, "-").toLowerCase(),
+      title: text(x.title, 60, "Reading Challenge"), starts: x.starts, lastDay: x.lastDay, prizeDay, showUntil,
+      winners: Math.min(50, Math.max(1, Math.round(Number(x.winners) || 1))),
+      prize: text(x.prize, 140, "a prize"),
+      schoolIds: [...new Set((Array.isArray(x.schoolIds) ? x.schoolIds : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0))] as number[],
+      on: x.on !== false,
+      look: { accent: HEX.test(look.accent) ? look.accent : DEFAULT_LOOK.accent, background: HEX.test(look.background) ? look.background : DEFAULT_LOOK.background, ...(text(look.headline, 90) ? { headline: text(look.headline, 90) } : {}) },
+    });
+  }
+  return out;
+}
+
+/** The challenge a school sees now: a running one first, then the next to start, then one just over (winners
+ *  still showing); the earliest to end wins a tie. `list` is the admin's challenges (the built-in one when none). */
+export function pickChallenge(list: TopReaderChallenge[], schoolId: number, now = Date.now()): TopReaderChallenge | null {
+  const rank: Record<TopReaderPhase, number> = { live: 0, soon: 1, over: 2, done: 9 };
+  const here = list.filter((c) => c.on !== false && (!c.schoolIds?.length || c.schoolIds.includes(schoolId)))
+    .map((c) => ({ c, r: rank[topReaderPhase(c, now)] })).filter((x) => x.r < 9)
+    .sort((a, b) => a.r - b.r || a.c.lastDay.localeCompare(b.c.lastDay));
+  return here[0]?.c ?? null;
+}
 
 /** Conservatory Green Middle School, Monday Nov 23 to Monday Nov 30, 2026. */
 export const CGMS_TOP_READER_NOV_2026: TopReaderChallenge = {

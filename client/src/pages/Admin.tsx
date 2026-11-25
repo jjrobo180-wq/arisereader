@@ -1,4 +1,6 @@
 import AdminRewards from "@/components/rewards/AdminRewards";
+import AdminChallenges from "@/components/admin/AdminChallenges";
+import AdminParentMessages from "@/components/admin/AdminParentMessages";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import QuizCheckPanel, { needsBookCheck } from "@/components/QuizCheckPanel";
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
@@ -3741,6 +3743,12 @@ Generate exactly 10 questions.`;
         <h1 className="text-xl font-black sm:text-2xl">Schools & plans</h1>
         <p className="mt-1 text-sm text-muted-foreground">Schools, classes and Premium plans.</p>
       </div>
+      <AdminSection id="reading-challenges" icon={Trophy} tone="amber" title="Reading challenges" description="Make a challenge, choose its look and see its leaderboard.">
+        <AdminChallenges token={token} />
+      </AdminSection>
+      <AdminSection id="message-parents" icon={Mail} tone="violet" title="Message parents" description="Pick who gets it, let the AI write it, check it, then send.">
+        <AdminParentMessages token={token} />
+      </AdminSection>
       <AdminSection id="reward-store" icon={Gift} tone="violet" title="Reader Reward Store">
         <AdminRewards token={token} />
       </AdminSection>

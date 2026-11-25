@@ -46,6 +46,8 @@ import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teache
 import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
 import { initials, isPrizeSchool, seesFullNames } from "../shared/prizeSchool";
+import { READER_CHALLENGES_KEY, readReaderChallenges, registerReaderChallengeAdmin } from "./readerChallenges";
+import { registerParentMessages } from "./parentMessages";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
@@ -1488,7 +1490,32 @@ export async function registerRoutes(
       const kids = await Promise.all(ids.map((id) => storage.getUser(id)));
       return kids.filter((k: any) => k && k.role === "student" && !k.archivedAt).map((k: any) => ({ id: Number(k.id), schoolId: k.schoolId ?? k.school_id ?? null }));
     },
+    challenges: readReaderChallenges,
   });
+  // Emails to parents from the admin (server/parentMessages.ts).
+  registerParentMessages(app, {
+    auth: authMiddleware, admin: adminMiddleware,
+    async parents() {
+      const [rows, links] = await Promise.all([
+        pagedRows((a, b) => supabase.from("users").select("id, username, display_name, email, school_id, role, archived_at").eq("role", "parent").is("archived_at", null).order("id", { ascending: true }).range(a, b)),
+        readParentStudentLinks(),
+      ]);
+      const parents = rows.filter((r: any) => String(r.email || "").includes("@") && !isSampleAccount(r));
+      const kidIds = [...new Set(parents.flatMap((p: any) => normalizeLinkedIds(links[String(p.id)])))];
+      const kids = kidIds.length ? (await supabase.from("users").select("id, display_name, username, school_id, archived_at").in("id", kidIds)).data || [] : [];
+      const kidOf = new Map(kids.filter((k: any) => !k.archived_at).map((k: any) => [Number(k.id), k]));
+      return parents.map((p: any) => {
+        const mine = normalizeLinkedIds(links[String(p.id)]).map((id) => kidOf.get(id)).filter(Boolean) as any[];
+        const schoolIds = [...new Set([p.school_id, ...mine.map((k) => k.school_id)].filter((x) => x).map(Number))];
+        return { id: Number(p.id), name: String(p.display_name || p.username || "").trim(), email: String(p.email).trim(), schoolIds, kids: mine.map((k) => String(k.display_name || k.username || "").trim()).filter(Boolean) };
+      });
+    },
+    schools: classTeacherStore.allSchools,
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html, { fromName: "Arise Reader" }),
+    readLog: () => storage.getSetting("parent_message_log"),
+    saveLog: (json) => storage.upsertSetting("parent_message_log", json),
+  });
+  registerReaderChallengeAdmin(app, { auth: authMiddleware, admin: adminMiddleware, read: readReaderChallenges, save: (list) => storage.upsertSetting(READER_CHALLENGES_KEY, JSON.stringify(list)), allSchools: classTeacherStore.allSchools });
   // The Top Reader Challenge board (server/topReader.ts): students race one by one for the most points.
   registerTopReaderRoutes(app, {
     auth: authMiddleware,

@@ -2,7 +2,7 @@
 // parent) their own place. The rules (dates, counting, ranking) are in shared/topReader.ts.
 import type { Express } from "express";
 import {
-  isFirstDay, rankRacers, topReaderDaysLeft, topReaderForSchool, topReaderPhase, topReaderWindow, type RacerRow, type TopReaderView,
+  isFirstDay, pickChallenge, rankRacers, topReaderDaysLeft, topReaderForSchool, topReaderPhase, topReaderWindow, type RacerRow, type TopReaderChallenge, type TopReaderView,
 } from "../shared/topReader";
 import { initials } from "../shared/prizeSchool";
 
@@ -18,6 +18,8 @@ export type TopReaderDeps = {
   statsBetween(ids: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, { points: number; quizzesPassed: number }>>;
   /** A parent's children (current ones), with each child's school. */
   parentChildren?(parentId: number): Promise<Array<{ id: number; schoolId: number | null }>>;
+  /** The challenges made in the admin (Nov 25, 2026); null when none have been saved (the built-in one runs). */
+  challenges?(): Promise<TopReaderChallenge[] | null>;
   now?: () => number;
 };
 
@@ -36,11 +38,16 @@ export function registerTopReaderRoutes(app: Express, deps: TopReaderDeps) {
       let school = user.school_id ? await deps.getSchool(Number(user.school_id)) : null;
       if (user.isAdmin && req.query.schoolId) school = await deps.getSchool(Number(req.query.schoolId));
       if (!school && isParent) { const k = kids.find((c) => c.schoolId); if (k) school = await deps.getSchool(Number(k.schoolId)); }
-      if (!school && user.isAdmin) school = (await deps.allSchools()).find((s) => topReaderForSchool(s.name)) || null;
-      const challenge = school ? topReaderForSchool(school.name) : null;
+      const stored = deps.challenges ? await deps.challenges() : null;
+      const forSchool = (sc: { id: number; name: string }) => (stored ? pickChallenge(stored, sc.id, now) : topReaderForSchool(sc.name));
+      // The admin can preview any challenge (?challenge=id), at its first school (or ?schoolId).
+      const preview = user.isAdmin && stored && req.query.challenge ? stored.find((c) => c.id === String(req.query.challenge)) ?? null : null;
+      if (preview && !school) school = preview.schoolIds?.length ? await deps.getSchool(preview.schoolIds[0]) : (await deps.allSchools())[0] ?? null;
+      if (!school && user.isAdmin) school = (await deps.allSchools()).find((s) => forSchool(s)) || null;
+      const challenge = preview ?? (school ? forSchool(school) : null);
       if (!school || !challenge) return res.json(EMPTY);
       const phase = topReaderPhase(challenge, now);
-      if (phase === "done") return res.json(EMPTY);
+      if (phase === "done" && !preview) return res.json(EMPTY);
 
       const w = topReaderWindow(challenge);
       const [students, grades] = await Promise.all([deps.schoolStudents(school.id), deps.grades()]);
