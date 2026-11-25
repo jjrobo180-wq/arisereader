@@ -4,6 +4,7 @@ import type { Express } from "express";
 import {
   isFirstDay, rankRacers, topReaderDaysLeft, topReaderForSchool, topReaderPhase, topReaderWindow, type RacerRow, type TopReaderView,
 } from "../shared/topReader";
+import { initials } from "../shared/prizeSchool";
 
 export type TopReaderDeps = {
   auth: (req: any, res: any, next: any) => void;
@@ -51,7 +52,8 @@ export function registerTopReaderRoutes(app: Express, deps: TopReaderDeps) {
       const staff = !isStudent && !isParent;
       const me = isStudent ? Number(user.id) : isParent ? (kids.find((k) => students.some((s) => s.id === k.id))?.id ?? null) : null;
       // Only the viewer's own row carries its id, so the page can mark "you" without listing everyone's ids.
-      const row = (r: (typeof ranked)[number]): RacerRow => ({ rank: r.rank, name: r.name, grade: r.grade, points: r.points, passed: r.passed, ...(r.id === me || staff ? { id: r.id } : {}) });
+      // Students and parents see everyone but themselves (or their child) by initials, for safety.
+      const row = (r: (typeof ranked)[number]): RacerRow => ({ rank: r.rank, name: staff || r.id === me || kids.some((k) => k.id === r.id) ? r.name : initials(r.name), grade: r.grade, points: r.points, passed: r.passed, ...(r.id === me || staff ? { id: r.id } : {}) });
       let standings = (staff ? ranked : ranked.slice(0, BOARD_SIZE)).map(row);
       const mineRow = me != null ? ranked.find((r) => r.id === me) : undefined;
       if (mineRow && !standings.some((s) => s.id === me)) standings = [...standings, row(mineRow)];

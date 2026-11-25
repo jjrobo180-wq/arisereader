@@ -45,6 +45,7 @@ import { checkSchoolEmail } from "../shared/schoolEmail";
 import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherWelcomeEmail, todoEmailCodeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
 import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
+import { initials, isPrizeSchool, seesFullNames } from "../shared/prizeSchool";
 import { registerBoardQuestRoutes } from "./boardQuest";
 import { registerPaintballArenaRoutes } from "./paintballArena";
 import { registerRacingRoutes, supabaseSaveStore } from "./racing";
@@ -5958,6 +5959,26 @@ export async function registerRoutes(
     const schools = await storage.getAllSchools();
     const schoolMap = new Map(schools.map((s: any) => [s.id, s.name]));
 
+    // Safety (Nov 25, 2026): everyone but the admin sees only their own school's readers (independent readers see
+    // other independent readers), and students and parents see everyone but themselves and their own children by
+    // initials (shared/prizeSchool.ts).
+    const schoolOf = (u: any) => Number(u?.school_id || u?.schoolId || 0) || 0;
+    const mineIds = new Set<number>();
+    let viewerSchools: Set<number> | null = null;
+    if (!req.user.isAdmin || req.adminPreview) {
+      if (req.user.role === "parent") {
+        const kids = await getParentStudentIds(Number(req.user.id)).catch(() => [] as number[]);
+        for (const k of kids) mineIds.add(Number(k));
+        viewerSchools = new Set(kids.map((k) => schoolOf(userMap.get(Number(k)))));
+      } else {
+        mineIds.add(Number(req.user.id));
+        viewerSchools = new Set([schoolOf(req.user)]);
+      }
+      const only = viewerSchools;
+      leaderboard = leaderboard.filter((entry: any) => only.has(schoolOf(userMap.get(entry.userId || entry.id))));
+    }
+    const fullNames = seesFullNames(req.user) && !req.adminPreview;
+
     // Determine the effective band for filtering
     let effectiveBand: string | null = null;
 
@@ -6007,9 +6028,15 @@ export async function registerRoutes(
       const isEyeGazeUser = user?.is_eye_gaze_user || user?.isEyeGazeUser || false;
       // usernames are sign-in names: only the admin sees them
       const { username: _username, ...shown } = entry;
+      const named = fullNames || mineIds.has(Number(uid)) ? {} : {
+        displayName: initials(entry.displayName || entry.display_name || entry.name),
+        ...(entry.name !== undefined ? { name: initials(entry.name || entry.displayName) } : {}),
+        ...(entry.display_name !== undefined ? { display_name: initials(entry.display_name) } : {}),
+      };
       return {
         rank: idx + 1,
         ...(req.user?.isAdmin && !req.adminPreview ? entry : shown),
+        ...named,
         schoolName,
         isEyeGazeUser,
         grade,
@@ -6018,6 +6045,24 @@ export async function registerRoutes(
     });
 
     res.json(enriched);
+  });
+
+  // Whether this account's readers can win Arise Reader's prizes (only Conservatory Green Middle School's students;
+  // a parent if any of their children go there; a teacher at that school; the admin). shared/prizeSchool.ts.
+  app.get("/api/prizes/eligible", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.isAdmin && !req.adminPreview) return res.json({ eligible: true });
+      const schools = await storage.getAllSchools();
+      const nameOf = (id: any) => String(schools.find((s: any) => Number(s.id) === Number(id))?.name || "");
+      let ids: any[] = [req.user.school_id ?? req.user.schoolId];
+      if (req.user.role === "parent") {
+        const kids = await getParentStudentIds(Number(req.user.id)).catch(() => [] as number[]);
+        ids = (await Promise.all(kids.map((k) => storage.getUser(k)))).filter((k: any) => k && !k.archivedAt).map((k: any) => k.school_id ?? k.schoolId);
+      }
+      res.json({ eligible: ids.some((id) => id && isPrizeSchool(nameOf(id))) });
+    } catch {
+      res.json({ eligible: false });
+    }
   });
 
   // Advisory leaderboard (grouped by teacher)

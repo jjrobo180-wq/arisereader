@@ -31,6 +31,7 @@ import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 import "./readerCoast.css";
 import CoastScene from "@/components/reader/CoastScene";
+import { usePrizeEligible } from "@/lib/prizeEligible";
 
 type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 /** Admin menu items that leave the Reader (or jump into a setting) rather than show a console section. */
@@ -191,7 +192,6 @@ const HUB_BANNER = {
 const PARENT_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "reader", label: "Overview", icon: Home },
   { id: "children", label: "My children", icon: Users },
-  { id: "beginners", label: "Beginners (K–3)", icon: Sun },
   { id: "prizes", label: "Prizes to win", icon: Gift },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { id: "whatsnew", label: "What's new", icon: Megaphone },
@@ -202,6 +202,9 @@ type Counts = { students: number; joining: number; gradeChanges: number; books: 
 export default function TeacherReader({ tab, setTab, workhubHref }: { tab: ReaderTab; setTab: (t: ReaderTab) => void; workhubHref: string }) {
   const { user, token, logout } = useAuth();
   const isParent = user?.role === "parent";
+  // Prizes are only for Conservatory Green Middle School (shared/prizeSchool.ts): other families never see them.
+  const prizes = usePrizeEligible(isParent ? token : null);
+  const parentMenu = PARENT_MENU.filter((m) => m.id !== "prizes" || prizes);
   const hub = HUB_BANNER[isParent ? "life" : "work"];
   // Something may ask for a screen that isn't one of the Reader's own tabs (old #/admin links ask for the admin console).
   const [view, setView] = useState<View>(() => {
@@ -368,8 +371,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "#b9e4de" }}>{hub.line}</p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5" data-testid="reader-learning-apps">
-            <span className="sr-only">Also on your account:</span>
-            {LEARNING.map(({ href, label, Icon, color }) => (
+            {/* Arise Math, History and Connect aren't offered to parents (Nov 25, 2026). */}
+            {!isParent && <span className="sr-only">Also on your account:</span>}
+            {!isParent && LEARNING.map(({ href, label, Icon, color }) => (
               <a key={href} href={href} target="_blank" rel="noopener" title={label} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold text-white hover:bg-white/5" style={{ borderColor: "#2c6f69" }}>
                 <Icon className="h-3.5 w-3.5" style={{ color }} />{label}
               </a>
@@ -385,7 +389,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
       {/* Phone: the menu is a rail down the left with a Hide button (computers get the sidebar below). */}
       {rail ? (
         <nav id="reader-phone-rail" aria-label="Reader menu" className="fixed bottom-0 left-0 top-[calc(64px+var(--sat,0px))] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
-          {[...(isParent ? PARENT_MENU : MENU), ...(user.isAdmin ? [null, ...ADMIN_MENU] : [])].map((m) => {
+          {[...(isParent ? parentMenu : MENU), ...(user.isAdmin ? [null, ...ADMIN_MENU] : [])].map((m) => {
             if (!m) return <p key="admin-label" className="mt-2 border-t px-1 pb-0.5 pt-2 text-center text-[9px] font-extrabold uppercase tracking-wider" style={{ borderColor: dim, color: "#a29fb8" }}>Admin</p>;
             const on = view === m.id;
             const n = badge(m.id);
@@ -412,7 +416,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
       <div className={`flex flex-wrap items-start gap-5 px-6 pb-8 pt-5 ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
         <nav aria-label="Reader menu" className="hidden max-w-[260px] flex-[1_1_220px] flex-col gap-1 rounded-[18px] border p-2.5 lg:flex" style={{ background: "#151326", borderColor: dim }}>
-          {(isParent ? PARENT_MENU : MENU).map((m) => {
+          {(isParent ? parentMenu : MENU).map((m) => {
             const on = view === m.id;
             const n = badge(m.id);
             return (
@@ -444,7 +448,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </nav>
 
         <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
-          {isParent && view === "reader" && <ParentOverview name={user.displayName} token={token} challenge={challenge} go={go} />}
+          {isParent && view === "reader" && <ParentOverview name={user.displayName} token={token} challenge={challenge} go={go} prizes={prizes} />}
 
           {isParent && view === "children" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">My children</h1>
@@ -500,12 +504,12 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             )}
           </>}
 
-          {isParent && view === "prizes" && <>
+          {isParent && prizes && view === "prizes" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">Prizes to win</h1>
             <PrizesCard onStandings={() => go("leaderboard")} />
           </>}
 
-          {isParent && view === "leaderboard" && <ParentLeaderboards token={token} challenge={challenge} topReader={topReader} />}
+          {isParent && view === "leaderboard" && <ParentLeaderboards token={token} challenge={challenge} topReader={topReader} prizes={prizes} />}
 
           {!isParent && view === "leaderboard" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">Leaderboard</h1>
@@ -580,7 +584,7 @@ function PrizesCard({ onStandings }: { onStandings?: () => void }) {
 type Board = Array<{ id?: number; userId?: number; displayName: string; totalPoints: number }>;
 
 /** Every leaderboard running now, in plain words for a parent, with their own children marked. */
-function ParentLeaderboards({ token, challenge, topReader }: { token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge>; topReader?: ReturnType<typeof useTopReader> }) {
+function ParentLeaderboards({ token, challenge, topReader, prizes }: { token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge>; topReader?: ReturnType<typeof useTopReader>; prizes: boolean }) {
   const [month, setMonth] = useState<Board | null>(null);
   const [year, setYear] = useState<Board | null>(null);
   const [kids, setKids] = useState<number[]>([]);
@@ -617,7 +621,7 @@ function ParentLeaderboards({ token, challenge, topReader }: { token: string | n
   const card = "rounded-[18px] border p-4 sm:p-5";
   return <>
     <h1 className="text-[30px] font-black tracking-[-0.02em]">Leaderboards</h1>
-    <p className="-mt-2 text-[15px]" style={{ color: "#c9c5dc" }}>Every race going on right now. Points come from passing reading quizzes.</p>
+    <p className="-mt-2 text-[15px]" style={{ color: "#c9c5dc" }}>Readers at your child’s school. Points come from passing reading quizzes. Other children show by initials.</p>
     {topReader?.challenge && <TopReaderCard view={topReader} child={topReader.mine?.name} />}
     {challenge?.challenge && (
       <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
@@ -627,13 +631,13 @@ function ParentLeaderboards({ token, challenge, topReader }: { token: string | n
       </section>
     )}
     <section className={card} style={{ background: "#151326", borderColor: "rgba(255,255,255,0.08)" }}>
-      <h2 className="text-lg font-extrabold">{monthName}’s top readers · prize: DoorDash food</h2>
+      <h2 className="text-lg font-extrabold">{monthName}’s top readers{prizes ? " · prize: DoorDash food" : ""}</h2>
       <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>Points from this month only. It starts over on the 1st.</p>
       {list(month, "No points yet this month.")}
     </section>
     <section className={card} style={{ background: "#151326", borderColor: "rgba(255,255,255,0.08)" }}>
-      <h2 className="text-lg font-extrabold">School year top readers · prize: AirPods</h2>
-      <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>All points this school year. The top reader at the end of the year wins.</p>
+      <h2 className="text-lg font-extrabold">School year top readers{prizes ? " · prize: AirPods" : ""}</h2>
+      <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>{prizes ? "All points this school year. The top reader at the end of the year wins." : "All points this school year."}</p>
       {list(year, "No points yet.")}
     </section>
   </>;
@@ -643,7 +647,7 @@ type Kid = { id: number; displayName: string; points: number; passed: number; mo
 
 /** A parent's Overview, in the same format as a teacher's: greeting, four counts, a list of what
  *  to look at, and the Advisory Challenge. The full child view is under "My children". */
-function ParentOverview({ name, token, challenge, go }: { name: string; token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge>; go: (v: View) => void }) {
+function ParentOverview({ name, token, challenge, go, prizes }: { name: string; token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge>; go: (v: View) => void; prizes: boolean }) {
   const [kids, setKids] = useState<Kid[] | null>(null);
   useEffect(() => {
     if (!token) return;
@@ -693,10 +697,10 @@ function ParentOverview({ name, token, challenge, go }: { name: string; token: s
           <button type="button" onClick={() => openChild(k.id)} className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>Open</button>
         </div>
       ))}
-      <div className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+      {prizes && <div className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
         <span className="text-[15px]">See what your reader can win</span>
         <button type="button" onClick={() => go("prizes")} className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>Open</button>
-      </div>
+      </div>}
     </section>
     {challenge?.challenge && (
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border px-5 py-[18px]" style={{ background: "#1f1418", borderColor: "#5a2a20" }} data-testid="parent-challenge-card">

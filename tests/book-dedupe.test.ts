@@ -35,7 +35,8 @@ test("students never get the install pop-ups", () => {
 test("a parent back from checkout lands in LifeHub, not the sign-in page", () => {
   const app = read("../client/src/App.tsx");
   assert.match(app, /user\.role === "parent" \? <OpenHubTab to="\/lifehub" storageKey="lifehub_tab" value="reader" \/>/);
-  assert.match(read("../client/src/components/family-hub/Reader.tsx"), /<HubAddons which="life" returnPath="\/lifehub" \/>/);
+  // The learning bundle isn't offered to parents any more (Nov 25, 2026); the anchor stays for old links.
+  assert.match(read("../client/src/components/family-hub/Reader.tsx"), /<div id="parent-plans" className="scroll-mt-4" \/>/);
 });
 
 test("merge plan keeps the copy students used, else the one with questions", async () => {

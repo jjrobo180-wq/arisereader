@@ -102,7 +102,8 @@ test("a student sees the top 10, their own place, and no one else's id; points c
   assert.equal(body.racers, 13);
   assert.equal(BOARD_SIZE, 10);
   assert.equal(body.standings.length, 11); // the top 10 and then their own row
-  assert.deepEqual(body.standings[0], { rank: 1, name: "Student 00", grade: "6", points: 200, passed: 1 });
+  // Everyone but the viewer shows by initials (shared/prizeSchool.ts).
+  assert.deepEqual(body.standings[0], { rank: 1, name: "S. 0.", grade: "6", points: 200, passed: 1 });
   assert.deepEqual(body.standings[10], { rank: 13, name: "Student 13", grade: "8", points: 1, passed: 1, id: 113 });
   assert.equal(body.standings.filter((s: any) => s.id != null).length, 1);
   assert.deepEqual(body.mine, { name: "Student 13", rank: 13, points: 1, passed: 1 });
@@ -130,7 +131,7 @@ test("other schools get nothing, and nothing shows once the winners have been up
   assert.equal((await fakeApp("2026-12-05T08:00:00Z").get({ id: 113, role: "student", school_id: 4 })).body.challenge, null);
   const over = (await fakeApp("2026-12-01T16:00:00Z").get({ id: 113, role: "student", school_id: 4 })).body;
   assert.equal(over.challenge.phase, "over");
-  assert.deepEqual(topReaderWinners(over.standings, 2).map((s: any) => s.name), ["Student 00", "Student 01"]);
+  assert.deepEqual(topReaderWinners(over.standings, 2).map((s: any) => s.name), ["S. 0.", "S. 0."]);
 });
 
 test("students see it at sign-in, in the library and on the leaderboards; teachers and parents in the Reader", () => {

@@ -240,7 +240,7 @@ test("a student's profile, messages and certificates open as pop-ups; the hub op
 test("parents see the prizes, every leaderboard, and their child's school's challenge; banners are slim", () => {
   const reader = read("client/src/pages/TeacherReader.tsx");
   for (const prize of ["Pizza party", "DoorDash food", "AirPods"]) assert.ok(reader.includes(`title: "${prize}"`), prize);
-  assert.match(reader, /\{isParent && view === "leaderboard" && <ParentLeaderboards token=\{token\} challenge=\{challenge\} topReader=\{topReader\} \/>\}/);
+  assert.match(reader, /\{isParent && view === "leaderboard" && <ParentLeaderboards token=\{token\} challenge=\{challenge\} topReader=\{topReader\} prizes=\{prizes\} \/>\}/);
   assert.match(reader, /\/api\/leaderboard\?month=\$\{ym\}/);
   assert.match(reader, /\{ id: "whatsnew", label: "What's new", icon: Megaphone \}/);
   assert.match(reader, /<WhatsNew embedded \/>/);

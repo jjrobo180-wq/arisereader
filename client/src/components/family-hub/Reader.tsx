@@ -12,7 +12,6 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
-import HubAddons from "@/components/hub-pieces/HubAddons";
 import { ParentBehaviorCard } from "@/components/ClassBehaviorCards";
 import HubPlayTime from "@/components/hub-pieces/HubPlayTime";
 import HubCameraQuizzes from "@/components/hub-pieces/HubCameraQuizzes";
@@ -244,7 +243,8 @@ export default function Reader({ say, night = false }: { say: (message: string) 
           </div>}
         </>}
 
-      <div id="parent-plans" className="scroll-mt-4"><Panel eyebrow="Add-ons" title="Arise Math, History and Social"><HubAddons which="life" returnPath="/lifehub" /></Panel></div>
+      {/* Arise Math, History and Connect aren't offered to parents any more (Nov 25, 2026); the anchor stays for old links. */}
+      <div id="parent-plans" className="scroll-mt-4" />
     </>}
 
     {adding && <AddChild get={get} onClose={() => setAdding(false)} onAdded={async () => { setAdding(false); say("Child connected"); await loadFamily(); }} />}

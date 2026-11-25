@@ -88,7 +88,7 @@ test("the teacher's Reader account is rebuilt from WorkHub parts, with every old
   const parent = read("client/src/components/family-hub/Reader.tsx");
   assert.match(parent, /from "\.\/ui"/);
   for (const api of ["/api/parent/students", "/api/parent/student-profile", "/api/parent/student-controls/", "/api/parent/link-code", "/api/parent/proctor-password", "/api/family/growth-check/student/"]) assert.ok(parent.includes(api), api);
-  for (const piece of ["HubCameraQuizzes", "HubPlayTime", "HubPrizeManager", "HubPrizeBoard", "HubAddons", "generateCertificate", "saveFamilySettings"]) assert.ok(parent.includes(piece), piece);
+  for (const piece of ["HubCameraQuizzes", "HubPlayTime", "HubPrizeManager", "HubPrizeBoard", "generateCertificate", "saveFamilySettings"]) assert.ok(parent.includes(piece), piece);
 });
 
 test("inside the hubs, every Reader piece is the hub-built one (no site pieces dropped in)", () => {
