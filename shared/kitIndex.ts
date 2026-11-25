@@ -70,6 +70,8 @@ export const KIT_WORK_INDEX: readonly string[] = [
   "visual-supports", "aac-tips", "iep-goal-frames", "parent-email-starters", "conference-questions",
   "teacher-self-care", "teacher-productivity", "free-rewards", "indoor-recess", "sponge-activities",
   "bell-ringers", "debate-topics", "question-stems", "study-skills", "student-reflection", "link-page",
+  // Industry tools (shared/pluginKitWork4.ts)
+  "biz-clients", "biz-leads", "biz-expenses", "biz-sales", "biz-inventory", "biz-vendors", "biz-team", "biz-tax-dates", "acct-billable", "acct-returns", "acct-docs", "cr-content", "cr-deals", "cr-collabs", "cr-hashtags", "pt-clients", "pt-sessions", "pt-classes", "re-listings", "re-buyers", "re-showings", "hc-shifts", "hc-ce", "hc-certs", "tr-jobs", "tr-estimates", "tr-materials", "tr-tools", "biz-mileage", "sa-clients", "sa-services", "fs-temps", "fs-orders", "fr-projects", "fr-pitches", "fr-portfolio", "np-donors", "np-events", "lg-matters", "js-applications", "biz-revenue-day", "biz-launch", "biz-month-end", "biz-growth-ideas", "acct-tax-season", "acct-new-client", "cr-followers", "cr-posts-day", "cr-hooks", "cr-content-ideas", "cr-post-checklist", "pt-intake", "pt-workout-ideas", "re-closing", "re-open-house", "hc-shift-start", "hc-self-care", "tr-site-safety", "sa-tips", "fs-opening", "fs-closing", "sa-calls", "sa-objections", "js-interview-questions",
 ];
 const HUB = new Map<string, "life" | "work">([...KIT_LIFE_INDEX.map((id) => [id, "life"] as const), ...KIT_WORK_INDEX.map((id) => [id, "work"] as const)]);
 /** The kit app's hub, or undefined when it isn't a kit app. */

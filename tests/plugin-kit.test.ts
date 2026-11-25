@@ -8,12 +8,12 @@ import { PLUGINS, PLUGIN_CATEGORIES, isAddable, setWorkKit, workInstalled } from
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("402 kit plugins: 241 LifeHub sections and 161 WorkHub tools, all well-formed", () => {
-  assert.equal(KIT_DEFS.length, 402);
-  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 402);
+test("466 kit plugins: 241 LifeHub sections and 225 WorkHub tools, all well-formed", () => {
+  assert.equal(KIT_DEFS.length, 466);
+  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 466);
   const life = KIT_DEFS.filter((d) => d.hub === "life"), work = KIT_DEFS.filter((d) => d.hub === "work");
   assert.equal(life.length, 241);
-  assert.equal(work.length, 161);
+  assert.equal(work.length, 225);
   assert.deepEqual([...KIT_LIFE_IDS].sort(), life.map((d) => d.id).sort());
   for (const d of KIT_DEFS) {
     assert.ok(PLUGIN_CATEGORIES[d.hub].includes(d.category), `${d.id}: ${d.category}`);
@@ -41,8 +41,8 @@ test("LifeHub kit plugins are sections that start off; WorkHub ones are added to
     assert.ok(PLUGINS.some((p) => p.target.kind === "section" && p.target.section === id), `${id} in the store`);
   }
   const work = PLUGINS.filter((p) => p.target.kind === "kit");
-  // 161 WorkHub kit tools, less the Makeup tests list (replaced by its own plugin, work-makeups).
-  assert.equal(work.length, 160);
+  // 225 WorkHub kit tools (64 industry tools added Nov 25, 2026), less the Makeup tests list (replaced by its own plugin, work-makeups).
+  assert.equal(work.length, 224);
   const p = work[0];
   assert.ok(isAddable(p));
   assert.equal(workInstalled(p, {}, []), false);

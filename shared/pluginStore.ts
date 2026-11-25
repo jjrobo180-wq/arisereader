@@ -78,6 +78,8 @@ export type Plugin = {
    *  "Recommended for Arise LifeHub" rather than hiding it. What can't cross is structural: a
    *  WorkHub tab or a LifeHub section is a screen the other hub doesn't have, so those stay put. */
   recommendedFor?: PluginHub;
+  /** A bundle for one kind of job (Nov 25, 2026): shown first, under "Bundles by job". */
+  industry?: boolean;
   /** Only teachers (and admins) see it. */
   teacherOnly?: boolean;
   /** For a connection: how to set it up, shown in the store before it sends you anywhere. */
@@ -106,7 +108,7 @@ export type Plugin = {
 
 const PRO_CATEGORIES = Object.values(PRO_GROUPS).map((g) => g.category);
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
-  work: ["Premium", ...PRO_CATEGORIES, "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps", "For teachers"],
+  work: ["Premium", ...PRO_CATEGORIES, "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps", "For teachers", "Business", "Creators & media", "Pros & services", "Trades & field", "Health care"],
   life: ["Premium", "Super apps", ...PRO_CATEGORIES, "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
@@ -1102,6 +1104,52 @@ export const HUB_TEMPLATES: readonly HubTemplate[] = [
   { id: "work-pack-office", hub: "work", name: "Office & meetings", tagline: "Docs, sheets, agendas, minutes and boards", icon: "Briefcase", color: "#334155",
     description: "For the office side of work, added together: Docs and Sheets, meeting agendas and minutes, Kanban boards, a time tracker, a priority matrix and Find a Time.",
     plugins: ["work-office-doc", "work-office-sheet", "work-ai-meeting-agenda", "work-ai-meeting-summary", "work-pro-kanban", "work-pro-time-tracker", "work-pro-matrix", "work-pro-find-time"] },
+  // Bundles by job (Nov 25, 2026): everything one kind of work needs, added in one tap.
+  { id: "work-job-teaching", hub: "work", industry: true, name: "Teaching", tagline: "Lessons, grades, attendance and families", icon: "GraduationCap", color: "#6e5ae0",
+    description: "The classroom, added together: lessons, the gradebook, attendance, behavior and hall passes, the Student wall and parents, email, sub plans, lesson ideas, a student picker, a group maker and Arise Notes for meetings.",
+    plugins: ["work-lessons", "work-gradebook", "work-attendance", "work-behavior", "work-passes", "work-wall", "work-parents", "work-email", "work-kit-sub-plans", "work-kit-lesson-ideas", "work-kit-student-picker", "work-kit-group-maker", "work-arise-notes"] },
+  { id: "work-job-business", hub: "work", industry: true, name: "Business owner", tagline: "Customers, sales, money and your team", icon: "Store", color: "#2563eb",
+    description: "Running a small business, added together: clients and a leads pipeline, sales and expenses, stock, vendors, your team, tax deadlines, month-end close, invoices, a task board, Docs and Sheets and growth ideas.",
+    plugins: ["work-kit-biz-clients", "work-kit-biz-leads", "work-kit-biz-sales", "work-kit-biz-expenses", "work-kit-biz-inventory", "work-kit-biz-vendors", "work-kit-biz-team", "work-kit-biz-tax-dates", "work-kit-biz-month-end", "work-kit-biz-revenue-day", "work-kit-biz-growth-ideas", "work-kit-biz-launch", "work-pro-invoice", "work-pro-kanban", "work-office-sheet", "work-office-doc"] },
+  { id: "work-job-accounting", hub: "work", industry: true, name: "Accounting & bookkeeping", tagline: "Clients, returns, hours and deadlines", icon: "Calculator", color: "#0369a1",
+    description: "For accountants and bookkeepers, added together: clients, billable hours, a tax return tracker, documents still needed, tax season prep, new client onboarding, filing deadlines, month-end close, mileage, invoices, a time tracker and Sheets.",
+    plugins: ["work-kit-biz-clients", "work-kit-acct-billable", "work-kit-acct-returns", "work-kit-acct-docs", "work-kit-acct-tax-season", "work-kit-acct-new-client", "work-kit-biz-tax-dates", "work-kit-biz-month-end", "work-kit-biz-mileage", "work-pro-invoice", "work-pro-time-tracker", "work-office-sheet", "work-ai-email-rewrite"] },
+  { id: "work-job-creator", hub: "work", industry: true, name: "Social media creator", tagline: "Content calendar, brand deals and growth", icon: "Video", color: "#db2777",
+    description: "For creators and influencers, added together: a content calendar, brand deals, collabs, hashtag sets, follower and posting logs, hook and content ideas, a before-you-post checklist, expenses, invoices for sponsors and an idea generator.",
+    plugins: ["work-kit-cr-content", "work-kit-cr-deals", "work-kit-cr-collabs", "work-kit-cr-hashtags", "work-kit-cr-followers", "work-kit-cr-posts-day", "work-kit-cr-hooks", "work-kit-cr-content-ideas", "work-kit-cr-post-checklist", "work-kit-biz-expenses", "work-pro-invoice", "work-ai-brainstorm"] },
+  { id: "work-job-trainer", hub: "work", industry: true, name: "Personal trainer & coach", tagline: "Clients, sessions, classes and intake", icon: "Dumbbell", color: "#ea580c",
+    description: "For personal trainers and fitness coaches, added together: training clients, a session log, a class schedule, new client intake, workout finishers, sales and expenses, invoices, Find a Time and growth ideas.",
+    plugins: ["work-kit-pt-clients", "work-kit-pt-sessions", "work-kit-pt-classes", "work-kit-pt-intake", "work-kit-pt-workout-ideas", "work-kit-biz-sales", "work-kit-biz-expenses", "work-pro-invoice", "work-pro-find-time", "work-kit-biz-growth-ideas"] },
+  { id: "work-job-realestate", hub: "work", industry: true, name: "Real estate", tagline: "Listings, buyers, showings and closings", icon: "Home", color: "#0d9488",
+    description: "For agents, added together: listings, buyers, showings, contract-to-close and open house checklists, a leads pipeline, mileage, expenses, Find a Time and Docs.",
+    plugins: ["work-kit-re-listings", "work-kit-re-buyers", "work-kit-re-showings", "work-kit-re-closing", "work-kit-re-open-house", "work-kit-biz-leads", "work-kit-biz-mileage", "work-kit-biz-expenses", "work-pro-find-time", "work-office-doc"] },
+  { id: "work-job-healthcare", hub: "work", industry: true, name: "Health care", tagline: "Shifts, CE credits and licenses", icon: "Stethoscope", color: "#0284c7",
+    description: "For nurses and health care workers, added together: a shift log, CE credits, licenses and certifications with renewal dates, a start-of-shift routine, care for the carer, hours worked and Focus.",
+    plugins: ["work-kit-hc-shifts", "work-kit-hc-ce", "work-kit-hc-certs", "work-kit-hc-shift-start", "work-kit-hc-self-care", "work-kit-hours-worked", "work-focus"] },
+  { id: "work-job-trades", hub: "work", industry: true, name: "Trades & contractors", tagline: "Jobs, estimates, materials and safety", icon: "Hammer", color: "#b45309",
+    description: "For contractors and the trades, added together: jobs, estimates and bids, a materials list, tool inventory, mileage, a job site safety check, clients, vendors, expenses and invoices.",
+    plugins: ["work-kit-tr-jobs", "work-kit-tr-estimates", "work-kit-tr-materials", "work-kit-tr-tools", "work-kit-biz-mileage", "work-kit-tr-site-safety", "work-kit-biz-clients", "work-kit-biz-vendors", "work-kit-biz-expenses", "work-pro-invoice"] },
+  { id: "work-job-salon", hub: "work", industry: true, name: "Salon & barber", tagline: "Clients, services, tips and stock", icon: "Scissors", color: "#c026d3",
+    description: "For stylists and barbers, added together: salon clients with formulas, your service menu, tips, products in stock, sales, expenses, a content calendar for your page and Find a Time.",
+    plugins: ["work-kit-sa-clients", "work-kit-sa-services", "work-kit-sa-tips", "work-kit-biz-inventory", "work-kit-biz-sales", "work-kit-biz-expenses", "work-kit-cr-content", "work-pro-find-time"] },
+  { id: "work-job-restaurant", hub: "work", industry: true, name: "Restaurant & food service", tagline: "Opening, closing, temps and orders", icon: "Utensils", color: "#ea580c",
+    description: "For restaurants, cafés and food trucks, added together: opening and closing checklists, a temperature log, supplier orders, stock, your team roster, sales, vendors and daily revenue.",
+    plugins: ["work-kit-fs-opening", "work-kit-fs-closing", "work-kit-fs-temps", "work-kit-fs-orders", "work-kit-biz-inventory", "work-kit-biz-team", "work-kit-biz-sales", "work-kit-biz-vendors", "work-kit-biz-revenue-day"] },
+  { id: "work-job-sales", hub: "work", industry: true, name: "Sales", tagline: "Pipeline, calls, follow-ups and objections", icon: "TrendingUp", color: "#16a34a",
+    description: "For sales roles, added together: a leads pipeline, calls made, objection handling, clients, mileage, an email rewriter, meeting summaries and Find a Time.",
+    plugins: ["work-kit-biz-leads", "work-kit-sa-calls", "work-kit-sa-objections", "work-kit-biz-clients", "work-kit-biz-mileage", "work-ai-email-rewrite", "work-ai-meeting-summary", "work-pro-find-time"] },
+  { id: "work-job-freelance", hub: "work", industry: true, name: "Freelancer & creative", tagline: "Projects, pitches, hours and invoices", icon: "Palette", color: "#6d28d9",
+    description: "For freelancers, designers, writers and photographers, added together: projects, pitches, portfolio pieces, clients, billable hours, a time tracker, invoices, expenses and tax deadlines.",
+    plugins: ["work-kit-fr-projects", "work-kit-fr-pitches", "work-kit-fr-portfolio", "work-kit-biz-clients", "work-kit-acct-billable", "work-pro-time-tracker", "work-pro-invoice", "work-kit-biz-expenses", "work-kit-biz-tax-dates"] },
+  { id: "work-job-nonprofit", hub: "work", industry: true, name: "Nonprofit & ministry", tagline: "Donors, events, grants and fundraisers", icon: "HandHeart", color: "#e11d48",
+    description: "For nonprofits and ministries, added together: donors, events, grants, fundraisers, a newsletter writer, Docs and Arise Notes for meetings.",
+    plugins: ["work-kit-np-donors", "work-kit-np-events", "work-kit-grants", "work-kit-fundraisers", "work-ai-newsletter", "work-office-doc", "work-arise-notes"] },
+  { id: "work-job-legal", hub: "work", industry: true, name: "Legal", tagline: "Matters, deadlines and billable hours", icon: "Scale", color: "#334155",
+    description: "For lawyers and paralegals, added together: matters with their next deadline, billable hours, clients, a time tracker, invoices, Docs and meeting summaries.",
+    plugins: ["work-kit-lg-matters", "work-kit-acct-billable", "work-kit-biz-clients", "work-pro-time-tracker", "work-pro-invoice", "work-office-doc", "work-ai-meeting-summary"] },
+  { id: "work-job-jobseeker", hub: "work", industry: true, name: "Job seeker", tagline: "Applications, interviews and your resume", icon: "BriefcaseBusiness", color: "#0ea5e9",
+    description: "Finding the next job, added together: job applications, interview practice, a resume bullet writer, a cover letter writer, Docs and Find a Time.",
+    plugins: ["work-kit-js-applications", "work-kit-js-interview-questions", "work-ai-resume-bullets", "work-ai-cover-letter", "work-office-doc", "work-pro-find-time"] },
   // LifeHub
   { id: "life-pack-family", hub: "life", name: "Family", tagline: "Chores, behavior, trips and who's driving", icon: "Users", color: "#6e5ae0",
     description: "Everything for running a family, added together: chores, behavior, family polls, trips, accountability, important contacts, carpool, school contacts, the kids' teachers, family dinners, dinner table questions and chore ideas by age.",
@@ -1137,7 +1185,8 @@ export const HUB_TEMPLATES: readonly HubTemplate[] = [
 
 /** The packs this person sees in a hub. */
 export function packsFor(hub: PluginHub, opts: { teacher: boolean }): HubTemplate[] {
-  return HUB_TEMPLATES.filter((t) => t.hub === hub && (!t.teacherOnly || opts.teacher));
+  const all = HUB_TEMPLATES.filter((t) => t.hub === hub && (!t.teacherOnly || opts.teacher));
+  return [...all.filter((t) => t.industry), ...all.filter((t) => !t.industry)];
 }
 
 /** A template's plugins, resolved and in this hub (missing or wrong-hub ids are quietly skipped). */

@@ -583,16 +583,23 @@ export default function PluginStore({ hub, teacher, teacherApps, arise, isInstal
             {spotlightCard(spotlight)}
           </section>}
 
-          {view === "templates" && <section aria-live="polite">
-            <h2 className={`mb-1 ${heading}`}>Plugin packs</h2>
-            <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Everything for one job in a single tap. Open a pack to see what's in it, then add them all. Remove any you don't need afterward.</p>
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
+          {view === "templates" && <section aria-live="polite" className="space-y-8">
+            {templates.some((t) => t.industry) && <div data-testid="plugin-bundles-by-job">
+              <h2 className={`mb-1 ${heading}`}>Bundles by job</h2>
+              <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Pick your line of work and add everything it needs in one tap. Remove any you don't need afterward.</p>
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.filter((t) => t.industry).map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
+            </div>}
+            {templates.some((t) => !t.industry) && <div>
+              <h2 className={`mb-1 ${heading}`}>Plugin packs</h2>
+              <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Everything for one part of life or work in a single tap. Open a pack to see what's in it, then add them all.</p>
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.filter((t) => !t.industry).map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
+            </div>}
           </section>}
 
           {/* Packs first: the quickest way to set a hub up. */}
           {view === "discover" && browsing && tier === "all" && templates.length > 0 && <section aria-labelledby="ps-packs" data-testid="plugin-packs-row">
             <div className="mb-3 flex items-end justify-between gap-3">
-              <div><h2 id="ps-packs" className={heading}>Plugin packs</h2><p className="mt-0.5 text-sm text-[var(--s-sub)]">Everything for one job, added in one tap.</p></div>
+              <div><h2 id="ps-packs" className={heading}>Bundles & packs</h2><p className="mt-0.5 text-sm text-[var(--s-sub)]">Everything for your job, added in one tap.</p></div>
               <button type="button" onClick={() => { setView("templates"); setCategory(null); }} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold text-[var(--s-accent-text)] ${ring}`} data-testid="plugin-packs-all">See all {templates.length}</button>
             </div>
             <ul className="-mx-5 flex snap-x gap-3 overflow-x-auto overscroll-x-contain px-5 pb-1 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden">{templates.map((t) => <li key={t.id} className="w-[18rem] shrink-0 snap-start">{templateCard(t)}</li>)}</ul>

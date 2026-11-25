@@ -31,6 +31,7 @@ import { KIT_LIFE_DEFS_2, KIT_LIFE_IDS_2 } from "./pluginKitLife2";
 import { KIT_LIFE_DEFS_3, KIT_LIFE_IDS_3 } from "./pluginKitLife3";
 import { KIT_WORK_DEFS_2 } from "./pluginKitWork2";
 import { KIT_WORK_DEFS_3 } from "./pluginKitWork3";
+import { KIT_WORK_DEFS_4 } from "./pluginKitWork4";
 
 const f = (key: string, label: string, type: KitField["type"] = "text", extra: Partial<KitField> = {}): KitField => ({ key, label, type, ...extra });
 const cards = (...lines: string[]) => lines.map((t) => ({ t }));
@@ -254,7 +255,7 @@ const KIT_DEFS_1: readonly KitDef[] = [
 ];
 
 /** Every kit plugin: the first 100, then 180 more for LifeHub and 120 more for WorkHub. */
-export const KIT_DEFS: readonly KitDef[] = [...KIT_DEFS_1, ...KIT_LIFE_DEFS_2, ...KIT_LIFE_DEFS_3, ...KIT_WORK_DEFS_2, ...KIT_WORK_DEFS_3];
+export const KIT_DEFS: readonly KitDef[] = [...KIT_DEFS_1, ...KIT_LIFE_DEFS_2, ...KIT_LIFE_DEFS_3, ...KIT_WORK_DEFS_2, ...KIT_WORK_DEFS_3, ...KIT_WORK_DEFS_4];
 const KIT_BY_ID = new Map(KIT_DEFS.map((d) => [d.id, d]));
 
 /** WorkHub kit plugins, by id. */

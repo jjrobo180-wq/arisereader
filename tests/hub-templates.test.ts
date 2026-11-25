@@ -12,15 +12,18 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 
 test("WorkHub and LifeHub each have their packs, with unique ids, and Teacher essentials is first for teachers", () => {
   assert.equal(new Set(HUB_TEMPLATES.map((t) => t.id)).size, HUB_TEMPLATES.length, "no two packs share an id");
-  const work = packsFor("work", { teacher: true }).map((t) => t.name);
-  assert.equal(work[0], "Teacher essentials");
+  const workPacks = packsFor("work", { teacher: true });
+  const work = workPacks.map((t) => t.name);
+  // Bundles by job come first (Nov 25, 2026), then Teacher essentials leads the other packs.
+  assert.equal(workPacks.filter((t) => !t.industry)[0].name, "Teacher essentials");
+  assert.ok(workPacks.findIndex((t) => !t.industry) === workPacks.filter((t) => t.industry).length, "bundles by job first");
   for (const n of ["Working with families", "Special education", "Classroom management", "Planning & prep", "Teacher wellness", "Office & meetings"]) assert.ok(work.includes(n), n);
   const life = packsFor("life", { teacher: false }).map((t) => t.name);
   for (const n of ["Family", "Couples", "Health & wellness", "Baby & toddler", "Kids & school", "Money", "Home", "Get organized", "Family fun", "Student"]) assert.ok(life.includes(n), n);
 });
 
 test("teacher packs are only shown to teachers", () => {
-  const notTeacher = packsFor("work", { teacher: false }).map((t) => t.name);
+  const notTeacher = packsFor("work", { teacher: false }).filter((t) => !t.industry).map((t) => t.name);
   assert.deepEqual(notTeacher, ["Office & meetings"]);
 });
 
@@ -67,4 +70,12 @@ test("the gallery shows Packs first, adds a pack one plugin at a time, and stops
   assert.match(store, /onToggle\(todo\[i\], true\);[\s\S]*?if \(installedNow\.current\(todo\[i\]\)\) step\(i \+ 1\);[\s\S]*?else finish\(\);/, "each add waits for the last to land, and a refused add stops the rest");
   assert.match(store, /data-testid=\{`template-\$\{t\.id\}`\}/, "each pack is its own card");
   assert.match(store, /data-testid="template-detail"/, "each pack has a page listing its plugins");
+});
+
+test("bundles by job: one tap for each line of work, everyone sees them", () => {
+  const jobs = packsFor("work", { teacher: false }).filter((t) => t.industry).map((t) => t.name);
+  for (const n of ["Teaching", "Business owner", "Accounting & bookkeeping", "Social media creator", "Personal trainer & coach", "Real estate", "Health care", "Trades & contractors", "Salon & barber", "Restaurant & food service", "Sales", "Freelancer & creative", "Nonprofit & ministry", "Legal", "Job seeker"])
+    assert.ok(jobs.includes(n), n);
+  const store = read("client/src/components/plugin-store/PluginStore.tsx");
+  assert.match(store, /data-testid="plugin-bundles-by-job"/);
 });
