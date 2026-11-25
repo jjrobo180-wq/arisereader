@@ -6,11 +6,11 @@ import { readFileSync } from "node:fs";
 
 test("Reader app menus leave out Study Squad, Beginners, Math, History and Connect", () => {
   const lib = readFileSync("client/src/pages/Library.tsx", "utf8");
-  for (const [needle, name] of [['navigate("/study")', "Study Squad"], ['navigate("/beginners")', "Beginners"], ['href="/math/"', "Math"], ['href="/history/"', "History"], ['href="/social/" className="rounded-xl', "Connect tile"], ['href="/social/" className="block', "Connect link"]] as const) {
-    const at = lib.indexOf(needle); assert.ok(at > 0, name);
-    assert.match(lib.slice(Math.max(0, at - 160), at), /!isReaderApp\(\)/, `${name} is hidden in the Reader app`);
-  }
-  assert.match(lib, /!isReaderApp\(\) && <BeginnersBanner/);
+  const at = lib.indexOf('navigate("/study")'); assert.ok(at > 0, "Study Squad");
+  assert.match(lib.slice(Math.max(0, at - 160), at), /!isReaderApp\(\)/, "Study Squad is hidden in the Reader app");
+  // Beginners, Math, History and Connect are gone for everyone (Nov 25, 2026).
+  for (const needle of ['navigate("/beginners")', 'href="/math/"', 'href="/history/"', 'href="/social/" className="rounded-xl']) assert.ok(!lib.includes(needle), needle);
+  assert.doesNotMatch(lib, /<BeginnersBanner/);
 });
 
 test("the leaderboard pop-up shows once per app launch, not on every return", () => {

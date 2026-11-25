@@ -9,11 +9,14 @@ import { appHref } from "@/lib/hubs";
 
 export type LearningId = "math" | "history" | "social";
 
-export const LEARNING_APPS: { id: LearningId; label: string; short: string; href: string; icon: LucideIcon; color: string; soft: string; /** The icon in the program's color, for menus that draw plain icons. */ text: string }[] = [
+const ALL_LEARNING_APPS: { id: LearningId; label: string; short: string; href: string; icon: LucideIcon; color: string; soft: string; /** The icon in the program's color, for menus that draw plain icons. */ text: string }[] = [
   { id: "math", label: "Arise Math", short: "Math", href: "/math/", icon: Calculator, color: "#0284c7", soft: "#e0f2fe", text: "text-sky-600" },
   { id: "history", label: "Arise History", short: "History", href: "/history/", icon: Landmark, color: "#d97706", soft: "#fef3c7", text: "text-amber-600" },
   { id: "social", label: "A.R.I.S.E. Connect", short: "Connect", href: "/social/", icon: Users, color: "#db2777", soft: "#fce7f3", text: "text-pink-600" },
 ];
+/** Arise Math, History and Connect aren't offered to anyone any more (Nov 25, 2026): no menu shows them. Their pages
+ *  stay where they are for old links. */
+export const LEARNING_APPS: { id: LearningId; label: string; short: string; href: string; icon: LucideIcon; color: string; soft: string; /** The icon in the program's color, for menus that draw plain icons. */ text: string }[] = ALL_LEARNING_APPS.filter(() => false);
 
 /** Where a teacher goes to add a program they don't have yet. (Parents get theirs on LifeHub's Reader page.) */
 export const LEARNING_PLAN_PAGE = "/app#/billing";

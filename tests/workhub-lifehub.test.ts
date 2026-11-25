@@ -82,7 +82,7 @@ test("the teacher's Reader account is rebuilt from WorkHub parts, with every old
   for (const api of ["/api/teacher/students", "/api/teacher/pending-students", "/api/teacher-admin/all-students", "/api/teacher-admin/pending-quizzes", "/api/teacher-admin/book-requests",
     "/api/grade-change-requests", "/api/teacher/parent-connections", "/api/teacher/club-arise/controls", "/api/teacher/club-closing-hours", "/api/proctor-password",
     "/api/teacher/growth-check/overview", "/reset-password", "/rewards", "/reassign"]) assert.ok(tools.includes(api), api);
-  for (const piece of ["HubComprehension", "HubCameraQuizzes", "HubPrizeManager", "HubPlayTime", "HubFamilyInvite", "HubParentInvite", "HubAddons"]) assert.ok(tools.includes(`<${piece}`), piece);
+  for (const piece of ["HubComprehension", "HubCameraQuizzes", "HubPrizeManager", "HubPlayTime", "HubFamilyInvite", "HubParentInvite"]) assert.ok(tools.includes(`<${piece}`), piece);
   assert.doesNotMatch(read("client/src/pages/TeacherHub.tsx"), /<TeacherDashboard/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /<Reader say=\{setMessage\} night=\{night\} \/>/);
   const parent = read("client/src/components/family-hub/Reader.tsx");

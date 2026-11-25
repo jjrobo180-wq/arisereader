@@ -10,7 +10,6 @@ import BannerTap from "@/components/BannerTap";
 import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
 import { TopReaderBanner } from "@/components/TopReader";
 import { EnglishExplorerBanner, useEnglishExplorer } from "@/components/EnglishExplorerBanner";
-import { BeginnersBanner } from "@/components/BeginnersBanner";
 import { QuizReadyBanner } from "@/components/QuizReadyBanner";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -1422,31 +1421,15 @@ export default function Library() {
                             <GraduationCap className="mb-1.5 h-4 w-4 text-amber-500" /><span className="flex items-center gap-1.5 text-xs font-black">Study Squad<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
-                        {!user?.is_eye_gaze_user && !isReaderApp() && (
-                          <button onClick={() => { navigate("/beginners"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <span className="mb-1.5 block text-base leading-4" aria-hidden="true">☀️</span><span className="block text-xs font-black">Beginners (K–3)</span>
-                          </button>
-                        )}
+                        
                         {english && (
                           <button onClick={() => { navigate("/english"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                             <span className="mb-1.5 block text-base leading-4" aria-hidden="true">🦜</span><span className="block text-xs font-black">English Explorer</span>
                           </button>
                         )}
-                        {!user?.is_eye_gaze_user && !isReaderApp() && (
-                          <a href="/math/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Calculator className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Arise Math</span>
-                          </a>
-                        )}
-                        {!user?.is_eye_gaze_user && !isReaderApp() && (
-                          <a href="/history/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Landmark className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Arise History</span>
-                          </a>
-                        )}
-                        {!user?.is_eye_gaze_user && !isReaderApp() && (
-                          <a href="/social/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">A.R.I.S.E. Connect<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
-                          </a>
-                        )}
+                        
+                        
+                        
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Brain className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Growth Check</span>
                         </button>
@@ -1468,7 +1451,7 @@ export default function Library() {
                     <div className="space-y-1">
                       {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
                       {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
-                      {!isReaderApp() && <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> A.R.I.S.E. Connect</a>}
+                      {false && <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> A.R.I.S.E. Connect</a>}
                       <button onClick={() => { if (realUser?.isAdmin) { startAdminPreview("regular"); navigate("/profile"); } else { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); } setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
                     </div>
                   )}
@@ -1514,7 +1497,7 @@ export default function Library() {
         {/* English Explorer: only for students a teacher turned it on for. */}
         {user?.role === 'student' && <EnglishExplorerBanner onOpen={() => navigate("/english")} />}
         {/* A.R.I.S.E. Beginners: Reader for younger readers (grades K–3, or anyone who has started it). */}
-        {user?.role === 'student' && !user?.is_eye_gaze_user && !isReaderApp() && <BeginnersBanner onOpen={() => navigate("/beginners")} />}
+        {/* Beginners (K–3) isn't offered any more (Nov 25, 2026). */}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <BannerTap link={studentBanner.link} cueColor={studentBanner.textColor} className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>

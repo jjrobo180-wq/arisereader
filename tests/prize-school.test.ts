@@ -36,7 +36,7 @@ test("parents: prizes only for CGMS families, no Beginners, no Math/History/Conn
   assert.doesNotMatch(menu, /beginners/);
   assert.match(tr, /const parentMenu = PARENT_MENU\.filter\(\(m\) => m\.id !== "prizes" \|\| prizes\);/);
   assert.match(tr, /\{isParent && prizes && view === "prizes" && <>/);
-  assert.match(tr, /\{!isParent && LEARNING\.map\(/);
+  assert.match(tr, /\{false && LEARNING\.map\(/);
   assert.match(tr, /top readers\{prizes \? " · prize: DoorDash food" : ""\}/);
   assert.doesNotMatch(readFileSync("client/src/components/family-hub/Reader.tsx", "utf8"), /<HubAddons/);
 });

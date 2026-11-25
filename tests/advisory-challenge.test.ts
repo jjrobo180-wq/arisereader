@@ -217,7 +217,6 @@ test("the donation banner can't be closed and shows in the Reader; Arise To Duo'
   for (const hub of ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx"]) assert.doesNotMatch(read(hub), /SupportBanner|SupportMenuItem|SupportButton/, hub);
   const reader = read("client/src/pages/TeacherReader.tsx");
   for (const href of ["/history/", "/math/", "/social/"]) assert.ok(reader.includes(`href: "${href}"`), href);
-  assert.match(reader, /Also on your account:/);
 });
 
 test("a student's profile, messages and certificates open as pop-ups; the hub opens straight away", () => {

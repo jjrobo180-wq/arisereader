@@ -368,13 +368,6 @@ export const HELP: HelpEntry[] = [
     open: "english",
   },
   {
-    id: "beginners", section: "More tools",
-    q: "What is Beginners (K–3)?",
-    a: "A.R.I.S.E. Beginners is for young readers. Open **Beginners (K–3)** to try every lesson the way a child sees it (nothing you do there is saved) and to see each student's progress.",
-    keywords: ["beginners", "k-3", "kindergarten", "early reader", "phonics", "young", "primary", "little kids"],
-    open: "beginners",
-  },
-  {
     id: "para-team", section: "More tools",
     q: "How do I share with my paras?",
     a: "Open **Para Team**. Under **Start a team**, type a name and click **Make the team**. Then click **Invite paras** and send them the link. They join with a free account, and the team shares the daily schedule, a calendar, to-dos, messages, student pages and files.",

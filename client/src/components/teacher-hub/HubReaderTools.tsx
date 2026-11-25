@@ -429,7 +429,6 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       </div>
 
       <ProgramLinks />
-      <Card title="Add-ons for your class" collapseKey="reader-addons"><HubAddons which="work" /></Card>
     </>}
 
     {tab === "readerStudents" && <StudentsTab isAdmin={!!user?.isAdmin}

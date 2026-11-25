@@ -65,7 +65,6 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerAdvisory", label: "View all students", icon: Users },
   { id: "english", label: "English learners", icon: Languages },
   // A.R.I.S.E. Beginners (pages/Beginners.tsx) is its own page: every lesson to preview, and each student's progress.
-  { id: "beginners", label: "Beginners (K–3)", icon: Sun },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
@@ -371,9 +370,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "#b9e4de" }}>{hub.line}</p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5" data-testid="reader-learning-apps">
-            {/* Arise Math, History and Connect aren't offered to parents (Nov 25, 2026). */}
-            {!isParent && <span className="sr-only">Also on your account:</span>}
-            {!isParent && LEARNING.map(({ href, label, Icon, color }) => (
+            {/* Arise Math, History and Connect aren't offered to anyone (Nov 25, 2026). */}
+            {false && LEARNING.map(({ href, label, Icon, color }) => (
               <a key={href} href={href} target="_blank" rel="noopener" title={label} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold text-white hover:bg-white/5" style={{ borderColor: "#2c6f69" }}>
                 <Icon className="h-3.5 w-3.5" style={{ color }} />{label}
               </a>
