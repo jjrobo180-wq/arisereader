@@ -1,7 +1,10 @@
 // The frame Cooked, Cooked PT, Arise Notes and Podster share inside Arise To Duo: To Duo's own heading, its
 // row of pages (a tab bar in To Duo's look), a settings
 // button that picks which pages show, and the page below. Each app's pages are in shared/superApps.ts.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import "./super-shell.css";
+import { SuperHeadExtra } from "./superHeadExtra";
+export { SuperHeadExtra };
 import { Check, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { superPagesFor, type SuperApp } from "@shared/superApps";
 import type { Family } from "@shared/familyHub";
@@ -15,43 +18,41 @@ export function useSuperPages(app: SuperApp, family: Family, setFamily: (update:
   return { pages, save };
 }
 
-/** To Duo's heading for the app: its name, what it is, and its settings button. */
+/** To Duo's heading for the app (Nov 25, 2026: one slim row, so the app itself starts near the top): its icon and
+ *  name, To Duo's extras, and its settings button. Colours come from the hub's look (super-shell.css). */
 export function SuperHead({ app, onSettings, settingsLabel, right }: { app: SuperApp; onSettings?: () => void; settingsLabel?: string; right?: ReactNode }) {
   const Icon = superIcon(app.icon);
-  return <header className="mb-3 flex items-center gap-3" data-testid={`super-head-${app.id}`}>
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white shadow-sm" style={{ background: `linear-gradient(145deg, ${app.color}, ${app.color}cc)` }}><Icon size={24} /></span>
-    <div className="min-w-0 flex-1">
-      <h1 className="truncate text-2xl font-black tracking-tight text-[#232139] dark:text-white sm:text-3xl">{app.name}<span className="text-[#7866e1]">.</span></h1>
-      <p className="truncate text-sm font-medium text-slate-500">{app.tagline}</p>
-    </div>
-    {right}
-    {onSettings && <button type="button" onClick={onSettings} aria-label={settingsLabel ?? `${app.name} settings`} data-testid={`super-settings-${app.id}`}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"><Settings2 size={18} /></button>}
+  const extra = useContext(SuperHeadExtra);
+  return <header className="sx-head" data-testid={`super-head-${app.id}`} title={app.tagline}>
+    <span className="sx-head-icon" style={{ background: `linear-gradient(145deg, ${app.color}, ${app.color}cc)` }}><Icon size={18} /></span>
+    <h1 className="sx-head-name">{app.name}</h1>
+    <span className="sx-head-right">
+      {extra && <span className="sx-head-extra">{extra}</span>}
+      {right}
+      {onSettings && <button type="button" onClick={onSettings} aria-label={settingsLabel ?? `${app.name} settings`} data-testid={`super-settings-${app.id}`} className="sx-icon-btn"><Settings2 size={17} /></button>}
+    </span>
   </header>;
 }
 
-/** The row of pages, as a tab bar in To Duo's look: a white bar, the open tab in the accent colour, a number on a
- *  tab for something waiting there. `onEdit` adds an Edit button at the end (Health & Fitness's tabs). The open tab
- *  is kept in view when there are more than fit. */
+/** The row of pages as a segmented control in To Duo's look: the open page lifts out on a card in the accent
+ *  colour, a number on a page for something waiting there. `onEdit` adds Edit at the end (Health & Fitness's tabs).
+ *  The open page is kept in view when there are more than fit. */
 export function PageStrip({ app, pages, current, onPick, badges, onEdit }: { app: SuperApp; pages: string[]; current: string; onPick: (id: string) => void; badges?: Record<string, number>; onEdit?: () => void }) {
   const label = (id: string) => app.pages.find((p) => p.id === id)?.label ?? id;
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => { row.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [current]);
-  return <div className="mb-4 flex items-stretch gap-1 rounded-2xl bg-white p-1.5 shadow-[0_1px_2px_#1d1b330d] ring-1 ring-[#ececf3] dark:bg-white/[.04] dark:ring-white/10" data-testid={`super-tabbar-${app.id}`}>
-    <div ref={row} className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto [mask-image:linear-gradient(90deg,#000_92%,transparent)]" role="tablist" aria-label={`${app.name} pages`} data-testid={`super-strip-${app.id}`}>
+  return <div className="sx-tabs" data-testid={`super-tabbar-${app.id}`}>
+    <div ref={row} className="sx-tabs-row no-scrollbar" role="tablist" aria-label={`${app.name} pages`} data-testid={`super-strip-${app.id}`}>
       {pages.map((id) => {
         const on = id === current, n = badges?.[id] ?? 0;
         const Icon = superIcon(app.pages.find((p) => p.id === id)?.icon ?? "");
-        return <button key={id} type="button" role="tab" aria-selected={on} onClick={() => onPick(id)} data-testid={`super-page-${app.id}-${id}`}
-          className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[14px] font-semibold transition active:scale-[.97] ${on ? "bg-[#6e5ae0] text-white shadow-[0_4px_12px_#6e5ae040]" : "text-slate-600 hover:bg-[#f4f2ff] hover:text-[#5b47d6] dark:text-white/70 dark:hover:bg-white/10"}`}>
-          <Icon size={16} />{label(id)}
-          {n > 0 && <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold ${on ? "bg-white text-[#5b47d6]" : "bg-[#6e5ae0] text-white"}`}>{n}</span>}
+        return <button key={id} type="button" role="tab" aria-selected={on} onClick={() => onPick(id)} data-testid={`super-page-${app.id}-${id}`} className="sx-tab">
+          <Icon size={15} />{label(id)}
+          {n > 0 && <span className="sx-badge">{n}</span>}
         </button>;
       })}
     </div>
-    {onEdit && <button type="button" onClick={onEdit} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border-l border-[#ececf3] pl-3 pr-2.5 text-[14px] font-semibold text-[#5b47d6] hover:bg-[#f4f2ff] dark:border-white/10 dark:text-[#c9bfff]" data-testid={`super-edit-${app.id}`}>
-      <SlidersHorizontal size={16} />Edit
-    </button>}
+    {onEdit && <button type="button" onClick={onEdit} className="sx-edit" data-testid={`super-edit-${app.id}`}><SlidersHorizontal size={15} />Edit</button>}
   </div>;
 }
 

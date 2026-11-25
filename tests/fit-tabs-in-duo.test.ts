@@ -25,7 +25,10 @@ test("inside To Duo: no Plugins tab, Edit tabs instead, and a To Duo tab bar", (
   assert.match(app, /if \(embed && t === "apps"\) \{ setEditTabs\(true\); return; \}/);
   assert.match(app, /\{editTabs && <FitTabsEditor /);
   const shell = readFileSync("client/src/components/super-apps/SuperShell.tsx", "utf8");
-  assert.match(shell, /bg-\[#6e5ae0\] text-white shadow/);
+  assert.match(shell, /className="sx-tabs"/);
+  const css = readFileSync("client/src/components/super-apps/super-shell.css", "utf8");
+  assert.match(css, /\.sx-tab\[aria-selected="true"\] \{ background: var\(--an-card/);
+  assert.match(css, /\.hub-night \.sx-tabs/);
   assert.match(readFileSync("client/src/components/super-apps/CookedInDuo.tsx", "utf8"), /onEdit=\{editTabs\}/);
 });
 
@@ -36,4 +39,13 @@ test("renamed in To Duo: Arise Health & Fitness, Arise Podcasts, TTS Buddy (insi
   assert.equal(buddy.name, "TTS Buddy");
   assert.deepEqual(buddy.target, { kind: "officeApp", id: "life-buddy", href: "#/pro?app=buddy" });
   assert.match(readFileSync("client/src/pages/ProApps.tsx", "utf8"), /if \(id === "buddy"\) return/);
+});
+
+test("the plugin's heading is one slim row and To Duo's Move button sits in it, not above the app", () => {
+  const shell = readFileSync("client/src/components/super-apps/SuperShell.tsx", "utf8");
+  assert.match(shell, /useContext\(SuperHeadExtra\)/);
+  assert.doesNotMatch(shell, /\{app\.tagline\}<\/p>/);
+  const duo = readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
+  assert.equal((duo.match(/<SuperHeadExtra\.Provider value=\{moveButton\}>/g) || []).length, 4);
+  assert.match(duo, /isSuperApp\(shown\) \? null : moveButton/);
 });

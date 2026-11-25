@@ -1,0 +1,38 @@
+/* The heading row and page tabs of the plugins inside Arise To Duo (Health & Fitness, Notes, Podcasts, Cooked PT).
+   Colours come from the hub's look (--an-* from shared/notesThemes.ts themeVars), with To Duo's own as the default,
+   and night mode is handled here, so the bar never shows a light outline on a dark page. */
+.sx-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; min-height: 40px; }
+.sx-head-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: #fff; box-shadow: 0 2px 6px -2px rgba(0,0,0,.35); }
+.sx-head-name { margin: 0; min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 20px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: var(--an-ink, #1c1a2e); }
+.sx-head-right { display: flex; align-items: center; gap: 8px; flex: none; }
+.sx-head-extra button { margin: 0 !important; min-height: 34px !important; }
+.sx-icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; border: 0;
+  background: color-mix(in srgb, var(--an-ink, #1c1a2e) 6%, transparent); color: var(--an-muted, #6b6880); transition: background .15s, color .15s; }
+.sx-icon-btn:hover { background: color-mix(in srgb, var(--an-ink, #1c1a2e) 10%, transparent); color: var(--an-ink, #1c1a2e); }
+
+.sx-tabs { display: flex; align-items: center; gap: 4px; margin: 0 0 14px; padding: 4px; border-radius: 14px;
+  background: color-mix(in srgb, var(--an-ink, #1c1a2e) 6%, transparent); }
+.sx-tabs-row { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scroll-behavior: smooth; }
+.sx-tab { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 0 auto; min-height: 36px; padding: 0 14px;
+  border: 0; border-radius: 10px; background: transparent; white-space: nowrap; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--an-muted, #6b6880); transition: background .15s, color .15s, box-shadow .15s; }
+.sx-tab svg { opacity: .85; }
+.sx-tab:hover { color: var(--an-ink, #1c1a2e); }
+.sx-tab:active { transform: scale(.98); }
+.sx-tab[aria-selected="true"] { background: var(--an-card, #ffffff); color: var(--an-violet, #6e5ae0);
+  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 3px 10px -4px rgba(0,0,0,.18); }
+.sx-tab[aria-selected="true"] svg { opacity: 1; }
+.sx-badge { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  font-size: 11px; font-weight: 700; background: var(--an-violet, #6e5ae0); color: var(--an-on-accent, #fff); }
+.sx-edit { display: inline-flex; align-items: center; gap: 5px; flex: none; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px;
+  background: transparent; font-size: 14px; font-weight: 600; color: var(--an-violet, #6e5ae0); }
+.sx-edit:hover { background: var(--an-card, #fff); }
+
+/* Night mode and dark looks without their own colours */
+.hub-night .sx-head-name, .dark .sx-head-name { color: var(--an-ink, #f4f3fa); }
+.hub-night .sx-tabs, .dark .sx-tabs, .hub-night .sx-icon-btn, .dark .sx-icon-btn { background: color-mix(in srgb, var(--an-ink, #ffffff) 7%, transparent); }
+.hub-night .sx-tab, .dark .sx-tab, .hub-night .sx-icon-btn, .dark .sx-icon-btn { color: var(--an-muted, #a9a6bd); }
+.hub-night .sx-tab:hover, .dark .sx-tab:hover { color: var(--an-ink, #fff); }
+.hub-night .sx-tab[aria-selected="true"], .dark .sx-tab[aria-selected="true"] { background: var(--an-card, #2a2740); color: var(--an-ink, #fff); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.hub-night .sx-edit, .dark .sx-edit { color: var(--an-violet, #b7a9ff); }
