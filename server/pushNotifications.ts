@@ -7,7 +7,8 @@ import { snoozeSig } from "./snoozeSig";
 import { supabase } from "./supabase";
 import { generateVapidKeys, isPushServiceUrl, sendWebPush, type PushMessage, type VapidKeys } from "./webPush";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
-import { dueHubReminders, HUB_REMINDER_URL } from "../shared/hubReminders";
+import { dueHubReminders, HUB_REMINDER_URL, localParts } from "../shared/hubReminders";
+import { cleanHubNotify, onVacation } from "../shared/hubNotify";
 import { normalizeWorkspace } from "../shared/teacherHub";
 import { dueFamilyReminders, dueTodoReminders, goUrl, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
 import { NEWS_TOPICS } from "../shared/todoNews";
@@ -78,6 +79,12 @@ export async function notifyUser(userId: number, message: PushMessage, only?: Pu
   const keys = await pushKeys();
   await appleKey();
   const { data } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).eq("user_id", userId);
+  // WorkHub on vacation (shared/hubNotify.ts): nothing meant for WorkHub goes out until it's back.
+  if (only === "hub" || /#\/(workhub|teacherhub)\b/.test(String((message as any)?.url || ""))) {
+    const { data: space } = await supabase.from("teacher_hub_workspaces").select("workspace").eq("teacher_id", userId).maybeSingle();
+    const tz = ((data || []) as Row[])[0]?.time_zone || "America/Denver";
+    if (space?.workspace && onVacation(cleanHubNotify((space.workspace as any).notify), localParts(Date.now(), tz).date)) return 0;
+  }
   let delivered = 0;
   for (const row of (data || []) as Row[]) {
     // The iPhone app holds both hubs, so it gets every notification meant for this person.

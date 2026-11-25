@@ -4,7 +4,7 @@
 //  The teacher's choices are in workspace.notify (see shared/hubNotify.ts).
 import { calendarEvents } from "./hubHidden";
 import { clock12, type Workspace } from "./teacherHub";
-import { HUB_MORNING_WINDOW_MINUTES, cleanHubNotify } from "./hubNotify";
+import { HUB_MORNING_WINDOW_MINUTES, cleanHubNotify, onVacation } from "./hubNotify";
 import { iepReminders } from "./hubIep";
 import { dailyReminderPlan, dueDailyReminders } from "./dailyCheckins";
 import { SEND_WINDOW_MINUTES as SEND_WINDOW } from "./todoNotify";
@@ -64,6 +64,8 @@ const daysEvents = (workspace: Workspace, date: string) => {
 };
 export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: string, sent: Record<string, unknown> = {}): HubReminder[] {
   const { date, minutes } = localParts(nowMs, timeZone);
+  // Vacation mode: nothing from WorkHub while it's on (shared/hubNotify.ts).
+  if (onVacation(cleanHubNotify((workspace as any)?.notify), date)) return [];
   const prefs = cleanHubNotify(workspace.notify);
   const ahead = prefs.headsUp.minutes;
   const out: HubReminder[] = [];

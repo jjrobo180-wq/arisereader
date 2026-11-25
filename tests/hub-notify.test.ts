@@ -42,7 +42,7 @@ test("reminder choices start as what WorkHub always sent, and odd saved values a
 test("the choices are kept with the workspace and cleaned when it is read back", () => {
   assert.equal(ws().notify, undefined, "nothing saved means the defaults");
   const saved = ws({ notify: { morning: { on: false, time: "06:30" }, headsUp: { on: true, minutes: 60, events: true, tasks: false, meetings: true } } });
-  assert.deepEqual(saved.notify, { morning: { on: false, time: "06:30" }, headsUp: { on: true, minutes: 60, events: true, tasks: false, meetings: true } });
+  assert.deepEqual(saved.notify, { morning: { on: false, time: "06:30" }, headsUp: { on: true, minutes: 60, events: true, tasks: false, meetings: true }, vacation: { on: false, until: "" } });
   assert.deepEqual(normalizeWorkspace(JSON.parse(JSON.stringify(saved))).notify, saved.notify, "stays the same after saving and loading");
   assert.deepEqual(ws({ notify: { morning: { time: "bad" } } }).notify?.morning, { on: true, time: "07:00" });
 });

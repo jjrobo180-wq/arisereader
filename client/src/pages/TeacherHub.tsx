@@ -9,7 +9,8 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useS
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
-import { Lightbulb, NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette, DoorOpen, Newspaper } from "lucide-react";
+import { Palmtree, Lightbulb, NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette, DoorOpen, Newspaper } from "lucide-react";
+import { cleanHubNotify } from "@shared/hubNotify";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { STORE_KIND } from "@shared/hubSearch";
@@ -1211,7 +1212,7 @@ function TeacherHubPage() {
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
     if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun className="h-4 w-4" />, open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 className="h-4 w-4" />, open: () => setCustomize(true) });
-    out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary and heads-ups", keywords: "notifications reminders alerts push phone bell", open: () => setNotifyOpen(true) });
+    out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary, heads-ups and vacation mode", keywords: "notifications reminders alerts push phone bell vacation holiday break away out of office pause", open: () => setNotifyOpen(true) });
     out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock screens and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock className="h-4 w-4" />, open: () => setLockSettings(true) });
     out.push({ id: "store", kind: "Section", title: "Plugin Gallery", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
     // Installed apps are Apps too (not a separate "Plugins" group), with their icons and colours.
@@ -1728,6 +1729,14 @@ function TeacherHubPage() {
         </aside>
 
         <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${deskSidebar ? "md:px-7 md:pt-6 lg:px-9 lg:pt-10 xl:px-12" : ""} ${(kitOpen && (kitDef(kitOpen) || kitOpen.startsWith("in:"))) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+          {/* Vacation mode (shared/hubNotify.ts): a quiet note while WorkHub's notifications are paused. */}
+          {(() => { const v = cleanHubNotify(workspace.notify).vacation; const d = new Date(); const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            if (!v.on || (v.until && v.until < today)) return null;
+            return <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-teal-50 px-4 py-3 text-sm text-teal-900 ring-1 ring-teal-100" data-testid="hub-vacation-banner">
+              <Palmtree className="h-5 w-5 shrink-0 text-teal-600" aria-hidden />
+              <span className="min-w-0 flex-1"><b>On vacation.</b> No WorkHub notifications{v.until ? ` through ${new Date(`${v.until}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : " until you turn it off"}.</span>
+              <button type="button" onClick={() => setWorkspace((w) => ({ ...w, notify: { ...cleanHubNotify(w.notify), vacation: { on: false, until: "" } } }))} className="min-h-9 rounded-full bg-white px-3 font-semibold text-teal-700 ring-1 ring-teal-200">I'm back</button>
+            </div>; })()}
           {kitOpen?.startsWith("in:") && (
             <div data-kit-view data-testid="hub-in-app-view">
               <Suspense fallback={<p className="py-10 text-center text-sm font-semibold text-slate-500">Opening…</p>}>

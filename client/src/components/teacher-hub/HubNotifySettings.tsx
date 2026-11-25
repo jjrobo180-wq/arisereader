@@ -1,7 +1,7 @@
 // Arise WorkHub: turn phone notifications on for this device, then choose which reminders arrive and when.
 // The choices are saved with the workspace (workspace.notify), so they apply on every device.
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { CalendarDays, CheckSquare, Sun, Timer, Users } from "lucide-react";
+import { CalendarDays, CheckSquare, Palmtree, Sun, Timer, Users } from "lucide-react";
 import { HUB_HEADS_UP_CHOICES, cleanHubNotify, type HubNotify } from "@shared/hubNotify";
 import { clock12, type Workspace } from "@shared/teacherHub";
 import HubNotifications from "./HubNotifications";
@@ -40,6 +40,7 @@ export default function HubNotifySettings({ token, workspace, setWorkspace, devi
   const sub = (n: HubNotify["headsUp"]) => n.on && (n.events || n.tasks || n.meetings);
 
   return <div className="space-y-4" data-testid="hub-notify-settings">
+    <HubVacationCard workspace={workspace} setWorkspace={setWorkspace} />
     {deviceCard && <HubNotifications token={token} collapseKey={inModal ? "" : undefined} />}
     <Card title="Which reminders" collapseKey={inModal ? undefined : "home-reminders"}>
       <p className="mb-1 text-sm text-slate-600">Pick the reminders you want and when they arrive. Your choices are saved to your account and work on every device where notifications are on.</p>
@@ -80,4 +81,28 @@ export default function HubNotifySettings({ token, workspace, setWorkspace, devi
       </ul>
     </Card>
   </div>;
+}
+
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const dayWords = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+/** Vacation mode (Nov 25, 2026): no WorkHub notifications at all until the day you pick (or until it's turned off).
+ *  LifeHub and FamilyHub keep sending theirs. */
+export function HubVacationCard({ workspace, setWorkspace }: { workspace: Workspace; setWorkspace: Dispatch<SetStateAction<Workspace>> }) {
+  const v = cleanHubNotify(workspace.notify).vacation;
+  const set = (vacation: HubNotify["vacation"]) => setWorkspace((w) => ({ ...w, notify: { ...cleanHubNotify(w.notify), vacation } }));
+  const over = v.on && !!v.until && v.until < todayLocal();
+  return <Card title="Vacation mode">
+    <ul><Row icon={<Palmtree className="h-5 w-5" />} tint="bg-teal-50 text-teal-600" title="On vacation"
+      detail={v.on && !over ? (v.until ? `No WorkHub notifications through ${dayWords(v.until)}` : "No WorkHub notifications until you turn this off") : "Pause every WorkHub notification while you're off"}
+      on={v.on && !over} onChange={(on) => set({ on, until: on ? v.until : "" })}>
+      <label className="flex flex-wrap items-center gap-3 text-sm text-slate-700" data-testid="hub-vacation-until">
+        <span className="font-medium">Back after</span>
+        <input type="date" min={todayLocal()} value={v.until} onChange={(e) => set({ on: true, until: e.target.value })}
+          className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 sm:text-sm" />
+        {v.until && <button type="button" onClick={() => set({ on: true, until: "" })} className="text-xs font-semibold text-slate-500 underline">No end date</button>}
+      </label>
+      <p className="mt-2 text-xs text-slate-500">Reminders, the morning summary and everything else from WorkHub stay quiet on every device. LifeHub and FamilyHub still notify you.</p>
+    </Row></ul>
+  </Card>;
 }
