@@ -6,6 +6,8 @@ import { calendarEvents } from "./hubHidden";
 import { clock12, type Workspace } from "./teacherHub";
 import { HUB_MORNING_WINDOW_MINUTES, cleanHubNotify } from "./hubNotify";
 import { iepReminders } from "./hubIep";
+import { dailyReminderPlan, dueDailyReminders } from "./dailyCheckins";
+import { SEND_WINDOW_MINUTES as SEND_WINDOW } from "./todoNotify";
 
 export type HubReminder = { key: string; title: string; body: string; url: string };
 
@@ -97,6 +99,13 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
       if (sent[key]) continue;
       out.push({ key, title: task.title || "To-do", body: `Due at ${clock12(task.dueTime)}`, url: HUB_REMINDER_URL });
     }
+  }
+
+  // WorkHub's own check-ins (Nov 24, 2026): each reminds at its time (or early evening) until it's ticked off.
+  // Health & Fitness check-ins remind from LifeHub, so they aren't sent twice.
+  if (workspace.daily) {
+    const plan = dailyReminderPlan({ settings: workspace.daily, cooked: false, family: { habits: [], routines: [], notify: undefined as never }, habits: false, routines: false }, date);
+    out.push(...dueDailyReminders(plan, { date, minutes, sent, keyPrefix: "daily:", url: HUB_REMINDER_URL, followUps: 0, every: 60, window: SEND_WINDOW }));
   }
 
   const from = toMinutes(prefs.morning.time) ?? MORNING_FROM_HOUR * 60;

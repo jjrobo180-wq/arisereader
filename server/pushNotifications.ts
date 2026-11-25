@@ -9,7 +9,7 @@ import { generateVapidKeys, isPushServiceUrl, sendWebPush, type PushMessage, typ
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { dueHubReminders, HUB_REMINDER_URL } from "../shared/hubReminders";
 import { normalizeWorkspace } from "../shared/teacherHub";
-import { dueTodoReminders, goUrl, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
+import { dueFamilyReminders, dueTodoReminders, goUrl, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
 import { NEWS_TOPICS } from "../shared/todoNews";
 import { cleanFitPushPrefs, fitPushAllowed, fitPushKind } from "../shared/fitPush";
 import { fetchHeadlines } from "./todoNews";
@@ -249,8 +249,31 @@ export async function sendDueTodoReminders(nowMs = Date.now(), rows?: Row[]): Pr
       if (!(await todoAllowed(userId).catch(() => true))) continue;
       for (let d = 0; d < devices.length; d++) sentCount += await sendTo(devices[d], due[d], nowMs, keys);
     }
+    // FamilyHub (Nov 24, 2026): the family's shared check-ins and chores go to everyone in the family.
+    try { sentCount += await sendFamilyChunk(userIds.slice(i, i + WORKSPACE_CHUNK), devicesOf, nowMs, keys); }
+    catch (error: any) { console.error("[push] FamilyHub reminder pass failed", error?.message); }
   }
   return sentCount;
+}
+
+async function sendFamilyChunk(userIds: number[], devicesOf: Map<number, Row[]>, nowMs: number, keys: VapidKeys): Promise<number> {
+  const { data: members, error } = await supabase.from("family_space_members").select("user_id, owner_id").in("user_id", userIds);
+  if (error || !members?.length) return 0;
+  const owners = Array.from(new Set(members.map((m: any) => Number(m.owner_id))));
+  const { data: spaces, error: e2 } = await supabase.from("family_spaces").select("owner_id, workspace").in("owner_id", owners);
+  if (e2) return 0;
+  const spaceOf = new Map((spaces || []).map((s: any) => [Number(s.owner_id), s.workspace]));
+  let count = 0;
+  for (const m of members as any[]) {
+    const ws = spaceOf.get(Number(m.owner_id));
+    if (!ws) continue;
+    const userId = Number(m.user_id);
+    for (const row of devicesOf.get(userId) || []) {
+      const due = dueFamilyReminders(ws, nowMs, row.time_zone || "UTC", row.sent || {});
+      if (due.length && (await todoAllowed(userId).catch(() => true))) count += await sendTo(row, due, nowMs, keys);
+    }
+  }
+  return count;
 }
 
 // ─── Health Nudges (a premium app): motivation sent through the day to the phones of people who turned it on ───

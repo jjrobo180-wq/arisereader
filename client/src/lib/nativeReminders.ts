@@ -5,19 +5,20 @@
 // 24 hours. They're worked out again whenever the hub changes, so a checked-off task or a logged
 // meal stops its reminder.
 import { dueHubReminders, prepareHubReminders, type HubReminder } from "@shared/hubReminders";
-import { dueTodoReminders, goUrl, prepareTodoReminders } from "@shared/todoReminders";
+import { dueFamilyReminders, dueTodoReminders, goUrl, prepareTodoReminders } from "@shared/todoReminders";
 import type { Workspace } from "@shared/teacherHub";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
 
-export type ReminderKind = "life" | "work";
+/** "family" is FamilyHub's shared check-ins and chores (Nov 24, 2026). */
+export type ReminderKind = "life" | "work" | "family";
 const PLUGIN = /localnotif/i;
 const NAME = "LocalNotifications";
 const STEP_MS = 5 * 60_000;
 /** Three days ahead, so reminders keep coming even if the app isn't opened for a day or two. */
 const AHEAD_MS = 72 * 3600_000;
-/** iOS keeps at most 64 waiting notifications for an app; the two hubs share them. */
-const MOST_PER_KIND = 30;
+/** iOS keeps at most 64 waiting notifications for an app; the three hubs share them. */
+export const MOST_PER_KIND: Record<ReminderKind, number> = { life: 26, work: 24, family: 14 };
 
 const flagKey = (kind: ReminderKind) => `arise_native_reminders:${kind}`;
 /** One switch for both hubs (LifeHub and WorkHub start out the same; October 2026). */
@@ -61,7 +62,7 @@ export function setNativeSoundFile(file: string): void {
 export const nativeRemindersAvailable = (): boolean => hasNativePlugin(PLUGIN);
 /** True inside the app at all (so the website's "add to Home Screen" steps are never shown there). */
 export const inApp = isNativeApp;
-export const nativeRemindersOn = (kind: ReminderKind) => store.get(BOTH_KEY) === "1" || (store.get(BOTH_KEY) !== "0" && store.get(flagKey(kind)) === "1");
+export const nativeRemindersOn = (kind: ReminderKind) => store.get(BOTH_KEY) === "1" || (store.get(BOTH_KEY) !== "0" && store.get(flagKey(kind === "family" ? "life" : kind)) === "1");
 
 const call = (method: string, options?: unknown) => nativeCall(PLUGIN, NAME, method, options).catch((e: any) => {
   const msg = String(e?.message || e || "");
@@ -85,10 +86,10 @@ export function planReminders(kind: ReminderKind, workspace: unknown, from: numb
   const out: PlannedReminder[] = [];
   const start = Math.ceil(from / STEP_MS) * STEP_MS;
   // The hub is checked and copied once for the whole run, not once per five-minute step (864 of them).
-  const life = kind === "life" ? prepareTodoReminders(workspace) : null;
+  const life = kind !== "work" ? prepareTodoReminders(workspace) : null;
   const work = kind === "work" ? prepareHubReminders(workspace as Workspace) : null;
   for (let t = start; t <= from + ahead; t += STEP_MS) {
-    const due: (HubReminder & { news?: unknown })[] = life ? dueTodoReminders(life, t, timeZone, sent) : dueHubReminders(work!, t, timeZone, sent);
+    const due: (HubReminder & { news?: unknown })[] = life ? (kind === "family" ? dueFamilyReminders(life, t, timeZone, sent) : dueTodoReminders(life, t, timeZone, sent)) : dueHubReminders(work!, t, timeZone, sent);
     for (const r of due) {
       sent[r.key] = t;
       if (!r.news) out.push({ ...r, at: t });
@@ -126,7 +127,7 @@ export async function turnOffNativeReminders(_kind?: ReminderKind): Promise<void
   store.set(BOTH_KEY, "0");
   void stopApplePush();
   store.drop(flagKey("life")); store.drop(flagKey("work"));
-  await cancelScheduled("life"); await cancelScheduled("work");
+  await cancelScheduled("life"); await cancelScheduled("work"); await cancelScheduled("family");
   window.dispatchEvent(new Event(REMINDERS_CHANGED));
 }
 /** Fired when reminders are turned on or off, so both hubs schedule (or clear) theirs at once. */
@@ -171,7 +172,7 @@ async function cancelScheduled(kind: ReminderKind) {
 export async function scheduleNativeReminders(kind: ReminderKind, workspace: unknown): Promise<number> {
   if (!nativeRemindersOn(kind) || !nativeRemindersAvailable()) return 0;
   const now = Date.now();
-  const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND);
+  const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND[kind]);
   const notifications = plan.length ? nativeNotifications(kind, plan) : [];
   // Same reminders as the ones already waiting on the phone (most edits don't touch them): nothing to
   // redo. Cancelling and re-adding them all after every change made the app hitch a few seconds later.

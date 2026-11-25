@@ -352,7 +352,11 @@ export type DailyReminder = { id: string; title: string; body: string; time: str
 /** The check-in reminders for a day that can be known without the plugins' data: Cooked's meals, workout,
  *  weigh-in and sleep (when Cooked is on), and habits and routines given a time. Medicines and pills remind
  *  through their own plugins, and accountability through its own nudges. */
-export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boolean; family: Pick<Family, "habits" | "routines" | "notify">; habits: boolean; routines: boolean }, date: string): DailyReminder[] {
+/** When a check-in with no time of its own reminds (once, if it's still not done): early evening. */
+export const ANYTIME_REMIND = "18:00";
+export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boolean; family: Pick<Family, "habits" | "routines" | "notify">; habits: boolean; routines: boolean;
+  /** FamilyHub's chores (Nov 24, 2026): each chore due today reminds at its time, or early evening, until someone does it. */
+  chores?: Pick<Family, "chores" | "choreDone"> | null }, date: string): DailyReminder[] {
   const s = fillDaily(input.settings);
   if (!s.on || !s.remind) return [];
   const off = new Set([...s.off, ...s.mute]);
@@ -371,7 +375,13 @@ export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boo
     if (s.extra.includes("cooked:sleep") || s.times["cooked:sleep"]) add({ id: "cooked:sleep", title: "How did you sleep?", body: "Log last night's sleep.", time: s.times["cooked:sleep"] || DEFAULT_TIMES.sleep, section: "tasks" });
   }
   if (input.habits) for (const h of input.family.habits) if (s.times[`habit:${h.id}`] && !h.days.includes(date)) add({ id: `habit:${h.id}`, title: h.name, body: "Tick it off when it's done.", time: s.times[`habit:${h.id}`], section: "tasks" });
-  for (const c of s.custom) if (c.time && c.days.includes(dow(date)) && s.log[date]?.[c.id] === undefined) add({ id: `custom:${c.id}`, title: c.title, body: "Tick it off in your list when it's done.", time: c.time, section: "tasks" });
+  // Every check-in reminds (Nov 24, 2026): one without a time comes once in the early evening if it's not done yet.
+  for (const c of s.custom) if (c.days.includes(dow(date)) && s.log[date]?.[c.id] === undefined) add({ id: `custom:${c.id}`, title: c.time ? c.title : `Still to do today: ${c.title}`, body: "Tick it off in your list when it's done.", time: s.times[`custom:${c.id}`] || c.time || ANYTIME_REMIND, section: "tasks" });
+  if (input.chores) for (const ch of input.chores.chores ?? []) {
+    if (!choreDueOn(ch, date) || (input.chores.choreDone ?? []).some((x) => x.choreId === ch.id && x.date === date)) continue;
+    const id = `chore:${ch.id}`;
+    add({ id, title: s.times[id] ? `Chore: ${ch.title}` : `Chore still to do: ${ch.title}`, body: "Tick it off when it's done.", time: s.times[id] || ANYTIME_REMIND, section: "tasks" });
+  }
   if (input.routines) for (const r of input.family.routines) if (s.times[`routine:${r.id}`] && r.doneDate !== date) add({ id: `routine:${r.id}`, title: r.name, body: r.steps.length ? `${r.steps.length} steps. Tap to start.` : "Tap to start.", time: s.times[`routine:${r.id}`], section: "tasks" });
   return out.sort((a, b) => a.time.localeCompare(b.time));
 }
@@ -379,3 +389,22 @@ export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boo
 /** Days of the week, Sunday first, for "every day" style wording. */
 export const weekdayOf = dow;
 export { addDays as dailyAddDays, keyOf as dailyDayKey };
+
+/** The check-in reminders due at this moment (and, for "Keep after me", their follow-ups every FOLLOW_UP_EVERY
+ *  minutes until done). Used by LifeHub, FamilyHub and WorkHub alike, on the server and on the phone. */
+export function dueDailyReminders(plan: DailyReminder[], o: { date: string; minutes: number; sent: Record<string, unknown>; keyPrefix: string; url: string;
+  followUps: number; every: number; window: number }): { key: string; title: string; body: string; url: string }[] {
+  const out: { key: string; title: string; body: string; url: string }[] = [];
+  const mins = (hm: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm); return m ? Number(m[1]) * 60 + Number(m[2]) : -1; };
+  for (const r of plan) {
+    const at = mins(r.time);
+    if (at < 0) continue;
+    const times: [number, string][] = [[at, ""]];
+    for (let i = 1; i <= o.followUps; i++) if (at + i * o.every < 1440) times.push([at + i * o.every, `:f${i}`]);
+    const due = times.find(([t, suffix]) => o.minutes >= t && o.minutes < t + o.window && !o.sent[`${o.keyPrefix}${r.id}:${o.date}${suffix}`]);
+    if (!due) continue;
+    const still = r.title.replace(/^Log your /, "log your ").replace(/^Still to do today: /, "").replace(/^Chore( still to do)?: /, "");
+    out.push({ key: `${o.keyPrefix}${r.id}:${o.date}${due[1]}`, title: due[1] ? `Still to do: ${still}` : r.title, body: r.body, url: o.url });
+  }
+  return out;
+}

@@ -29,7 +29,7 @@ test("every LifeHub reminder link names a screen the hub can open", () => {
   const src = fs.readFileSync("shared/todoReminders.ts", "utf8");
   const urls = [...src.matchAll(/url: ([^,}]+)[,}]/g)].map((m) => m[1].trim());
   assert.ok(urls.length > 10);
-  for (const u of urls) assert.match(u, /^goUrl\(|TODO_REMINDER_URL|url$|^r\.url/, `reminder link without a screen: ${u}`);
+  for (const u of urls) assert.match(u, /^goUrl\(|TODO_REMINDER_URL|FAMILY_REMINDER_URL|url$|^r\.url/, `reminder link without a screen: ${u}`);
 });
 
 test("a tapped reminder closes whatever is open on top of the screen", () => {

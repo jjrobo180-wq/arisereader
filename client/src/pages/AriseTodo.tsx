@@ -377,16 +377,17 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   // In the iPhone app, reminders are scheduled on the phone and redone a few seconds after each change.
   useEffect(() => {
-    if (!user || !isNativeApp() || familySpace) return;
-    const t = window.setTimeout(() => { void scheduleNativeReminders("life", data).catch(() => { /* tried again on the next change */ }); }, 4000);
+    if (!user || !isNativeApp()) return;
+    const t = window.setTimeout(() => { void scheduleNativeReminders(familySpace ? "family" : "life", data).catch(() => { /* tried again on the next change */ }); }, 4000);
     return () => window.clearTimeout(t);
-  }, [data, user]);
+  }, [data, user, familySpace]);
   // ...and again when reminders are switched on (in either hub) and whenever the app comes back to the front.
   const remindData = useRef(data); remindData.current = data;
   useEffect(() => {
-    if (!user || !isNativeApp() || familySpace) return;
+    if (!user || !isNativeApp()) return;
     installReminderTaps();
-    const again = () => { void scheduleNativeReminders("life", remindData.current).catch(() => {}); };
+    // FamilyHub schedules its own shared check-ins and chores (kind "family"); LifeHub keeps its own.
+    const again = () => { void scheduleNativeReminders(familySpace ? "family" : "life", remindData.current).catch(() => {}); };
     const front = () => { if (document.visibilityState === "visible") again(); };
     window.addEventListener(REMINDERS_CHANGED, again); document.addEventListener("visibilitychange", front);
     return () => { window.removeEventListener(REMINDERS_CHANGED, again); document.removeEventListener("visibilitychange", front); };

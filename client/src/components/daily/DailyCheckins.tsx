@@ -227,7 +227,7 @@ export function CustomEditor({ d, start, onClose }: { d: DailyApi; start?: Custo
 
 /* ---------------- settings ---------------- */
 
-const TIMED: CheckinKind[] = ["meal", "workout", "weight", "sleep", "habit", "routine", "water", "fast"];
+const TIMED: CheckinKind[] = ["meal", "workout", "weight", "sleep", "habit", "routine", "water", "fast", "chore"];
 const EXTRAS: { id: string; label: string; sub: string }[] = [
   { id: "cooked:snack", label: "Snack", sub: "A snack row each day" },
   { id: "cooked:weight", label: "Weigh in", sub: "A weigh-in row each day" },
@@ -245,7 +245,7 @@ export function DailySettingsSheet({ d, onClose }: { d: DailyApi; onClose: () =>
   return <NativeSheet title="Check-ins" onClose={onClose} cancelLabel="" doneLabel="Done" testId="daily-settings">
     <SheetGroup note={d.shared ? "The family's daily things (your own check-ins, chores, habits, routines and pills) sit in FamilyHub's task list for everyone. Anyone can tick one off, and it says who did." : "Your plugins' daily things (meals, workouts, water, medicines, habits, routines and what someone asked you to do) sit in your task list, and tick themselves when you do them anywhere."}>
       <SheetRow icon={<ListChecks />} color="#6e5ae0" label="Show in Tasks" right={<SheetSwitch on={s.on} label="Show check-ins in Tasks" onChange={(on) => set((x) => ({ ...x, on }))} testId="daily-on" />} />
-      {!d.shared && <SheetRow icon={<BellOff />} color="#ff3b30" label="Remind me" sub={s.remind ? "At each check-in's time, until it's done" : undefined} right={<SheetSwitch on={s.remind} label="Remind me" onChange={(remind) => set((x) => ({ ...x, remind }))} testId="daily-remind" />} />}
+      {<SheetRow icon={<BellOff />} color="#ff3b30" label={d.shared ? "Remind the family" : "Remind me"} sub={s.remind ? (d.shared ? "Everyone gets each one at its time, until someone ticks it off" : "At each check-in's time, until it's done") : undefined} right={<SheetSwitch on={s.remind} label="Remind me" onChange={(remind) => set((x) => ({ ...x, remind }))} testId="daily-remind" />} />}
     </SheetGroup>
     {s.on && <>
       <SheetGroup caption={d.shared ? "The family's check-ins" : "Your own check-ins"} note={d.shared ? "Anyone in the family can add, change and tick these." : undefined}>
@@ -260,7 +260,7 @@ export function DailySettingsSheet({ d, onClose }: { d: DailyApi; onClose: () =>
           return <SheetRow key={c.id} icon={<Icon />} color={TINT[c.kind]} label={c.title}
             right={<span className="flex items-center gap-2">
               {canTime && <input type="time" aria-label={`Time for ${c.title}`} value={s.times[c.id] || c.time || ""} onChange={(e) => set((x) => { const times = { ...x.times }; if (e.target.value) times[c.id] = e.target.value; else delete times[c.id]; return { ...x, times }; })} className="min-h-9 w-[6.5rem] rounded-lg bg-[#f2f2f7] px-2 text-[15px] outline-none dark:bg-white/10" />}
-              {s.remind && c.time && canTime && c.kind !== "water" && <button type="button" aria-pressed={!s.mute.includes(c.id)} aria-label={`${s.mute.includes(c.id) ? "Turn on" : "Turn off"} the reminder for ${c.title}`} onClick={() => toggleIn("mute", c.id, !s.mute.includes(c.id))} className={`grid h-9 w-9 place-items-center rounded-lg ${s.mute.includes(c.id) ? "text-slate-300" : "text-[#6e5ae0]"}`}>{s.mute.includes(c.id) ? <BellOff className="h-4 w-4" /> : <BellIcon />}</button>}
+              {s.remind && (c.time || c.kind === "chore") && canTime && c.kind !== "water" && <button type="button" aria-pressed={!s.mute.includes(c.id)} aria-label={`${s.mute.includes(c.id) ? "Turn on" : "Turn off"} the reminder for ${c.title}`} onClick={() => toggleIn("mute", c.id, !s.mute.includes(c.id))} className={`grid h-9 w-9 place-items-center rounded-lg ${s.mute.includes(c.id) ? "text-slate-300" : "text-[#6e5ae0]"}`}>{s.mute.includes(c.id) ? <BellOff className="h-4 w-4" /> : <BellIcon />}</button>}
               <SheetSwitch on={!s.off.includes(c.id)} label={`Show ${c.title}`} onChange={(on) => toggleIn("off", c.id, !on)} />
             </span>} />;
         })}</SheetGroup>

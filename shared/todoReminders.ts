@@ -16,7 +16,7 @@ import { caloriesLeft, dayTotals, goalsFor, healthPeople, ME_ID } from "./family
 import { dosesOn, needsRefill } from "./pills";
 import { cycleSummary } from "./familyCycle";
 import { duePlanReminders } from "./lifePlan";
-import { dailyReminderPlan } from "./dailyCheckins";
+import { dailyReminderPlan, dueDailyReminders } from "./dailyCheckins";
 
 export const TODO_REMINDER_URL = "/#/lifehub";
 /** Where tapping a reminder lands: the screen it's about (AriseTodo reads `go`). */
@@ -93,14 +93,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
   // They come back (when "Keep after me" is on) until done; "done" comes from the phone, which sees Cooked too.
   const dailyPlan = dailyReminderPlan({ settings: family.daily, cooked: isOn("cooked", family), family, habits: isOn("habits", family), routines: isOn("routines", family) }, date);
   const dailyCovers = isOn("cooked", family) && family.daily?.on !== false;
-  for (const r of dailyPlan) {
-    const at = clockMinutes(r.time);
-    const times: [string, string][] = [[r.time, ""]];
-    if (prefs.level === "persistent") for (let i = 1; i <= FOLLOW_UPS; i++) if (at + i * FOLLOW_UP_EVERY < 1440) times.push([fromMinutes(at + i * FOLLOW_UP_EVERY), `:f${i}`]);
-    const due = times.find(([hm, suffix]) => now(hm) && !sent[`todo:daily:${r.id}:${date}${suffix}`]);
-    if (!due) continue;
-    out.push({ key: `todo:daily:${r.id}:${date}${due[1]}`, title: due[1] ? `Still to do: ${r.title.replace(/^Log your /, "log your ")}` : r.title, body: r.body, url: goUrl("tasks", "view=today") });
-  }
+  out.push(...dueDailyReminders(dailyPlan, { date, minutes, sent, keyPrefix: "todo:daily:", url: goUrl("tasks", "view=today"), followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES }));
 
   const events = isOn("calendar", family) ? eventsFor(ws, family, date) : [];
   for (const e of events) {
@@ -298,4 +291,17 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
     }
   }
   return out;
+}
+
+/** FamilyHub's reminders (Nov 24, 2026): the family's shared check-ins and chores, sent to everyone in the family
+ *  until someone ticks them off. Quiet hours and "Keep after me" follow the family's notification settings. */
+export const FAMILY_REMINDER_URL = "/#/familyhub";
+export function dueFamilyReminders(workspace: unknown, nowMs: number, timeZone: string, sent: Record<string, unknown> = {}): TodoReminder[] {
+  const ws = prepareTodoReminders(workspace);
+  const family = ws.family as ReturnType<typeof cleanFamily>;
+  const prefs = family.notify;
+  const { date, minutes } = localParts(nowMs, timeZone);
+  if (inQuiet(prefs, minutes)) return [];
+  const plan = dailyReminderPlan({ settings: family.daily, cooked: false, family, habits: isOn("habits", family), routines: isOn("routines", family), chores: isOn("chores", family) ? family : null }, date);
+  return dueDailyReminders(plan, { date, minutes, sent, keyPrefix: "todo:fam:", url: `${FAMILY_REMINDER_URL}?go=tasks&view=today`, followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES });
 }
