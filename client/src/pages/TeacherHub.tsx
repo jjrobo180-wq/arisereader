@@ -19,6 +19,7 @@ import { STORE_KIND } from "@shared/hubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
 import { foldMenu, type MenuEntry, type MenuFolder } from "@shared/hubLayout";
+import { dropInMenu, moveInMenu, orderMenu, saveMenuOrder } from "@shared/menuOrder";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -560,7 +561,7 @@ function TeacherHubPage() {
   const [lastInGroup, setLastInGroup] = useState<Partial<Record<HubGroupId, HubTab>>>({});
   // Which menu item is being dragged. Must stay with the other hooks: anything
   // below the early returns changes the hook count between renders and React throws.
-  const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
+  const [draggingGroup, setDraggingGroup] = useState<string | null>(null);
   // The group's categories dropdown (replaces a second row of sub-tabs). Hooks stay up here:
   // anything below the early returns changes the hook count between renders and React throws.
   const [subMenu, setSubMenu] = useState(false);
@@ -1080,8 +1081,30 @@ function TeacherHubPage() {
   const isStoreGroup = (entry: (typeof menu)[number]) => entry.tabs.some((t) => WORK_ADD_ON_TABS.includes(t));
   const coreMenu = menu.filter((entry) => !isStoreGroup(entry));
   const installedMenu = menu.filter(isStoreGroup);
-  /** The apps listed with this one (built-in or My plugins), in menu order, the ones you can move. */
-  function sectionOf(id: HubGroupId): HubGroupId[] { return (menu.some((m) => m.id === id && isStoreGroup(m)) ? installedMenu : coreMenu).map((m) => m.id).filter((g) => g !== "home"); }
+  // The side menu is one list (shared/menuOrder.ts): built-in apps, Plugin Gallery apps and the other
+  // plugins (kits, Notes, Sheets and Office apps, Drive, Dropbox) move up and down past each other freely.
+  // Home stays first. Keys: a group's id, or "x:" + the plugin's key.
+  const extraKeys = [...myOfficeApps.map((a) => `office:${a.id}`), ...myKits.map((d) => `kit:${d.id}`), ...myNotesApps.map((p) => `notes:${p.id}`),
+    ...mySheetsApps.map((a) => `sheets:${a.id}`), ...(drivePlugin ? ["drive"] : []), ...(dropPlugin ? ["drop"] : [])];
+  const oldAppsOrder: string[] = Array.isArray((workspace as any).myAppsOrder) ? (workspace as any).myAppsOrder : [];
+  const extraRank = (k: string) => { const i = oldAppsOrder.indexOf(k); return i < 0 ? 1000 + extraKeys.indexOf(k) : i; };
+  const naturalMenu = [...coreMenu, ...installedMenu].map((m) => m.id as string).filter((g) => g !== "home" && g !== "arise" && g !== "admin")
+    .concat([...extraKeys].sort((a, b) => extraRank(a) - extraRank(b)).map((k) => `x:${k}`));
+  const menuOrder = orderMenu(naturalMenu, (workspace as any).menuOrder);
+  // Folders hold built-in apps only, as before (a saved folder that mixed in a Plugin Gallery app keeps it outside).
+  const menuFolders = layout.folders.map((f) => ({ ...f, items: f.items.filter((id) => coreMenu.some((m) => m.id === id)) }))
+    .filter((f, i) => f.items.length > 0 || layout.folders[i].items.length === 0);
+  const folderOf = (key: string) => menuFolders.find((f) => f.items.includes(key))?.id;
+  /** Saves a new menu order, and keeps the older orders (the app drawer's groupOrder, myAppsOrder) matching it. */
+  const saveMenu = (next: string[]) => setWorkspace((prev) => {
+    const groups = next.filter((k) => !k.startsWith("x:"));
+    const restGroups = cleanGroupOrder(prev.groupOrder).filter((g) => !groups.includes(g));
+    return { ...prev, menuOrder: saveMenuOrder(next, (prev as any).menuOrder), groupOrder: [...groups, ...restGroups],
+      myAppsOrder: next.filter((k) => k.startsWith("x:")).map((k) => k.slice(2)) } as typeof prev;
+  });
+  const canMove = (key: string, dir: -1 | 1) => moveInMenu(menuOrder, key, dir, folderOf) !== null;
+  const moveMenuBy = (key: string, dir: -1 | 1) => { const next = moveInMenu(menuOrder, key, dir, folderOf); if (next) saveMenu(next); };
+  const moveMenuTo = (key: string, before: string | null) => saveMenu(dropInMenu(menuOrder, key, before));
   /** Adds or removes a Plugin Gallery app: used by the gallery and by the menu's "Remove app". */
   const toggleWorkPlugin = (p: Plugin, on: boolean) => {
           // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
@@ -1243,28 +1266,8 @@ function TeacherHubPage() {
     return out;
   })();
   const group = groupOf(tab);
-  // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits. Home never moves.
-  // Up and down go past the next app you can see. The saved order also holds apps that are hidden or not
-  // yours, and swapping with one of those used to look like nothing happened.
-  const moveGroupBy = (id: HubGroupId, dir: -1 | 1) => {
-    const section = sectionOf(id);
-    const at = section.indexOf(id), neighbor = section[at + dir];
-    if (at < 0 || !neighbor) return;
-    setWorkspace((prev) => {
-      const current = cleanGroupOrder(prev.groupOrder).filter((g) => g !== id);
-      const n = current.indexOf(neighbor);
-      if (n < 0) return prev;
-      current.splice(dir < 0 ? n : n + 1, 0, id);
-      return { ...prev, groupOrder: current };
-    });
-  };
-  const moveGroupTo = (id: HubGroupId, beforeId: HubGroupId | null) => setWorkspace((prev) => {
-    const current = cleanGroupOrder(prev.groupOrder).filter((g) => g !== id);
-    const at = beforeId ? current.indexOf(beforeId) : current.length;
-    if (at < 0) return prev;
-    current.splice(at, 0, id);
-    return { ...prev, groupOrder: current };
-  });
+  // Dragging (or the ⋯ menu's Move up / Move down, or the arrows on hover) reorders the menu: one list,
+  // so an app moves past any other app you can see (moveMenuBy / moveMenuTo above). Home never moves.
   const subTabs = groupTabs(group.id, visible, seeAll);
 
   // Passcode lock (components/lock/PrivacyLock.tsx): the screens that can be locked.
@@ -1470,7 +1473,7 @@ function TeacherHubPage() {
                   onDragStart={movable ? (e) => { setDraggingGroup(item.id); e.dataTransfer.effectAllowed = "move"; } : undefined}
                   onDragEnd={movable ? () => setDraggingGroup(null) : undefined}
                   onDragOver={movable && draggingGroup && draggingGroup !== item.id ? (e) => e.preventDefault() : undefined}
-                  onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveGroupTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
+                  onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveMenuTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
                   className={`group/navitem flex ${across ? "snap-start" : "w-full"} shrink-0 items-stretch ${deskTop ? "md:w-auto" : "md:w-full"} ${nested && !deskTop && !deskCompact ? "md:pl-4" : ""} gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
                 >
                   <button
@@ -1489,8 +1492,8 @@ function TeacherHubPage() {
                     className={deskTop || deskCompact ? "md:hidden" : ""}
                     actions={[
                       { label: "Open", onPick: () => { goGroup(item.id); afterPick(); } },
-                      ...(sectionOf(item.id).indexOf(item.id) > 0 ? [{ label: "Move up", onPick: () => moveGroupBy(item.id, -1) }] : []),
-                      ...(sectionOf(item.id).indexOf(item.id) < sectionOf(item.id).length - 1 ? [{ label: "Move down", onPick: () => moveGroupBy(item.id, 1) }] : []),
+                      ...(canMove(item.id, -1) ? [{ label: "Move up", onPick: () => moveMenuBy(item.id, -1) }] : []),
+                      ...(canMove(item.id, 1) ? [{ label: "Move down", onPick: () => moveMenuBy(item.id, 1) }] : []),
                       isStoreGroup(item) ? { label: "Remove app", danger: true, onPick: () => dropGroup(item, true) } : { label: "Hide from menu", onPick: () => dropGroup(item, false) },
                       { label: "Customize menu", onPick: () => setCustomize(true) },
                     ]} />}
@@ -1498,8 +1501,8 @@ function TeacherHubPage() {
                     className="hidden shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/navitem:opacity-100 focus:opacity-100 md:flex"><X className="h-4 w-4" /></button>}
                   {movable && (
                     <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${deskTop || deskCompact || nested ? "" : "md:flex"}`}>
-                      <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={sectionOf(item.id).indexOf(item.id) <= 0} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
-                      <button type="button" onClick={() => moveGroupBy(item.id, 1)} disabled={sectionOf(item.id).indexOf(item.id) >= sectionOf(item.id).length - 1} aria-label={`Move ${groupLabel(item.id, visible)} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+                      <button type="button" onClick={() => moveMenuBy(item.id, -1)} disabled={!canMove(item.id, -1)} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+                      <button type="button" onClick={() => moveMenuBy(item.id, 1)} disabled={!canMove(item.id, 1)} aria-label={`Move ${groupLabel(item.id, visible)} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
                     </span>
                   )}
                 </div>
@@ -1582,40 +1585,7 @@ function TeacherHubPage() {
                   );
                 })}
               </Fragment>;
-              const renderSidebarGroups = (groups: typeof menu, keepFolders: boolean) => foldMenu(groups, keepFolders ? layout.folders : [])
-                .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
-                .map((entry) => {
-                // Arise Reader lives in the Arise Learning section, right below Home.
-                if (entry.kind === "item" && entry.item.id === "arise") return null;
-                // Drawn right below Arise Learning instead, not wherever the saved order put it.
-                if (entry.kind === "item" && entry.item.id === "admin") return null;
-                // Teachers and admins get Arise Learning here, right below Home (parents have it in LifeHub).
-                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{(user.role === "teacher" || user.isAdmin) && learning}{adminBlock}</Fragment>;
-                if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
-                const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
-                const open = openFolders.includes(f.id) || here;
-                return <Fragment key={`folder-${f.id}`}>
-                  <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                    <button type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`hub-folder-${f.id}`} data-hub-nav
-                      className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "text-slate-950" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
-                      <FolderIcon className="h-4 w-4" />
-                      <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{f.name}</span>
-                      <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
-                    </button>
-                  </div>
-                  {open && entry.items.filter((item) => item.id !== "arise" && item.id !== "admin").map((item) => navItem(item, menu.indexOf(item), true))}
-                </Fragment>;
-              });
-              const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || myOfficeApps.length > 0 || !!drivePlugin || !!dropPlugin;
-              return <>
-                {renderSidebarGroups(coreMenu, true)}
-                {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My plugins</p>}
-                {renderSidebarGroups(installedMenu, false)}
-              </>;
-            })()}
-            {(() => {
-              // Everything else under My plugins (kits like IEP, Notes, Sheets and Office apps, Drive, Dropbox),
-              // in the order you set: ⋯ (or press and hold) → Move up / Move down.
+              // Every plugin besides the menu groups (kits like IEP, Notes, Sheets and Office apps, Drive, Dropbox).
               const extras: { key: string; label: string; node: any; remove?: () => void }[] = [];
               myOfficeApps.forEach((a) => { const inHub = a.target.kind === "officeApp" ? inHubOf(a.target.href) : ""; const cls = `flex min-h-[52px] min-w-0 ${across ? "snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:text-left md:text-sm ${inHub && kitOpen === inHub ? "bg-indigo-600 text-white md:bg-indigo-600" : "text-slate-600 hover:text-indigo-700 md:hover:bg-slate-100"}`; const inner = <><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span></>;
                 extras.push({ key: `office:${a.id}`, label: a.name, remove: () => { removeWorkApp(a); if (inHub && kitOpen === inHub) setKitOpen(null); }, node: inHub
@@ -1661,26 +1631,51 @@ function TeacherHubPage() {
                   <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{dropPlugin.name}</span>
                 </button>
               </div>) });
-              const order: string[] = Array.isArray((workspace as any).myAppsOrder) ? (workspace as any).myAppsOrder : [];
-              const rank = (k: string) => { const i = order.indexOf(k); return i < 0 ? 1000 + extras.findIndex((x) => x.key === k) : i; };
-              const sorted = [...extras].sort((a, b) => rank(a.key) - rank(b.key));
-              const move = (key: string, dir: -1 | 1) => {
-                const keys = sorted.map((x) => x.key); const at = keys.indexOf(key), to = at + dir;
-                if (at < 0 || to < 0 || to >= keys.length) return;
-                [keys[at], keys[to]] = [keys[to], keys[at]];
-                setWorkspace((prev) => ({ ...prev, myAppsOrder: keys } as typeof prev));
-              };
-              return sorted.map((x, i) => <div key={x.key} className={`group/navitem relative flex items-center ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`} {...holdFor(`x:${x.key}`)}>
+              const extraRow = (x: (typeof extras)[number]) => { const k = `x:${x.key}`; return <div key={x.key} className={`group/navitem relative flex items-center ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"} ${draggingGroup === k ? "opacity-40" : ""}`} {...holdFor(`x:${x.key}`)}
+                draggable onDragStart={(e) => { setDraggingGroup(k); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => setDraggingGroup(null)}
+                onDragOver={draggingGroup && draggingGroup !== k ? (e) => e.preventDefault() : undefined}
+                onDrop={draggingGroup && draggingGroup !== k ? (e) => { e.preventDefault(); moveMenuTo(draggingGroup, k); setDraggingGroup(null); } : undefined}>
                 <div className="min-w-0 flex-1" onClickCapture={(e) => { if (wasHeld()) { e.stopPropagation(); e.preventDefault(); } }}>{x.node}</div>
                 <AppItemMenu name={x.label} open={itemMenu === `x:${x.key}`} setOpen={(o) => setItemMenu(o ? `x:${x.key}` : null)} className={deskTop || deskCompact ? "md:hidden" : ""}
-                  actions={[...(i > 0 ? [{ label: "Move up", onPick: () => move(x.key, -1) }] : []), ...(i < sorted.length - 1 ? [{ label: "Move down", onPick: () => move(x.key, 1) }] : []), ...(x.remove ? [{ label: "Remove app", danger: true, onPick: x.remove }] : []), { label: "Customize menu", onPick: () => setCustomize(true) }]} />
+                  actions={[...(canMove(k, -1) ? [{ label: "Move up", onPick: () => moveMenuBy(k, -1) }] : []), ...(canMove(k, 1) ? [{ label: "Move down", onPick: () => moveMenuBy(k, 1) }] : []), ...(x.remove ? [{ label: "Remove app", danger: true, onPick: x.remove }] : []), { label: "Customize menu", onPick: () => setCustomize(true) }]} />
                 {x.remove && !deskTop && !deskCompact && <button type="button" onClick={x.remove} aria-label={`Remove ${x.label} from the menu`} title="Remove from the menu" data-testid={`hub-remove-${x.key}`}
                   className="hidden shrink-0 items-center justify-center self-center rounded-lg px-1.5 py-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover/navitem:opacity-100 focus:opacity-100 md:flex"><X className="h-4 w-4" /></button>}
                 {!deskTop && !deskCompact && <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
-                  <button type="button" onClick={() => move(x.key, -1)} disabled={i === 0} aria-label={`Move ${x.label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => move(x.key, 1)} disabled={i === sorted.length - 1} aria-label={`Move ${x.label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => moveMenuBy(k, -1)} disabled={!canMove(k, -1)} aria-label={`Move ${x.label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => moveMenuBy(k, 1)} disabled={!canMove(k, 1)} aria-label={`Move ${x.label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
                 </span>}
-              </div>);
+              </div>; };
+              const byId = new Map(menu.map((m) => [m.id as string, m]));
+              const extraByKey = new Map(extras.map((x) => [`x:${x.key}`, x]));
+              const home = byId.get("home");
+              // Home, then Arise Learning (teachers and admins; parents have it in LifeHub), then everything else in
+              // one list, in the order you set: no line between built-in apps and plugins.
+              return <>
+                {home && <Fragment key="home-and-learning">{navItem(home, menu.indexOf(home))}{(user.role === "teacher" || user.isAdmin) && learning}{adminBlock}</Fragment>}
+                {foldMenu(menuOrder.map((id) => ({ id })), menuFolders)
+                  .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
+                  .map((entry) => {
+                    if (entry.kind === "item") {
+                      const x = extraByKey.get(entry.item.id);
+                      if (x) return extraRow(x);
+                      const g = byId.get(entry.item.id);
+                      return g ? navItem(g, menu.indexOf(g)) : null;
+                    }
+                    const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
+                    const open = openFolders.includes(f.id) || here;
+                    return <Fragment key={`folder-${f.id}`}>
+                      <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                        <button type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`hub-folder-${f.id}`} data-hub-nav
+                          className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "text-slate-950" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                          <FolderIcon className="h-4 w-4" />
+                          <span className={`${MENU_LABEL} ${deskCompact ? "md:sr-only" : ""}`}>{f.name}</span>
+                          <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
+                        </button>
+                      </div>
+                      {open && entry.items.map((x) => byId.get(x.id)).filter((item): item is (typeof menu)[number] => !!item).map((item) => navItem(item, menu.indexOf(item), true))}
+                    </Fragment>;
+                  })}
+              </>;
             })()}
             <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:mt-2 md:w-full md:border-t md:border-slate-100 md:pt-2`}>
               <button type="button" onClick={() => { setStore(true); afterPick(); }} data-testid="hub-menu-app-store" data-hub-store

@@ -230,11 +230,10 @@ test("every place minutes are marked has an Undo: each Done row, a whole block, 
   assert.match(board, /data-testid="class-student-unlog"/); assert.match(board, /data-testid="class-undo-batch-go"/);
 });
 
-test("every app in the WorkHub menu can be moved: up and down skip hidden apps, and My plugins extras have their own order", () => {
+test("every app in the WorkHub menu can be moved: one order for the whole menu, saved with the older orders kept matching", () => {
   const hub = readFileSync(new URL("../client/src/pages/TeacherHub.tsx", import.meta.url), "utf8");
-  assert.match(hub, /const section = sectionOf\(id\);/);
-  assert.match(hub, /current\.splice\(dir < 0 \? n : n \+ 1, 0, id\)/);
-  assert.match(hub, /myAppsOrder: keys/);
+  assert.match(hub, /const moveMenuBy = \(key: string, dir: -1 \| 1\) =>/);
+  assert.match(hub, /myAppsOrder: next\.filter\(\(k\) => k\.startsWith\("x:"\)\)/);
   for (const k of ["office:", "kit:", "notes:", "sheets:"]) assert.ok(hub.includes(`key: \`${k}`), k);
-  assert.match(hub, /label: "Move up", onPick: \(\) => moveGroupBy\(item\.id, -1\)/, "phones move apps from the ⋯ / press-and-hold menu");
+  assert.match(hub, /label: "Move up", onPick: \(\) => moveMenuBy\(item\.id, -1\)/, "phones move apps from the ⋯ / press-and-hold menu");
 });

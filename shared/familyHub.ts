@@ -321,6 +321,9 @@ export type Family = {
   /** Kit plugins added from WorkHub's shelf (App Store). LifeHub's own kit plugins are menu
    *  sections instead; these are the crossed-over ones, opened like the Notes/Sheets apps. */
   kitInstalled?: string[];
+  /** The side menu's order, one list for every section and plugin (shared/menuOrder.ts): section ids,
+   *  and "x:" + a plugin's key ("x:notes:<id>", "x:kit:<id>", "x:drive"...). */
+  menuOrder?: string[];
   /** Notes-app plugins (see shared/notesApp.ts) added from the App Store that aren't built into
    *  LifeHub, by their plugin id ("life-work-notes" for Work Notes). Each keeps its own notes in
    *  notesApps, separate from LifeHub's own built-in Notes (above) and from each other. */
@@ -751,6 +754,7 @@ export function cleanFamily(input: unknown): Family {
     }),
     kit: cleanKit(raw.kit),
     kitInstalled: Array.isArray(raw.kitInstalled) ? raw.kitInstalled.filter((x: unknown): x is string => typeof x === "string").slice(0, 400) : [],
+    ...(Array.isArray(raw.menuOrder) ? { menuOrder: raw.menuOrder.filter((x: unknown): x is string => typeof x === "string").slice(0, 400) } : {}),
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
     lock: cleanLock(raw.lock),
     notesInstalled: Array.isArray(raw.notesInstalled) ? [...new Set(raw.notesInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 20) : [],

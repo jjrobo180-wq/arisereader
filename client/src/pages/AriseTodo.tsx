@@ -174,6 +174,7 @@ import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
+import { dropInMenu, moveInMenu, orderMenu, saveMenuOrder } from "@shared/menuOrder";
 import { hubThemeOf } from "@shared/appThemes";
 import { tileColorOf } from "@/components/teacher-hub/HubHomeEdit";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
@@ -438,7 +439,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     const first: FamilySection = "home";
     try { const saved = localStorage.getItem(familySpace ? FAMILY_SECTION_KEY : SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
-  const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
+  const [draggingSection, setDraggingSection] = useState<string | null>(null);
   // Holding an app in the menu on a touch screen asks to remove it (removeFromMenu).
   const holdTimer = useRef<number | null>(null);
   const held = useRef(false);
@@ -867,24 +868,6 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
   // Sharing ("linked") opens from Settings (the You sheet and Family & settings), not from the app list.
   const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id) && id !== "linked");
-  // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
-  // Home, Reader, Tasks, Notifications and Family & settings stay put.
-  const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
-    const current = cleanSectionOrder(f.sectionOrder);
-    const at = current.indexOf(id);
-    const to = at + dir;
-    if (at < 0 || to < 0 || to >= current.length) return f;
-    const next = [...current];
-    [next[at], next[to]] = [next[to], next[at]];
-    return { ...f, sectionOrder: next };
-  });
-  const moveSectionTo = (id: FamilySection, beforeId: FamilySection | null) => setFamily((f) => {
-    const current = cleanSectionOrder(f.sectionOrder).filter((s) => s !== id);
-    const at = beforeId && (TOGGLEABLE as readonly FamilySection[]).includes(beforeId) ? current.indexOf(beforeId) : current.length;
-    if (at < 0) return f;
-    current.splice(at, 0, id);
-    return { ...f, sectionOrder: current };
-  });
   const trial = useLifeHubTrial();
   sectionsNow.current = sections;
   const shown: FamilySection = sections.includes(section) ? section : (parentOf(section) && sections.includes(parentOf(section) as FamilySection)) ? (parentOf(section) as FamilySection) : "home";
@@ -946,6 +929,28 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d && d.category !== "Health & wellness");
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = withSharedLook(cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id)), "life");
+  // The computer's side menu is one list (shared/menuOrder.ts): built-in apps, Plugin Gallery apps and the other
+  // plugins (Notes, Sheets and Office apps, Drive, Dropbox, kits) move up and down past each other freely.
+  // Home and Tasks stay first, Notifications and Family & settings last. Keys: a section's id, or "x:" + the plugin's key.
+  const lifeMovable = collapseGroups([...builtInSections, ...installedSections], sections).filter((id) => (TOGGLEABLE as readonly FamilySection[]).includes(id) && id !== "reader") as string[];
+  const lifeNatural = [...lifeMovable, ...pinnableNotes.map((p) => `x:notes:${p.id}`), ...installedOffice.map((p) => `x:office:${p.id}`), ...pinnableSheets.map((p) => `x:sheets:${p.id}`),
+    ...(drivePlugin ? ["x:drive"] : []), ...(dropPlugin ? ["x:drop"] : []), ...myKits.map((d) => `x:kit:${d.id}`)];
+  const lifeOrder = orderMenu(lifeNatural, family.menuOrder);
+  // Home and Tasks first, then the list you arrange, then Notifications and Family & settings.
+  const lifeFixed = collapseGroups(builtInSections, sections).filter((id) => !(TOGGLEABLE as readonly FamilySection[]).includes(id) && id !== "reader");
+  const lifeMenuKeys = [...lifeFixed.filter((id) => id === "home" || id === "tasks"), ...lifeOrder, ...lifeFixed.filter((id) => id !== "home" && id !== "tasks")];
+  // Folders hold built-in apps only, as before (a saved folder that mixed in a Plugin Gallery app keeps it outside).
+  const lifeFolders = layout.folders.map((f) => ({ ...f, items: f.items.filter((id) => builtInSections.includes(id as FamilySection)) }))
+    .filter((f, i) => f.items.length > 0 || layout.folders[i].items.length === 0);
+  const lifeFolderOf = (key: string) => lifeFolders.find((f) => f.items.includes(key))?.id;
+  /** Saves a new menu order, and keeps sectionOrder (the phone menu's) matching it. */
+  const saveLifeMenu = (next: string[]) => setFamily((f) => {
+    const own = next.filter((k): k is FamilySection => (TOGGLEABLE as readonly string[]).includes(k));
+    return { ...f, menuOrder: saveMenuOrder(next, f.menuOrder), sectionOrder: [...own, ...cleanSectionOrder(f.sectionOrder).filter((x) => !own.includes(x))] };
+  });
+  const canMoveLife = (key: string, dir: -1 | 1) => moveInMenu(lifeOrder, key, dir, lifeFolderOf) !== null;
+  const moveSectionBy = (key: string, dir: -1 | 1) => { const next = moveInMenu(lifeOrder, key, dir, lifeFolderOf); if (next) saveLifeMenu(next); };
+  const moveSectionTo = (key: string, before: string | null) => saveLifeMenu(dropInMenu(lifeOrder, key, before));
   // Setup shows once per account (lib/seenOnce.ts): on a device that hasn't seen it, ask the account
   // first; the walkthrough waits until that's known so it never jumps ahead of setup.
   const [setupOpen, setSetupOpen] = useState(false);
@@ -1430,10 +1435,60 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     onPointerCancel: () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); },
     onContextMenu: (e: RMouseEvent) => { e.preventDefault(); if (!held.current) removeFromMenu(id); },
   });
-  /** One sidebar renderer for built-in navigation and installed App Store sections.
-   *  Store apps stay out of the built-in list, even if a saved folder previously mixed them. */
-  const renderSectionItems = (ids: FamilySection[], useFolders: boolean) => <>
-    {foldMenu(ids.filter((id) => id !== "reader").map((id) => ({ id })), useFolders ? layout.folders : []).filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0).flatMap((entry) => {
+  // Every plugin besides the menu sections (Notes, Office and Sheets apps, Drive, Dropbox, kits), by its key in lifeOrder.
+  const lifeExtras = new Map<string, { label: string; body: ReactNode }>();
+  pinnableNotes.forEach((p) => lifeExtras.set(`x:notes:${p.id}`, { label: p.name, body: <>
+              <button type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+              </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-notes-app-${p.id}`)}
+            </> }));
+  installedOffice.forEach((p) => { const pro = p.target.kind === "officeApp" ? proAppOf(p.target.href) : ""; lifeExtras.set(`x:office:${p.id}`, { label: p.name, body: <>{pro ? <button type="button" onClick={() => { closeApps(); setKitOpen(`pro:${pro}`); }} aria-current={kitOpen === `pro:${pro}` ? "page" : undefined} data-testid={`lifehub-office-app-${p.id}`} className={`flex min-h-10 w-full min-w-0 flex-1 items-center gap-3 rounded-xl px-3 text-left text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === `pro:${pro}` ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></button> : <a href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>}{removeX(p.name, () => { removeApp(p); if (kitOpen === `pro:${proAppOf(p.target.kind === "officeApp" ? p.target.href : "")}`) setKitOpen(null); }, `lifehub-remove-office-app-${p.id}`)}</> }); });
+  pinnableSheets.forEach((p) => lifeExtras.set(`x:sheets:${p.id}`, { label: p.name, body: <>
+              <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+              </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-sheets-app-${p.id}`)}
+            </> }));
+  if (drivePlugin) lifeExtras.set("x:drive", { label: drivePlugin.name, body: <>
+              <button type="button" onClick={() => { closeApps(); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
+              </button>{removeX(drivePlugin.name, () => removeApp(drivePlugin), "lifehub-remove-drive-app")}
+            </> });
+  if (dropPlugin) lifeExtras.set("x:drop", { label: dropPlugin.name, body: <>
+              <button type="button" onClick={() => { closeApps(); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
+              </button>{removeX(dropPlugin.name, () => removeApp(dropPlugin), "lifehub-remove-drop-app")}
+            </> });
+  myKits.forEach((d) => lifeExtras.set(`x:kit:${d.id}`, { label: d.name, body: <>
+              <button type="button" onClick={() => { closeApps(); setKitOpen(d.id); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`lifehub-kit-${d.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === d.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <Puzzle className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{d.name}</span>
+              </button>{removeX(d.name, () => setRemoving({ label: d.name, run: () => { setFamily((f) => ({ ...f, kitInstalled: (f.kitInstalled ?? []).filter((k) => k !== d.id) })); if (kitOpen === d.id) setKitOpen(null); } }), `lifehub-remove-kit-${d.id}`)}
+            </> }));
+  /** Up and down arrows on hover, for any item in the computer's side menu. */
+  const lifeArrows = (key: string, label: string) => (
+    <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
+      <button type="button" onClick={() => moveSectionBy(key, -1)} disabled={!canMoveLife(key, -1)} aria-label={`Move ${label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+      <button type="button" onClick={() => moveSectionBy(key, 1)} disabled={!canMoveLife(key, 1)} aria-label={`Move ${label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+    </span>
+  );
+  const lifeExtraRow = (key: string) => {
+    const x = lifeExtras.get(key);
+    if (!x) return null;
+    return <div key={key} draggable onDragStart={(e) => { setDraggingSection(key); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => setDraggingSection(null)}
+      onDragOver={draggingSection && draggingSection !== key ? (e) => e.preventDefault() : undefined}
+      onDrop={draggingSection && draggingSection !== key ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, key); setDraggingSection(null); } : undefined}
+      className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${draggingSection === key ? "opacity-40" : ""}`}>
+      {x.body}{lifeArrows(key, x.label)}
+    </div>;
+  };
+  /** The computer's side menu: sections and plugins in one list (lifeOrder), folders holding built-in apps.
+   *  A key starting "x:" is a plugin (lifeExtraRow). */
+  const renderSectionItems = (ids: string[]) => <>
+    {foldMenu(ids.filter((id) => id !== "reader").map((id) => ({ id })), lifeFolders).filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0).flatMap((entry) => {
             if (entry.kind === "item") return [entry.item.id];
             const f = entry.folder, here = entry.items.some((x) => x.id === shown), open = openFolders.includes(f.id) || here;
             return [<button key={`folder-${f.id}`} type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`life-folder-${f.id}`}
@@ -1442,11 +1497,10 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
             </button>, ...(open ? entry.items.map((x) => `nested:${x.id}`) : [])];
           }).map((raw, i) => {
             if (typeof raw !== "string") return raw;
+            if (raw.startsWith("x:")) return lifeExtraRow(raw);
             const nested = raw.startsWith("nested:"), id = (nested ? raw.slice(7) : raw) as FamilySection;
             const Icon = SECTION_ICONS[id];
             const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
-            const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
-            const posInToggleable = toggleableShown.indexOf(id);
             const el = (
               <div
                 key={id}
@@ -1473,12 +1527,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
                     <X className="h-4 w-4" />
                   </button>
                 )}
-                {movable && (
-                  <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
-                    <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
-                  </span>
-                )}
+                {movable && lifeArrows(id, SECTION_INFO[id].label)}
               </div>
             );
             // Right below Home: Arise Reader and the Arise Learning programs.
@@ -1709,46 +1758,9 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} duo-book:flex-row`}>
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" || layout.menuSide === "tabs" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side" data-duo-chrome="">
         <nav aria-label="Family Hub" className={`duo-book:flex duo-book:flex-col duo-book:gap-0.5 duo-book:overflow-visible duo-book:px-3 duo-book:pt-4 hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
-          {renderSectionItems(collapseGroups(builtInSections, sections), true)}
+          {renderSectionItems(lifeMenuKeys)}
 
         </nav>
-        {(installedSections.length > 0 || pinnableApps.length > 0 || installedOffice.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block duo-book:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
-          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">My plugins</p>
-          <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
-            {renderSectionItems(installedSections, false)}
-            {myNotesApps.map((p) => (<div key={`notes-app-${p.id}`} className="group/navitem flex items-stretch gap-0.5">
-              <button type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
-                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
-              </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-notes-app-${p.id}`)}
-            </div>))}
-            {installedOffice.map((p) => { const pro = p.target.kind === "officeApp" ? proAppOf(p.target.href) : ""; return <div key={p.id} className="group/navitem flex items-stretch gap-0.5">{pro ? <button type="button" onClick={() => { closeApps(); setKitOpen(`pro:${pro}`); }} aria-current={kitOpen === `pro:${pro}` ? "page" : undefined} data-testid={`lifehub-office-app-${p.id}`} className={`flex min-h-10 w-full min-w-0 flex-1 items-center gap-3 rounded-xl px-3 text-left text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === `pro:${pro}` ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></button> : <a href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>}{removeX(p.name, () => { removeApp(p); if (kitOpen === `pro:${proAppOf(p.target.kind === "officeApp" ? p.target.href : "")}`) setKitOpen(null); }, `lifehub-remove-office-app-${p.id}`)}</div>; })}
-            {pinnableSheets.map((p) => (<div key={`sheets-app-${p.id}`} className="group/navitem flex items-stretch gap-0.5">
-              <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
-                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
-              </button>{removeX(p.name, () => removeApp(p), `lifehub-remove-sheets-app-${p.id}`)}
-            </div>))}
-            {drivePlugin && (<div className="group/navitem flex items-stretch gap-0.5">
-              <button type="button" onClick={() => { closeApps(); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
-                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
-              </button>{removeX(drivePlugin.name, () => removeApp(drivePlugin), "lifehub-remove-drive-app")}
-            </div>)}
-            {dropPlugin && (<div className="group/navitem flex items-stretch gap-0.5">
-              <button type="button" onClick={() => { closeApps(); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
-                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
-              </button>{removeX(dropPlugin.name, () => removeApp(dropPlugin), "lifehub-remove-drop-app")}
-            </div>)}
-            {myKits.map((d) => (<div key={`kit-${d.id}`} className="group/navitem flex items-stretch gap-0.5">
-              <button type="button" onClick={() => { closeApps(); setKitOpen(d.id); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`lifehub-kit-${d.id}`}
-                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === d.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <Puzzle className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{d.name}</span>
-              </button>{removeX(d.name, () => setRemoving({ label: d.name, run: () => { setFamily((f) => ({ ...f, kitInstalled: (f.kitInstalled ?? []).filter((k) => k !== d.id) })); if (kitOpen === d.id) setKitOpen(null); } }), `lifehub-remove-kit-${d.id}`)}
-            </div>))}
-          </div>
-        </div>}
         <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />Plugin Gallery</button></div>
         <div className={`mt-auto hidden px-5 pb-7 pt-6 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <div className="rounded-2xl bg-[#f4f1ff] p-4">
