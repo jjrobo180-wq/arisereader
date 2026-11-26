@@ -32,10 +32,22 @@ export type LifeHealthDay = {
   steps?: number; active?: number;
   /** Hours asleep the night before; bedtime as minutes after 6 PM (for how regular it is). */ sleep?: number; bed?: number;
   /** Beats a minute; heart rate variability in ms; mindful minutes. */ rhr?: number; hrv?: number; mindful?: number;
+  /** Minutes of each sleep stage, and awake in the night. */ deep?: number; rem?: number; core?: number; awake?: number;
+  /** Wake-up time as minutes after midnight. */ wake?: number;
+  /** Kilometers walked or run; kilometers cycled; floors climbed; exercise minutes; hours with standing. */ km?: number; bikeKm?: number; flights?: number; exMin?: number; stand?: number;
+  /** Resting (basal) calories burned; calories eaten (food apps that save to Health); water drunk in ml. */ basal?: number; eaten?: number; water?: number;
+  /** Heart rate over the day: average, lowest and highest. */ hrAvg?: number; hrMin?: number; hrMax?: number;
+  /** VO2 max (ml/kg/min), breaths a minute, blood oxygen %, body temperature °F, wrist temperature °F. */ vo2?: number; resp?: number; spo2?: number; temp?: number; wrist?: number;
+  /** Weight in lb, body fat %, blood pressure, blood glucose mg/dL. */ weight?: number; fat?: number; sys?: number; dia?: number; glucose?: number;
+  /** Workouts recorded in Health: how many, minutes, calories, and their kinds. */ wo?: number; woMin?: number; woCal?: number; woKinds?: string[];
 };
 export type ScreeningId = "breast" | "cervical" | "colorectal" | "lung";
 export type LifeScoreSettings = {
   birthYear?: number; sex?: "female" | "male";
+  /** Height in inches (for BMI when Health has none). */ heightIn?: number;
+  /** Nicotine for Life's Essential 8. */ nicotine?: "never" | "quit5" | "quit1" | "quitRecent" | "current"; secondhand?: boolean;
+  /** For the diabetes risk test. */ familyDiabetes?: boolean; gestational?: boolean; highBp?: boolean;
+  /** Money in dollars: what you own and owe; monthly take-home pay. */ assets?: number; debts?: number; income?: number;
   /** 20 pack-years or more, and smoked within the last 15 years (lung screening). */ heavySmoker?: boolean;
   /** Months of expenses saved. */ cushion?: number;
   stepGoal?: number;
@@ -43,16 +55,22 @@ export type LifeScoreSettings = {
   screenings: Partial<Record<ScreeningId, { date: string; years: number }>>;
   /** Scores switched off. */ off: MetricId[];
 };
-export type LifeScoreData = { days: Record<string, LifeCheckIn>; health: Record<string, LifeHealthDay>; settings: LifeScoreSettings; healthAt?: string };
+export type LifeScoreData = {
+  days: Record<string, LifeCheckIn>; health: Record<string, LifeHealthDay>; settings: LifeScoreSettings; healthAt?: string;
+  /** Questionnaire answers over time (shared/lifeScales.ts). */ scales?: Partial<Record<ScaleId, Assessment[]>>;
+  /** Labs and vitals typed in (blood pressure, cholesterol, A1c…). */ labs?: Labs[];
+};
 
 export const emptyLifeScore = (): LifeScoreData => ({ days: {}, health: {}, settings: { screenings: {}, off: [] } });
+
+import { SCALES, type Assessment, type Labs, type ScaleId } from "./lifeScales";
 
 // ——— Cleaning (saved in the LifeHub, shared/familyHub.ts) ————————————————————————————————————————————————————
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const num = (v: unknown, lo: number, hi: number, step = 1): number | undefined => {
   const n = Number(v);
   if (v === null || v === undefined || v === "" || !Number.isFinite(n)) return undefined;
-  return Math.round(Math.min(hi, Math.max(lo, n)) / step) * step;
+  return Math.round(Math.round(Math.min(hi, Math.max(lo, n)) / step) * step * 1e6) / 1e6;
 };
 const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
 const compact = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
@@ -71,7 +89,17 @@ export function cleanCheckIn(r: any): LifeCheckIn {
 }
 function cleanHealthDay(r: any): LifeHealthDay {
   if (!r || typeof r !== "object") return {};
-  return compact({ steps: num(r.steps, 0, 200000), active: num(r.active, 0, 20000), sleep: num(r.sleep, 0, 16, 0.05), bed: num(r.bed, 0, 1439), rhr: num(r.rhr, 20, 220), hrv: num(r.hrv, 1, 400), mindful: num(r.mindful, 0, 1440) });
+  return compact({
+    steps: num(r.steps, 0, 200000), active: num(r.active, 0, 20000), sleep: num(r.sleep, 0, 16, 0.05), bed: num(r.bed, 0, 1439), rhr: num(r.rhr, 20, 220), hrv: num(r.hrv, 1, 400), mindful: num(r.mindful, 0, 1440),
+    deep: num(r.deep, 0, 1000), rem: num(r.rem, 0, 1000), core: num(r.core, 0, 1200), awake: num(r.awake, 0, 1000), wake: num(r.wake, 0, 1439),
+    km: num(r.km, 0, 500, 0.01), bikeKm: num(r.bikeKm, 0, 1000, 0.01), flights: num(r.flights, 0, 1000), exMin: num(r.exMin, 0, 1440), stand: num(r.stand, 0, 24),
+    basal: num(r.basal, 0, 10000), eaten: num(r.eaten, 0, 20000), water: num(r.water, 0, 20000),
+    hrAvg: num(r.hrAvg, 20, 250), hrMin: num(r.hrMin, 20, 250), hrMax: num(r.hrMax, 20, 250),
+    vo2: num(r.vo2, 5, 100, 0.1), resp: num(r.resp, 4, 60, 0.1), spo2: num(r.spo2, 50, 100, 0.1), temp: num(r.temp, 80, 110, 0.1), wrist: num(r.wrist, -10, 10, 0.01),
+    weight: num(r.weight, 20, 1000, 0.1), fat: num(r.fat, 1, 80, 0.1), sys: num(r.sys, 50, 260), dia: num(r.dia, 30, 180), glucose: num(r.glucose, 20, 700),
+    wo: num(r.wo, 0, 50), woMin: num(r.woMin, 0, 1440), woCal: num(r.woCal, 0, 20000),
+    woKinds: Array.isArray(r.woKinds) ? r.woKinds.filter((k: unknown) => typeof k === "string").slice(0, 10).map((k: string) => k.slice(0, 40)) : undefined,
+  });
 }
 const keepRecent = <T>(rec: unknown, clean: (r: any) => T, empty: (t: T) => boolean): Record<string, T> => {
   if (!rec || typeof rec !== "object") return {};
@@ -94,10 +122,31 @@ export function cleanLifeScore(raw: unknown): LifeScoreData | undefined {
     health: keepRecent(r.health, cleanHealthDay, (v) => !Object.keys(v).length),
     settings: compact({
       birthYear: num(s.birthYear, 1900, 2030), sex: s.sex === "female" || s.sex === "male" ? s.sex : undefined, heavySmoker: bool(s.heavySmoker),
+      heightIn: num(s.heightIn, 30, 100, 0.5), nicotine: ["never", "quit5", "quit1", "quitRecent", "current"].includes(s.nicotine) ? s.nicotine : undefined, secondhand: bool(s.secondhand),
+      familyDiabetes: bool(s.familyDiabetes), gestational: bool(s.gestational), highBp: bool(s.highBp),
+      assets: num(s.assets, 0, 1e10), debts: num(s.debts, 0, 1e10), income: num(s.income, 0, 1e8),
       cushion: num(s.cushion, 0, 120, 0.5), stepGoal: num(s.stepGoal, 2000, 30000, 500), screenings,
       off: Array.isArray(s.off) ? [...new Set(s.off.filter((x: unknown) => ids.has(x as MetricId)))] as MetricId[] : [],
     }),
     ...(typeof r.healthAt === "string" && r.healthAt ? { healthAt: r.healthAt.slice(0, 40) } : {}),
+    ...(() => {
+      const scales: Partial<Record<ScaleId, Assessment[]>> = {};
+      for (const def of SCALES) {
+        const list = Array.isArray(r.scales?.[def.id]) ? r.scales[def.id] : [];
+        const top = Math.max(...def.choices.map((c) => c.value)), bottom = Math.min(...def.choices.map((c) => c.value));
+        const clean = list.filter((a: any) => a && DAY.test(String(a.date)) && Array.isArray(a.answers)).slice(-200)
+          .map((a: any) => ({ date: String(a.date), answers: def.questions.map((_, i) => num(a.answers[i], bottom, top) ?? bottom) }));
+        if (clean.length) scales[def.id] = clean;
+      }
+      return Object.keys(scales).length ? { scales } : {};
+    })(),
+    ...(() => {
+      const labs = (Array.isArray(r.labs) ? r.labs : []).filter((l: any) => l && DAY.test(String(l.date))).slice(-200).map((l: any): Labs => compact({
+        date: String(l.date), sys: num(l.sys, 50, 260), dia: num(l.dia, 30, 180), bpMeds: bool(l.bpMeds), total: num(l.total, 50, 600), hdl: num(l.hdl, 5, 200), ldl: num(l.ldl, 10, 500),
+        trig: num(l.trig, 10, 3000), lipidMeds: bool(l.lipidMeds), a1c: num(l.a1c, 3, 20, 0.1), glucose: num(l.glucose, 20, 700), diabetes: bool(l.diabetes), waist: num(l.waist, 15, 90, 0.5),
+      }));
+      return labs.length ? { labs } : {};
+    })(),
   };
 }
 
@@ -134,6 +183,11 @@ export type LifeInput = {
   workouts: { date: string }[];
   monthlyBudget: number;
   expenses: { date: string; amount: number }[];
+  /** The LifeHub Food & fitness diary, and its calorie goal and latest weight. */
+  food?: { date: string; calories: number; protein: number; servings: number }[];
+  kcalGoal?: number; weightLb?: number;
+  /** The Health & Fitness (Cooked) data, when it could be read: its diary counts too. */
+  fit?: any;
 };
 
 /** Life Score's input from the LifeHub (the first person's own logs). */
@@ -154,6 +208,9 @@ export function lifeInputFrom(family: any, tasks: { due: string; done: boolean }
     workouts: family?.workouts ?? [],
     monthlyBudget: (family?.budget ?? []).reduce((a: number, b: any) => a + (Number(b.limit) || 0), 0),
     expenses: family?.expenses ?? [],
+    food: mine(family?.health?.food),
+    kcalGoal: Number(family?.health?.goals?.[member]?.calories) || undefined,
+    weightLb: [...(family?.health?.weights ?? [])].sort((a: any, b: any) => String(a.date).localeCompare(String(b.date))).pop()?.weight,
   };
 }
 
@@ -174,6 +231,7 @@ export type DayFacts = {
   happy?: number; stress?: number; energy?: number; connect?: number; together?: boolean; faith?: boolean; faithFelt?: number;
   screen?: number; social?: number; outdoors?: number; produce?: number; alcohol?: number; processed?: number; red?: number; sugary?: number;
   smoked?: boolean; sunscreen?: boolean; strength?: boolean; grateful?: boolean; focus?: number; habits?: number; checklist?: number;
+  /** Calories and protein logged (Health & Fitness diary, Food & fitness diary, or Apple Health). */ kcal?: number; protein?: number;
 };
 export function factsFor(input: LifeInput, d: string): DayFacts {
   const c = input.data.days[d] ?? {}, h = input.data.health[d] ?? {};
@@ -183,10 +241,18 @@ export function factsFor(input: LifeInput, d: string): DayFacts {
   if (log) { const b = hm(log.bed), w = hm(log.wake); if (Number.isFinite(b) && Number.isFinite(w)) { logSleep = Math.round((((w - b + 1440) % 1440) / 60) * 4) / 4; logBed = (b - 1080 + 1440) % 1440; } }
   const med = sumBy(input.meditations, d);
   const mindful = h.mindful !== undefined || c.mindful !== undefined || med ? (h.mindful ?? 0) + (c.mindful ?? 0) + med : undefined;
-  const logged = sumBy(input.exercise, d) + (input.workouts.some((w) => w.date === d) ? 30 : 0);
-  const exercise = c.exercise !== undefined ? c.exercise : logged ? logged : undefined;
+  // Exercise: the check-in, else the most any source has (Apple Watch exercise minutes, Health workouts, the
+  // Health & Fitness workouts and runs, the LifeHub diary and Workouts page).
+  const fitMin = (Array.isArray(input.fit?.workouts) ? input.fit.workouts : []).filter((w: any) => w?.date === d).reduce((a: number, w: any) => a + Math.round((Number(w.secs) || 0) / 60), 0)
+    + (Array.isArray(input.fit?.runs) ? input.fit.runs : []).filter((r: any) => r?.date === d).reduce((a: number, r: any) => a + Math.round((Number(r.secs) || 0) / 60), 0);
+  const logged = Math.max(sumBy(input.exercise, d) + (input.workouts.some((w) => w.date === d) ? 30 : 0), fitMin, h.exMin ?? 0, h.woMin ?? 0);
+  const exercise = c.exercise !== undefined ? Math.max(c.exercise, logged) : logged ? logged : h.exMin !== undefined ? 0 : undefined;
   const gr = input.gratitude.find((g) => g.date === d);
   const focusMin = sumBy(input.focus, d);
+  let kcal = 0, protein = 0, logged2 = false;
+  for (const e of input.food ?? []) if (e.date === d) { const m = Number(e.servings) || 1; kcal += (Number(e.calories) || 0) * m; protein += (Number((e as any).protein) || 0) * m; logged2 = true; }
+  for (const e of Array.isArray(input.fit?.foods) ? input.fit.foods : []) if (e?.date === d) { const m = Number(e.servings) || 1; kcal += (Number(e.kcal) || 0) * m; protein += (Number(e.p) || 0) * m; logged2 = true; }
+  if (!logged2 && h.eaten) { kcal = h.eaten; logged2 = true; }
   const due = input.tasks.filter((t) => t.due === d);
   const habitsOn = input.habits.length && input.habits.some((x) => x.days.some((y) => y <= d)) ? input.habits.filter((x) => x.days.includes(d)).length / input.habits.length : undefined;
   return compact({
@@ -197,13 +263,14 @@ export function factsFor(input: LifeInput, d: string): DayFacts {
     smoked: c.smoked, sunscreen: c.sunscreen, strength: c.strength,
     grateful: gr && gr.items.some((x) => x.trim()) ? true : undefined,
     focus: focusMin || undefined, habits: habitsOn, checklist: due.length ? due.filter((t) => t.done).length / due.length : undefined,
+    kcal: logged2 ? Math.round(kcal) : undefined, protein: logged2 && protein ? Math.round(protein) : undefined,
   });
 }
 
 // ——— The scores ——————————————————————————————————————————————————————————————————————————————————————————————
 export type AreaId = "body" | "mind" | "connection" | "growth" | "money" | "prevention";
 export type MetricId =
-  | "steps" | "exercise" | "sleep" | "rhythm" | "heart" | "food"
+  | "steps" | "exercise" | "sleep" | "rhythm" | "heart" | "food" | "nutrition"
   | "happy" | "calm" | "energy" | "mindful" | "screen" | "outdoors"
   | "connect" | "faith" | "gratitude"
   | "goals" | "habits" | "checklist" | "focus"
@@ -289,6 +356,22 @@ export const METRICS: MetricDef[] = [
     todos: ["Buy fruit and vegetables for the week", "Vegetable with every meal today"],
     score: (d, x) => { const v = avgOf(x, d, "produce"); return v === null ? null : clamp((v / 5) * 100); },
     value: (d, x) => { const v = avgOf(x, d, "produce"); return v === null ? "Log servings in a check-in" : `${Math.round(v * 10) / 10} servings a day`; } },
+  { id: "nutrition", area: "body", name: "Nutrition", measures: "Calories against your goal (within 10% scores 100) and protein against 1 g per kg of body weight, from your food diary, 7-day average.", from: "Health & Fitness food diary, the Food & fitness diary, or a food app that saves to Apple Health.",
+    why: "Eating close to your energy needs is how weight changes, or stays put. Protein matters most for keeping muscle as you age and while losing weight: the adult minimum is 0.8 g per kg of body weight, and studies of people who exercise or are losing weight find benefits around 1.2 to 1.6 g/kg. Logging food itself works: in a weight-loss trial, people who kept daily food records lost about twice as much as those who didn't.",
+    sources: [{ title: "Morton et al., British Journal of Sports Medicine, 2018", finding: "Protein supplementation increased muscle gains with training, leveling off around 1.6 g/kg/day." }, { title: "Hollis et al., American Journal of Preventive Medicine, 2008", finding: "Keeping daily food records doubled weight loss." }],
+    improve: ["Log as you eat, not at night: memory undercounts by hundreds of calories.", "Build each meal around a protein: eggs, Greek yogurt, chicken, fish, beans, tofu.", "Aim for 25–40 g of protein per meal rather than one big serving at dinner.", "Use your most-logged foods (Stats → Food) to make logging two taps.", "If you're often over, look at drinks and snacks first: they're the easiest calories to cut."],
+    todos: ["Log every meal today", "Protein at breakfast", "Prep protein for the week"],
+    score: (d, x) => {
+      const days = win(x, d).filter((f) => f.kcal !== undefined);
+      if (!days.length) return null;
+      const goal = x.input.kcalGoal || Number(x.input.fit?.profile?.kcalGoal) || 0;
+      const kg = x.input.weightLb ? x.input.weightLb / 2.20462 : (Array.isArray(x.input.fit?.weights) && x.input.fit.weights.length ? Number(x.input.fit.weights[x.input.fit.weights.length - 1].kg) : 0);
+      const cal = goal ? mean(days.map((f) => clamp(100 - (Math.max(0, Math.abs(f.kcal! - goal) - goal * 0.1) / goal) * 300))) : null;
+      const pro = kg ? mean(days.map((f) => clamp(((f.protein ?? 0) / kg) * 100))) : null;
+      const m = mean([cal, pro]);
+      return m === null ? clamp(Math.min(100, (days.length / 7) * 100)) : clamp(m);
+    },
+    value: (d, x) => { const days = win(x, d).filter((f) => f.kcal !== undefined); return days.length ? `${fmt(mean(days.map((f) => f.kcal!))!)} kcal · ${fmt(mean(days.map((f) => f.protein ?? 0))!)} g protein a day` : "Log food in Health & Fitness"; } },
   // ——— Mind
   { id: "happy", area: "mind", name: "Happiness", measures: "How happy you felt (0 to 10), averaged over 7 days.", from: "Your check-ins, or the Mood tracker.",
     why: "Happiness isn't only a feeling: people with higher well-being tend to have better health and longer lives. Tracking it daily shows what actually moves yours (see Patterns), which is more useful than general advice. The biggest drivers in large studies are relationships, health, meaningful work and time spent on things you value.",

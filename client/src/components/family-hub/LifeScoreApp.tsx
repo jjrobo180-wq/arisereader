@@ -12,8 +12,35 @@ import {
   type AreaId, type LifeCheckIn, type LifeScoreData, type MetricId, type MetricResult, type ScreeningId,
 } from "@shared/lifeScore";
 import { inputClass, type SectionProps } from "./ui";
+import { API_BASE } from "@/lib/queryClient";
+import { lastDays, type LifeInput } from "@shared/lifeScore";
+import { lifeStats, type AnyTask } from "@shared/lifeStats";
+import { SCALES, scoreScale, type Labs, type ScaleId } from "@shared/lifeScales";
+import { ChartView, Explorer, Records, SectionPage, StatsHome } from "./LifeStatsViews";
 
-type View = { kind: "overview" } | { kind: "checkin" } | { kind: "trends" } | { kind: "settings" } | { kind: "metric"; id: MetricId } | { kind: "area"; id: AreaId };
+type View = { kind: "overview" } | { kind: "checkin" } | { kind: "trends" } | { kind: "settings" } | { kind: "metric"; id: MetricId } | { kind: "area"; id: AreaId }
+  | { kind: "stats" } | { kind: "section"; id: string } | { kind: "explore" } | { kind: "records" } | { kind: "measures" } | { kind: "scale"; id: ScaleId } | { kind: "labs" };
+type Tab = "overview" | "stats" | "explore" | "records" | "checkin";
+const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Score" }, { id: "stats", label: "Stats" }, { id: "explore", label: "Explore" }, { id: "records", label: "Records" }, { id: "checkin", label: "Check in" }];
+const tabOf = (v: View): Tab => (v.kind === "stats" || v.kind === "section" ? "stats" : v.kind === "explore" ? "explore" : v.kind === "records" ? "records" : v.kind === "checkin" || v.kind === "measures" || v.kind === "scale" || v.kind === "labs" ? "checkin" : "overview");
+
+/** Other hubs' to-dos and records, and the Health & Fitness diary, read when Life Score opens (read only). */
+type Extra = { fit?: any; work?: any; otherTasks?: any[]; otherLists?: any[] };
+const FIT_KEY = "arise-fit-data";
+function useExtra(token: string | null | undefined, familySpace: boolean): Extra {
+  const [extra, setExtra] = useState<Extra>(() => { try { const f = JSON.parse(localStorage.getItem(FIT_KEY) || "null"); return f ? { fit: f } : {}; } catch { return {}; } });
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    const get = (path: string) => fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    void Promise.all([get("/api/fit/data"), get("/api/teacher-hub/workspace"), get(familySpace ? "/api/arise-todo/workspace" : "/api/family-space/workspace")]).then(([fit, work, other]) => {
+      if (!live) return;
+      setExtra((e) => ({ fit: fit?.data ?? e.fit, work: work?.workspace ?? undefined, otherTasks: Array.isArray(other?.workspace?.tasks) ? other.workspace.tasks : [], otherLists: Array.isArray(other?.workspace?.lists) ? other.workspace.lists : [] }));
+    });
+    return () => { live = false; };
+  }, [token, familySpace]);
+  return extra;
+}
 
 const scoreColor = (s: number | null) => (s === null ? "#cbd5e1" : s >= 85 ? "#10b981" : s >= 70 ? "#22c55e" : s >= 50 ? "#f59e0b" : "#ef4444");
 const areaOf = (id: AreaId) => AREAS.find((a) => a.id === id)!;
@@ -135,15 +162,35 @@ const Group = ({ title, children }: { title: string; children: ReactNode }) => (
 );
 
 // ——— The app ————————————————————————————————————————————————————————————————————————————————————————————————
-export default function LifeScoreApp({ family, setFamily, today, say }: SectionProps) {
+type HubTask = { title: string; due: string; done: boolean; createdAt?: string; completedAt?: string; listId?: string; priority?: string; archived?: boolean; repeat?: string };
+type Props = SectionProps & { token?: string | null; lifeTasks?: HubTask[]; lists?: { id: string; name: string }[]; familySpace?: boolean };
+
+export default function LifeScoreApp({ family, setFamily, today, say, token, lifeTasks, lists, familySpace = false }: Props) {
   const bridge = useHubTasks();
   const [view, setView] = useState<View>({ kind: "overview" });
   const [syncing, setSyncing] = useState(false);
   const top = useRef<HTMLDivElement>(null);
   const data: LifeScoreData = family.lifeScore ?? emptyLifeScore();
   const update = (fn: (d: LifeScoreData) => LifeScoreData) => setFamily((f) => ({ ...f, lifeScore: fn(f.lifeScore ?? emptyLifeScore()) }));
-  const tasks = useMemo(() => (bridge?.tasks ?? []).map((t) => ({ due: t.dueDate, done: t.done })), [bridge?.tasks]);
-  const result = useMemo(() => lifeScore(lifeInputFrom(family, tasks), today), [family, tasks, today]);
+  const extra = useExtra(token, familySpace);
+  // Every hub's to-dos: this hub's (with lists and times), the other personal hub's, and WorkHub's.
+  const allTasks: AnyTask[] = useMemo(() => {
+    const here: AnyTask["hub"] = familySpace ? "FamilyHub" : "LifeHub", there: AnyTask["hub"] = familySpace ? "LifeHub" : "FamilyHub";
+    const own = (lifeTasks ?? (bridge?.tasks ?? []).map((t) => ({ title: t.title, due: t.dueDate, done: t.done }))) as HubTask[];
+    const listName = (all: { id: string; name: string }[] | undefined, id?: string) => all?.find((l) => l.id === id)?.name;
+    const workLists = Array.isArray(extra.work?.taskLists) ? extra.work.taskLists : [];
+    return [
+      ...own.filter((t) => !t.archived).map((t) => ({ title: t.title, due: t.due || "", done: t.done, createdAt: t.createdAt, completedAt: t.completedAt, list: listName(lists, t.listId), priority: t.priority, repeat: t.repeat, hub: here })),
+      ...(extra.otherTasks ?? []).filter((t: any) => t && !t.archived && t.title).map((t: any) => ({ title: String(t.title), due: String(t.due || ""), done: !!t.done, createdAt: t.createdAt, completedAt: t.completedAt, list: listName(extra.otherLists, t.listId), hub: there })),
+      ...(Array.isArray(extra.work?.tasks) ? extra.work.tasks : []).filter((t: any) => t && !t.archived && t.title).map((t: any) => ({ title: String(t.title), due: String(t.dueDate || ""), done: !!t.done, completedAt: t.done && t.lastDone ? `${t.lastDone}T12:00:00` : undefined, list: listName(workLists, t.listId), priority: t.priority, hub: "WorkHub" as const })),
+    ];
+  }, [lifeTasks, bridge?.tasks, lists, extra, familySpace]);
+  const tasks = useMemo(() => allTasks.map((t) => ({ due: t.due, done: t.done })), [allTasks]);
+  const input: LifeInput = useMemo(() => ({ ...lifeInputFrom(family, tasks), fit: extra.fit }), [family, tasks, extra.fit]);
+  const result = useMemo(() => lifeScore(input, today), [input, today]);
+  // Stats are worked out only once one of their screens is open (they read everything).
+  const tab = tabOf(view);
+  const stats = useMemo(() => (tab === "stats" || tab === "explore" || tab === "records" ? lifeStats({ today, family, tasks: allTasks, work: extra.work, fit: extra.fit, ls: data, score: result }) : null), [tab, today, family, allTasks, extra, data, result]);
   const go = (v: View) => { setView(v); top.current?.scrollIntoView({ block: "start" }); };
 
   // Apple Health: read on opening (at most every 30 minutes) once connected.
@@ -168,8 +215,19 @@ export default function LifeScoreApp({ family, setFamily, today, say }: SectionP
 
   return (
     <div ref={top} className="mx-auto w-full max-w-3xl scroll-mt-24 pb-10" data-testid="life-score">
+      <div className="mb-4 flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1" role="tablist" aria-label="Life Score">
+        {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => go({ kind: t.id } as View)} data-testid={`life-score-tab-${t.id}`}
+          className={`min-h-10 flex-1 whitespace-nowrap rounded-xl px-3 text-[13px] font-bold transition ${tab === t.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{t.label}</button>)}
+      </div>
+      {view.kind === "stats" && stats && <StatsHome sections={stats.sections} insights={[...result.patterns.map((p) => p.text), ...stats.insights]} open={(id) => go({ kind: "section", id })} />}
+      {view.kind === "section" && stats && (() => { const sec = stats.sections.find((x) => x.id === view.id); return sec ? <SectionPage section={sec} back={() => go({ kind: "stats" })} /> : null; })()}
+      {view.kind === "explore" && stats && <Explorer series={stats.series} today={today} lastDays={lastDays} />}
+      {view.kind === "records" && stats && <Records records={stats.records} insights={stats.insights} patterns={result.patterns.map((p) => p.text)} />}
+      {view.kind === "measures" && <Measures data={data} today={today} back={() => go({ kind: "checkin" })} open={(id) => go({ kind: "scale", id })} />}
+      {view.kind === "scale" && <ScaleForm id={view.id} data={data} today={today} update={update} back={() => go({ kind: "measures" })} />}
+      {view.kind === "labs" && <LabsView data={data} today={today} update={update} back={() => go({ kind: "checkin" })} />}
       {view.kind === "overview" && <Overview data={data} result={result} today={today} go={go} syncing={syncing} sync={() => void sync()} connect={() => void connect()} addTodo={addTodo} />}
-      {view.kind === "checkin" && <CheckIn data={data} today={today} update={update} back={() => go({ kind: "overview" })} />}
+      {view.kind === "checkin" && <CheckIn data={data} today={today} update={update} back={() => go({ kind: "overview" })} openMeasures={() => go({ kind: "measures" })} openLabs={() => go({ kind: "labs" })} />}
       {view.kind === "trends" && <Trends result={result} back={() => go({ kind: "overview" })} go={go} />}
       {view.kind === "settings" && <SettingsView data={data} today={today} update={update} back={() => go({ kind: "overview" })} syncing={syncing} sync={() => void sync()} connect={() => void connect()} />}
       {view.kind === "area" && <AreaView id={view.id} result={result} back={() => go({ kind: "overview" })} go={go} />}
@@ -194,6 +252,26 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
     { icon: <HeartPulse className="h-4 w-4" />, label: "Resting HR", value: t.rhr !== undefined ? `${t.rhr} bpm` : "—", color: "#ef4444" },
     { icon: <Activity className="h-4 w-4" />, label: "HRV", value: t.hrv !== undefined ? `${t.hrv} ms` : "—", color: "#14b8a6" },
     { icon: <Wind className="h-4 w-4" />, label: "Mindful", value: t.mindful !== undefined ? `${t.mindful} min` : "—", color: "#8b5cf6" },
+    ...((): { icon: ReactNode; label: string; value: string; color: string }[] => {
+      const h = data.health[today] ?? {};
+      const more: [boolean, ReactNode, string, string, string][] = [
+        [h.km !== undefined, <Footprints className="h-4 w-4" />, "Distance", `${Math.round((h.km ?? 0) * 0.621371 * 10) / 10} mi`, "#ff5a5f"],
+        [h.flights !== undefined, <Activity className="h-4 w-4" />, "Floors", `${h.flights}`, "#f59e0b"],
+        [h.exMin !== undefined, <Activity className="h-4 w-4" />, "Exercise", `${h.exMin} min`, "#10b981"],
+        [h.stand !== undefined, <Activity className="h-4 w-4" />, "Stand", `${h.stand} h`, "#0ea5e9"],
+        [h.basal !== undefined || h.active !== undefined, <Flame className="h-4 w-4" />, "Total burned", `${((h.basal ?? 0) + (h.active ?? 0)).toLocaleString()}`, "#f97316"],
+        [t.kcal !== undefined, <Flame className="h-4 w-4" />, "Eaten", `${(t.kcal ?? 0).toLocaleString()} kcal`, "#84cc16"],
+        [h.hrAvg !== undefined, <HeartPulse className="h-4 w-4" />, "Avg HR", `${h.hrAvg} bpm`, "#ef4444"],
+        [h.vo2 !== undefined, <HeartPulse className="h-4 w-4" />, "VO2 max", `${h.vo2}`, "#ff5a5f"],
+        [h.spo2 !== undefined, <Wind className="h-4 w-4" />, "Blood oxygen", `${h.spo2}%`, "#0ea5e9"],
+        [h.resp !== undefined, <Wind className="h-4 w-4" />, "Breathing", `${h.resp}/min`, "#14b8a6"],
+        [h.deep !== undefined, <Moon className="h-4 w-4" />, "Deep sleep", `${h.deep} min`, "#312e81"],
+        [h.rem !== undefined, <Moon className="h-4 w-4" />, "REM sleep", `${h.rem} min`, "#818cf8"],
+        [h.weight !== undefined, <Activity className="h-4 w-4" />, "Weight", `${h.weight} lb`, "#64748b"],
+        [h.water !== undefined, <Wind className="h-4 w-4" />, "Water", `${Math.round((h.water ?? 0) / 29.57)} oz`, "#0ea5e9"],
+      ];
+      return more.filter((m) => m[0]).map(([, icon, label, value, color]) => ({ icon, label, value, color }));
+    })(),
   ];
   const healthConnected = lifeHealthOn();
   return (
@@ -222,7 +300,7 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
             </div>
           </div>
           <div className="w-full min-w-0 flex-1">
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
               {result.areas.map((a) => (
                 <button key={a.id} type="button" onClick={() => go({ kind: "area", id: a.id })} className="flex items-center gap-2 rounded-xl px-1.5 py-1.5 text-left hover:bg-slate-50">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: a.color }} />
@@ -470,7 +548,7 @@ function Trends({ result, back, go }: { result: R; back: () => void; go: (v: Vie
   );
 }
 
-function CheckIn({ data, today, update, back }: { data: LifeScoreData; today: string; update: (fn: (d: LifeScoreData) => LifeScoreData) => void; back: () => void }) {
+function CheckIn({ data, today, update, back, openMeasures, openLabs }: { data: LifeScoreData; today: string; update: (fn: (d: LifeScoreData) => LifeScoreData) => void; back: () => void; openMeasures: () => void; openLabs: () => void }) {
   const [day, setDay] = useState(today);
   const c: LifeCheckIn = data.days[day] ?? {};
   const h = data.health[day] ?? {};
@@ -491,6 +569,10 @@ function CheckIn({ data, today, update, back }: { data: LifeScoreData; today: st
         </div>
       </div>
       <p className="px-1 text-sm text-slate-500">Answer what you like; everything saves as you go. Skipped questions just don't count.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Card onClick={openMeasures}><p className="text-[15px] font-bold text-slate-900">Measures</p><p className="text-xs leading-5 text-slate-500">Well-being, mood, anxiety, loneliness, stress and life satisfaction questionnaires</p></Card>
+        <Card onClick={openLabs}><p className="text-[15px] font-bold text-slate-900">Labs & vitals</p><p className="text-xs leading-5 text-slate-500">Blood pressure, cholesterol, A1c, glucose, waist</p></Card>
+      </div>
       <Group title="How you feel">
         <Scale label="Happiness" value={c.happy} onChange={(v) => set("happy", v)} low="Awful" high="Wonderful" />
         <Scale label="Stress" value={c.stress} onChange={(v) => set("stress", v)} low="Calm" high="Overwhelmed" />
@@ -561,6 +643,23 @@ function SettingsView({ data, today, update, back, syncing, sync, connect }: { d
           <label className="text-sm font-semibold text-slate-700">Sex at birth<select value={s.sex ?? ""} onChange={(e) => setS({ sex: (e.target.value || undefined) as any })} className={`${inputClass} mt-1`}><option value="">Not set</option><option value="female">Female</option><option value="male">Male</option></select></label>
         </div>
         <YesNo label="Heavy smoking history" hint="20 pack-years or more, and smoked within the last 15 years" value={s.heavySmoker} onChange={(v) => setS({ heavySmoker: v })} />
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <label className="text-sm font-semibold text-slate-700">Height<span className="ml-1 text-xs font-normal text-slate-400">inches</span><input inputMode="decimal" value={s.heightIn ?? ""} onChange={(e) => setS({ heightIn: numIn(e.target.value) })} className={`${inputClass} mt-1`} placeholder="70" /></label>
+          <label className="text-sm font-semibold text-slate-700">Nicotine<select value={s.nicotine ?? ""} onChange={(e) => setS({ nicotine: (e.target.value || undefined) as any })} className={`${inputClass} mt-1`}><option value="">Not set</option><option value="never">Never</option><option value="quit5">Quit 5+ years ago</option><option value="quit1">Quit 1–5 years ago</option><option value="quitRecent">Quit under a year / vape</option><option value="current">Smoke now</option></select></label>
+        </div>
+        <YesNo label="Someone smokes at home" value={s.secondhand} onChange={(v) => setS({ secondhand: v })} />
+        <YesNo label="A parent or sibling has diabetes" value={s.familyDiabetes} onChange={(v) => setS({ familyDiabetes: v })} />
+        <YesNo label="Told you have high blood pressure" value={s.highBp} onChange={(v) => setS({ highBp: v })} />
+        {s.sex === "female" && <YesNo label="Had diabetes during a pregnancy" value={s.gestational} onChange={(v) => setS({ gestational: v })} />}
+      </Card>
+      <Card>
+        <Eyebrow>Money</Eyebrow>
+        <p className="mt-1 text-xs text-slate-500">For net worth and savings rate in Stats. Rough numbers are fine.</p>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <label className="text-sm font-semibold text-slate-700">You own<input inputMode="decimal" value={s.assets ?? ""} onChange={(e) => setS({ assets: numIn(e.target.value) })} className={`${inputClass} mt-1`} placeholder="$" /></label>
+          <label className="text-sm font-semibold text-slate-700">You owe<input inputMode="decimal" value={s.debts ?? ""} onChange={(e) => setS({ debts: numIn(e.target.value) })} className={`${inputClass} mt-1`} placeholder="$" /></label>
+          <label className="text-sm font-semibold text-slate-700">Take-home a month<input inputMode="decimal" value={s.income ?? ""} onChange={(e) => setS({ income: numIn(e.target.value) })} className={`${inputClass} mt-1`} placeholder="$" /></label>
+        </div>
       </Card>
       {due.length > 0 && (
         <Card>
@@ -603,6 +702,127 @@ function SettingsView({ data, today, update, back, syncing, sync, connect }: { d
           })}
         </div>
       </Card>
+    </div>
+  );
+}
+
+
+// ——— Measures: the validated questionnaires (shared/lifeScales.ts) ——————————————————————————————————————————————
+function Measures({ data, today, back, open }: { data: LifeScoreData; today: string; back: () => void; open: (id: ScaleId) => void }) {
+  return (
+    <div className="space-y-4">
+      <Back onClick={back} label="Check in" />
+      <div className="px-1"><Eyebrow>Measures</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold tracking-[-0.02em] text-slate-900">How you're really doing</h1><p className="text-sm leading-6 text-slate-500">Short questionnaires used in research and by doctors. Take them weekly or monthly and watch the trend. They're screens, not diagnoses.</p></div>
+      {SCALES.map((def) => {
+        const list = data.scales?.[def.id] ?? [];
+        const last = list[list.length - 1];
+        const r = last ? scoreScale(def.id, last.answers) : null;
+        const days = last ? Math.round((Date.parse(`${today}T12:00:00`) - Date.parse(`${last.date}T12:00:00`)) / 864e5) : null;
+        const due = days === null || days >= (def.every === "week" ? 7 : 30);
+        return (
+          <Card key={def.id} onClick={() => open(def.id)}>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[16px] font-bold text-slate-900">{def.name}</p>
+                <p className="mt-0.5 text-xs leading-5 text-slate-500">{def.about}</p>
+                {r && <p className={`mt-1.5 text-sm font-semibold ${r.tone === "good" ? "text-emerald-700" : r.tone === "ok" ? "text-slate-700" : r.tone === "watch" ? "text-amber-700" : "text-rose-700"}`}>{def.id === "who5" ? `${r.score}/100` : `${r.score}/${def.max}`} · {r.label}</p>}
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${due ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>{due ? (last ? "Due" : "Take it") : `In ${(def.every === "week" ? 7 : 30) - (days ?? 0)}d`}</span>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScaleForm({ id, data, today, update, back }: { id: ScaleId; data: LifeScoreData; today: string; update: (fn: (d: LifeScoreData) => LifeScoreData) => void; back: () => void }) {
+  const def = SCALES.find((x) => x.id === id)!;
+  const [answers, setAnswers] = useState<(number | undefined)[]>(() => def.questions.map(() => undefined));
+  const [saved, setSaved] = useState(false);
+  const list = data.scales?.[id] ?? [];
+  const done = answers.every((a) => a !== undefined);
+  const result = done ? scoreScale(id, answers as number[]) : null;
+  const save = () => {
+    if (!done) return;
+    update((d) => { const prev = (d.scales?.[id] ?? []).filter((a) => a.date !== today); return { ...d, scales: { ...(d.scales ?? {}), [id]: [...prev, { date: today, answers: answers as number[] }] } }; });
+    setSaved(true);
+  };
+  return (
+    <div className="space-y-4">
+      <Back onClick={back} label="Measures" />
+      <div className="px-1"><Eyebrow>{def.every === "week" ? "Weekly" : "Monthly"}</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold tracking-[-0.02em] text-slate-900">{def.name}</h1><p className="text-sm leading-6 text-slate-500">{def.about}</p></div>
+      <Card>
+        <p className="text-sm font-semibold text-slate-600">{def.window}</p>
+        <div className="mt-2 divide-y divide-slate-100">
+          {def.questions.map((q, i) => (
+            <div key={i} className="py-3">
+              <p className="text-[15px] font-semibold text-slate-900">{q}</p>
+              <div className={`mt-2 grid gap-1.5 ${def.choices.length > 6 ? "grid-cols-6 sm:grid-cols-11" : def.choices.length > 4 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+                {def.choices.map((c) => <button key={c.value} type="button" aria-pressed={answers[i] === c.value} onClick={() => { setSaved(false); setAnswers((a) => a.map((x, k) => (k === i ? c.value : x))); }} className={`min-h-10 rounded-xl px-2 text-[13px] font-semibold transition ${answers[i] === c.value ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{c.label}</button>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      {result && (
+        <Card>
+          <p className="text-[32px] font-extrabold tabular-nums text-slate-900">{id === "who5" ? `${result.score}/100` : `${result.score}/${def.max}`}</p>
+          <p className={`text-[16px] font-bold ${result.tone === "good" ? "text-emerald-700" : result.tone === "ok" ? "text-slate-800" : result.tone === "watch" ? "text-amber-700" : "text-rose-700"}`}>{result.label}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{result.note}</p>
+          <button type="button" onClick={save} disabled={saved} className="mt-3 min-h-11 w-full rounded-2xl bg-slate-900 text-[15px] font-bold text-white disabled:bg-emerald-600">{saved ? "Saved" : "Save today's answers"}</button>
+        </Card>
+      )}
+      <p className="px-2 text-xs leading-5 text-slate-400">Source: {def.source}. A screen, not a diagnosis.</p>
+      {list.length > 0 && <ChartView chart={{ kind: "list", title: "Your past results", rows: [...list].reverse().slice(0, 12).map((a) => { const r = scoreScale(id, a.answers); return { label: `${id === "who5" ? `${r.score}/100` : `${r.score}/${def.max}`} · ${r.label}`, right: new Date(`${a.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) }; }) }} />}
+    </div>
+  );
+}
+
+// ——— Labs & vitals ——————————————————————————————————————————————————————————————————————————————————————————————
+function LabsView({ data, today, update, back }: { data: LifeScoreData; today: string; update: (fn: (d: LifeScoreData) => LifeScoreData) => void; back: () => void }) {
+  const [draft, setDraft] = useState<Labs>({ date: today });
+  const labs = [...(data.labs ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  const field = (k: keyof Labs, label: string, unit: string, step = "1") => (
+    <label className="text-sm font-semibold text-slate-700">{label}<span className="ml-1 text-xs font-normal text-slate-400">{unit}</span>
+      <input inputMode="decimal" step={step} value={(draft[k] as number | undefined) ?? ""} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value === "" ? undefined : Number(e.target.value) }))} className={`${inputClass} mt-1`} />
+    </label>
+  );
+  const check = (k: keyof Labs, label: string) => <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={!!draft[k]} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.checked || undefined }))} className="h-5 w-5 accent-slate-900" />{label}</label>;
+  const any = Object.entries(draft).some(([k, v]) => k !== "date" && v !== undefined);
+  return (
+    <div className="space-y-4">
+      <Back onClick={back} label="Check in" />
+      <div className="px-1"><Eyebrow>Labs & vitals</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold tracking-[-0.02em] text-slate-900">Your numbers</h1><p className="text-sm leading-6 text-slate-500">From a checkup, a home blood pressure cuff or a lab report. They fill in heart health (Life's Essential 8) and the diabetes risk test in Stats.</p></div>
+      <Card>
+        <label className="text-sm font-semibold text-slate-700">Date<input type="date" max={today} value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value || today }))} className={`${inputClass} mt-1`} /></label>
+        <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Blood pressure</p>
+        <div className="mt-2 grid grid-cols-2 gap-3">{field("sys", "Top (systolic)", "mmHg")}{field("dia", "Bottom (diastolic)", "mmHg")}</div>
+        <div className="mt-2">{check("bpMeds", "I take blood pressure medicine")}</div>
+        <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Cholesterol</p>
+        <div className="mt-2 grid grid-cols-2 gap-3">{field("total", "Total", "mg/dL")}{field("hdl", "HDL", "mg/dL")}{field("ldl", "LDL", "mg/dL")}{field("trig", "Triglycerides", "mg/dL")}</div>
+        <div className="mt-2">{check("lipidMeds", "I take cholesterol medicine")}</div>
+        <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Blood sugar</p>
+        <div className="mt-2 grid grid-cols-2 gap-3">{field("a1c", "A1c", "%", "0.1")}{field("glucose", "Fasting glucose", "mg/dL")}</div>
+        <div className="mt-2">{check("diabetes", "I have diabetes")}</div>
+        <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Body</p>
+        <div className="mt-2 grid grid-cols-2 gap-3">{field("waist", "Waist", "in", "0.5")}</div>
+        <button type="button" disabled={!any} onClick={() => { update((d) => ({ ...d, labs: [...(d.labs ?? []), draft] })); setDraft({ date: today }); }} className="mt-4 min-h-11 w-full rounded-2xl bg-slate-900 text-[15px] font-bold text-white disabled:opacity-40">Save</button>
+      </Card>
+      {labs.length > 0 && (
+        <Card>
+          <Eyebrow>Saved</Eyebrow>
+          <ul className="mt-1 divide-y divide-slate-100">
+            {labs.map((l, i) => (
+              <li key={`${l.date}${i}`} className="flex items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{[l.sys && `BP ${l.sys}/${l.dia}`, l.total && `Total ${l.total}`, l.hdl && `HDL ${l.hdl}`, l.ldl && `LDL ${l.ldl}`, l.trig && `Trig ${l.trig}`, l.a1c && `A1c ${l.a1c}%`, l.glucose && `Glucose ${l.glucose}`, l.waist && `Waist ${l.waist} in`].filter(Boolean).join(" · ")}</p><p className="text-xs text-slate-500">{new Date(`${l.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p></div>
+                <button type="button" onClick={() => update((d) => ({ ...d, labs: (d.labs ?? []).filter((x) => x !== l && !(x.date === l.date && JSON.stringify(x) === JSON.stringify(l))) }))} className="text-xs font-semibold text-rose-600">Delete</button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      <p className="px-2 text-xs leading-5 text-slate-400">Talk to your doctor about what your numbers mean for you.</p>
     </div>
   );
 }

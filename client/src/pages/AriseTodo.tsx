@@ -156,6 +156,7 @@ import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { isSuperApp, type SuperAppId } from "@shared/superApps";
+import LifeScoreApp from "@/components/family-hub/LifeScoreApp";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
 import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 import { SuperHeadExtra } from "@/components/super-apps/superHeadExtra";
@@ -1320,6 +1321,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     : shown === "cookedpt" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="cookedpt" name="Cooked PT"><Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     : shown === "arisenotes" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="arisenotes" name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     : shown === "podster" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="podster" name="Arise Podcasts"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
+    // Life Score reads everything: every hub's to-dos (with when they were made and done), WorkHub and the Health & Fitness diary.
+    : shown === "lifescore" ? <LifeScoreApp {...appProps} token={token} lifeTasks={data.tasks} lists={data.lists} familySpace={familySpace} />
     : shown === "risescore" ? <RiseScorePlugin scores={(extra) => riseScores(riseInputFrom(family, [...data.tasks.filter((t) => !t.archived).map((t) => ({ title: t.title, due: t.due, time: t.time, done: t.done })), ...extra], riseOff), currentDay)} extraTasks={(h: RiseHubs) => riseHubTasks(h, token, familySpace)} />
     // Family & settings ends with "Move between hubs" (LifeHub ⇄ FamilyHub).
     : shown === "family" ? <div className="space-y-6">{LIFE_VIEWS.family!(appProps)}{!familySpace && <HubAutoOpenSettings family={family} setFamily={setFamily} say={setMessage} />}<MoveBetweenHubs space={familySpace ? "family" : "life"} token={token} data={data as unknown as HubWorkspace} setData={setData as unknown as (fn: (d: HubWorkspace) => HubWorkspace) => void} say={setMessage} /></div>
