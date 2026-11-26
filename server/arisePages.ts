@@ -203,7 +203,7 @@ export function registerPagesRoutes(app: Express, auth: RequestHandler, deps: Pa
     } catch (e) { fail(res, e, "ai"); }
   });
 
-  // Checked to-dos go to Arise To Duo's LifeHub (the Reminders and Calendar happen on the iPhone).
+  // Checked to-dos go to Arise To Do's LifeHub (the Reminders and Calendar happen on the iPhone).
   app.post("/api/pages/:id/planner", auth, async (req: any, res) => {
     try {
       const user = who(req, res);

@@ -2,7 +2,7 @@
 // dark mode just works; the choice is kept on this device, like Apple Notes does.
 import { createContext, useContext, useEffect, useState } from "react";
 
-/** Inside Arise To Duo, To Duo's Day/Night decides (not this device's Notes setting or the computer's dark mode). */
+/** Inside Arise To Do, To Do's Day/Night decides (not this device's Notes setting or the computer's dark mode). */
 export const ForcedDark = createContext<boolean | null>(null);
 
 export type Appearance = "auto" | "light" | "dark";

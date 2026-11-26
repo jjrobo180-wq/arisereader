@@ -56,7 +56,7 @@ const agoWords = (iso: string) => {
 // ===========================================================================
 export type Theme = "system" | "light" | "dark";
 const THEME_KEY = "earshot.theme";
-/** Podster inside Arise To Duo: To Duo's Day or Night decides while it shows (forceTheme), not this device's pick. */
+/** Podster inside Arise To Do: To Do's Day or Night decides while it shows (forceTheme), not this device's pick. */
 let forcedTheme: Theme | null = null;
 const readTheme = (): Theme => { if (forcedTheme) return forcedTheme; try { const v = localStorage.getItem(THEME_KEY); return v === "light" || v === "dark" ? v : "system"; } catch { return "system"; } };
 export function forceTheme(t: Theme | null, quiet = false) { if (forcedTheme === t) return; forcedTheme = t; if (!quiet) window.dispatchEvent(new Event("earshot-theme")); }
@@ -178,7 +178,7 @@ type PrepApi = (path: string, init?: { method?: string; body?: unknown }) => Pro
 let prepApi: PrepApi | null = null;
 const prepAsked = new Set<string>();
 export function setPrepareApi(api: PrepApi | null) { prepApi = api; }
-/** Ad-free copies are for people with ad skipping (Arise To Duo Unlimited); for everyone else none are made or used. */
+/** Ad-free copies are for people with ad skipping (Arise To Do Unlimited); for everyone else none are made or used. */
 let cleanOn = true;
 export function setCleanEnabled(on: boolean) { cleanOn = on; }
 export function prepareClean(eps: (PodEpisode | null | undefined)[], api: PrepApi | null = prepApi) {
@@ -2802,7 +2802,7 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["light", "Day"], ["dark", "Night"], ["system", "Auto"]] as [Theme, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={theme === v} onClick={() => setTheme(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${theme === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
       {apple && es.settings.adMode !== "auto"
-        ? <Row title="Skip ads" sub="Podster is free to listen, with ads. Arise To Duo Unlimited skips them for you."><span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">To Duo Unlimited</span></Row>
+        ? <Row title="Skip ads" sub="Podster is free to listen, with ads. Arise To Do Unlimited skips them for you."><span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">To Do Unlimited</span></Row>
         : apple
         ? <Row title="No ads" sub={`Always on. Ads stitched into an episode are cut out, and the rest are skipped the moment they start. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}`}>
           <span className="flex-none rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">On</span>

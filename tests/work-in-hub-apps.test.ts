@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
 
-test("WorkHub opens Arise Notes (and premium apps) inside the hub with the menu beside it, in To Duo's look", () => {
+test("WorkHub opens Arise Notes (and premium apps) inside the hub with the menu beside it, in To Do's look", () => {
   const hub = read("../client/src/pages/TeacherHub.tsx");
   assert.ok(hub.includes('data-testid="hub-in-app-view"') && hub.includes("<NotesInWork "));
   // The desktop menu, the phone menu and the Plugin Gallery all open it in the hub.

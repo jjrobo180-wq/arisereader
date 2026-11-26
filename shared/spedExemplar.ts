@@ -461,7 +461,7 @@ export function exemplarHtml(e: XExemplar): string {
 <div class="box big"><b>The whole lesson in one sentence:</b> ${inline(e.oneSentence)}</div>
 <h4>How to use this guide (you do not need to know any math first)</h4>${ol(e.howToUse)}
 <div class="box"><h4>If a student gets stuck, do this, in this order</h4>${ol(ladder)}</div>
-<p class="small">${esc(e.source)} Written for the Arise To Duo Math Lessons plugin. Not endorsed by the publisher. The student practice sheet and answer key are in the separate Practice Pack.</p></div>`;
+<p class="small">${esc(e.source)} Written for the Arise To Do Math Lessons plugin. Not endorsed by the publisher. The student practice sheet and answer key are in the separate Practice Pack.</p></div>`;
   const ideas = `<div class="part"><p class="kicker">Part 1</p><h2>Tiny ideas, explained like you are talking to a 3rd grader</h2>${e.ideas.map((i) => `<div class="box"><h4>${esc(i.title)}</h4>${i.text.map((t) => `<p>${inline(t)}</p>`).join("")}${pictureSvg(i.picture)}${i.tryIt ? `<p><b>Try it:</b> ${inline(i.tryIt)}</p>` : ""}${i.say ? `<p><b>Say:</b> ${inline(i.say)}</p>` : ""}</div>`).join("")}</div>`;
   const recipe = `<div class="part"><p class="kicker">Part 2 · print and tape to the desk</p><div class="recipe"><h2>${esc(e.recipe.name)} (same steps every time)</h2>${ol(e.recipe.steps.map((s) => `**${s.head}.** ${s.text}`))}${e.recipe.examples.length ? `<table class="t"><tbody>${e.recipe.examples.map((x) => `<tr><td><b>${esc(x.label)}</b></td><td>${inline(x.value)}</td></tr>`).join("")}</tbody></table>` : ""}</div></div>`;
   const probs = `<div class="part"><p class="kicker">Part 3 · every problem in the lesson, solved</p>${sectionsHtml(e.sections)}</div>`;

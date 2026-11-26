@@ -1,5 +1,5 @@
-// Cooked PT inside Arise To Duo: the trainer's clients, inbox, schedule, library and business, signed in with
-// the To Duo account, in To Duo's look. The row of pages shows what's waiting (new requests, unread messages).
+// Cooked PT inside Arise To Do: the trainer's clients, inbox, schedule, library and business, signed in with
+// the To Do account, in To Do's look. The row of pages shows what's waiting (new requests, unread messages).
 import { useMemo } from "react";
 import { superAppOf } from "@shared/superApps";
 import TrainerApp, { type TrainerEmbed } from "@/pages/trainer/TrainerApp";

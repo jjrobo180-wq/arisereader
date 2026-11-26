@@ -297,9 +297,9 @@ export function Studio({ api, say, onClose, onCreate, email, onSignOut }: { api:
         <section className="relative mt-3 overflow-hidden rounded-3xl p-5 text-[#fff]" style={{ background: "linear-gradient(120deg,#13b2ac,#5576e5 55%,#835adf)" }}>
           <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full border border-[#fff]/25" />
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Arise To Duo Unlimited</p>
+            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Arise To Do Unlimited</p>
               <h3 className="mt-1 text-[24px] font-extrabold leading-tight tracking-tight">Earn from your first episode</h3>
-              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with Arise To Duo Unlimited, the same $10 a month plan listeners get for ad-free Podster. No follower, play or time minimums.</p></div>
+              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with Arise To Do Unlimited, the same $10 a month plan listeners get for ad-free Podster. No follower, play or time minimums.</p></div>
             <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: "rgba(255,255,255,.18)" }}><span className="text-center leading-none"><b className="block text-[22px] font-extrabold">$10</b><span className="text-[11px] font-bold opacity-85">a month</span></span></div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">{RISE_PERKS.map((p) => <div key={p.id} className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,.12)" }}>

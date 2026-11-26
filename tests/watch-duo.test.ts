@@ -1,4 +1,4 @@
-// Arise To Duo on Apple Watch: Life and Work on one watch, every app the family uses, and what's done on
+// Arise To Do on Apple Watch: Life and Work on one watch, every app the family uses, and what's done on
 // the watch applied back. Run with: npx tsx --test tests/watch-duo.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

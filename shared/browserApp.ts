@@ -1,10 +1,10 @@
-// Arise To Duo Browser (a LifeHub App Store app). The rules shared by the page and the server.
+// Arise To Do Browser (a LifeHub App Store app). The rules shared by the page and the server.
 //
 // A website can only show another website inside an <iframe>, and many sites (Google, YouTube,
 // Facebook, banks…) tell browsers not to allow that, with an X-Frame-Options header or a
 // Content-Security-Policy frame-ancestors rule. The server reads those headers for a page
 // (server/browserCheck.ts) and the Browser opens it inside the app only when it is allowed;
-// otherwise it offers "Open in Safari". The Arise To Duo iPhone app (coming to the App Store)
+// otherwise it offers "Open in Safari". The Arise To Do iPhone app (coming to the App Store)
 // has a real built-in browser without that limit.
 
 export type BrowserMark = { id: string; title: string; url: string };

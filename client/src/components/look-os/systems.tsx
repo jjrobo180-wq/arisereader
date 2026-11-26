@@ -197,22 +197,22 @@ export function SystemDock({ look, screen, go, openApps, add, you, initial, off 
   if (taskbar) {
     const shown = items.filter((n) => n.id !== "add" && n.id !== "you" && n.id !== "apps");
     const startMenu = menu && <div className={`sys-startmenu sys-startmenu-${look.id}`} role="menu" aria-label="Start">
-      <header><span className="sys-avatar">{initial}</span><b>{look.id === "workstation" ? "Pinned" : "Arise Duo"}</b></header>
+      <header><span className="sys-avatar">{initial}</span><b>{look.id === "workstation" ? "Pinned" : "Arise To Do"}</b></header>
       <div>{items.map((n) => <button key={n.id} type="button" role="menuitem" data-nav={n.id} onClick={act(n.id)}><AppIcon id={n.id} size={look.id === "retro" ? 26 : 30} /><span>{n.id === "add" ? "New task" : n.id === "you" ? "You and settings" : n.label}</span></button>)}</div>
     </div>;
     return <>{menu && <button type="button" aria-label="Close the start menu" className="sys-menuback" onClick={() => setMenu(false)} />}{startMenu}
-      <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">
+      <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">
         <button type="button" className="sys-startbtn" aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu(!menu)} data-testid="sys-start">{look.id === "workstation" ? <Ico n="spark" size={20} /> : <><Ico n="spark" size={16} /><span>{look.id === "retro" ? "Start" : "start"}</span></>}</button>
         <span className="sys-taskbtns">{shown.map((n) => btn(n, look.id === "workstation" ? <Ico n={n.id} size={21} /> : <><Ico n={n.id} size={16} /><span>{n.label}</span></>))}
           {items.some((n) => n.id === "add") && btn(NAV[2], look.id === "workstation" ? <Ico n="add" size={21} /> : <><Ico n="add" size={16} /><span>Add</span></>, "sys-addbtn")}</span>
         <span className="sys-tray">{items.some((n) => n.id === "apps") && btn(NAV[5], <Ico n="apps" size={16} />)}{items.some((n) => n.id === "you") && btn(NAV[6], <span className="sys-avatar sys-avatar-sm">{initial}</span>)}<time>{clock}</time></span>
       </nav></>;
   }
-  if (look.id === "desktop") return <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">{items.map((n) => btn(n, <><AppIcon id={n.id} size={46} /><i aria-hidden className="sys-dot" /></>))}</nav>;
-  if (look.id === "pocket") return <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">{items.map((n) => btn(n, n.id === "add" ? <span className="sys-plus"><Ico n="add" size={22} w={2.6} /></span> : <><Ico n={n.id} size={23} /><small>{n.label}</small></>))}</nav>;
-  if (look.id === "monolith" || look.id === "ink") return <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">{items.map((n) => btn(n, <span>{n.id === "add" ? "+" : n.label}</span>))}</nav>;
-  if (look.id === "neon") return <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">{items.map((n) => btn(n, <><Ico n={n.id} size={20} /><small>{n.label.toUpperCase()}</small></>))}</nav>;
-  if (look.id === "orbit") return <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">{items.map((n) => btn(n, n.id === "you" ? <span className="sys-avatar">{initial}</span> : <Ico n={n.id} size={22} />))}</nav>;
+  if (look.id === "desktop") return <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">{items.map((n) => btn(n, <><AppIcon id={n.id} size={46} /><i aria-hidden className="sys-dot" /></>))}</nav>;
+  if (look.id === "pocket") return <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">{items.map((n) => btn(n, n.id === "add" ? <span className="sys-plus"><Ico n="add" size={22} w={2.6} /></span> : <><Ico n={n.id} size={23} /><small>{n.label}</small></>))}</nav>;
+  if (look.id === "monolith" || look.id === "ink") return <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">{items.map((n) => btn(n, <span>{n.id === "add" ? "+" : n.label}</span>))}</nav>;
+  if (look.id === "neon") return <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">{items.map((n) => btn(n, <><Ico n={n.id} size={20} /><small>{n.label.toUpperCase()}</small></>))}</nav>;
+  if (look.id === "orbit") return <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">{items.map((n) => btn(n, n.id === "you" ? <span className="sys-avatar">{initial}</span> : <Ico n={n.id} size={22} />))}</nav>;
   // Glass
-  return <nav className={cls} aria-label="Arise Duo" data-testid="look-dock">{items.map((n) => btn(n, n.id === "you" ? <span className="sys-avatar">{initial}</span> : <Ico n={n.id} size={22} />))}</nav>;
+  return <nav className={cls} aria-label="Arise To Do" data-testid="look-dock">{items.map((n) => btn(n, n.id === "you" ? <span className="sys-avatar">{initial}</span> : <Ico n={n.id} size={22} />))}</nav>;
 }

@@ -1,7 +1,7 @@
-// The Arise To Duo iPhone app is To Duo: LifeHub, FamilyHub, WorkHub and the apps inside them (Notes,
+// The Arise To Do iPhone app is To Do: LifeHub, FamilyHub, WorkHub and the apps inside them (Notes,
 // Office, Cooked, Cooked PT, the Plugin Gallery's apps), plus sign-in, account and plan pages. The same
 // web code also runs Arise Reader's student side (quizzes, games, the FYP feed, rewards), the eye-gaze
-// apps and the admin pages; none of those are part of To Duo, so inside the To Duo app their addresses go
+// apps and the admin pages; none of those are part of To Do, so inside the To Do app their addresses go
 // to the hub instead (App Review 5.6: nothing in the app that review doesn't see).
 const ALLOWED = [
   "/", "/lifehub", "/familyhub", "/workhub", "/teacher-hub", "/hub", "/to-do", "/duo",
@@ -11,7 +11,7 @@ const ALLOWED = [
   "/updates", "/plans", "/join", "/share", "/meet", "/drop", "/billing", "/pricing", "/subscribe", "/profile",
 ] as const;
 
-/** Can this address open inside the To Duo iPhone app? (Path only: "#/lifehub?go=x" → "/lifehub".) */
+/** Can this address open inside the To Do iPhone app? (Path only: "#/lifehub?go=x" → "/lifehub".) */
 export function todoNativeAllows(path: string): boolean {
   const p = (path.split(/[?#]/)[0] || "/").replace(/\/+$/, "") || "/";
   if (p === "/") return true;

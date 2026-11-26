@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { ChevronRight, EyeOff, FileText, Layers, LayoutGrid, ListChecks, Palette, PenLine, Presentation, StickyNote, Table2, Timer } from "lucide-react";
 import { useAppData } from "@/lib/cloudDocs";
 import type { AppCtx } from "./NotesApp";
-/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+/** True only in the Arise To Do iPhone app's own build (vite.todo.config.ts); unset in tests. */
 declare const __TODO_APP__: boolean | undefined;
 
 export type NotesAppId = "stickies" | "lists" | "whiteboard" | "sheets" | "slides" | "docs" | "design" | "flashcards" | "focus" | "undercover";
@@ -29,7 +29,7 @@ export const ALL_NOTES_APPS: NotesAppInfo[] = [
     about: "Make anything look great, like Canva: 80+ templates in every size (Instagram, stories, flyers, posters, invitations, business cards, certificates), text styles, shapes, stickers, photo frames, your own pictures, Magic Design from one sentence, and PNG, JPG or PDF downloads." },
   { id: "flashcards", name: "Flashcards", short: "Flashcards", tagline: "Study cards, or make them from a note", group: "Study", color: "#7c3aed", icon: <Layers />,
     about: "Turn a recorded class or meeting into study cards in one tap, or make your own decks. Flip, shuffle and keep track of the ones you know." },
-  // Not in the Arise To Duo app's build at all (the iPhone apps never offer it).
+  // Not in the Arise To Do app's build at all (the iPhone apps never offer it).
   ...((typeof __TODO_APP__ !== "undefined" && __TODO_APP__) ? [] : [
   { id: "undercover", name: "Undercover", short: "Undercover", tagline: "Choose how the Ask button looks: texting, a doc, and more", group: "Write & plan", color: "#6d3df5", icon: <EyeOff />,
     about: "This is the Ask button's style. Whatever look you pick here is what opens when you tap Ask in Notes (it starts as a text thread). Ask anything during a meeting or class without it looking like AI. Six looks: a text thread, a group chat, a chats inbox, meeting notes, doc comments or a phone doc. Live answers from the web, today's date and the real weather. Tap the name in the inbox look to swap to a decoy chat." }

@@ -1,10 +1,10 @@
-// The four Arise apps that also live inside Arise To Duo (November 2026): Cooked, Cooked PT, Arise Notes
-// and Podster. Each is still its own App Store app. Inside To Duo each one is a plugin from the Plugin
-// Gallery that opens in To Duo's own frame and look, signed in with the To Duo account (no second sign-in).
-// Its menu is taken apart into To Duo's row of pages, like Health Lite and Kitchen (shared/appBundles.ts):
+// The four Arise apps that also live inside Arise To Do (November 2026): Cooked, Cooked PT, Arise Notes
+// and Podster. Each is still its own App Store app. Inside To Do each one is a plugin from the Plugin
+// Gallery that opens in To Do's own frame and look, signed in with the To Do account (no second sign-in).
+// Its menu is taken apart into To Do's row of pages, like Health Lite and Kitchen (shared/appBundles.ts):
 // the person picks which pages show with the settings button, and the rest stay one tap away.
 //
-// The screens are the apps' own, drawn in To Duo's colors and type (client/src/components/super-apps/).
+// The screens are the apps' own, drawn in To Do's colors and type (client/src/components/super-apps/).
 // No imports from familyHub here (it imports this file), so this stays a leaf.
 
 export type SuperAppId = "cooked" | "cookedpt" | "arisenotes" | "podster";
@@ -48,11 +48,11 @@ export const SUPER_APPS: readonly SuperApp[] = [
     id: "cooked", section: "cooked", name: "Arise Health & Fitness", icon: "Dumbbell", color: "#ea580c",
     appStore: "https://apps.apple.com/app/id6829228586",
     tagline: "Workouts, food, sleep and a real coach",
-    description: "Arise Health & Fitness, right inside To Duo: lifting programs with every set and rest timer, a food log with macros and barcode scans, runs, sleep, water, fasting and recovery, and a personal trainer when you want one. Add only the Cooked plugins you use.",
+    description: "Arise Health & Fitness, right inside To Do: lifting programs with every set and rest timer, a food log with macros and barcode scans, runs, sleep, water, fasting and recovery, and a personal trainer when you want one. Add only the Cooked plugins you use.",
     features: ["Programs, live workouts and personal bests", "Food log with macros, meal photos and barcodes", "Runs, sleep, water, fasting and recovery", "Work with a real trainer and choose what they see"],
     pages: [
       { id: "today", label: "Today", icon: "Home", detail: "Your day at a glance" },
-      // Inside To Duo (Nov 25, 2026) the tabs are these groups (shared/fitGroups.ts); the parts below still open from links.
+      // Inside To Do (Nov 25, 2026) the tabs are these groups (shared/fitGroups.ts); the parts below still open from links.
       { id: "g-daily", label: "Daily", icon: "HeartPulse" }, { id: "g-food", label: "Food", icon: "Apple" }, { id: "g-train", label: "Training", icon: "Dumbbell" },
       { id: "g-yoga", label: "Yoga", icon: "Flower2" }, { id: "g-progress", label: "Progress", icon: "BarChart3" }, { id: "g-friends", label: "Friends", icon: "Users" },
       { id: "train", label: "Train", icon: "Dumbbell" }, { id: "food", label: "Food", icon: "Apple" }, { id: "run", label: "Run", icon: "Route" },
@@ -70,7 +70,7 @@ export const SUPER_APPS: readonly SuperApp[] = [
     id: "cookedpt", section: "cookedpt", name: "Cooked PT", icon: "HeartHandshake", color: "#0d9488",
     appStore: "https://apps.apple.com/app/id6829495059",
     tagline: "Coach your clients: programs, inbox and bookings",
-    description: "Cooked PT for personal trainers, inside To Duo: get found by people near you who want a trainer, then coach every client in one place. Build programs, see the workouts, food and sleep each client chooses to share, message them, book sessions and get your own website.",
+    description: "Cooked PT for personal trainers, inside To Do: get found by people near you who want a trainer, then coach every client in one place. Build programs, see the workouts, food and sleep each client chooses to share, message them, book sessions and get your own website.",
     features: ["A client list with how each one is doing", "Program builder and workout templates", "One inbox for every client", "Bookings, payments and your own website"],
     pages: [
       { id: "clients", label: "Clients", icon: "Users" }, { id: "inbox", label: "Inbox", icon: "Inbox" }, { id: "schedule", label: "Schedule", icon: "CalendarDays" },
@@ -82,7 +82,7 @@ export const SUPER_APPS: readonly SuperApp[] = [
     id: "arisenotes", section: "arisenotes", name: "Arise Notes", icon: "NotebookPen", color: "#6a55dc",
     appStore: "https://apps.apple.com/app/id6829538120",
     tagline: "AI notes: record, transcribe, summarize",
-    description: "Arise Notes inside To Duo: record a meeting, class or visit (or upload one) and get a transcript, a summary, decisions and action items. Type @arise on any line to ask the AI, and use Docs, Sheets, Slides, a whiteboard and flashcards from the Notes plugins.",
+    description: "Arise Notes inside To Do: record a meeting, class or visit (or upload one) and get a transcript, a summary, decisions and action items. Type @arise on any line to ask the AI, and use Docs, Sheets, Slides, a whiteboard and flashcards from the Notes plugins.",
     features: ["Record or upload, then a transcript and summary", "Type @arise on any line to ask the AI", "To-dos and dates into your planner", "Docs, Sheets, Slides, whiteboard and flashcards"],
     pages: [
       { id: "pages", label: "Notes", icon: "NotebookPen", detail: "Your typed and handwritten notes" },
@@ -99,7 +99,7 @@ export const SUPER_APPS: readonly SuperApp[] = [
     id: "podster", section: "podster", name: "Arise Podcasts", icon: "Podcast", color: "#db2777",
     appStore: "https://apps.apple.com/app/id6828271468",
     tagline: "Podcasts, audiobooks, radio and music",
-    description: "Arise Podcasts inside To Duo: a home page of podcasts picked for you and a swipe feed, plus free audiobooks, music, live radio and news. Turn your own notes into a study episode, post on Podster Social, and keep your library on every device with your To Duo account.",
+    description: "Arise Podcasts inside To Do: a home page of podcasts picked for you and a swipe feed, plus free audiobooks, music, live radio and news. Turn your own notes into a study episode, post on Podster Social, and keep your library on every device with your To Do account.",
     features: ["Podcasts picked for you, and a swipe feed", "Audiobooks, music, radio and live news", "Study mode turns your notes into an episode", "New-episode alerts for the shows you follow"],
     pages: [
       { id: "home", label: "Home", icon: "Home", detail: "Podcasts picked for you" },
@@ -151,17 +151,17 @@ export function cleanSuperPages(raw: unknown): Partial<Record<SuperAppId, string
   return out;
 }
 
-/** The address inside Arise To Duo that opens one of these apps (and a page or episode in it). */
+/** The address inside Arise To Do that opens one of these apps (and a page or episode in it). */
 export function duoAppHash(app: SuperAppId, extra: Record<string, string> = {}): string {
   const q = new URLSearchParams({ go: app, ...extra });
   return `/to-do?${q.toString()}`;
 }
 
 /**
- * A link or notification meant for one of these apps' own screens, as the place inside Arise To Duo
- * that shows the same thing. Used by the To Duo iPhone app, where a tap on a Cooked coach message
+ * A link or notification meant for one of these apps' own screens, as the place inside Arise To Do
+ * that shows the same thing. Used by the To Do iPhone app, where a tap on a Cooked coach message
  * (#/fit), a Cooked PT request (#/trainer), an Arise Notes alert (/notes/#…) or a Podster new-episode
- * alert (?s=…&e=…) should open that plugin in To Duo, not a second app. null for anything else.
+ * alert (?s=…&e=…) should open that plugin in To Do, not a second app. null for anything else.
  */
 export function duoLinkFor(url: string): string | null {
   const u = String(url || "").trim();

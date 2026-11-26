@@ -67,7 +67,7 @@ function PhoneNotify() {
   const blocker: Partial<Record<PushPhase, string>> = {
     install: "On iPhone, first add this app to your Home Screen: tap Share, then Add to Home Screen. Open it from there, then turn this on.",
     blocked: "Notifications are blocked for this site. Allow them in your phone's settings for this app or browser, then come back here.",
-    unsupported: isNativeApp() ? "Notifications aren't in this version of the app yet. Update Arise To Duo from the App Store, then try again." : "This browser can't show notifications. Try Chrome or Safari, or the app on your Home Screen.",
+    unsupported: isNativeApp() ? "Notifications aren't in this version of the app yet. Update Arise To Do from the App Store, then try again." : "This browser can't show notifications. Try Chrome or Safari, or the app on your Home Screen.",
     unavailable: "Phone notifications aren't set up on the server yet.",
   };
   return <Panel>

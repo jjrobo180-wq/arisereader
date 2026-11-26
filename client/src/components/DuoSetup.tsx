@@ -1,4 +1,4 @@
-// Arise To Duo's first-run setup (Nov 2026): full-screen pages that actually set the app up, before the
+// Arise To Do's first-run setup (Nov 2026): full-screen pages that actually set the app up, before the
 // tour. Pick a look, pick goals, tell it your day (a routine of repeating reminders is made from it), then
 // pick your first apps. It always draws in day mode (on the page body, outside the hub's night mode and
 // theme), each page fits on one screen, and nothing slides sideways. It respects Free's 3 apps: the
@@ -28,7 +28,7 @@ const SETUP_STYLE = {
   "--an-border": "rgba(17,16,24,.1)", "--an-coral": "#e0465f", "--an-shadow": "none",
 } as CSSProperties;
 
-// v2: the new setup (day mode, one screen, app descriptions) goes out once to every To Duo account,
+// v2: the new setup (day mode, one screen, app descriptions) goes out once to every To Do account,
 // including people who finished the first one.
 const DONE_KEY = (id: number | string) => `arise-duo-setup-v2:${id}`;
 export const duoSetupDone = (id: number | string) => { try { return localStorage.getItem(DONE_KEY(id)) === "1"; } catch { return true; } };
@@ -167,7 +167,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
     return lockPageScroll({ fixed: true });
   }, []);
   const page = <div data-backdrop-hold className="fixed inset-0 z-[9000] flex flex-col overflow-hidden bg-white pb-[max(14px,env(safe-area-inset-bottom))] pt-[var(--sat,env(safe-area-inset-top,0px))] text-[#111018] [color-scheme:light]"
-    style={SETUP_STYLE} data-light-island role="dialog" aria-modal="true" aria-label="Set up Arise To Duo" data-testid="duo-setup">
+    style={SETUP_STYLE} data-light-island role="dialog" aria-modal="true" aria-label="Set up Arise To Do" data-testid="duo-setup">
     <style>{`
       .duo-time { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; width: 7.25rem; min-width: 0; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: #ebeaf2; color: #111018; font: 600 16px/36px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; text-align: center; }
       .duo-time::-webkit-date-and-time-value { text-align: center; }
@@ -183,7 +183,7 @@ export default function DuoSetup({ userId, layout, setLayout, plugins, setFamily
       {/* Only up and down, never sideways; each page is laid out to fit without scrolling. */}
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 pb-3 pt-1" key={step}>
         {step === "theme" && <>
-          {head("Pick your look", <>Arise To Duo is the only app with themes like these. <b className="font-semibold text-[#111018]">New ones arrive every month</b>, and you can change yours any time.</>)}
+          {head("Pick your look", <>Arise To Do is the only app with themes like these. <b className="font-semibold text-[#111018]">New ones arrive every month</b>, and you can change yours any time.</>)}
           <div role="radiogroup" aria-label="Theme" className="mt-5 grid grid-cols-2 gap-2.5">
             {themes.map((t) => { const on = (layout.theme || "classic") === t.id; return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`setup-theme-${t.id}`}
               className={`min-w-0 rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${on ? "border-[#5b4fe0] bg-[#f4f2ff] ring-2 ring-[#5b4fe0]/25" : "border-black/10 bg-white"}`}>

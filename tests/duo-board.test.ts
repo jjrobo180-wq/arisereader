@@ -1,4 +1,4 @@
-// The board the 40 Arise To Duo iPhone widget designs draw (client/src/lib/duoBoard.ts, DuoDesigns.swift).
+// The board the 40 Arise To Do iPhone widget designs draw (client/src/lib/duoBoard.ts, DuoDesigns.swift).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

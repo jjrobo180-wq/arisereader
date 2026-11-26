@@ -1,6 +1,6 @@
 // Arise Notes: the A.R.I.S.E. AI note taker. It records (or takes an uploaded file), writes down what
 // was said with times, and turns it into a summary, key points, decisions and action items that go
-// straight into the Arise To Duo planner after the person checks them.
+// straight into the Arise To Do planner after the person checks them.
 //
 // This file holds the rules both sides share: the plans and what each one allows, minute metering
 // (round up per recording, rollover, the 80% and 100% warnings, the 3,000-minute safety cap), the

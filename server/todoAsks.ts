@@ -1,4 +1,4 @@
-// "@arise" asks from Arise To Duo's tasks (shared/ariseAsks.ts): the person types "@arise make a worksheet for
+// "@arise" asks from Arise To Do's tasks (shared/ariseAsks.ts): the person types "@arise make a worksheet for
 // Kha by Monday" as a task, the phone works out when (now, or later for "on Monday") and sends it here. Arise's
 // AI makes it right away or at that time, it's saved with the person's other asks, and a notification says it's
 // ready. Asks are kept per person in the settings table (todo_asks_u<id>); asks waiting for their time are also
@@ -9,7 +9,7 @@
 //   POST   /api/arise-todo/asks/:id/seen   marks it opened
 //   POST   /api/arise-todo/asks/:id/retry  makes it again
 //   DELETE /api/arise-todo/asks/:id
-// Making one is metered like every To Duo AI use (plans.aiMeter), so it's part of Unlimited.
+// Making one is metered like every To Do AI use (plans.aiMeter), so it's part of Unlimited.
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { ASK_LIMITS, TZ, askKind, askSystemPrompt, cleanAsks, isAskId, needsLookup, newAskId, type AriseAsk } from "../shared/ariseAsks";
@@ -108,7 +108,7 @@ export function createAsks(deps: AsksDeps) {
       ? { ...a, status: "done", title: made.title, summary: made.summary, result: made.markdown, finishedAt: new Date(now()).toISOString(), error: undefined, seen: false, ...(live ? { source: live.source } : {}) }
       : { ...a, status: "failed", error: "Arise couldn't make this one. Try again.", finishedAt: new Date(now()).toISOString() });
     if (finished) {
-      // Asked from the Work Hub, it opens there; from To Duo, it opens in To Duo.
+      // Asked from the Work Hub, it opens there; from To Do, it opens in To Do.
       const url = finished.hub === "work" ? `/#/workhub?go=asks&ask=${id}` : `/#/to-do?go=asks&ask=${id}`;
       await deps.notify(userId, made
         ? { title: finished.kind === "answer" ? `Arise: ${finished.title}` : `Arise finished: ${finished.title}`, body: finished.summary || "It's ready in your Arise tab.", url, tag: `arise-ask-${id}` }

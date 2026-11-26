@@ -1,4 +1,4 @@
-// Sharing (LifeHub section "linked", opened from Settings): the one place for sharing in Arise To Duo. Everyone
+// Sharing (LifeHub section "linked", opened from Settings): the one place for sharing in Arise To Do. Everyone
 // you're connected to (linked either way, invited, or in an Accountability space with you), what you share with
 // each and what they share with you, one "Add someone", and the links anyone can open without an account.
 // For each thing: Off, View or Edit. Premium apps (Potty Training…) can be shared to edit; LifeHub
@@ -227,7 +227,7 @@ function GrantPicker({ grants, setGrants, catalog }: { grants: Grants; setGrants
   </div>;
 }
 
-/** "Add someone", the only one in Arise To Duo (it opens from the Sharing page, and Accountability's Invite goes
+/** "Add someone", the only one in Arise To Do (it opens from the Sharing page, and Accountability's Invite goes
  *  there): send an invite to their email, make a link to send them, or ask to see theirs; pick what's shared. */
 export function LinkSomeoneModal({ family, onClose, onDone, say, initialGrants, initialName = "", initialHow = "email", title = "Add someone" }: { family: Family; onClose: () => void; onDone?: () => void; say: (m: string) => void; initialGrants?: Grants; initialName?: string; initialHow?: "email" | "link" | "ask"; title?: string }) {
   const { token, user } = useAuth();
@@ -260,7 +260,7 @@ export function LinkSomeoneModal({ family, onClose, onDone, say, initialGrants, 
     } catch (err: any) { say(err?.message || "That didn't work. Try again."); } finally { setBusy(false); }
   };
   const send = async () => {
-    const r = await sendLink(url, "Join me on Arise To Duo");
+    const r = await sendLink(url, "Join me on Arise To Do");
     if (r === "cancelled") return;
     setCopied(true); window.setTimeout(() => setCopied(false), 2500);
     say(r === "copied" ? "Link copied. Send it to them." : "Link ready.");

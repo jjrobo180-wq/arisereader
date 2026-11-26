@@ -53,7 +53,7 @@ test("support messages need an email and a message, and bots filling the hidden 
   assert.equal(typeof cleanSupport({ email: "nope", message: "Help me please" }, "Podster"), "string");
   assert.equal(typeof cleanSupport({ email: "a@b.co", message: "hi" }, "Podster"), "string");
   assert.equal(typeof cleanSupport({ email: "a@b.co", message: "Help me please", website: "spam.example" }, "Podster"), "string");
-  const ok = cleanSupport({ name: " Sam ", email: "Sam@Example.com", topic: "Privacy", message: "Please delete my data." }, "Arise To Duo");
-  assert.deepEqual(ok, { app: "Arise To Duo", name: "Sam", email: "sam@example.com", topic: "Privacy", message: "Please delete my data." });
+  const ok = cleanSupport({ name: " Sam ", email: "Sam@Example.com", topic: "Privacy", message: "Please delete my data." }, "Arise To Do");
+  assert.deepEqual(ok, { app: "Arise To Do", name: "Sam", email: "sam@example.com", topic: "Privacy", message: "Please delete my data." });
   assert.equal((cleanSupport({ email: "a@b.co", topic: "Made up", message: "Hello there" }, "Podster") as any).topic, "Other");
 });

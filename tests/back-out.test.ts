@@ -1,4 +1,4 @@
-// Backing out of full-screen views in the iPhone apps (November 2026). In the Arise To Duo build the
+// Backing out of full-screen views in the iPhone apps (November 2026). In the Arise To Do build the
 // phone reports no safe area at the top, so html.todo-edge sets --sat (at least 44px) and every header
 // and Back button that has to clear the clock goes through it. The Plugin Gallery's top row, with its
 // close button, sat under the clock and could not be tapped: there was no way out of the gallery.
@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const store = () => read("client/src/components/plugin-store/PluginStore.tsx");
 
-/** A raw top inset that skips --sat (the To Duo app's clock space), with its own --sat fallback stripped first. */
+/** A raw top inset that skips --sat (the To Do app's clock space), with its own --sat fallback stripped first. */
 const rawTop = (src: string) => src
   .replace(/var\(--sat,\s*env\(safe-area-inset-top,\s*0px\)\)/g, "")
   .match(/env\(safe-area-inset-top[^)]*\)/g) ?? [];
@@ -107,7 +107,7 @@ test("the clock's space is this iPhone's own: 59-62px with a Dynamic Island, whe
   assert.equal(deviceTopInset(410, 900), 62); // a tall phone that isn't on the list yet
   assert.equal(deviceTopInset(1024, 1366), null); // an iPad keeps the safe area it reports
   const main = read("client/src/main.tsx");
-  // To Duo's page rests at 93% on a phone, so its clock space is measured at that scale (main.tsx).
+  // To Do's page rests at 93% on a phone, so its clock space is measured at that scale (main.tsx).
   assert.match(main, /if \(isNativeApp\(\) && nativeFlavor\(\) === "todo"\) applyDeviceTopInset\(\);/);
   assert.match(main, /if \(isNotesApp\(\)\) applyDeviceTopInset\(\);/);
 });
@@ -124,7 +124,7 @@ test("no look's top bar is shorter than its bell (the Desktop look's slim bar pu
   assert.match(read(dir + "systems.css"), /\.los-desktop \.los-topbar \{ height: 2\.75rem;/);
 });
 
-test("the Arise Notes iPhone app keeps the clock's space like Arise To Duo", () => {
+test("the Arise Notes iPhone app keeps the clock's space like Arise To Do", () => {
   assert.match(read("client/src/index.css"), /html\.notes-app \{ --sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 44px\)\); \}/);
   assert.match(read("client/src/todo-app.css"), /html\.todo-edge \{ --sat: max\(env\(safe-area-inset-top, 0px\), var\(--sat-device, 44px\)\);/);
 });

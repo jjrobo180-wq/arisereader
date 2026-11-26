@@ -32,7 +32,7 @@ const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets:
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
 export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles, openFitness, setupFamily = false }: SectionProps & {
-  /** Health & Fitness is on in this space (LifeHub in To Duo): Home shows its stats card, and opens it on a tap. */
+  /** Health & Fitness is on in this space (LifeHub in To Do): Home shows its stats card, and opens it on a tap. */
   openFitness?: () => void;
   /** Show "Set up your family" while nobody is added: FamilyHub only (Nov 23, 2026). LifeHub is one
    *  person's own space, so it doesn't ask. */

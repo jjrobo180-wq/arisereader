@@ -1,8 +1,8 @@
-// Podster inside Arise To Duo: Podster's own pages (its home page, the swipe feed, audiobooks, music, radio,
-// news, Study Podster, Social, the library…) as To Duo's row of pages instead of Podster's side menu and tab
-// bar, in To Duo's look. Signed in with the To Duo account: the server turns the To Duo sign-in into the same
+// Podster inside Arise To Do: Podster's own pages (its home page, the swipe feed, audiobooks, music, radio,
+// news, Study Podster, Social, the library…) as To Do's row of pages instead of Podster's side menu and tab
+// bar, in To Do's look. Signed in with the To Do account: the server turns the To Do sign-in into the same
 // Podster account the Podster app uses (server/earshot.ts, the podscroll gate), so there's no second sign-in.
-// What the person follows, likes and saves is kept with the rest of their To Duo (family.earshot).
+// What the person follows, likes and saves is kept with the rest of their To Do (family.earshot).
 import { isNativeApp } from "@/lib/nativeApp";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -47,18 +47,18 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const device = useMemo(podDevice, []);
   const student = user?.role === "student";
 
-  // To Duo's Day or Night, before anything draws (and given back when Podster closes).
+  // To Do's Day or Night, before anything draws (and given back when Podster closes).
   const themed = useRef(false);
   if (!themed.current) { forceTheme(night ? "dark" : "light", true); themed.current = true; }
   useEffect(() => { forceTheme(night ? "dark" : "light"); }, [night]);
   useEffect(() => () => forceTheme(null), []);
 
-  // What's followed, liked and saved: kept in To Duo with the rest of the person's things.
+  // What's followed, liked and saved: kept in To Do with the rest of the person's things.
   const es: Earshot = family.earshot ?? emptyEarshot();
   const esRef = useRef(es); esRef.current = es;
   const update = useCallback((fn: (e: Earshot) => Earshot) => setFamily((f) => ({ ...f, earshot: fn(f.earshot ?? emptyEarshot()) })), [setFamily]);
 
-  // The To Duo sign-in on every request; the server answers as this person's Podster account.
+  // The To Do sign-in on every request; the server answers as this person's Podster account.
   const api = useCallback(async (path: string, init?: { method?: string; body?: unknown }) => {
     const url = base + path.replace(/^\/api\/earshot/, "/api/podscroll");
     let res!: Response;
@@ -88,12 +88,12 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const liveBase = base.replace(/^http/, "ws");
   const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `https://arisetodo.com/podster/app/?s=${show.id}&e=${ep.id}`, []);
 
-  // Signed in to Podster as the To Duo account (anyone with an email on their account).
+  // Signed in to Podster as the To Do account (anyone with an email on their account).
   const [acct, setAcct] = useState<{ signedIn: boolean; email: string | null }>({ signedIn: false, email: null });
   useEffect(() => { api("/api/earshot/account").then((b) => setAcct({ signedIn: !!b?.signedIn, email: b?.email ?? null })).catch(() => {}); }, [api]);
   const pro = acct.signedIn;
   const proRef = useRef(pro); proRef.current = pro;
-  // Ad-free listening is Arise To Duo Unlimited, the same as in the Podster app.
+  // Ad-free listening is Arise To Do Unlimited, the same as in the Podster app.
   const [paid, setPaid] = useState(false);
   useEffect(() => { if (!pro) { setPaid(false); return; } let alive = true; api("/api/earshot/ad-free").then((j) => { if (alive) setPaid(!!j?.adFree); }).catch(() => {}); return () => { alive = false; }; }, [pro, api]);
   // In the iPhone app episodes play exactly as their publishers made them: no ad skipping and no ad-free
@@ -103,7 +103,7 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const adMode = adFreeHere ? ("auto" as const) : ("off" as const);
   const shown = useMemo(() => ({ ...es, settings: { ...es.settings, adMode } }), [es, adMode]);
   const shownRef = useRef(shown); shownRef.current = shown;
-  const join = useCallback(() => say(pro ? "You're signed in to Podster with your To Duo account." : "Podster uses your To Duo account. Add an email to your account in To Duo's settings to post and keep your place."), [pro, say]);
+  const join = useCallback(() => say(pro ? "You're signed in to Podster with your To Do account." : "Podster uses your To Do account. Add an email to your account in To Do's settings to post and keep your place."), [pro, say]);
 
   // The AI reader for Wiki podcasts spends AI minutes (shared with Arise Notes), and downloads for later.
   useEffect(() => {
@@ -126,7 +126,7 @@ export default function PodsterInDuo({ family, setFamily, say, night, start }: {
   const signal = useCallback((genre: string, s: Signal) => { pending.current.push({ genre, signal: s }); if (!flushT.current) flushT.current = setTimeout(flush, 5000); }, [flush]);
   useEffect(() => () => flush(), [flush]);
 
-  // New-episode alerts on this iPhone, through To Duo's notifications (server/podPush.ts sends them to To Duo).
+  // New-episode alerts on this iPhone, through To Do's notifications (server/podPush.ts sends them to To Do).
   const followKey = es.follows.map((f) => f.id).join(",");
   useEffect(() => {
     const t = setTimeout(() => syncDuoPodPush(token, es.follows.map((f) => f.id)), 1500);

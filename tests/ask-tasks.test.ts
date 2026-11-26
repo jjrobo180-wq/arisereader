@@ -9,7 +9,7 @@ test("@arise task questions are spotted", () => {
   assert.ok(!wantsTasks("what's the weather tomorrow"));
 });
 
-test("@arise lists the real unfinished To Duo and WorkHub tasks", () => {
+test("@arise lists the real unfinished To Do and WorkHub tasks", () => {
   const life = { lists: [{ id: "personal", name: "Personal" }], tasks: [
     { title: "Call mom", listId: "personal", due: "2026-11-23", time: "", done: false },
     { title: "Old thing", listId: "personal", due: "", done: true },

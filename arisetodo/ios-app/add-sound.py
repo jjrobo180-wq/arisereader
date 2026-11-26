@@ -1,4 +1,4 @@
-"""Arise To Duo iPhone app: puts the reminder sound inside the app.
+"""Arise To Do iPhone app: puts the reminder sound inside the app.
 
 iOS plays no sound for a scheduled notification unless it names a sound file that is in the app
 (lib/nativeReminders.ts asks for "arise-chime.wav"). Run after `npx cap add ios && npx cap sync ios`,

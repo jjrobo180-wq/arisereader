@@ -1,9 +1,9 @@
-// Arise To Duo's iPhone app opens on its own loading screen, not Capacitor's gray placeholder "X" and a black screen.
+// Arise To Do's iPhone app opens on its own loading screen, not Capacitor's gray placeholder "X" and a black screen.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-test("the To Duo build adds the loading screen; the websites don't", () => {
+test("the To Do build adds the loading screen; the websites don't", () => {
   const cfg = readFileSync("vite.todo.config.ts", "utf8");
   assert.match(cfg, /todoLoadingScreen\(\)/);
   assert.match(cfg, /todo-loading\.html/);

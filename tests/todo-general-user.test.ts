@@ -6,7 +6,7 @@ import { emptyWorkspace, isTabOn } from "../shared/teacherHub";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
-test("general Arise To Duo accounts: no Arise learning apps, teacher apps grouped under For teachers", () => {
+test("general Arise To Do accounts: no Arise learning apps, teacher apps grouped under For teachers", () => {
   const life = pluginsFor("life", { teacher: false, arise: false });
   assert.ok(!life.some((p) => p.category === "Arise apps"));
   const parent = pluginsFor("life", { teacher: false, arise: true });

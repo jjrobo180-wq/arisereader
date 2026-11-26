@@ -53,7 +53,7 @@ export default function OfficeApp({ config, legacy, say }: { config: OfficeKind;
   return <OfficeHome config={config} legacy={legacy} onOpen={open} say={say} />;
 }
 
-/** An open file takes the whole screen (above the hub's sidebar and tabs), on phones too, in Arise To Duo,
+/** An open file takes the whole screen (above the hub's sidebar and tabs), on phones too, in Arise To Do,
  *  Arise Notes and Arise Office alike, inside the iPhone's safe areas. The page behind stops scrolling. */
 function FullScreen({ children }: { children: ReactNode }) {
   useEffect(() => {

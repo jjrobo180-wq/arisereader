@@ -1,4 +1,4 @@
-// Arise To Duo Browser: what opens inside the app, and what the server refuses to look at.
+// Arise To Do Browser: what opens inside the app, and what the server refuses to look at.
 // Run with: npx tsx --test tests/browser-app.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

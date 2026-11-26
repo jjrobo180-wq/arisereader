@@ -1,4 +1,4 @@
-// Apple Health for the Food & fitness diary: connected right inside the Arise To Duo iPhone app
+// Apple Health for the Food & fitness diary: connected right inside the Arise To Do iPhone app
 // (lib/nativeHealth.ts reads HealthKit), then synced days are pulled in here on every device.
 import { useCallback, useEffect, useState } from "react";
 import { HeartPulse, Link2Off, RefreshCw, Smartphone } from "lucide-react";
@@ -99,7 +99,7 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
       <button onClick={() => void connectInApp()} disabled={syncing} className={primary + " mt-3 w-full"} data-testid="apple-health-connect"><HeartPulse size={16} /> {syncing ? "Connecting…" : "Connect Apple Health"}</button>
     </> : <div className="flex items-start gap-3 rounded-2xl bg-rose-50 p-3.5" data-testid="apple-health-open-app">
       <Smartphone size={20} className="mt-0.5 shrink-0 text-rose-500" />
-      <p className="text-sm leading-6 text-slate-700">Apple Health connects in the <b>Arise To Duo iPhone app</b>. Open it on your iPhone, come to this screen and tap <b>Connect Apple Health</b>. Steps, active calories and weight then sync here on their own.</p>
+      <p className="text-sm leading-6 text-slate-700">Apple Health connects in the <b>Arise To Do iPhone app</b>. Open it on your iPhone, come to this screen and tap <b>Connect Apple Health</b>. Steps, active calories and weight then sync here on their own.</p>
     </div>}
     {result && <p role="status" className={`mt-2 rounded-xl px-3 py-2 text-xs font-semibold ${result.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`} data-testid="apple-health-result">{result.text}</p>}
     {apple.error && <p className="mt-2 text-xs text-amber-700">{apple.error}</p>}

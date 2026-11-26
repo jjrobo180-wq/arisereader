@@ -1,4 +1,4 @@
-// FamilyHub: one shared Arise To Duo hub for a whole family, beside each person's own WorkHub and LifeHub.
+// FamilyHub: one shared Arise To Do hub for a whole family, beside each person's own WorkHub and LifeHub.
 // The person who starts it owns it; the others join with its 6-character code. Everyone in it opens and
 // saves the same workspace (server/familySpace.ts), merged the same way two phones' LifeHub copies are.
 

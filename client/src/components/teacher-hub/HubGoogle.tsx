@@ -1,4 +1,4 @@
-// Google in Arise To Duo: Classroom, Docs, Calendar and Gmail (rules: shared/googleConnect.ts; server:
+// Google in Arise To Do: Classroom, Docs, Calendar and Gmail (rules: shared/googleConnect.ts; server:
 // server/googleConnect.ts). Each part connects on its own. Classroom assignments come into the to-do list by
 // themselves while the Hub is open; the rest are here, under Tasks, and recent Docs show on Home.
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";

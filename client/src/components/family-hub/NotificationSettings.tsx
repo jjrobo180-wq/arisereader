@@ -22,7 +22,7 @@ const timeInput = inputClass + " !min-h-10 !w-[7.5rem] shrink-0 px-2";
 
 export default function NotificationSettings({ family, setFamily, today, say }: SectionProps) {
   const { user, token } = useAuth();
-  // Podster's new-episode alerts are kept per iPhone (they go to this phone's To Duo).
+  // Podster's new-episode alerts are kept per iPhone (they go to this phone's To Do).
   const [podAlerts, setPodAlerts] = useState(duoPodAlertsOn);
   const prefs = family.notify;
   const set = (fn: (p: NotifyPrefs) => NotifyPrefs) => setFamily((f) => ({ ...f, notify: fn(f.notify) }));
@@ -157,7 +157,7 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
       </ul>
     </Panel>}
 
-    {/* Cooked, Cooked PT, Arise Notes and Podster inside To Duo: their alerts come here and open them here. */}
+    {/* Cooked, Cooked PT, Arise Notes and Podster inside To Do: their alerts come here and open them here. */}
     {(["cooked", "cookedpt", "arisenotes", "podster"] as const).some((id) => isOn(id, family)) && <Panel eyebrow="Your plugins" title="From your apps">
       <ul className="divide-y divide-slate-100" data-testid="notify-super-apps">
         {isOn("cooked", family) && <Info icon={<Dumbbell size={18} />} tint="bg-orange-50 text-orange-600" title="Arise Health & Fitness" open="cooked"
@@ -170,7 +170,7 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
           detail={isNativeApp() ? "From the shows you follow, at most 4 a day and never between 9 pm and 8 am. Tap one to listen in Podster here." : "On your iPhone: from the shows you follow in Podster here, at most 4 a day."}
           on={podAlerts} onChange={(on) => { setPodAlerts(on); setDuoPodAlerts(on, token, (family.earshot?.follows ?? []).map((f) => f.id)); say(on ? "Podster's new episodes will come here." : "No more Podster alerts on this phone."); }} />}
       </ul>
-      <p className="mt-3 text-xs leading-5 text-slate-500">They arrive as To Duo notifications and open the app right here in To Duo.</p>
+      <p className="mt-3 text-xs leading-5 text-slate-500">They arrive as To Do notifications and open the app right here in To Do.</p>
     </Panel>}
 
     <Panel eyebrow="Do not disturb" title="Quiet hours">

@@ -1,4 +1,4 @@
-// The Studio looks (shared/protoLooks.ts) in Arise To Duo and WorkHub. Each arrangement draws the hubs the way
+// The Studio looks (shared/protoLooks.ts) in Arise To Do and WorkHub. Each arrangement draws the hubs the way
 // it draws Arise Notes, so a look is the same thing in both apps: Stickies is a wall of sticky notes, Receipts
 // is paper slips, Tape Rack is cassettes, Chronograph is a dial, and so on. Tasks, the days coming up and notes
 // all go through one list (ArchList) that each arrangement draws its own way; protoHub.css dresses them.
@@ -249,7 +249,7 @@ export function archHubHero({ look, date, greeting, primary, links, open = 0, to
     case "atlas": return <><header className="sh-head"><span className="sh-kk">{hub || "A.R.I.S.E."} / Atlas</span><h1 className="sh-h1">{greeting}</h1><p>Your day, organized</p></header>
       <div className="sh-card"><span className="sh-kk">Today · {date}</span><h2 className="sh-hl">{open} to do. {today ? `${today} on today.` : "A clear day."}</h2>
         <div className="sh-btns"><button type="button" className="sh-b-pri" onClick={primary.onClick} data-testid="hub-look-primary">{primary.label}</button>{links.slice(0, 2).map((l) => <button key={l.label} type="button" className="sh-b-out" onClick={l.onClick}>{l.label}</button>)}</div></div></>;
-    case "stream": return <><div className="sh-top"><span className="sh-kk sh-ink">A.R.I.S.E. / {hub || "Duo"}</span></div><h1 className="sh-hl">{greeting}.</h1><Chips primary={primary} links={links} /></>;
+    case "stream": return <><div className="sh-top"><span className="sh-kk sh-ink">A.R.I.S.E. / {hub || "Split"}</span></div><h1 className="sh-hl">{greeting}.</h1><Chips primary={primary} links={links} /></>;
     default: return <><span className="sh-kk">{date}</span><h1 className="sh-h1">{greeting}</h1><Chips primary={primary} links={links} /></>;
   }
 }

@@ -1,4 +1,4 @@
-// Apple push notifications for the Arise To Duo iPhone app. An App Store app can't receive Web Push,
+// Apple push notifications for the Arise To Do iPhone app. An App Store app can't receive Web Push,
 // so the app registers its Apple device token (saved with the Web Push devices, endpoint
 // "apns:<token>") and the server sends to Apple directly over HTTP/2 with a signed token.
 //
@@ -14,11 +14,11 @@ import http2 from "node:http2";
 
 export const APNS_PREFIX = "apns:";
 export const isAppleDevice = (endpoint: string) => endpoint.startsWith(APNS_PREFIX);
-/** Saved as "apns:<token>" (Arise To Duo) or "apns:<bundle id>:<token>" (another app, like the Educator app). */
+/** Saved as "apns:<token>" (Arise To Do) or "apns:<bundle id>:<token>" (another app, like the Educator app). */
 export const appleToken = (endpoint: string) => endpoint.slice(endpoint.lastIndexOf(":") + 1);
-/** The app a saved device belongs to (its bundle id), or undefined for Arise To Duo. */
+/** The app a saved device belongs to (its bundle id), or undefined for Arise To Do. */
 export const appleTopic = (endpoint: string): string | undefined => { const rest = endpoint.slice(APNS_PREFIX.length); const at = rest.lastIndexOf(":"); return at > 0 ? rest.slice(0, at) : undefined; };
-/** The apps besides Arise To Duo that sign up for server notifications. */
+/** The apps besides Arise To Do that sign up for server notifications. */
 export const APPLE_APPS: Record<string, string> = { educator: "com.arisereader.educator", eyegaze: "com.arisereader.eyegazer", fit: "com.arisereader.fit", trainer: "com.arisereader.trainer", notes: "com.arisereader.notes", reader: "com.arisereader.reader" };
 export const appleEndpoint = (token: string, app?: unknown) => APNS_PREFIX + (typeof app === "string" && APPLE_APPS[app] ? APPLE_APPS[app] + ":" : "") + token;
 /** A device token as iOS hands it over: hex, 64 characters or a little more. */
@@ -78,7 +78,7 @@ export type AppleMessage = { title: string; body: string; url?: string; tag?: st
 export const applePayload = (m: AppleMessage) => JSON.stringify({ aps: { alert: { title: String(m.title || "").slice(0, 160), body: String(m.body || "").slice(0, 600) }, sound: "default", ...(m.tag ? { "thread-id": String(m.tag).slice(0, 64) } : {}) }, url: m.url || "/" });
 
 /** Sends to one iPhone. `gone`: Apple says the app was deleted or the token is no good, so forget it. */
-/** `topic` is the app's bundle id (Arise To Duo unless another app is named, like Podster). */
+/** `topic` is the app's bundle id (Arise To Do unless another app is named, like Podster). */
 export function sendApplePush(token: string, m: AppleMessage, topic?: string): Promise<{ ok: boolean; gone: boolean }> {
   if (!hasApplePush()) return Promise.resolve({ ok: false, gone: false });
   return new Promise((resolve) => {

@@ -75,7 +75,7 @@ function sampleTodo() {
       { id: "family", name: "Family", color: "#36b6a5" },
     ],
     tasks: [
-      t("s1", "Try the split screen from the Duo menu", "personal", day(0), { priority: "high" }),
+      t("s1", "Try the split screen from the Split menu", "personal", day(0), { priority: "high" }),
       t("s2", "Pick up groceries", "family", day(0), { time: "17:30" }),
       t("s3", "Send the weekly update", "work", day(1)),
       t("s4", "Book a dentist appointment", "personal", day(2)),

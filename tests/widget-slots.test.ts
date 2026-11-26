@@ -17,14 +17,14 @@ test("Fit: every widget in widgets.json has a slot, with short text", () => {
   for (const s of cleanSlots(slots)) assert.ok(s.title && s.value, s.id);
 });
 
-test("To Duo: the iPhone widgets are the 40 task designs (one board), the focus timer's Live Activity and Health & Fitness", () => {
+test("To Do: the iPhone widgets are the 40 task designs (one board), the focus timer's Live Activity and Health & Fitness", () => {
   const all = list("../arisetodo/ios-app/widgets.json").map((w) => w[0]);
   assert.deepEqual(all, ["duo.tasks.designs", "duo.focus.live", "duo.fit.today"]);
   const page = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
   assert.ok(page.includes("publishDuoBoard(duoBoard("), "the app sends the board the designs draw");
 });
 
-test("To Duo: agenda, to-dos, bills and countdowns show what's coming", () => {
+test("To Do: agenda, to-dos, bills and countdowns show what's coming", () => {
   const f = emptyFamily();
   f.sections.money = true;
   f.bills = [{ id: "b", name: "Rent", amount: 1200, dueDay: 5, category: "Home", autopay: false, paid: [] }];

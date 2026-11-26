@@ -235,7 +235,7 @@ struct DuoWatchHome: View {
                         if h.features.contains("notes") { NavigationLink { DuoNotesPage(h: h) } label: { tile("Notes", "note.text", badge: 0) } }
                     }
                 }
-                Section { AriseUpdatedNote(empty: "Open Arise Duo on your iPhone once, and your day shows up here.") }
+                Section { AriseUpdatedNote(empty: "Open Arise To Do on your iPhone once, and your day shows up here.") }
             }
             .navigationTitle(hub == "work" ? "Work" : "Life")
             .sheet(isPresented: $adding) { DuoAddTask(h: h) }

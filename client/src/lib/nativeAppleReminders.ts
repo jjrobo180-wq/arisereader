@@ -1,4 +1,4 @@
-// Apple Reminders in the Arise To Duo iPhone app, read straight from the phone (plugin:
+// Apple Reminders in the Arise To Do iPhone app, read straight from the phone (plugin:
 // @ebarooni/capacitor-calendar, the same one as the iPhone Calendar). No Shortcut, no link to copy:
 // once someone says yes, the reminders that aren't done come into LifeHub → Tasks (a "Reminders"
 // list) each time the app opens. Checking one off is kept in step both ways.
@@ -28,9 +28,9 @@ export const appleRemindersOn = (): boolean => store.get(ON_KEY) === "1";
 
 /** Asks iOS for Reminders (its own prompt). Throws a sentence to show when it's not allowed. */
 export async function connectAppleReminders(): Promise<void> {
-  if (!appleRemindersAvailable()) throw new Error("Apple Reminders connect in the Arise To Duo iPhone app.");
+  if (!appleRemindersAvailable()) throw new Error("Apple Reminders connect in the Arise To Do iPhone app.");
   const res = await nativeCall(PLUGIN, NAME, "requestFullRemindersAccess");
-  if (String(res?.result ?? "") !== "granted") throw new Error("Reminders are off for Arise To Duo. Turn them on in Settings → Privacy & Security → Reminders, then try again.");
+  if (String(res?.result ?? "") !== "granted") throw new Error("Reminders are off for Arise To Do. Turn them on in Settings → Privacy & Security → Reminders, then try again.");
   store.set(ON_KEY, "1");
   window.dispatchEvent(new Event(REMINDERS_CONNECTED));
 }

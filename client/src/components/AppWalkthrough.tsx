@@ -1,8 +1,8 @@
-// The first-run walkthrough of Arise To Duo (October 2026), in place of the old "Getting started"
+// The first-run walkthrough of Arise To Do (October 2026), in place of the old "Getting started"
 // page: a few cards to tap through the first time someone opens a hub, explaining what's where and
 // how to make it theirs. It matches the app as it is: the tab bar, the + button, Apps and the App
 // Gallery, the ⋯ menu and Customize, Apple connections, reminders, and the split screen (for an
-// iPhone Duo, and for everyone else too). It opens again from ⋯ → "How to use Arise To Duo".
+// iPhone Duo, and for everyone else too). It opens again from ⋯ → "How to use Arise To Do".
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Bell, CalendarDays, Check, Columns2, LayoutGrid, ListChecks, MoreHorizontal, Plus, Search, Sparkles, X } from "lucide-react";
@@ -67,7 +67,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
   const other = hub === "life" ? "WorkHub" : "LifeHub";
   // One short line each: the animated picture (TourArt.tsx) does the explaining.
   const steps: Step[] = [
-    { id: "welcome", icon: <Sparkles />, tint: "#6e5ae0", title: "Welcome to Arise To Duo",
+    { id: "welcome", icon: <Sparkles />, tint: "#6e5ae0", title: "Welcome to Arise To Do",
       body: <>Two hubs, one app: <b>LifeHub</b> for home, <b>WorkHub</b> for work.</> },
     { id: "tabs", icon: <LayoutGrid />, tint: "#4f46e5", title: "Getting around",
       body: <>Home, Tasks, <b>+</b>, Plugins and You live in the bar at the bottom.</> },
@@ -92,7 +92,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
     ...(arise ? [{ id: "arise", icon: <Sparkles />, tint: "#6d28d9", title: "Arise Reader and Arise Learning",
       body: <>Reader, Math, History and Connect are in your menu, below Home.</> }] : []),
     { id: "done", icon: <Search />, tint: "#16a34a", title: "You're all set",
-      body: <>See this again any time: <b>⋯ → How to use Arise To Duo</b>.</> },
+      body: <>See this again any time: <b>⋯ → How to use Arise To Do</b>.</> },
   ];
   void other; void looksLikeDuoInner;
   // The iPhone app gets its own full-screen version: notifications first, then the same steps.
@@ -101,7 +101,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
   const step = steps[Math.min(i, steps.length - 1)];
   const last = i >= steps.length - 1;
 
-  return <div className="kb-sheet fixed inset-0 z-[700] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center" data-light-island role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough">
+  return <div className="kb-sheet fixed inset-0 z-[700] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center" data-light-island role="dialog" aria-modal="true" aria-label="How to use Arise To Do" data-testid="app-walkthrough">
     <div className="w-full max-w-md overflow-hidden rounded-[1.75rem] bg-white text-slate-900 shadow-2xl">
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex gap-1.5" aria-label={`Step ${i + 1} of ${steps.length}`}>{steps.map((s, k) => <span key={s.id} className={`h-1.5 rounded-full transition-all ${k === i ? "w-5 bg-slate-900" : "w-1.5 bg-slate-300"}`} />)}</div>
@@ -180,7 +180,7 @@ function LiveTour({ step, i, count, last, next, back, onClose, font }: { step: S
   }, []);
   const pad = 8;
   const high = rect && rect.top < window.innerHeight / 2; // the lit thing is in the top half: card goes below
-  return <div className="fixed inset-0 z-[700]" style={{ ...font, touchAction: "none" }} data-light-island role="dialog" aria-modal="true" aria-label="How to use Arise To Duo" data-testid="app-walkthrough"
+  return <div className="fixed inset-0 z-[700]" style={{ ...font, touchAction: "none" }} data-light-island role="dialog" aria-modal="true" aria-label="How to use Arise To Do" data-testid="app-walkthrough"
     onTouchStart={(e) => { touch.current = e.touches[0]?.clientX ?? null; }}
     onTouchEnd={(e) => { const x = touch.current; touch.current = null; if (x == null) return; const dx = (e.changedTouches[0]?.clientX ?? x) - x; if (dx < -60) next(); else if (dx > 60) back(); }}>
     {rect

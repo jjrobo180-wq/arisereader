@@ -49,10 +49,10 @@ const LAYOUT_CSS = `:root{--fit-display:${LAYOUTS.athletic.display};--fit-font:$
     return head + mode("light") + mode("dark"); }).join("")
   + ROUND_CSS;
 
-// ——— Inside Arise To Duo ——————————————————————————————————————————————————————————————————————————
-// Cooked and Cooked PT are also plugins inside Arise To Duo (shared/superApps.ts). There they wear To Duo's
-// look, over whatever was picked in the app itself: To Duo's page color, white cards with a hairline edge,
-// its violet and its Barlow type, in To Duo's Day or Night (pages/todoNight.css). Set on the page only
+// ——— Inside Arise To Do ——————————————————————————————————————————————————————————————————————————
+// Cooked and Cooked PT are also plugins inside Arise To Do (shared/superApps.ts). There they wear To Do's
+// look, over whatever was picked in the app itself: To Do's page color, white cards with a hairline edge,
+// its violet and its Barlow type, in To Do's Day or Night (pages/todoNight.css). Set on the page only
 // while one of them is showing (useDuoLook), so the Cooked apps keep their own look everywhere else.
 const DUO_TOKENS = {
   light: {
@@ -68,7 +68,7 @@ const DUO_TOKENS = {
     nav: "rgba(25,23,48,.96)", "nav-border": "#2c2a4c", "nav-shadow": "0 12px 32px rgba(0,0,0,.5)", body: "#26234a", muscle: "#36325e", gap: "#191730",
   },
 } as const;
-/** To Duo's type: Barlow throughout, headings heavy but not shouting (no capitals, no condensed face). */
+/** To Do's type: Barlow throughout, headings heavy but not shouting (no capitals, no condensed face). */
 const DUO_TYPE = {
   display: "'Barlow', Arial, Helvetica, sans-serif", font: "'Barlow', Arial, Helvetica, sans-serif", "display-w": "800", "display-case": "none", "display-ls": "-.01em",
   rk: "1", "btn-font": "var(--fit-font)", "btn-case": "none", "btn-size": "16px", num: "'Barlow', Arial, Helvetica, sans-serif",
@@ -76,21 +76,21 @@ const DUO_TYPE = {
 /** Wins over every Cooked theme and layout (they set the same variables on the same element). */
 const important = (t: Record<string, string>) => Object.entries(t).map(([k, x]) => `--fit-${k}:${x} !important`).join(";");
 export const DUO_CSS = `html[data-fit-duo="light"]{${important({ ...DUO_TOKENS.light, ...DUO_TYPE })}}html[data-fit-duo="dark"]{${important({ ...DUO_TOKENS.dark, ...DUO_TYPE })}}`
-  // To Duo is calm: no shine sweeping across cards, nothing popping, wiggling or sliding in. Rings and bars still fill.
+  // To Do is calm: no shine sweeping across cards, nothing popping, wiggling or sliding in. Rings and bars still fill.
   + `html[data-fit-duo] .fit-shine::after{display:none!important}html[data-fit-duo] .fit-in,html[data-fit-duo] .fit-slide,html[data-fit-duo] .fit-pop,html[data-fit-duo] .fit-wiggle,html[data-fit-duo] .fit-pulse{animation:none!important}`
-  // To Duo's shapes: rounder cards and boxes, its text fields (white with a hairline edge).
+  // To Do's shapes: rounder cards and boxes, its text fields (white with a hairline edge).
   + `html[data-fit-duo] [data-fit-embed] .rounded-\\[14px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[16px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[18px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[20px\\],html[data-fit-duo] [data-fit-duo-modal] .rounded-\\[14px\\]{border-radius:1.25rem}`
   + `html[data-fit-duo] [data-fit-embed] .rounded-\\[10px\\],html[data-fit-duo] [data-fit-embed] .rounded-\\[12px\\],html[data-fit-duo] [data-fit-duo-modal] .rounded-\\[10px\\],html[data-fit-duo] [data-fit-duo-modal] .rounded-\\[12px\\]{border-radius:.75rem}`
   + `html[data-fit-duo] [data-fit-embed] input.h-12,html[data-fit-duo] [data-fit-duo-modal] input.h-12,html[data-fit-duo] [data-fit-embed] select.h-12,html[data-fit-duo] [data-fit-duo-modal] select.h-12{height:2.75rem;font-size:15px;background:var(--fit-card)!important;box-shadow:inset 0 0 0 1px var(--fit-line)}`;
-/** True inside Arise To Duo (Cooked and Cooked PT as plugins): pieces draw in To Duo's own way. Given by the To Duo wrapper. */
+/** True inside Arise To Do (Cooked and Cooked PT as plugins): pieces draw in To Do's own way. Given by the To Do wrapper. */
 export const InDuoCtx = createContext(false);
-/** The app's name where people read it: "Arise Health & Fitness" inside Arise To Duo (Nov 24, 2026), "Cooked" in the
+/** The app's name where people read it: "Arise Health & Fitness" inside Arise To Do (Nov 24, 2026), "Cooked" in the
  *  Cooked app itself. `short` is for sentences ("Health & Fitness"). */
 export function useFitBrand(): { name: string; short: string; duo: boolean } {
   const duo = useContext(InDuoCtx);
   return duo ? { name: "Arise Health & Fitness", short: "Health & Fitness", duo } : { name: "Cooked", short: "Cooked", duo };
 }
-/** To Duo's Day or Night while Cooked or Cooked PT shows inside it; null on their own. */
+/** To Do's Day or Night while Cooked or Cooked PT shows inside it; null on their own. */
 let duoLook: "light" | "dark" | null = null;
 export const inDuo = () => duoLook !== null;
 
@@ -134,7 +134,7 @@ function ensureStyles() {
 export function applyTheme() {
   if (typeof document === "undefined" || !document.documentElement) return;
   ensureStyles();
-  // Inside To Duo, To Duo's Day or Night decides (and To Duo looks after the clock's color itself).
+  // Inside To Do, To Do's Day or Night decides (and To Do looks after the clock's color itself).
   const t = duoLook ?? resolvedTheme();
   document.documentElement.setAttribute("data-fit-theme", t);
   document.documentElement.setAttribute("data-fit-palette", paletteChoice());
@@ -172,7 +172,7 @@ export function setPalette(p: PaletteId) { try { localStorage.setItem(PALETTE_KE
 export function setTrueBlack(on: boolean) { try { localStorage.setItem(BLACK_KEY, on ? "1" : "0"); } catch { /* private mode */ } applyTheme(); }
 /** The accent showing now as #rrggbb, for things that can't take a CSS variable (map lines, canvas). */
 export const accentNow = () => duoLook ? DUO_TOKENS[duoLook].accent : PALETTES[paletteChoice()][resolvedTheme()][0];
-/** Cooked or Cooked PT inside Arise To Duo: To Duo's look on the page while it shows (null: their own). */
+/** Cooked or Cooked PT inside Arise To Do: To Do's look on the page while it shows (null: their own). */
 export function useDuoLook(mode: "light" | "dark" | null) {
   useEffect(() => {
     if (!mode) return;
@@ -250,7 +250,7 @@ export const FIT_CSS = `
 @keyframes fitSlide{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
 .fit-sheet{animation:fitSheet .38s cubic-bezier(.2,.9,.2,1) backwards}
 @keyframes fitSheet{from{opacity:.4;transform:translateX(100%)}to{opacity:1;transform:none}}
-/* The bottom sheet inside To Duo: slides up from the bottom of the phone (or fades in on a computer) over a fading scrim. */
+/* The bottom sheet inside To Do: slides up from the bottom of the phone (or fades in on a computer) over a fading scrim. */
 .fit-duo-scrim{animation:fitDuoScrim .22s ease-out backwards}
 @keyframes fitDuoScrim{from{opacity:0}to{opacity:1}}
 .fit-duo-sheet{animation:fitDuoSheet .36s cubic-bezier(.32,.72,0,1) backwards}
@@ -319,7 +319,7 @@ export function Title({ children, right }: { children: ReactNode; right?: ReactN
 
 export function Btn({ children, onClick, kind = "primary", className = "", disabled, testId, type = "button", form }: { children: ReactNode; onClick?: () => void; kind?: "primary" | "ghost" | "soft" | "danger"; className?: string; disabled?: boolean; testId?: string; type?: "button" | "submit"; /** The id of the form a submit button sends, when the button sits outside it (in a sheet's pinned footer). */ form?: string }) {
   const st = kind === "primary" ? { background: C.lime, color: "var(--fit-on-accent)" } : kind === "soft" ? { background: C.card2, color: C.text } : kind === "danger" ? { background: "rgba(255,77,77,.14)", color: C.red } : { background: "transparent", color: C.lime };
-  // To Duo's buttons: sentence case, its type, a little smaller and softer.
+  // To Do's buttons: sentence case, its type, a little smaller and softer.
   if (useContext(InDuoCtx)) return <button type={type} form={form} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-40 ${className}`}
     style={{ ...st, ...(kind === "soft" ? { boxShadow: `inset 0 0 0 1px ${C.line}`, background: C.card } : {}) }}>{children}</button>;
   return <button type={type} form={form} onClick={onClick} disabled={disabled} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 tracking-[.04em] transition active:scale-[.97] disabled:opacity-40 ${className}`} style={{ ...st, fontFamily: "var(--fit-btn-font)", fontSize: "var(--fit-btn-size)", textTransform: "var(--fit-btn-case)" as React.CSSProperties["textTransform"], fontWeight: 800 }}>{children}</button>;
@@ -432,7 +432,7 @@ function useSheetDrag(onClose: () => void) {
 /** A screen that slides in from the right over the app (full height on phones). With `inline`, the
  *  same content is drawn as a tab instead: a big heading, no close button.
  *
- *  Inside To Duo it is an iPhone-style bottom sheet instead: a grab handle you can swipe down, a pinned title
+ *  Inside To Do it is an iPhone-style bottom sheet instead: a grab handle you can swipe down, a pinned title
  *  bar, optional pinned `top` (a search box and its tabs) and `footer` (the main button) so only the list
  *  or form between them scrolls, and it rests on top of the keyboard instead of behind it (.kb-sheet,
  *  lib/keyboardInset.ts). `tall` gives it a steady height for long lists so it doesn't jump as they change.
@@ -444,14 +444,14 @@ export function Sheet({ title, onClose, children, testId, right, inline, top, fo
   useEffect(() => (duo && !inline ? lockPageScroll({ fixed: true }) : undefined), [duo, inline]);
   const sheet = useSheetDrag(onClose);
   const plainFooter = footer ? <div className="mt-6">{footer}</div> : null;
-  // On its own (not inside To Duo) a screen's main button sticks to the bottom of what scrolls, as it did before.
+  // On its own (not inside To Do) a screen's main button sticks to the bottom of what scrolls, as it did before.
   const stuckFooter = footer ? <div className="sticky bottom-0 mt-6 pb-2 pt-3" style={{ background: C.bg }}>{footer}</div> : null;
   if (inline) return <div data-testid={testId}>
     {duo ? <div className="mb-3 flex items-end justify-between gap-3 px-1"><h2 className="text-xl font-bold" style={{ color: C.text }}>{title}</h2>{right}</div>
       : <div className="mb-3 flex items-end justify-between px-1"><h1 className="text-[46px] leading-[.95]" style={display}>{title}</h1>{right}</div>}
     {top}{children}{plainFooter}
   </div>;
-  // Inside To Duo: To Duo's own box (from the bottom on a phone, centered on a computer) over a dimmed page,
+  // Inside To Do: To Do's own box (from the bottom on a phone, centered on a computer) over a dimmed page,
   // not a screen sliding over everything, so the menu and the app stay where they were.
   if (duo) return <Layer><div className="kb-sheet fit-duo-scrim fixed inset-0 z-[80] flex items-end justify-center bg-[#16152a]/65 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div ref={sheet.box} role="dialog" aria-modal="true" aria-label={title} data-testid={testId} data-fit-duo-modal data-sheet-tall={tall ? "" : undefined}

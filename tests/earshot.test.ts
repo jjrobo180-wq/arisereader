@@ -142,9 +142,9 @@ test("server: student accounts get clean podcasts and no comments", async () => 
   });
 });
 
-test("Earshot is out of Arise To Duo, with its saved data kept", () => {
+test("Earshot is out of Arise To Do, with its saved data kept", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-  // Taken out of Arise To Duo (it's Podster now): no App Store entry, never on, even for families who had it. Their data stays.
+  // Taken out of Arise To Do (it's Podster now): no App Store entry, never on, even for families who had it. Their data stays.
   assert.ok(FAMILY_SECTIONS.includes("earshot")); assert.ok(ADD_ON_SECTIONS.includes("earshot"));
   assert.equal(PLUGINS.find((q) => q.id === "life-earshot"), undefined);
   const f = emptyFamily();

@@ -4,7 +4,7 @@
 // the device), each written down by speech-to-text (server/ariseNotesAi.ts) and charged against the
 // month's minutes, rounded up per recording. Before each piece the minutes left are checked; when they
 // run out the audio is still saved, so it can be written down once minutes come back. Then the AI
-// writes the summary in the chosen template. Action items and dates go to Arise To Duo after the
+// writes the summary in the chosen template. Action items and dates go to Arise To Do after the
 // person checks them (server/ariseNotesHubs.ts).
 //
 // Privacy: audio is deleted once it's written down unless the person chose to keep it (30 days, or
@@ -640,7 +640,7 @@ export function registerAriseNotesRoutes(app: Express, auth: RequestHandler, dep
     } catch (e) { fail(res, e, "quiz to reader"); }
   });
 
-  // ─── Arise To Duo ──────────────────────────────────────────────────────────
+  // ─── Arise To Do ──────────────────────────────────────────────────────────
   const workAllowed = (u: User) => !!u.isAdmin || ["teacher", "parent", "todo"].includes(String(u.role));
 
   app.get("/api/notes/hubs/targets", auth, async (req: any, res) => {

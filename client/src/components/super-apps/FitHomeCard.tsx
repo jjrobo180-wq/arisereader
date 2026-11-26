@@ -1,4 +1,4 @@
-// Arise To Duo's Home widget for Health & Fitness (Nov 24, 2026): today's calories left as a ring, with water, protein,
+// Arise To Do's Home widget for Health & Fitness (Nov 24, 2026): today's calories left as a ring, with water, protein,
 // workouts this week and the streak. The same numbers as the iPhone widget (lib/fitWidgets.ts, fitDuoSlot).
 // A tap opens Health & Fitness. FitHomeCard is the card on the normal Home; FitTileBody is the Tile theme's face.
 import type { ReactNode } from "react";

@@ -1,4 +1,4 @@
-// What Arise To Duo's Apple Watch app shows (native/duo-watch), and what's done on it, applied back.
+// What Arise To Do's Apple Watch app shows (native/duo-watch), and what's done on it, applied back.
 // The watch has a Life / Work switch: the Life part comes from LifeHub (AriseTodo.tsx), the Work part from
 // WorkHub (TeacherHub.tsx). Each hub sends its own part; client/src/lib/watch.ts keeps the other hub's
 // last part so the watch always has both. Kept small: the phone hands the watch one JSON object of at

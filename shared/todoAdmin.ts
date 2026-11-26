@@ -13,7 +13,7 @@ export function stripeKeyMode(key: unknown): "live" | "test" | "unset" {
 export type PersonRole = "student" | "teacher" | "parent" | "todo";
 export const ROLE_FILTERS = ["todo", "teacher", "parent", "student", "all"] as const;
 export type RoleFilter = (typeof ROLE_FILTERS)[number];
-export const ROLE_LABEL: Record<RoleFilter, string> = { todo: "To Duo accounts", teacher: "Teachers", parent: "Parents", student: "Students", all: "Everyone" };
+export const ROLE_LABEL: Record<RoleFilter, string> = { todo: "To Do accounts", teacher: "Teachers", parent: "Parents", student: "Students", all: "Everyone" };
 export const PLAN_FILTERS = ["all", "paid", "trial", "vip", "free", "problem", "off"] as const;
 export type PlanFilter = (typeof PLAN_FILTERS)[number];
 export const PLAN_FILTER_LABEL: Record<PlanFilter, string> = { all: "All plans", paid: "Paying", trial: "Free trial or gift", vip: "Free forever (VIP)", free: "Free plan", problem: "Needs a look", off: "Switched off" };
@@ -182,10 +182,10 @@ export function monthlyRecurringCents(people: Pick<Person, "plan">[], infoOf: (p
 export type ProgramId = "todo" | "notes" | "fit" | "all" | "reader";
 export type Program = { id: ProgramId; name: string; about: string; /** The plan records that count as this program's membership. */ kinds: readonly PlanKind[]; /** What a free membership from the admin is saved as (null: not given from here). */ give: PlanKind | null; membership: string };
 export const PROGRAMS: readonly Program[] = [
-  { id: "todo", name: "Arise To Duo", about: "To Duo Unlimited", kinds: ["todo_unlimited", "todo_unlimited_year", "todo_family"], give: "todo_unlimited", membership: "Unlimited" },
+  { id: "todo", name: "Arise To Do", about: "To Do Unlimited", kinds: ["todo_unlimited", "todo_unlimited_year", "todo_family"], give: "todo_unlimited", membership: "Unlimited" },
   { id: "notes", name: "Arise Notes", about: "Notes Basic, Plus and Family", kinds: ["notes_basic", "notes_plus", "notes_plus_year", "notes_family"], give: "notes_plus", membership: "Notes Plus" },
   { id: "fit", name: "Cooked", about: "Cooked+ (Cooked and Cooked PT)", kinds: ["fit_plus"], give: "fit_plus", membership: "Cooked Fitness by Arise Premium" },
-  { id: "all", name: "To Duo Unlimited + Podster", about: "Every app's paid tier, and ad-free Podster", kinds: ["all_access"], give: "all_access", membership: "To Duo Unlimited" },
+  { id: "all", name: "To Do Unlimited + Podster", about: "Every app's paid tier, and ad-free Podster", kinds: ["all_access"], give: "all_access", membership: "To Do Unlimited" },
   { id: "reader", name: "Arise Reader", about: "Teacher plans (school plans are in the Reader admin)", kinds: ["teacher", "bundle_teacher"], give: null, membership: "Teacher plan" },
 ];
 export const programOf = (id: unknown): Program | null => PROGRAMS.find((p) => p.id === id) ?? null;
@@ -196,7 +196,7 @@ export function bestOf(list: PlanInfo[]): PlanInfo | null {
 }
 export type ProgramMembership = { id: ProgramId; name: string; label: string; tier: PlanTier; plan?: PlanView };
 export type ProgramRow = { id: ProgramId; name: string; canGive: boolean; plan: PlanView; given: boolean };
-export type ProgramStats = { id: ProgramId; name: string; about: string; canGive: boolean; /** How many accounts the program has in all (To Duo, Reader), for "of N accounts". */ accounts: number | null; members: number; paying: number; given: number; pastDue: number; canceling: number; ended: number };
+export type ProgramStats = { id: ProgramId; name: string; about: string; canGive: boolean; /** How many accounts the program has in all (To Do, Reader), for "of N accounts". */ accounts: number | null; members: number; paying: number; given: number; pastDue: number; canceling: number; ended: number };
 export type ProgramPerson = Pick<Person, "id" | "name" | "username" | "email" | "role" | "createdAt" | "enabled" | "lastActiveAt"> & { plan: PlanView; given: boolean };
 export function programStats(prog: Program, views: { plan: PlanView; info: PlanInfo | null }[]): ProgramStats {
   const st: ProgramStats = { id: prog.id, name: prog.name, about: prog.about, canGive: !!prog.give, accounts: null, members: 0, paying: 0, given: 0, pastDue: 0, canceling: 0, ended: 0 };

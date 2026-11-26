@@ -1,4 +1,4 @@
-// Accountability (an Arise To Duo app, LifeHub section "accountability"): two or more people share a
+// Accountability (an Arise To Do app, LifeHub section "accountability"): two or more people share a
 // space and keep each other on track. One asks ("Teach Ava her ABCs, every weekday by 3pm"), the
 // other gets nudged every so often until it's done, then checks it off with a photo or video, an
 // AI worksheet they filled in, or a quiz the child took. The one who asked sees it, approves it or

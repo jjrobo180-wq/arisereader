@@ -52,7 +52,7 @@ test("Podster AI spends the same 60 minutes as Notes, then stops with an All Acc
     const r2 = reply();
     assert.equal(await haveAiMinutes({ acct: 7 }, r2), false);
     assert.equal(r2.code, 402);
-    assert.match(r2.body.message, /shared by Arise Notes and Podster.*To Duo Unlimited gives you 1,500/);
+    assert.match(r2.body.message, /shared by Arise Notes and Podster.*To Do Unlimited gives you 1,500/);
   } finally { configureAiMinutes(null); }
 });
 

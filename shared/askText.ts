@@ -1,4 +1,4 @@
-// Text helpers for Ask AI in Arise Notes and Arise To Duo (client/src/lib/askAi.ts, server/undercover.ts).
+// Text helpers for Ask AI in Arise Notes and Arise To Do (client/src/lib/askAi.ts, server/undercover.ts).
 
 /** Splits an answer into lines (group chat messages, bullet points), without bullet marks. */
 export function answerLines(text: string): string[] {

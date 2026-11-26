@@ -1,4 +1,4 @@
-// Arise To Duo ↔ Google (Classroom, Docs, Calendar, Gmail). Run with: npx tsx --test tests/google-connect.test.ts
+// Arise To Do ↔ Google (Classroom, Docs, Calendar, Gmail). Run with: npx tsx --test tests/google-connect.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -167,7 +167,7 @@ test("Classroom assignments: her classes' work with her own turned-in state", as
   assert.deepEqual(r.body.items.map((i: any) => [i.title, i.done, i.dueDay]), [["Worksheet", true, "2026-11-25"], ["Project", false, ""]]);
 });
 
-test("To Duo shows it: the Google box under Tasks, recent Docs on Home, the store entries, the server routes", () => {
+test("To Do shows it: the Google box under Tasks, recent Docs on Home, the store entries, the server routes", () => {
   const hub = read("client/src/pages/TeacherHub.tsx");
   assert.match(hub, /<GoogleCard token=\{token\}/);
   assert.match(hub, /tab === "overview" && <GoogleRecentDocs/);

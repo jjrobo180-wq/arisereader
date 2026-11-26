@@ -1,6 +1,6 @@
-// Arise Notes' bottom bar (November 2026): the same floating dark pill as Arise To Duo's (family-hub/PhoneTabBar.tsx).
+// Arise Notes' bottom bar (November 2026): the same floating dark pill as Arise To Do's (family-hub/PhoneTabBar.tsx).
 // Notes (the main page), Recordings, a round + in the middle (Record, Upload, Voice memo, a new note, Ask AI), Ask, and You (the menu).
-// Every look uses it, so the app feels like one family with To Duo. The + takes the look's own accent color.
+// Every look uses it, so the app feels like one family with To Do. The + takes the look's own accent color.
 import { useEffect, useRef, useState } from "react";
 import { AudioLines, Mic, Pencil, Plus, Upload } from "lucide-react";
 

@@ -91,7 +91,7 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
       </Group>
       <AppsGroup ctx={ctx} />
       <Group title="More">
-        <Row icon={<LayoutGrid />} label="Open Arise To Duo" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
+        <Row icon={<LayoutGrid />} label="Open Arise To Do" detail="Notes beside your to-dos" onClick={() => openSplit(ctx.mode)} />
         {ctx.mode === "standalone" && <Row icon={<LogOut />} label="Sign out" danger onClick={() => { logout(); window.location.hash = "#/"; }} testId="notes-sign-out" />}
       </Group>
     </main>
@@ -176,7 +176,7 @@ function PlanTab({ ctx }: { ctx: AppCtx }) {
   </div>;
 }
 
-// New Notes plans are sold as Arise To Duo Unlimited ($10 a month: Notes Plus, To Duo Unlimited, Fit+ and
+// New Notes plans are sold as Arise To Do Unlimited ($10 a month: Notes Plus, To Do Unlimited, Fit+ and
 // ad-free Podster). People already paying for a Notes plan keep theirs and change it above.
 type AllAccess = { live: boolean; admin: boolean; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean };
 function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; returnPath: string }) {
@@ -190,16 +190,16 @@ function AllAccessCard({ ctx, bill, returnPath }: { ctx: AppCtx; bill: Billing; 
     catch (e: any) { say(e.message); setBusy(false); }
   };
   const price = money(all?.priceCents ?? 1000);
-  const perks: [string, string][] = [["Arise Notes", "Plus: 1,500 minutes a month, every AI feature"], ["Arise To Duo", "Unlimited: every plugin and AI"], ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, with a free guest pass for a friend"], ["Podster", "Ad-free listening"]];
+  const perks: [string, string][] = [["Arise Notes", "Plus: 1,500 minutes a month, every AI feature"], ["Arise To Do", "Unlimited: every plugin and AI"], ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, with a free guest pass for a friend"], ["Podster", "Ad-free listening"]];
   return <section className="an-card border-[var(--an-violet)] p-5" data-testid="notes-all-access">
-    <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise To Duo Unlimited</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
+    <div className="flex items-center gap-2"><h3 className="text-[18px] font-bold">Arise To Do Unlimited</h3>{all?.live && <span className="ml-auto rounded-full bg-[var(--an-green-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--an-green)]">Your plan</span>}</div>
     <div className="mt-1 text-[24px] font-extrabold">{price}/mo</div>
     <ul className="mt-3 space-y-2.5">{perks.map(([app, detail]) => <li key={app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--an-green)]" aria-hidden /><span className="min-w-0"><span className="block text-[14px] font-semibold leading-snug">{app}</span><span className="block text-[12px] leading-snug opacity-65">{detail}</span></span></li>)}</ul>
     {all?.live
       ? (all.canManage ? <Btn kind="plain" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/portal")}>Manage billing, receipts or cancel</Btn>
-        : <p className="mt-4 text-[13px] text-[var(--an-muted)]">{all.admin ? "The admin account always has To Duo Unlimited." : "To Duo Unlimited is on your account."}</p>)
+        : <p className="mt-4 text-[13px] text-[var(--an-muted)]">{all.admin ? "The admin account always has To Do Unlimited." : "To Do Unlimited is on your account."}</p>)
       : bill.canBuy && bill.payment
-        ? <Btn kind="primary" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/checkout")} data-testid="notes-buy-all-access">Get To Duo Unlimited · {price} a month</Btn>
+        ? <Btn kind="primary" className="mt-4 w-full" busy={busy} onClick={() => void go("all-access/checkout")} data-testid="notes-buy-all-access">Get To Do Unlimited · {price} a month</Btn>
         : null}
     <p className="mt-3 text-[12px] text-[var(--an-faint)]">One plan for every Arise app. Cancel any time. Payments by Stripe.{ctx.me.plan === "free" ? " The free plan stays free." : ""}</p>
   </section>;
@@ -283,7 +283,7 @@ function PrivacyTab({ ctx }: { ctx: AppCtx }) {
       {!confirm ? <><p className="mb-3 text-[14px] text-[var(--an-muted)]">Every note, transcript, summary, recording and usage record in Arise Notes, gone for good.</p><Btn kind="danger" onClick={() => setConfirm(true)}><Trash2 className="h-4 w-4" />Delete everything</Btn></>
         : <div className="space-y-3">
           <Notice tone="bad">This can't be undone.</Notice>
-          <label className="flex items-start gap-3 text-[14px]"><input type="checkbox" checked={alsoAccount} onChange={(e) => setAlsoAccount(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--an-violet)]" /><span>Also delete my whole A.R.I.S.E. account (To Duo, Reader and everything else)</span></label>
+          <label className="flex items-start gap-3 text-[14px]"><input type="checkbox" checked={alsoAccount} onChange={(e) => setAlsoAccount(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--an-violet)]" /><span>Also delete my whole A.R.I.S.E. account (To Do, Reader and everything else)</span></label>
           {alsoAccount && <input type="password" className="an-input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" autoComplete="current-password" aria-label="Password" />}
           <label className="block text-[14px] font-semibold">Type DELETE to confirm<input className="an-input mt-1" value={typed} onChange={(e) => setTyped(e.target.value)} /></label>
           <div className="flex gap-2"><Btn kind="danger" busy={busy} disabled={typed !== "DELETE" || (alsoAccount && !password)} onClick={() => void wipe()}>Delete for good</Btn><Btn kind="plain" onClick={() => setConfirm(false)}>Cancel</Btn></div>

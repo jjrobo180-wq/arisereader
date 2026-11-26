@@ -55,7 +55,7 @@ test("templates keep their weights and notes, and new workouts start from a temp
   assert.match(ui, /data-testid=\{`fit-template-weight-\$\{i\}`\}/);
 });
 
-test("My maxes and Workout templates are Cooked plugins, on the Train tab, and pages in To Duo", () => {
+test("My maxes and Workout templates are Cooked plugins, on the Train tab, and pages in To Do", () => {
   for (const id of ["maxes", "templates"] as const) assert.ok(FIT_APP_BY_ID.get(id)?.tab, id);
   assert.ok(defaultApps().added.includes("maxes") && defaultApps().added.includes("templates"), "new people start with them");
   const app = read("client/src/pages/fit/FitApp.tsx");

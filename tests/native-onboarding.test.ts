@@ -1,4 +1,4 @@
-// The Arise To Duo iPhone app's own sign-in screens and first run (pages/NativeSignIn.tsx and the
+// The Arise To Do iPhone app's own sign-in screens and first run (pages/NativeSignIn.tsx and the
 // app version of components/AppWalkthrough.tsx). The website keeps pages/SignIn.tsx.
 import test from "node:test";
 import assert from "node:assert/strict";

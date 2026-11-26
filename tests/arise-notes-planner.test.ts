@@ -1,4 +1,4 @@
-// Arise Notes → Arise To Duo: checked action items and dates really land in LifeHub and WorkHub, in
+// Arise Notes → Arise To Do: checked action items and dates really land in LifeHub and WorkHub, in
 // the shapes those hubs read (shared/familyHub.ts FamilyEvent, shared/teacherHub.ts Task). Also the
 // iPhone app's helpers that put the same items in Apple Reminders and the iPhone Calendar.
 // Run with: npx tsx --test tests/arise-notes-planner.test.ts

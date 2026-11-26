@@ -122,7 +122,7 @@ function OverviewPanel({ data, error, onRetry }: { data: Overview | null; error:
         )}
       </Section>
 
-      <Section title="Arise To Duo" hint="People with a To-Do account, and how they are paying.">
+      <Section title="Arise To Do" hint="People with a To-Do account, and how they are paying.">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="To-Do accounts" value={n(p.todoTotal)} sub={`${n(nw.todo.week)} new this week · ${n(active.todo.week)} active this week`} />
           <Stat label="Paying" value={n(p.paid)} sub={`${n(p.monthly)} monthly · ${n(p.yearly)} yearly`} tone={p.paid ? "good" : undefined} />
@@ -223,7 +223,7 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
                   onChange={(next) => void act("active", "/active", { active: next }, next ? `${name} is switched on.` : `${name} is switched off and signed out.`, next ? undefined : `Switch off ${name}?\n\nThey will be signed out everywhere and can't sign in until you switch them back on. Nothing they made is deleted.`)} />
               </div>
               <div className="divide-y divide-slate-100 pt-1">
-                <div className={row}><span className="text-slate-500">Kind of account</span><b className="text-right">{p.role === "todo" ? "Arise To Duo" : p.role[0].toUpperCase() + p.role.slice(1)}</b></div>
+                <div className={row}><span className="text-slate-500">Kind of account</span><b className="text-right">{p.role === "todo" ? "Arise To Do" : p.role[0].toUpperCase() + p.role.slice(1)}</b></div>
                 <div className={row}><span className="text-slate-500">Signed up</span><b className="text-right">{date(p.createdAt) || "—"}</b></div>
                 <div className={row}><span className="text-slate-500">Last on the site</span><b className="text-right">{ago(p.lastActiveAt)}</b></div>
                 <div className={row}><span className="text-slate-500">Days used, last 5 weeks</span><b className="text-right">{detail.usedOn.days}</b></div>
@@ -250,12 +250,12 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
               <label className="block text-xs font-semibold text-slate-600">How long a free membership lasts
                 <select className={`${field} mt-1`} value={days} onChange={(e) => setDays(Number(e.target.value))}>{TRIAL_CHOICES.map((c) => <option key={c.days} value={c.days}>{c.label}</option>)}</select>
               </label>
-              <p className="text-xs text-slate-500">Arise To Duo has its own trial, cancel and refund buttons just below. Arise Reader teacher plans are given in the Reader admin.</p>
+              <p className="text-xs text-slate-500">Arise To Do has its own trial, cancel and refund buttons just below. Arise Reader teacher plans are given in the Reader admin.</p>
             </section>
 
             <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4" aria-label="Plan">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-black text-slate-900">Arise To Duo plan</h3>
+                <h3 className="font-black text-slate-900">Arise To Do plan</h3>
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${TIER_STYLE[p.plan.tier]}`}>{p.plan.label}</span>
               </div>
               {p.plan.detail && <p className="text-sm text-slate-600">{p.plan.detail}</p>}
@@ -476,7 +476,7 @@ export default function TodoAdmin() {
                 <div className="truncate text-sm font-black text-slate-900">{g.name}</div>
                 <div className="mt-1 text-2xl font-black text-slate-900">{n(g.members)}</div>
                 <div className="text-xs text-slate-500">members · {n(g.paying)} paying · {n(g.given)} free{g.pastDue ? ` · ${n(g.pastDue)} failed` : ""}</div>
-                {g.accounts !== null && <div className="text-xs text-slate-400">of {n(g.accounts)} {g.id === "todo" ? "To Duo" : "Reader"} accounts</div>}
+                {g.accounts !== null && <div className="text-xs text-slate-400">of {n(g.accounts)} {g.id === "todo" ? "To Do" : "Reader"} accounts</div>}
               </button>
             ))}
           </div>

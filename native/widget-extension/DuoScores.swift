@@ -351,7 +351,7 @@ struct RiseFullView: View {
             HStack {
                 HStack(spacing: 5) {
                     Image(systemName: "sunrise.fill").font(riseFont(12)).foregroundStyle(RiseTheme.amber)
-                    RiseLabel(text: "Arise To Duo")
+                    RiseLabel(text: "Arise To Do")
                 }
                 Spacer()
                 Text(s.date).font(riseFont(11)).foregroundStyle(RiseTheme.muted)

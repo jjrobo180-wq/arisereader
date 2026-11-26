@@ -1,4 +1,4 @@
-// Health & Fitness inside Arise To Duo (Nov 25, 2026): a few tabs, each a page of related parts with a switcher at the
+// Health & Fitness inside Arise To Do (Nov 25, 2026): a few tabs, each a page of related parts with a switcher at the
 // top, in place of one tab per part. Daily holds the everyday trackers; Food holds the diary, meal prep, the grocery
 // list, recipes and eating out; Training, Yoga, Progress and Friends hold the rest. Every tab and every part can be
 // switched off (Period starts off unless you'd added it) and the tabs put in order; saved with the person's fitness

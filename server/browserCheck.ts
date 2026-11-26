@@ -1,4 +1,4 @@
-// Arise To Duo Browser: before a page opens inside the app, look at whether that site allows being
+// Arise To Do Browser: before a page opens inside the app, look at whether that site allows being
 // shown inside another site (shared/browserApp.ts), and read its title for bookmarks and tasks.
 //
 // Safety: signed-in people only, rate limited, http(s) on the normal ports only, and every address

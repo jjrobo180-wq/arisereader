@@ -1,4 +1,4 @@
-// What the Arise To Duo iPhone widgets draw (native/widget-extension/DuoDesigns.swift): the 40 designs for
+// What the Arise To Do iPhone widgets draw (native/widget-extension/DuoDesigns.swift): the 40 designs for
 // small, medium, large and the Lock Screen all read this one "board" of the person's tasks: the counts, the
 // tasks that matter now, this week and this month. Sent as a slot named "duo.board" next to the other slots.
 // Pure (apart from publishDuoBoard), so it's tested.

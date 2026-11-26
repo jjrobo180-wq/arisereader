@@ -12,7 +12,7 @@ test("Cooked homepages are served at /cooked/ and /cooked-pt/, signed-in visitor
   assert.match(server, /"\/cooked\/": \{ file: "cooked-landing\.html", app: "\/app#\/fit" \}/);
   assert.match(server, /"\/cooked-pt\/": \{ file: "cooked-pt-landing\.html", app: "\/app#\/trainer" \}/);
   assert.match(server, /app\.get\(\["\/cooked", "\/cooked-pt"\]/, "no-slash addresses redirect to the page");
-  // The routes sit before the To Duo /app handler and the static files.
+  // The routes sit before the To Do /app handler and the static files.
   assert.ok(server.indexOf('"/cooked/"') < server.indexOf('app.get("/app"'));
 });
 

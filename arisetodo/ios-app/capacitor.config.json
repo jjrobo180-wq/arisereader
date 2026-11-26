@@ -1,6 +1,6 @@
 {
   "appId": "com.arisereader.arisetodo",
-  "appName": "Arise To Duo",
+  "appName": "Arise To Do",
   "webDir": "www",
   "plugins": {
     "SplashScreen": {

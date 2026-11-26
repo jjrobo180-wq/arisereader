@@ -1,5 +1,5 @@
-// Arise Notes inside Arise To Duo: Notes' own screens and notes (signed in with the To Duo account), in To
-// Duo's colors, under To Duo's heading and row of pages. Which pages show is picked with the settings button;
+// Arise Notes inside Arise To Do: Notes' own screens and notes (signed in with the To Do account), in To
+// Duo's colors, under To Do's heading and row of pages. Which pages show is picked with the settings button;
 // the Notes plugins (Docs, Sheets, Slides, whiteboard…) are its Plugins page.
 import { useMemo, useState } from "react";
 import { superAppOf } from "@shared/superApps";

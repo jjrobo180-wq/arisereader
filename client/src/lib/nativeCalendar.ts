@@ -1,4 +1,4 @@
-// The iPhone's own Calendar inside the Arise To Duo app (plugin: @ebarooni/capacitor-calendar, using
+// The iPhone's own Calendar inside the Arise To Do app (plugin: @ebarooni/capacitor-calendar, using
 // Apple's EventKit). Every calendar on the phone comes along: iCloud, Google, Outlook, Exchange and
 // school accounts added in Settings → Calendar → Accounts. The website can't reach these, so the
 // buttons only show in the app. Events read here are kept in the person's own WorkHub or LifeHub,
@@ -19,7 +19,7 @@ export const inIphoneApp = isNativeApp;
 
 const call = (method: string, options?: unknown) => nativeCall(PLUGIN, NAME, method, options).catch((e: any) => {
   const msg = String(e?.message || e || "");
-  if (/not implemented|unimplemented|plugin/i.test(msg)) throw new Error("iPhone Calendar isn't in this version of the app yet. Update Arise To Duo, then try again.");
+  if (/not implemented|unimplemented|plugin/i.test(msg)) throw new Error("iPhone Calendar isn't in this version of the app yet. Update Arise To Do, then try again.");
   throw new Error(msg || "The iPhone Calendar didn't answer. Try again.");
 });
 
@@ -27,7 +27,7 @@ const call = (method: string, options?: unknown) => nativeCall(PLUGIN, NAME, met
 export async function askCalendarAccess(): Promise<void> {
   const res = await call("requestFullCalendarAccess");
   const state = String(res?.result ?? res ?? "");
-  if (state !== "granted") throw new Error("Calendar access is off. Turn it on in Settings → Privacy & Security → Calendars → Arise To Duo, then try again.");
+  if (state !== "granted") throw new Error("Calendar access is off. Turn it on in Settings → Privacy & Security → Calendars → Arise To Do, then try again.");
 }
 
 export type PhoneEvent = { title: string; date: string; start: string; end: string; location: string; notes: string };

@@ -11,11 +11,11 @@ import type { Express, RequestHandler } from "express";
 import { cleanAppleToken, sendApplePush, type AppleMessage } from "./applePush";
 
 export const PODPLUS_TOPIC = "com.arisereader.podplus";
-/** Podster inside Arise To Duo (client/src/components/super-apps/PodsterInDuo.tsx): the To Duo iPhone app signs up
- *  its own token, saved as "todo:<token>", and its alerts go to To Duo, opening Podster there. */
+/** Podster inside Arise To Do (client/src/components/super-apps/PodsterInDuo.tsx): the To Do iPhone app signs up
+ *  its own token, saved as "todo:<token>", and its alerts go to To Do, opening Podster there. */
 export const TODO_PREFIX = "todo:";
 const todoToken = (saved: string) => (saved.startsWith(TODO_PREFIX) ? saved.slice(TODO_PREFIX.length) : null);
-/** The address a new-episode alert opens: the episode in Podster, or in To Duo's Podster. */
+/** The address a new-episode alert opens: the episode in Podster, or in To Do's Podster. */
 export const podAlertUrl = (saved: string, showId: string, episodeId: string) => (todoToken(saved) !== null ? `/#/to-do?go=podster&s=${showId}&e=${episodeId}` : `?s=${showId}&e=${episodeId}`);
 const MAX_FOLLOWS = 300;
 const PER_DAY = 4;
@@ -32,7 +32,7 @@ export type PodPushDeps = {
   };
   /** The newest episode of a show (from the podcast directory). */
   newest(showId: string): Promise<{ show: string; episodeId: string; title: string } | null>;
-  /** `topic` is the app it goes to: undefined for Arise To Duo (the default), Podster's otherwise. */
+  /** `topic` is the app it goes to: undefined for Arise To Do (the default), Podster's otherwise. */
   send?: (token: string, m: AppleMessage, topic?: string) => Promise<{ ok: boolean; gone: boolean }>;
   /** The server is free to call Apple (nobody is waiting on it). */
   idle?: () => boolean;

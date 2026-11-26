@@ -159,7 +159,7 @@ import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 import { SuperHeadExtra } from "@/components/super-apps/superHeadExtra";
 // Today's check-ins keep their done list current for reminders (components/daily/useDailyCheckins.ts).
 const DailyDoneSync = lazy(() => import("@/components/daily/WithDaily").then((m) => ({ default: m.SafeDailyDoneSync })));
-// Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Duo (each loaded when it's first opened).
+// Cooked, Cooked PT, Arise Notes and Podster as plugins inside To Do (each loaded when it's first opened).
 const CookedInDuo = lazy(() => import("@/components/super-apps/CookedInDuo"));
 const CookedPtInDuo = lazy(() => import("@/components/super-apps/CookedPtInDuo"));
 const NotesInDuo = lazy(() => import("@/components/super-apps/NotesInDuo"));
@@ -397,7 +397,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     return () => { window.removeEventListener(REMINDERS_CHANGED, again); document.removeEventListener("visibilitychange", front); };
   }, [user]);
   const rawSet = sync.setWorkspace;
-  // Arise To Duo Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
+  // Arise To Do Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
   // change that would add a 4th is held back here (so a save never fails over it), and the
   // upgrade box opens, at most once every ten minutes so a background sync can't keep popping it.
   const todoPlan = useTodoPlan();
@@ -917,7 +917,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     const p = officeAppPlugin("life", "life-para-team");
     if (p) setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, true) }));
   });
-  // Arise Notes used to be an Office app here that opened its own page; it's its own plugin now, inside To Duo
+  // Arise Notes used to be an Office app here that opened its own page; it's its own plugin now, inside To Do
   // (shared/superApps.ts). Anyone who had added it keeps it, moved over once.
   const hadNotesOffice = (family.sheetsInstalled ?? []).includes("life-arise-notes");
   useEffect(() => {
@@ -958,7 +958,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
   const tileMode = taskLayout === "tiles";
   const phone = usePhoneMenu(tileMode || hubLook.look ? "drawer" : layout.menuSide, layout.menuClose);
-  // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
+  // Arise To Do: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
   const duo = useAriseDuo();
   /** The floating tab bar on a phone (Customize → Menu on your phone → Tab bar, the default). Not in the
    *  Duo's book view or inside a split-screen pane, which have their own controls; there the app drawer stands in. */
@@ -969,7 +969,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const [youOpen, setYouOpen] = useState(false);
   useEffect(() => {
     const before = document.title;
-    document.title = "Arise To Duo";
+    document.title = "Arise To Do";
     return () => { document.title = before; };
   }, []);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand. The Tile theme
@@ -982,7 +982,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   // Search everything in LifeHub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const [customizing, setCustomizing] = useState(false);
-  // Which Customize tab to open on: the header's Duo button opens straight to "Duo & split screen".
+  // Which Customize tab to open on: the header's Duo button opens straight to "Split screen".
   const [customizeTab, setCustomizeTab] = useState<string | undefined>(undefined);
   const [lockSettings, setLockSettings] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -1302,7 +1302,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     : shown === "calendar" ? <FamilyCalendar {...appProps} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
-    // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): their own screens, signed in with this account, in To Duo's look.
+    // Cooked, Cooked PT, Arise Notes and Podster (shared/superApps.ts): their own screens, signed in with this account, in To Do's look.
     : shown === "cooked" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="cooked" name="Arise Health & Fitness"><Suspense fallback={superWaiting}><CookedInDuo key={startFor("cooked")?.at ?? 0} say={setMessage} night={night} start={startFor("cooked")?.page} coach={startFor("cooked")?.coach} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     : shown === "cookedpt" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="cookedpt" name="Cooked PT"><Suspense fallback={superWaiting}><CookedPtInDuo key={startFor("cookedpt")?.at ?? 0} say={setMessage} night={night} start={startFor("cookedpt")?.page} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     : shown === "arisenotes" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="arisenotes" name="Arise Notes"><Suspense fallback={superWaiting}><NotesInDuo key={startFor("arisenotes")?.at ?? 0} family={family} setFamily={setFamily} night={night} start={startFor("arisenotes")?.page} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
@@ -1508,8 +1508,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     {!setupOpen && setupChecked && <AppWalkthrough userId={user.id} hub="life" arise={user.role === "teacher" || user.role === "parent"}
       onGallery={() => setStore(true)} onCustomize={(t) => { setCustomizeTab(t); setCustomizing(true); }} onNotificationSettings={() => { closeApps(); goSection("notifications"); }}
       onConnectCalendar={async () => { const list = await readIphoneEvents(); setFamily((f) => withPhoneEvents(f, list, makeId)); return Math.min(list.length, 1000); }} />}
-    {/* After the first-run walkthrough: the To Duo Unlimited pop-up, once (iPhone app only). */}
-    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro={`To Duo is free with 3 plugins from the Plugin Gallery. Arise To Duo Unlimited unlocks every plugin and the AI, plus the extras in Notes and Cooked Fitness by Arise${isNativeApp() ? "" : ", and ad-free Podster"}.`} />
+    {/* After the first-run walkthrough: the To Do Unlimited pop-up, once (iPhone app only). */}
+    <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro={`To Do is free with 3 plugins from the Plugin Gallery. Arise To Do Unlimited unlocks every plugin and the AI, plus the extras in Notes and Cooked Fitness by Arise${isNativeApp() ? "" : ", and ad-free Podster"}.`} />
     {removing && <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="life-remove-title" data-testid="life-remove-confirm" onClick={() => setRemoving(null)}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <h2 id="life-remove-title" className="text-base font-bold text-slate-900">Remove {removing.label} from your menu?</h2>
@@ -1565,7 +1565,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
           </CustomizeGroup>
           <ThemePicker layout={layout} setLayout={setLayout} />
         </> },
-        { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
+        { id: "duo", label: "Split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
         { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
           <SameBothHubs testId="life-same-both" />
           <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes." testId="life-customize-phone-menu">
@@ -1674,7 +1674,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
       content={<LockedApp locked={appLocked(family.lock, leadOf(shown, sections))} name={openAppName}>{shown === "calendar" || shown === "notes" ? familyContent : null}</LockedApp>} />}
     {osOn && !osCore && hubLook.look && <LookDock inApp look={hubLook.look} screen={null} go={osGo} openApps={osApps} add={osAdd} off={osOff} you={() => setYouOpen(true)} initial={(osFirst || "Y").charAt(0).toUpperCase()} />}
     {osOn && youOpen && hubLook.look && <LookYou look={hubLook.look} onClose={() => setYouOpen(false)} top={<><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" /></>}
-      items={[{ id: "search", label: "Search", detail: `Everything in ${hubTitle}`, onClick: () => setSearching(true) }, { id: "duo", label: "Duo & split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
+      items={[{ id: "search", label: "Search", detail: `Everything in ${hubTitle}`, onClick: () => setSearching(true) }, { id: "duo", label: "Split screen", onClick: () => { setCustomizeTab("duo"); setCustomizing(true); } }, ...moreGroups.flatMap((g) => g.items)]} />}
     {tabBar && !osOn && <PhoneTabBar name={user.displayName || user.username || ""}
       home={shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store} tasks={shown === "tasks" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && !store}
       addOpen={addMenu} onAdd={() => setAddMenu((v) => !v)}
@@ -1737,7 +1737,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
-          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Duo" : "Back to Arise Reader"}</button>
+          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Do" : "Back to Arise Reader"}</button>
         </div>
       </aside>
 
@@ -1840,7 +1840,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
 
     {editing && <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4 duo-book:items-stretch duo-book:justify-start duo-book:bg-[#16152a]/25 duo-book:p-0 duo-book:backdrop-blur-none" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6 duo-book:h-[100dvh] duo-book:max-h-none duo-book:w-[var(--duo-left)] duo-book:max-w-none duo-book:rounded-none duo-book:rounded-r-[1.5rem] duo-book:p-5">
-        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{duo.isDuo ? "Arise To Duo" : "Arise LifeHub"}</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{duo.isDuo ? "Arise To Do" : "Arise LifeHub"}</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
         <form onSubmit={saveTask} className="space-y-3">
           <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => typeTitle(event.target.value)} className={inputClass + " mt-1.5"} placeholder="e.g. Dentist tomorrow 3pm" data-testid="life-task-title" /></label>
           {smartFound && <p className="-mt-1 flex items-center gap-1.5 text-xs font-semibold text-violet-700" data-testid="life-task-smart"><CalendarClock size={14} /> Due {smartLabel(smartFound)} · from “{smartFound.matched}”</p>}

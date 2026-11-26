@@ -177,7 +177,7 @@ func loadDuoBoard(_ show: DuoShow = .both) -> DuoBoard {
 /// "Later" on a widget: the task moves to tomorrow (the app saves it when it next opens).
 struct DuoLaterIntent: AppIntent {
     static var title: LocalizedStringResource = "Later"
-    static var description = IntentDescription("Moves a task to tomorrow from an Arise To Duo widget.")
+    static var description = IntentDescription("Moves a task to tomorrow from an Arise To Do widget.")
     static var isDiscoverable: Bool = false
     @Parameter(title: "Task") var item: String
     @Parameter(title: "Widget") var slot: String

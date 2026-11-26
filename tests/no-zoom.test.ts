@@ -49,7 +49,7 @@ test("if iPhone lays the page out wider than the screen, the viewport is pinned 
   assert.match(main, /Math\.abs\(window\.innerWidth - wide\) < 2/);
 });
 
-test("Arise To Duo is smaller through its type size, never the viewport, so a tapped text box can't zoom it", () => {
+test("Arise To Do is smaller through its type size, never the viewport, so a tapped text box can't zoom it", () => {
   // A viewport below 100% (even locked at 93%) draws a 16px text box at about 15px, and iPhone zooms in when it's tapped.
   const main = read("client/src/main.tsx");
   assert.doesNotMatch(main.replace(/\/\/.*$/gm, ""), /TODO_SCALE|initial-scale=0\.93/);
@@ -58,7 +58,7 @@ test("Arise To Duo is smaller through its type size, never the viewport, so a ta
 });
 
 test("only main.tsx sets the viewport: nothing changes it while the app runs", () => {
-  // nativeBackdrop.ts once set To Duo to 93% each time a hub opened, while main.tsx set it back to 100%
+  // nativeBackdrop.ts once set To Do to 93% each time a hub opened, while main.tsx set it back to 100%
   // whenever the screen changed size (the keyboard counts): the page jumped in every time a text box was tapped.
   const src = new URL("../client/src/", import.meta.url);
   const touching = (readdirSync(src, { recursive: true }) as string[])

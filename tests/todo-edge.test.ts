@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("Arise To Duo draws edge to edge on the iPhone", () => {
+test("Arise To Do draws edge to edge on the iPhone", () => {
   assert.equal(JSON.parse(read("arisetodo/ios-app/capacitor.config.json")).ios.contentInset, "never");
 });
 test("the page keeps its buttons below the clock", () => {

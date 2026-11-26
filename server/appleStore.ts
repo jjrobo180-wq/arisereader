@@ -70,7 +70,7 @@ export type AppleTransaction = {
   appAccountToken?: string; environment?: "Production" | "Sandbox" | string;
 };
 
-/** What an To Duo Unlimited purchase means right now: running until `endsAt`, or ended. */
+/** What an To Do Unlimited purchase means right now: running until `endsAt`, or ended. */
 export function allAccessState(t: AppleTransaction, now: number): { active: boolean; endsAt: string | null } {
   if (t.revocationDate) return { active: false, endsAt: new Date(t.revocationDate).toISOString() };
   const ends = Number(t.expiresDate);

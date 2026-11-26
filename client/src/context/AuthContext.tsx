@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(loadSessionCookie());
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
-  // An adult's hub (To Duo: LifeHub, WorkHub) opens straight away with the sign-in kept on this device,
+  // An adult's hub (To Do: LifeHub, WorkHub) opens straight away with the sign-in kept on this device,
   // and the server check below runs behind it: no spinner on every launch. Everyone else waits for the check.
   const [isLoading, setIsLoading] = useState(!!sessionRef.current.token && !isSampleMode() && !isHubAccount(sessionRef.current.user));
   const [sessionValidated, setSessionValidated] = useState(() => isSampleMode());

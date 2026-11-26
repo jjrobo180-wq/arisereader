@@ -49,9 +49,9 @@ function onGesture() {
 /** Called once at start-up (main.tsx). */
 export function installMediaUnlock(): void {
   if (typeof window === "undefined") return;
-  // The Arise To Duo iPhone app lets sound play without a tap, so nothing is unlocked there. A
+  // The Arise To Do iPhone app lets sound play without a tap, so nothing is unlocked there. A
   // silent clip or a running sound engine takes over the iPhone's audio, and that stopped music
-  // and podcasts from other apps the moment someone opened Arise To Duo. There, a sound engine is
+  // and podcasts from other apps the moment someone opened Arise To Do. There, a sound engine is
   // only started when a game actually plays a sound.
   if (window.location.protocol === "capacitor:") { startEnginesOnlyWhenPlaying(); return; }
   // Every sound engine any game makes is remembered, so a tap can start it.

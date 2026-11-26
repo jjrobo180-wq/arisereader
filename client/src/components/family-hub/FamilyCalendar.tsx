@@ -12,7 +12,7 @@ import { ShareButton } from "./ShareLink";
 import { addToIphoneCalendar, inIphoneApp, readIphoneEvents, type PhoneEvent } from "@/lib/nativeCalendar";
 import { isNativeApp } from "@/lib/nativeApp";
 
-/** The calendar the iPhone's own events go in (Arise To Duo iPhone app). */
+/** The calendar the iPhone's own events go in (Arise To Do iPhone app). */
 const PHONE_CAL = { id: "iphone", name: "iPhone Calendar", color: "#64748b", show: true };
 
 /** The family with the iPhone's events in its "iPhone Calendar" calendar (replacing the last read).

@@ -1,4 +1,4 @@
-// To Duo's menu: removing a plugin asks in the page (window.confirm can be silently blocked, which made the
+// To Do's menu: removing a plugin asks in the page (window.confirm can be silently blocked, which made the
 // plugin stay), and every kind of plugin in "My plugins" has a remove button.
 // Run with: npx tsx --test tests/todo-menu-remove.test.ts
 import test from "node:test";

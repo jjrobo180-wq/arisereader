@@ -1,4 +1,4 @@
-// TTS Buddy inside Arise To Duo (WorkHub and LifeHub), opened from the menu or the Plugin Gallery like the other
+// TTS Buddy inside Arise To Do (WorkHub and LifeHub), opened from the menu or the Plugin Gallery like the other
 // plugins: the hub's menu and header stay, and Buddy's own screens (pick teacher or student, the teacher's
 // worksheet camera, a student's reader) sit in the page. Students still open arisetodo.com/buddy on their laptop.
 import { useState } from "react";

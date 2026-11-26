@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-test("App Review 5.6: To Duo has no live updates and Ask is a plain AI chat in the iPhone apps", () => {
+test("App Review 5.6: To Do has no live updates and Ask is a plain AI chat in the iPhone apps", () => {
   assert.doesNotMatch(readFileSync("arisetodo/ios-app/package.json", "utf8"), /capacitor-updater/);
   assert.doesNotMatch(readFileSync(".github/workflows/arisetodo-signed-release.yml", "utf8"), /ota_setup\.py todo/);
   assert.throws(() => readFileSync(".github/workflows/ota-publish.yml", "utf8"), "no live updates for any app");
@@ -16,7 +16,7 @@ test("App Review 5.6: To Duo has no live updates and Ask is a plain AI chat in t
   assert.match(readFileSync("client/src/components/arise-notes/notesAppsCatalog.tsx", "utf8"), /plainAsk\(\) \? ALL_NOTES_APPS\.filter\(\(a\) => a\.id !== "undercover"\)/);
 });
 
-test("App Review 5.6: the To Duo app opens only To Duo's own pages", async () => {
+test("App Review 5.6: the To Do app opens only To Do's own pages", async () => {
   const { todoNativeAllows } = await import("../shared/todoNativeRoutes.ts");
   for (const p of ["/", "/lifehub", "/familyhub?go=x", "/workhub", "/arise-notes", "/fit", "/signin", "/plans/abc", "/pro"]) assert.ok(todoNativeAllows(p), p);
   for (const p of ["/admin", "/games", "/paintball-arena", "/eye-gaze-home", "/fyp", "/rewards", "/quiz/5", "/leaderboard", "/reader", "/todo-admin"]) assert.ok(!todoNativeAllows(p), p);
@@ -31,20 +31,20 @@ test("App Review: no TestFlight wording, no locale-guessed purchase link, no upd
   assert.doesNotMatch(readFileSync("client/src/components/arise-notes/SettingsScreen.tsx", "utf8"), /Check for updates/);
 });
 
-test("No more All Access: the one paid plan is Arise To Duo Unlimited", () => {
+test("No more All Access: the one paid plan is Arise To Do Unlimited", () => {
   const s = readFileSync("shared/allAccess.ts", "utf8");
-  assert.match(s, /name: "Arise To Duo Unlimited"/);
+  assert.match(s, /name: "Arise To Do Unlimited"/);
   for (const f of ["client/src/components/AllAccessOffer.tsx", "client/src/components/hub-pieces/TodoPlan.tsx", "client/src/pages/AriseTodo.tsx", "client/src/pages/AllAccess.tsx", "server/aiMinutes.ts"])
     assert.doesNotMatch(readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, ""), /"[^"\n]*All Access[^"\n]*"/, f);
 });
 
 test("App Review: one paid plan, no ad stripping or trainer online-coaching payments in the iPhone app, honest permission sentences", () => {
   const plans = readFileSync("server/plans.ts", "utf8");
-  // A To Duo Unlimited from before (monthly, yearly or an Admin trial) unlocks exactly what the subscription does.
+  // A To Do Unlimited from before (monthly, yearly or an Admin trial) unlocks exactly what the subscription does.
   assert.match(plans, /for \(const kind of \["todo_unlimited", "todo_unlimited_year"\] as PlanKind\[\]\) \{\n\s+const g = await current\(kind, userId\);\n\s+if \(grantLive\(g, now\(\)\)\) return \{ live: true, admin: false, grant: g \};/);
   assert.doesNotMatch(plans, /Every Arise app's paid tier/);
   const offer = readFileSync("client/src/components/AllAccessOffer.tsx", "utf8");
-  assert.match(offer, />Everything in Arise To Duo\. Signing up is free\.</);
+  assert.match(offer, />Everything in Arise To Do\. Signing up is free\.</);
   assert.doesNotMatch(offer, /every Arise app/i);
   assert.match(offer, /ALL_ACCESS\.perks\.filter\(\(p\) => !\(isNativeApp\(\) && p\.app === "Arise Podcasts"\)\)/);
   // Podster plays episodes as published in the iPhone app: no ad skipping, no ad-free copies, nothing selling it.
@@ -65,7 +65,7 @@ test("App Review: one paid plan, no ad stripping or trainer online-coaching paym
   assert.match(work, /\{user\.isAdmin && !isNativeApp\(\) && <a href="#\/todo-admin"/);
   const rules = readFileSync("CLAUDE.md", "utf8");
   assert.match(rules, /\*\*No live updates\.\*\*/);
-  assert.match(rules, /\*\*To Duo alone in the To Duo app\.\*\*/);
+  assert.match(rules, /\*\*To Do alone in the To Do app\.\*\*/);
 });
 
 test("no Browser plugin: not in the Plugin Gallery, the hubs, split screen or the team apps, and its screen is gone", async () => {

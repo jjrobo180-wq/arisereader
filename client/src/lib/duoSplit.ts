@@ -1,4 +1,4 @@
-// What each side of the Arise To Duo split screen (/#/duo) shows, kept in one place so the split
+// What each side of the Arise To Do split screen (/#/duo) shows, kept in one place so the split
 // screen itself, Customize (on any phone, not only the Duo) and the Duo menu all read and change
 // the same choice. Saved per device (localStorage); a change made in one place reaches the others
 // at once — another frame or tab through the storage event, the same page through PICKS_EVENT.

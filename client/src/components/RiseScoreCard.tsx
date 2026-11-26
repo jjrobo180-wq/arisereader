@@ -1,4 +1,4 @@
-// The Rise Score card at the top of Arise To Duo's pages: how the person is doing today, this week and this year
+// The Rise Score card at the top of Arise To Do's pages: how the person is doing today, this week and this year
 // (shared/riseScore.ts). Each page has its own design (the same five as the iPhone's Rise Score widgets) and its own
 // on/off switch; "All pages" turns every page's card on or off at once. The choice is kept on this device.
 import { useEffect, useState, type ReactElement, type ReactNode } from "react";

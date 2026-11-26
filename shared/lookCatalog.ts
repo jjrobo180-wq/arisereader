@@ -1,4 +1,4 @@
-// How the looks are organized in the pickers (Arise Notes > Settings > Appearance, and To Duo's
+// How the looks are organized in the pickers (Arise Notes > Settings > Appearance, and To Do's
 // Customize): the groups, and the name and description each look is shown with. The look's own
 // colors and type stay in notesThemes.ts / protoLooks.ts; this is only the shelf they sit on.
 import { NOTES_THEMES, type NotesTheme } from "./notesThemes";

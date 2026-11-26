@@ -1,4 +1,4 @@
-// The reminders switch inside the Arise To Duo iPhone app (lib/nativeReminders.ts), in place of the
+// The reminders switch inside the Arise To Do iPhone app (lib/nativeReminders.ts), in place of the
 // website's Web Push steps (which ask to add the site to the Home Screen and can't work in the app).
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Check, Loader2, Volume2, VolumeX } from "lucide-react";
@@ -52,7 +52,7 @@ export default function NativeRemindersPanel({ kind, onChange, buttonClass, ghos
     finally { setBusy(false); }
   };
   return <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid={`native-reminders-${kind}`}>
-    {!nativeRemindersAvailable() ? <p>Reminders need the newest version of Arise To Duo. Update the app, then come back here.</p>
+    {!nativeRemindersAvailable() ? <p>Reminders need the newest version of Arise To Do. Update the app, then come back here.</p>
       : on ? <>
         <p className="font-semibold text-emerald-700">Reminders are on for this iPhone.</p>
         <p className="text-xs text-slate-500">One switch for LifeHub and WorkHub. They follow the choices below and update whenever either hub changes.</p>

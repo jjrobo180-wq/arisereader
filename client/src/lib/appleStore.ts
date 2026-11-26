@@ -1,5 +1,5 @@
-// Arise To Duo Unlimited bought in the iPhone app with Apple's in-app purchase (native/arise-store, StoreKit 2).
-// The server checks each purchase Apple signs (server/appleStore.ts) and turns To Duo Unlimited on for the
+// Arise To Do Unlimited bought in the iPhone app with Apple's in-app purchase (native/arise-store, StoreKit 2).
+// The server checks each purchase Apple signs (server/appleStore.ts) and turns To Do Unlimited on for the
 // signed-in account. Builds without the plugin (older TestFlight builds, the website) never show it.
 import { API_BASE } from "@/lib/queryClient";
 import { hasNativePlugin, nativeAppInfo, nativeCall, nativeListen } from "@/lib/nativeApp";
@@ -7,9 +7,9 @@ import { hasNativePlugin, nativeAppInfo, nativeCall, nativeListen } from "@/lib/
 const PLUGIN = /AriseStore/;
 const call = (method: string, options?: unknown) => nativeCall(PLUGIN, "AriseStore", method, options);
 
-/** This app build can sell To Duo Unlimited with Apple. */
+/** This app build can sell To Do Unlimited with Apple. */
 export const appleStoreReady = (): boolean => hasNativePlugin(PLUGIN);
-/** This app's To Duo Unlimited product in App Store Connect. */
+/** This app's To Do Unlimited product in App Store Connect. */
 export const allAccessProductId = (): string => `${nativeAppInfo().bundle}.allaccess.monthly`;
 
 /** The App Store country (e.g. "USA"), or "" when it can't be told. */
@@ -19,7 +19,7 @@ export async function appStoreCountry(): Promise<string> {
 }
 
 export type AppleOffer = { price: string; trialDays: number };
-/** To Duo Unlimited in the App Store here: Apple's price ("$9.99") and the free trial this Apple ID can still
+/** To Do Unlimited in the App Store here: Apple's price ("$9.99") and the free trial this Apple ID can still
  *  start (0 when there's none, or they've had it); null when the App Store doesn't offer it. */
 export async function allAccessAppleOffer(): Promise<AppleOffer | null> {
   if (!appleStoreReady()) return null;
@@ -30,7 +30,7 @@ export async function allAccessAppleOffer(): Promise<AppleOffer | null> {
     return { price: String(p.displayPrice), trialDays: p.trialEligible === true ? days : 0 };
   } catch { return null; }
 }
-/** The price Apple shows for To Duo Unlimited here ("$9.99"), or null when the App Store doesn't offer it. */
+/** The price Apple shows for To Do Unlimited here ("$9.99"), or null when the App Store doesn't offer it. */
 export async function allAccessApplePrice(): Promise<string | null> {
   return (await allAccessAppleOffer())?.price ?? null;
 }
@@ -49,7 +49,7 @@ export async function sendApplePurchases(token: string, transactions: string[]) 
 }
 
 export type AppleBuy = { status: "purchased" | "pending" | "cancelled"; live?: boolean };
-/** Buys To Duo Unlimited with Apple for the signed-in account. */
+/** Buys To Do Unlimited with Apple for the signed-in account. */
 export async function buyAllAccessWithApple(token: string): Promise<AppleBuy> {
   const { token: accountToken } = await api("/api/all-access/apple-token", token);
   const r = await call("purchase", { id: allAccessProductId(), token: accountToken });

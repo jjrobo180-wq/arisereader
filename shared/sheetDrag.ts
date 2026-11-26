@@ -1,4 +1,4 @@
-// Swiping a bottom sheet down to close it, like an iPhone sheet. The sheets (Cooked inside To Duo) follow the
+// Swiping a bottom sheet down to close it, like an iPhone sheet. The sheets (Cooked inside To Do) follow the
 // finger while it drags the handle or the title bar, and either fly away or spring back when it lets go.
 // The decision lives here so it can be tested without a screen.
 

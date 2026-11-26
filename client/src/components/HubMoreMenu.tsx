@@ -34,7 +34,7 @@ export function hubMoreGroups(o: {
       ...(o.extra ?? []),
     ] },
     { title: "Help & account", items: [
-      { id: "walkthrough", label: "How to use Arise To Duo", detail: "The quick tour again", icon: <HelpCircle />, onClick: () => window.dispatchEvent(new Event(WALKTHROUGH_EVENT)) },
+      { id: "walkthrough", label: "How to use Arise To Do", detail: "The quick tour again", icon: <HelpCircle />, onClick: () => window.dispatchEvent(new Event(WALKTHROUGH_EVENT)) },
       { id: "privacy", label: "Account & privacy", detail: "Your account, data and deleting it", icon: <ShieldCheck />, onClick: o.privacy },
       { id: "signout", label: "Sign out", icon: <LogOut />, danger: true, onClick: o.signOut },
     ] },

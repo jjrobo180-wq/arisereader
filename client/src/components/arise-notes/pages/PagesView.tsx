@@ -42,7 +42,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
   /** Notes waiting to go into the folder being made from "Move to › New folder…". */
   const [moveAfterFolder, setMoveAfterFolder] = useState<string[] | null>(null);
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1000);
-  // Inside To Duo the notes sit beside the hub's menu, so the room they have is the box's width, not the window's.
+  // Inside To Do the notes sit beside the hub's menu, so the room they have is the box's width, not the window's.
   const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const f = () => setWide(ctx.duo && boxRef.current ? boxRef.current.clientWidth >= 860 : window.innerWidth >= 1000);
@@ -187,7 +187,7 @@ export default function PagesView({ ctx, openId, tabs, recorded = [] }: { ctx: A
   // Record a meeting straight into a new note (PageScreen records; typing @ariserecord does too).
   const recordMeeting = () => { try { sessionStorage.setItem("arise-pages-record", "1"); } catch { /* opens without recording */ } void create(PAGE_TEMPLATES[0]); };
   const nav = <nav className="pp-nav" aria-label="Folders" data-testid="pages-folders">
-    {/* Inside To Duo, Record, Upload, Plugins, @arise and Settings are on To Duo's row of pages above. */}
+    {/* Inside To Do, Record, Upload, Plugins, @arise and Settings are on To Do's row of pages above. */}
     {!ctx.duo && <>
     <button type="button" onClick={recordMeeting} data-testid="pages-record" className="pp-record" title="Records into a new note. Or type @ariserecord in any note.">
       <span className="pp-record-dot" aria-hidden /><span className="flex-1">Record a meeting</span><Mic className="h-4 w-4 opacity-60" aria-hidden />

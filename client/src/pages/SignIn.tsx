@@ -33,7 +33,7 @@ export default function SignIn() {
   const [who, setWho] = useState<Who>(() => !onTodo && /[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  // arisetodo.com's "I'm a teacher" / "I'm a parent" buttons open /signin?create: the Arise To Duo account form
+  // arisetodo.com's "I'm a teacher" / "I'm a parent" buttons open /signin?create: the Arise To Do account form
   // straight away (not Arise Reader's teacher or parent sign-up).
   const [personalSignup, setPersonalSignup] = useState(() => { try { return /[?&]create\b/.test(window.location.hash) && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname); } catch { return false; } });
   const [email, setEmail] = useState("");
@@ -278,7 +278,7 @@ export default function SignIn() {
             ) : personalSignup ? (
               <section aria-label="Create your personal A.R.I.S.E. account">
                 <div className="mb-7">
-                  <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "Arise To Duo" : "Personal Life Hub"}</p>
+                  <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "Arise To Do" : "Personal Life Hub"}</p>
                   <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Create your free account</h2>
                   <p className="mt-2 text-sm leading-6 text-[#737b94]">{onTodo ? "For anyone. No school or work email needed. You get both hubs, Work and Life." : "No school account needed. Your tasks and lists will be saved to your account."}</p>
                 </div>
@@ -317,7 +317,7 @@ export default function SignIn() {
               ))}
             </div>}
             <div className="mb-7">
-              <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "Arise To Duo" : adult ? "Teachers and parents" : "Student sign in"}</p>
+              <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "Arise To Do" : adult ? "Teachers and parents" : "Student sign in"}</p>
               <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Sign in</h2>
               <p className="mt-2 text-sm text-[#737b94]">{onTodo ? "Your hubs open as soon as you sign in." : adult ? "Your hub opens as soon as you sign in." : "Use the username and password from your teacher or parent."}</p>
             </div>

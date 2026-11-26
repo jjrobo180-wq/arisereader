@@ -1,4 +1,4 @@
-// The Arise To Duo iPhone app's setup page (notifications, iPhone Calendar, Apple Reminders) in the
+// The Arise To Do iPhone app's setup page (notifications, iPhone Calendar, Apple Reminders) in the
 // first run and from ⋯ → iPhone connections; Apple Reminders read on the phone; no Shortcut in the app.
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -1,5 +1,5 @@
 // Arise Notes: the app. The same screens run on their own at /notes/ (client/src/notes/main.tsx) and
-// inside Arise To Duo (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
+// inside Arise To Do (pages/AriseNotesPage.tsx): Home with the notes, Record, Upload, a note, Ask
 // your notes, Voice memo, and Settings (plan and minutes, family, privacy, accessibility).
 import AllAccessPopup from "@/components/AllAccessPopup";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -61,18 +61,18 @@ export type AppCtx = {
   hub: "life" | "work";
   /** While recording: asks before leaving the screen. */
   setGuard: (g: (() => boolean) | null) => void;
-  /** Inside Arise To Duo: To Duo's row of pages replaces Notes' own bar at the bottom. */
+  /** Inside Arise To Do: To Do's row of pages replaces Notes' own bar at the bottom. */
   duo?: boolean;
 };
-/** Arise Notes as a plugin inside Arise To Duo (components/super-apps/NotesInDuo.tsx): To Duo draws the
- *  heading and the row of pages, in To Duo's Day or Night; Notes draws the page in To Duo's colors. */
+/** Arise Notes as a plugin inside Arise To Do (components/super-apps/NotesInDuo.tsx): To Do draws the
+ *  heading and the row of pages, in To Do's Day or Night; Notes draws the page in To Do's colors. */
 export type NotesDuo = {
   night: boolean;
   top: (p: { page: string; go: (page: string) => void }) => ReactNode;
   /** The page to open on (pages, record, upload, ask, memo, apps or settings). */
   start?: string | null;
 };
-/** To Duo's page names for Notes' screens, and back. */
+/** To Do's page names for Notes' screens, and back. */
 export const notesRouteOf = (page: string | null | undefined): Route =>
   page === "record" ? { name: "record" } : page === "upload" ? { name: "upload" } : page === "ask" ? { name: "undercover" } : page === "memo" ? { name: "memo" }
   : page === "apps" ? { name: "apps" } : page === "settings" ? { name: "settings" } : { name: "pages" };
@@ -127,13 +127,13 @@ const loadThemeFont = (href?: string) => {
 };
 
 export default function NotesApp(props: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string; duo?: NotesDuo }) {
-  // Inside To Duo, every screen (the list, an open note's paper) follows To Duo's Day/Night, not the computer's dark mode.
+  // Inside To Do, every screen (the list, an open note's paper) follows To Do's Day/Night, not the computer's dark mode.
   return <ForcedDark.Provider value={props.duo ? !!props.duo.night : null}><ToastHost><Shell {...props} /></ToastHost></ForcedDark.Provider>;
 }
 
 function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalone" | "embedded"; hub?: "life" | "work"; onExit?: () => void; startNote?: string; duo?: NotesDuo }) {
   const { token, user } = useAuth();
-  // The To Duo Unlimited pop-up waits until Notes has been open a little while (Notes has no tutorial).
+  // The To Do Unlimited pop-up waits until Notes has been open a little while (Notes has no tutorial).
   const [notesSettled, setNotesSettled] = useState(false);
   useEffect(() => { const t = window.setTimeout(() => setNotesSettled(true), 20000); return () => window.clearTimeout(t); }, []);
   const say = useToast();
@@ -257,10 +257,10 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   // "Night mode" switch used to color only some screens, so the writing area stayed white. Someone who had
   // Night mode on keeps it as a Night choice the first time.
   const ownAppearance = useAppearance();
-  // Inside To Duo, To Duo's Day or Night decides.
+  // Inside To Do, To Do's Day or Night decides.
   const appearance = duo ? { ...ownAppearance, mode: (duo.night ? "dark" : "light") as typeof ownAppearance.mode, dark: duo.night } : ownAppearance;
   useEffect(() => { if (meRaw?.settings.night && !hasAppearance()) setAppearance("dark"); }, [meRaw?.settings.night]);
-  // Inside To Duo, Notes wears To Duo's look (the classic one, recolored by super-apps/notes-duo.css) whatever look was picked here.
+  // Inside To Do, Notes wears To Do's look (the classic one, recolored by super-apps/notes-duo.css) whatever look was picked here.
   const me = useMemo(() => (meRaw ? { ...meRaw, settings: { ...meRaw.settings, night: appearance.dark, ...(duo ? { theme: "classic" as Me["settings"]["theme"] } : {}) } } : null), [meRaw, appearance.dark, !!duo]); // eslint-disable-line react-hooks/exhaustive-deps
   const s = me?.settings;
   useEffect(() => { if (s?.font === "dyslexic") loadLexend(); }, [s?.font]);
@@ -286,7 +286,7 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   // Ask (Undercover) paints its own top strip in its look's color, so the app doesn't paint over it.
   const bare = !plainAsk() && (route.name === "ask" || route.name === "undercover");
   useEffect(() => {
-    if (bare || duo) return; // inside To Duo, To Duo paints the page and the clock's strip
+    if (bare || duo) return; // inside To Do, To Do paints the page and the clock's strip
     const html = document.documentElement, body = document.body;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const before = [html.style.background, body.style.background, meta?.content];
@@ -343,8 +343,8 @@ function Shell({ mode, hub = "life", onExit, startNote, duo }: { mode: "standalo
   return <div className={rootClass} style={rootStyle} data-testid="arise-notes">
     {duo?.top({ page: notesPageOf(route), go: (page) => go(notesRouteOf(page)) })}
     <Suspense fallback={<div className="pt-32"><Spinner /></div>}>{screen}</Suspense>
-    {/* Notes has no tutorial: the To Duo Unlimited pop-up comes once, a little after the first open (iPhone app only). */}
-    {mode === "standalone" && <AllAccessPopup app="notes" userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise To Duo Unlimited gives you 1,500 minutes, plus the extras in To Duo, Cooked Fitness by Arise and Podster." />}
+    {/* Notes has no tutorial: the To Do Unlimited pop-up comes once, a little after the first open (iPhone app only). */}
+    {mode === "standalone" && <AllAccessPopup app="notes" userId={user?.id} token={token} ready={notesSettled} intro="Arise Notes is free, with 60 minutes of AI a month. Arise To Do Unlimited gives you 1,500 minutes, plus the extras in To Do, Cooked Fitness by Arise and Podster." />}
   </div>;
 }
 
@@ -383,7 +383,7 @@ export function MinutesBanner({ ctx }: { ctx: AppCtx }) {
   </Notice>;
 }
 
-/** Opens Arise To Duo's split screen with Notes on one side and the to-do list on the other. */
+/** Opens Arise To Do's split screen with Notes on one side and the to-do list on the other. */
 export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "calendar" | "workhub" = "tasks") {
   try { localStorage.setItem("arise_duo_split_v1", JSON.stringify({ left: "arisenotes", right })); } catch { /* the split opens with its own picks */ }
   if (mode === "embedded") window.location.hash = "#/duo";
@@ -394,8 +394,8 @@ export function openSplit(mode: "standalone" | "embedded", right: "tasks" | "cal
 const TAB_KEY = "arise-notes-tab";
 const rememberTab = (t: "ai" | "pages") => { try { localStorage.setItem(TAB_KEY, t); } catch { /* not kept */ } };
 export function TabBar({ ctx, on }: { ctx: AppCtx; on: "ai" | "pages" | "ask" | "menu" }) {
-  // One bar in every look: Arise To Duo's floating pill (NotesDock.tsx). The look still colors the + button.
-  if (ctx.duo) return null; // inside To Duo, To Duo's row of pages does this
+  // One bar in every look: Arise To Do's floating pill (NotesDock.tsx). The look still colors the + button.
+  if (ctx.duo) return null; // inside To Do, To Do's row of pages does this
   return <NotesDock on={on} initial={(ctx.me.user.name || "A").trim().charAt(0).toUpperCase()} go={{
     home: () => ctx.go({ name: "home" }), notes: () => ctx.go({ name: "pages" }), record: () => ctx.go({ name: "record" }), upload: () => ctx.go({ name: "upload" }),
     memo: () => ctx.go({ name: "memo" }), ask: () => ctx.go({ name: "undercover" }), menu: () => ctx.go({ name: "settings" }),
@@ -496,7 +496,7 @@ function Home({ ctx, notes, onExit }: { ctx: AppCtx; notes: ListNote[] | null; o
           : q ? <p className="an-card px-5 py-8 text-center text-[15px] text-[var(--an-muted)]">Nothing matched “{q}”.</p>
             : <EmptyNotes ctx={ctx} />}
       </section>
-      {ctx.mode === "standalone" && <p className="an-extra pt-4 text-center text-[13px] text-[var(--an-faint)]">Part of the A.R.I.S.E. family · <a className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" href={/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "/app#/lifehub" : "/#/lifehub"}>Open Arise To Duo</a> · <button type="button" className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" onClick={() => ctx.go({ name: "privacy" })}>Privacy</button></p>}
+      {ctx.mode === "standalone" && <p className="an-extra pt-4 text-center text-[13px] text-[var(--an-faint)]">Part of the A.R.I.S.E. family · <a className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" href={/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "/app#/lifehub" : "/#/lifehub"}>Open Arise To Do</a> · <button type="button" className="font-semibold text-[var(--an-violet)] underline-offset-2 hover:underline" onClick={() => ctx.go({ name: "privacy" })}>Privacy</button></p>}
     </main>
   </>;
 }

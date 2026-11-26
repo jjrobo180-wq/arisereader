@@ -42,14 +42,14 @@ if (isNativeApp() && nativeFlavor() === "reader") document.documentElement.class
 // apps instead of zoomed in. The viewport itself is left alone (changing it caused stuck zoom while typing).
 if (isNotesApp()) document.documentElement.classList.add("notes-app");
 
-// Arise To Duo draws edge to edge (contentInset "never" in arisetodo/ios-app/capacitor.config.json): the hub's
+// Arise To Do draws edge to edge (contentInset "never" in arisetodo/ios-app/capacitor.config.json): the hub's
 // header grows up behind the clock and its bottom bars reach the bottom edge (todo-app.css).
 if (isNativeApp() && nativeFlavor() === "todo") {
   const html = document.documentElement;
   html.classList.add("todo-app");
   html.classList.add("todo-edge"); // the app now always draws edge to edge (capacitor.config.json)
 }
-// Arise To Duo on a phone: everything a touch smaller, so more fits on screen. Done with the type size
+// Arise To Do on a phone: everything a touch smaller, so more fits on screen. Done with the type size
 // (html.todo-compact in todo-app.css: 93.75%), never with the viewport. Any viewport below 100% (even locked at 93%)
 // draws a 16px text box at about 15px, and iPhone zooms the page in when one is tapped. At 100% it has nothing to zoom to.
 const todoCompact = isNativeApp() && nativeFlavor() === "todo" && (() => {
@@ -89,8 +89,8 @@ if (isFitApp()) {
 
 // iPhone apps: the page is exactly as wide as the screen. If iPhone ever lays the page out wider than the
 // screen, the bars and cards run off the edge and the page drags sideways, so the viewport is pinned to the
-// screen's own width in pixels. Cooked and Arise To Duo are left out: their page is meant to be wider than
-// the screen (laid out at 90% / 93%), and pinning it is exactly what made To Duo jump to 100% while typing.
+// screen's own width in pixels. Cooked and Arise To Do are left out: their page is meant to be wider than
+// the screen (laid out at 90% / 93%), and pinning it is exactly what made To Do jump to 100% while typing.
 if (window.location.protocol === "capacitor:" && !isFitApp()) {
   const meta = () => document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
   const original = meta()?.getAttribute("content") || "";
@@ -115,7 +115,7 @@ installMediaUnlock();
 // Spoken lines everywhere use the AI voice, through the one unlocked player.
 configureAiVoice({ base: API_BASE, element: voiceElement });
 
-// A pane of the Arise To Duo split screen: one shared floating button instead of each pane's own.
+// A pane of the Arise To Do split screen: one shared floating button instead of each pane's own.
 installDuoPaneBridge();
 
 // Old personal-account signup links must open the shared A.R.I.S.E. sign-in/
@@ -164,11 +164,11 @@ if (window.location.protocol === "capacitor:") {
   } catch { /* nothing kept */ }
   window.addEventListener("hashchange", () => {
     // A tapped reminder's "?go=pills" is a one-time instruction; remembering it would re-open that screen on a later start.
-    // Arise Reader is never reopened on its own either: a notification opens it in To Duo, but starting the app
+    // Arise Reader is never reopened on its own either: a notification opens it in To Do, but starting the app
     // again should land in your hub, not on the Reader (the Reader apps open on it anyway).
     try { const h = window.location.hash.split(/[?&](?:go|plan)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
   });
-  // A tap on a To Duo widget opens the section (or task) it shows, in its hub (lib/duoFocus.ts).
+  // A tap on a To Do widget opens the section (or task) it shows, in its hub (lib/duoFocus.ts).
   void import("@/lib/duoFocus").then((m) => m.listenForWidgetGo()).catch(() => {});
   // A tap on the Link widget opens that site in Safari, whichever hub or screen is open (lib/duoLinks.ts).
   void import("@/lib/duoLinks").then((m) => { if (m.isTodoApp()) m.listenForWidgetWebLinks(); }).catch(() => {});

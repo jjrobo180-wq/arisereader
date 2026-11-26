@@ -87,8 +87,8 @@ export const openMeteoWeather: WeatherLookup = async (where, unit) => {
 
 const num = (v: unknown, max: number) => { const n = Number(v); return v !== null && v !== "" && Number.isFinite(n) && Math.abs(n) <= max ? Math.round(n * 100) / 100 : undefined; };
 
-/** Ask AI's instructions (Arise Notes and Arise To Duo): an assistant that's open about being one. */
-export const PLAIN_ASK_PROMPT = "You are the AI assistant in Arise To Duo, answering a person's question in Arise Notes. Answer clearly and to the point, in plain sentences or short lines starting with '- ', under 150 words. If you are not sure, say so. If asked, say you are an AI assistant.";
+/** Ask AI's instructions (Arise Notes and Arise To Do): an assistant that's open about being one. */
+export const PLAIN_ASK_PROMPT = "You are the AI assistant in Arise To Do, answering a person's question in Arise Notes. Answer clearly and to the point, in plain sentences or short lines starting with '- ', under 150 words. If you are not sure, say so. If asked, say you are an AI assistant.";
 
 export function registerUndercoverRoutes(app: Express, auth: RequestHandler, deps: { ask?: UndercoverAsk; weather?: WeatherLookup; now?: () => number; /** The person's LifeHub and WorkHub workspaces, for "what tasks do I have left?". */ hubs?: (userId: number) => Promise<{ life: any; work: any }> } = {}) {
   const ask = deps.ask ?? askUndercoverAi;
@@ -96,7 +96,7 @@ export function registerUndercoverRoutes(app: Express, auth: RequestHandler, dep
   const now = deps.now ?? Date.now;
   const perHour = createAttemptLimiter({ max: 120, windowMs: 3600_000, now });
 
-  // `plain`: Ask AI in Arise Notes and Arise To Duo (/api/ask/chat): a plain assistant that says what it is,
+  // `plain`: Ask AI in Arise Notes and Arise To Do (/api/ask/chat): a plain assistant that says what it is,
   // with no look to blend into. Arise Undercover's own app keeps /api/undercover/chat and its looks.
   const chat = (plain: boolean) => async (req: any, res: any) => {
     const u = req.user;
@@ -124,7 +124,7 @@ export function registerUndercoverRoutes(app: Express, auth: RequestHandler, dep
         facts.push(f ? weatherFacts(f, (c) => weatherCode(c).text) : `The weather for ${named || home || "that place"} couldn't be found. Say so in one short line.`);
       }
     }
-    // "What tasks do I have left?": their real To Duo task lists, not just their notes.
+    // "What tasks do I have left?": their real To Do task lists, not just their notes.
     if (wantsTasks(question) && deps.hubs) {
       const today = (() => { try { return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now())); } catch { return new Date(now()).toISOString().slice(0, 10); } })();
       const h = await deps.hubs(Number(u.id)).catch((e) => { console.error("[undercover] tasks:", e?.message || e); return null; });

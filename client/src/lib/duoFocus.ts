@@ -1,4 +1,4 @@
-// The focus timer in the Arise To Duo iPhone app: a timer on one task that shows on the Lock Screen and in the
+// The focus timer in the Arise To Do iPhone app: a timer on one task that shows on the Lock Screen and in the
 // Dynamic Island (a Live Activity, drawn by native/widget-extension/AriseWidgets.swift and started by the
 // AriseWidgets plugin). Its Done and Stop buttons open the app with an arisetodo://focus/... link, which
 // listenForFocusLinks hands back here. Outside the iPhone app none of this shows.
@@ -16,7 +16,7 @@ const GO_TO = new Set(["tasks", "calendar", "asks", "add", "links", "home"]);
 
 export const FOCUS_MINUTES = [15, 25, 45, 60] as const;
 
-/** True in the Arise To Duo iPhone app (the only app whose Info.plist turns Live Activities on). */
+/** True in the Arise To Do iPhone app (the only app whose Info.plist turns Live Activities on). */
 export const focusSupported = (): boolean => isNativeApp() && nativeFlavor() === "todo" && hasNativePlugin(PLUGIN);
 
 let current: FocusNow | null = null;
@@ -24,7 +24,7 @@ export const currentFocus = () => current;
 
 /** Starts the timer on a task. Resolves with the timer, or rejects with a message to show. */
 export async function startFocus(task: { id: string; title: string }, minutes: number, tint = "#7c6cf0"): Promise<FocusNow> {
-  if (!focusSupported()) throw new Error("The focus timer works in the Arise To Duo iPhone app.");
+  if (!focusSupported()) throw new Error("The focus timer works in the Arise To Do iPhone app.");
   try {
     const r = await nativeCall(PLUGIN, "AriseWidgets", "startFocus", { id: task.id, title: task.title.slice(0, 80) || "Focus", minutes, tint });
     current = { id: task.id, title: task.title, startedAt: Number(r?.startedAt) || Date.now(), endsAt: Number(r?.endsAt) || Date.now() + minutes * 60_000 };
@@ -33,7 +33,7 @@ export async function startFocus(task: { id: string; title: string }, minutes: n
   } catch (e: any) {
     const msg = String(e?.message || e || "");
     // An app from before the focus timer (a live update reached it, the native part didn't).
-    if (/not implemented|unimplemented|not available/i.test(msg)) throw new Error("Update Arise To Duo to use the focus timer.");
+    if (/not implemented|unimplemented|not available/i.test(msg)) throw new Error("Update Arise To Do to use the focus timer.");
     throw new Error(msg || "The focus timer couldn't start.");
   }
 }

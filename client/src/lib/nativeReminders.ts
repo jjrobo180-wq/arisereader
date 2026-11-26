@@ -1,4 +1,4 @@
-// Reminders in the Arise To Duo iPhone app (plugin: @capacitor/local-notifications). The website sends
+// Reminders in the Arise To Do iPhone app (plugin: @capacitor/local-notifications). The website sends
 // LifeHub and WorkHub reminders by Web Push, which an App Store app can't receive. In the app the
 // same reminders are worked out on the phone (shared/todoReminders.ts and shared/hubReminders.ts,
 // the exact rules the server uses) and handed to iOS as scheduled notifications for the next
@@ -66,7 +66,7 @@ export const nativeRemindersOn = (kind: ReminderKind) => store.get(BOTH_KEY) ===
 
 const call = (method: string, options?: unknown) => nativeCall(PLUGIN, NAME, method, options).catch((e: any) => {
   const msg = String(e?.message || e || "");
-  if (/not implemented|unimplemented|plugin/i.test(msg)) throw new Error("Reminders aren't in this version of the app yet. Update Arise To Duo, then try again.");
+  if (/not implemented|unimplemented|plugin/i.test(msg)) throw new Error("Reminders aren't in this version of the app yet. Update Arise To Do, then try again.");
   throw new Error(msg || "Reminders didn't answer. Try again.");
 });
 
@@ -117,7 +117,7 @@ export function nativeNotifications(kind: ReminderKind, plan: PlannedReminder[])
 /** Asks iOS to allow notifications and turns reminders on, for LifeHub and WorkHub both. */
 export async function turnOnNativeReminders(_kind?: ReminderKind): Promise<void> {
   const res = await call("requestPermissions");
-  if (String(res?.display ?? "") !== "granted") throw new Error("Notifications are off for Arise To Duo. Turn them on in Settings → Notifications → Arise To Duo, then try again.");
+  if (String(res?.display ?? "") !== "granted") throw new Error("Notifications are off for Arise To Do. Turn them on in Settings → Notifications → Arise To Do, then try again.");
   store.set(BOTH_KEY, "1");
   void startApplePush(true); // messages and shares from the server, too
   window.dispatchEvent(new Event(REMINDERS_CHANGED));

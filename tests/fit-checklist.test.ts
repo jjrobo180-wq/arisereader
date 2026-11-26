@@ -109,7 +109,7 @@ test("hand ticks are cleaned for keeping, and survive cleanFit", () => {
   assert.equal(cleanFit({}).checks, undefined);
 });
 
-test("the checklist sits on Today in every layout (in To Duo it's on the Tasks screen instead)", async () => {
+test("the checklist sits on Today in every layout (in To Do it's on the Tasks screen instead)", async () => {
   const { readFileSync } = await import("node:fs");
   const app = readFileSync("client/src/pages/fit/FitApp.tsx", "utf8");
   assert.equal((app.match(/\{logFood\}\{goalsHere\}/g) || []).length, 6);

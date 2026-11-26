@@ -1,4 +1,4 @@
-// Apple Reminders in the to-do list. The Arise To Duo iPhone app reads them straight from the phone
+// Apple Reminders in the to-do list. The Arise To Do iPhone app reads them straight from the phone
 // (lib/nativeAppleReminders.ts); the website says to connect there. Reminders a Shortcut set up before
 // still sends to the private link are taken in when the Hub is open (and every minute while it is).
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
@@ -68,14 +68,14 @@ export default function AppleRemindersCard({ token, check }: { token: string | n
   return <ShortcutRemindersCard token={token} check={check} />;
 }
 
-/** On the website (Apple doesn't let a website read Reminders): it connects in the Arise To Duo iPhone app.
+/** On the website (Apple doesn't let a website read Reminders): it connects in the Arise To Do iPhone app.
  *  A Shortcut someone already set up keeps working (useAppleInbox still takes in what it sends). */
 function ShortcutRemindersCard(_props: { token: string | null; check: () => Promise<number> }) {
   return (
     <Card title="Apple Reminders">
       <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4" data-testid="apple-steps">
         <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
-        <p className="text-sm leading-6 text-slate-700">Apple Reminders connects in the <b>Arise To Duo iPhone app</b>. Open it on your iPhone, go to Tasks in WorkHub and tap <b>Connect Apple Reminders</b> at the bottom. Your reminders then come in as to-dos, and checking one off in either place checks it off in both.</p>
+        <p className="text-sm leading-6 text-slate-700">Apple Reminders connects in the <b>Arise To Do iPhone app</b>. Open it on your iPhone, go to Tasks in WorkHub and tap <b>Connect Apple Reminders</b> at the bottom. Your reminders then come in as to-dos, and checking one off in either place checks it off in both.</p>
       </div>
     </Card>
   );

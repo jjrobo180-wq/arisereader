@@ -1,4 +1,4 @@
-// Arise Notes → Arise To Duo. Action items become to-dos, meeting dates go on the calendar, and an
+// Arise Notes → Arise To Do. Action items become to-dos, meeting dates go on the calendar, and an
 // IEP draft is filed under the student in WorkHub (goals, service minutes, the meeting and a note),
 // always after the person checked them on the review screen.
 //

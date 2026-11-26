@@ -1,5 +1,5 @@
 // Focus timer (a Plugin Gallery add-on, in LifeHub and WorkHub): work in focused blocks with short breaks (the
-// Pomodoro method), with a soft chime at each switch and a count of focused minutes. In the Arise To Duo iPhone
+// Pomodoro method), with a soft chime at each switch and a count of focused minutes. In the Arise To Do iPhone
 // app each block and break also shows on the Lock Screen and in the Dynamic Island (lib/duoFocus.ts).
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, SkipForward, Smartphone, Timer } from "lucide-react";
@@ -107,7 +107,7 @@ export function FocusTimer({ log, onFocused, today, say }: { log: FocusLogEntry[
       <div className="space-y-6">
         <Panel title="Dynamic Island">{island
           ? <p className="flex items-start gap-2 text-sm text-slate-600"><Smartphone size={16} className="mt-0.5 shrink-0 text-violet-600" />Each focus block and break shows on your Lock Screen and in the Dynamic Island while it runs.</p>
-          : <p className="flex items-start gap-2 text-sm text-slate-600"><Smartphone size={16} className="mt-0.5 shrink-0 text-slate-400" />{isNativeApp() ? "Update Arise To Duo to see the timer in the Dynamic Island." : "Open this in the Arise To Duo iPhone app to see the timer on your Lock Screen and in the Dynamic Island."}</p>}</Panel>
+          : <p className="flex items-start gap-2 text-sm text-slate-600"><Smartphone size={16} className="mt-0.5 shrink-0 text-slate-400" />{isNativeApp() ? "Update Arise To Do to see the timer in the Dynamic Island." : "Open this in the Arise To Do iPhone app to see the timer on your Lock Screen and in the Dynamic Island."}</p>}</Panel>
         <Panel title="Rhythm"><div className="flex flex-wrap gap-1.5">{PRESETS.map((p) => <button key={p.label} type="button" onClick={() => choose(p)} aria-pressed={preset.label === p.label} className={`min-h-10 rounded-xl px-4 text-sm font-bold ${preset.label === p.label ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>{p.label}</button>)}</div><p className="mt-2 text-xs text-slate-500">Minutes of focus / minutes of break.</p></Panel>
         <Panel title="Focused time"><div className="grid grid-cols-2 gap-2 text-center">{[["Today", todayMin], ["This week", weekMin]].map(([k, v]) => <div key={k} className="rounded-2xl bg-slate-50 p-3"><p className="text-xl font-black">{v} min</p><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{k}</p></div>)}</div>
           {!log.length && <p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><Timer size={14} />Finish a focus block to start counting.</p>}</Panel>

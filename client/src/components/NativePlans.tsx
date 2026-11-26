@@ -1,4 +1,4 @@
-// The plan pages (Pricing, Billing) inside the Arise To Duo iPhone app: plans and add-ons aren't sold
+// The plan pages (Pricing, Billing) inside the Arise To Do iPhone app: plans and add-ons aren't sold
 // in the app (App Review Guideline 3.1.1), so this says what's on the account and nothing more.
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";

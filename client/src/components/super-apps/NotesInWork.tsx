@@ -1,5 +1,5 @@
-// Arise Notes inside WorkHub, like any plugin: the WorkHub menu stays beside it, and it wears To Duo's look
-// (super-apps/notes-duo.css) under To Duo's heading and row of pages, the same as in LifeHub (NotesInDuo.tsx).
+// Arise Notes inside WorkHub, like any plugin: the WorkHub menu stays beside it, and it wears To Do's look
+// (super-apps/notes-duo.css) under To Do's heading and row of pages, the same as in LifeHub (NotesInDuo.tsx).
 // The pages picked here are kept on the WorkHub workspace.
 import { useMemo, useState } from "react";
 import { superAppOf, superPagesFor } from "@shared/superApps";

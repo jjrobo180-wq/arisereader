@@ -99,7 +99,7 @@ export const groceryText = (items: GroceryItem[]) => {
   return `Grocery list${out.join("\n")}`.trim();
 };
 
-/** Adds Fit items to the family grocery list in Arise To Duo (shared/familyHub.ts GroceryItem): same name means
+/** Adds Fit items to the family grocery list in Arise To Do (shared/familyHub.ts GroceryItem): same name means
  *  the same item (unchecked again, quantity updated); new ones go on the end. Returns the list and how many were new. */
 export function mergeIntoFamilyList<T extends { id: string; name: string; qty: string; aisle: string; checked: boolean }>(list: T[], items: { name: string; qty?: string; aisle?: string }[], newId: () => string, max = 300): { list: T[]; added: number; updated: number } {
   const out = [...list]; let added = 0, updated = 0;

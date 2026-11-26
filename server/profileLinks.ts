@@ -259,7 +259,7 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     const token = String(req.params.token || "");
     const to = /^[a-f0-9]{44}$/.test(token) ? `/#/join/${token}` : "/";
     res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
-    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Join on Arise To Duo</title><meta property="og:title" content="Join on Arise To Duo"><meta property="og:description" content="Someone is sharing their family apps with you."><script>location.replace(${JSON.stringify(to)});</script></head><body><p>Opening Arise To Duo…</p><p><a href="${to}">Tap here if it doesn't open</a></p></body></html>`);
+    res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Join on Arise To Do</title><meta property="og:title" content="Join on Arise To Do"><meta property="og:description" content="Someone is sharing their family apps with you."><script>location.replace(${JSON.stringify(to)});</script></head><body><p>Opening Arise To Do…</p><p><a href="${to}">Tap here if it doesn't open</a></p></body></html>`);
   });
 
   app.put("/api/profile-links/:id", authMiddleware, async (req: any, res) => {

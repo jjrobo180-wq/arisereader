@@ -1,10 +1,10 @@
-"""Arise To Duo's App Store Connect page, for the App Review 5.6 resubmission (run by todo-review-fix.yml).
+"""Arise To Do's App Store Connect page, for the App Review 5.6 resubmission (run by todo-review-fix.yml).
 
   PARTS=status   reads and prints everything below. Changes nothing.
   PARTS=age      answers the age rating questions as the app really is (user posts and messages, health and
                  fitness topics; no web browser since the Browser plugin was taken out).
   PARTS=china    takes the app off sale in China mainland (it would need generative-AI filings there).
-  PARTS=iap      renames the subscription "Arise To Duo Unlimited" and rewrites its description and review note
+  PARTS=iap      renames the subscription "Arise To Do Unlimited" and rewrites its description and review note
                  (only while it isn't waiting for or in review: App Store Connect locks it then).
   PARTS=desc     adds what the description must say (Apple Health, Terms of Use, Privacy Policy) if it's missing.
   PARTS=notes    sets the App Review notes and the review sign-in (DEMO_USER, DEMO_PASS).
@@ -26,9 +26,9 @@ AUTH = token()
 BUNDLE = "com.arisereader.arisetodo"
 PARTS = set((os.environ.get("PARTS") or "status").split())
 
-IAP_NAME = "Arise To Duo Unlimited"
+IAP_NAME = "Arise To Do Unlimited"
 IAP_DESCRIPTION = "Every plugin, unlimited AI, Notes Plus and Cooked Premium."  # 55 characters at most
-IAP_REVIEW_NOTE = ("Arise To Duo Unlimited is the app's one monthly subscription. Inside Arise To Duo it unlocks every plugin in the "
+IAP_REVIEW_NOTE = ("Arise To Do Unlimited is the app's one monthly subscription. Inside Arise To Do it unlocks every plugin in the "
                    "Plugin Gallery, unlimited AI, Notes Plus (1,500 recording minutes a month) and Cooked Premium. To buy it, sign in "
                    "with the free review account, then add a fourth plugin in the Plugin Gallery, or open ... > Customize > Plan & more, "
                    "and tap Subscribe.")
@@ -40,7 +40,7 @@ DESC_LINES = [
     ("arisetodo.com/privacy", "Privacy Policy: https://arisetodo.com/privacy/"),
 ]
 
-NOTES = """Arise To Duo contains no live-update code: everything it does is in this binary, and changes ship only as App Store updates.
+NOTES = """Arise To Do contains no live-update code: everything it does is in this binary, and changes ship only as App Store updates.
 
 Demo accounts
 - Free account (no subscription): the sign-in above. It shows the free app and the purchase: add a fourth plugin in the Plugin Gallery (... menu), or ... > Customize > Plan & more, then Subscribe (sandbox).
@@ -49,7 +49,7 @@ What is in the app
 - LifeHub (your own tasks, calendar, notes), FamilyHub (shared with family members you invite by code) and WorkHub (work tasks), switched at the top.
 - Plugins from the Plugin Gallery: Notes (record, transcribe, and an "Ask AI" chat), Cooked (fitness diary; reads steps, active calories and weight from Apple Health), Cooked PT (coaching), Podster (podcasts, public-domain audiobooks and music, radio), Rise Score and more. There is no web browser in the app.
 - WorkHub's extra teacher tools (classes and students) are for teachers whose school has an Arise license, sold to schools outside the app (3.1.3(c)); nothing in the app sells them. Both accounts above show everything else.
-- Arise To Duo Unlimited: auto-renewing monthly subscription through Apple in-app purchase. It unlocks every plugin and unlimited AI. On the US storefront only, the app also shows a link to buy on our website, as 3.1.1(a) allows.
+- Arise To Do Unlimited: auto-renewing monthly subscription through Apple in-app purchase. It unlocks every plugin and unlimited AI. On the US storefront only, the app also shows a link to buy on our website, as 3.1.1(a) allows.
 
 Privacy and safety
 - AI features ask permission, naming OpenAI, Groq and Perplexity, before the first request.
@@ -239,7 +239,7 @@ def notes():
     if not (user and pw):
         raise RuntimeError("DEMO_USER and DEMO_PASS are needed")
     sub_user, sub_pass = os.environ.get("SUB_USER", ""), os.environ.get("SUB_PASS", "")
-    subscribed = f"- Subscribed account (Arise To Duo Unlimited active): {sub_user} / {sub_pass}\n" if sub_user and sub_pass else ""
+    subscribed = f"- Subscribed account (Arise To Do Unlimited active): {sub_user} / {sub_pass}\n" if sub_user and sub_pass else ""
     attrs = {"demoAccountRequired": True, "demoAccountName": user, "demoAccountPassword": pw, "notes": NOTES.format(subscribed=subscribed)}
     rd = q(f"appStoreVersions/{VID}/appStoreReviewDetail")["data"]
     api(f"appStoreReviewDetails/{rd['id']}", {"data": {"type": "appStoreReviewDetails", "id": rd["id"], "attributes": attrs}}, method="PATCH")

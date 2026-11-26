@@ -90,7 +90,7 @@ export function PlayHome(p: PlayProps) {
 /** Getting around, with a click and a tap you can feel. */
 export function PlayDock({ look, screen, go, openApps, add, you, initial, off = [], inApp = false }: { look: NotesTheme; screen: Screen | null; go: (s: Screen) => void; openApps: () => void; add: () => void; you: () => void; initial: string; off?: string[]; inApp?: boolean }) {
   const nav: [string, string][] = [["home", "Home"], ["tasks", "Tasks"], ["add", "Add"], ["calendar", "Calendar"], ["notes", "Notes"], ["apps", "Apps"], ["you", "You"]];
-  return <nav className={`los-dock pl-dock pl-dock-${look.id}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise Duo" data-testid="look-dock" style={{ ...themeVars(look), "--n": nav.length } as CSSProperties}>
+  return <nav className={`los-dock pl-dock pl-dock-${look.id}${inApp ? " los-dock-inapp" : ""}`} aria-label="Arise To Do" data-testid="look-dock" style={{ ...themeVars(look), "--n": nav.length } as CSSProperties}>
     {nav.filter(([id]) => !off.includes(id)).map(([id, label]) => <button key={id} type="button" data-nav={id} data-add-toggle={id === "add" || undefined} aria-label={label} aria-current={screen === id ? "page" : undefined}
       onPointerDown={() => { buzz("tick"); play.click(); }} onClick={() => (id === "add" ? add() : id === "apps" ? openApps() : id === "you" ? you() : go(id as Screen))}>
       {id === "you" ? <span className="pl-avatar">{initial}</span> : <Ico n={id} size={22} />}</button>)}

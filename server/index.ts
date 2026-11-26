@@ -45,7 +45,7 @@ app.get("/robots.txt", (req, res, next) => {
   ].join("\n"));
 });
 
-// The Arise To Duo pages search engines should know about (all static pages in client/public).
+// The Arise To Do pages search engines should know about (all static pages in client/public).
 // Update `lastmod` when a page's content changes.
 const TODO_SITEMAP: { path: string; lastmod: string; priority: string }[] = [
   { path: "/", lastmod: "2026-11-22", priority: "1.0" },
@@ -58,7 +58,7 @@ const TODO_SITEMAP: { path: string; lastmod: string; priority: string }[] = [
   { path: "/family-to-do-app/", lastmod: "2026-10-24", priority: "0.8" },
   { path: "/teacher-to-do-app/", lastmod: "2026-10-24", priority: "0.8" },
 ];
-/** Arise To Duo's own pages: on arisereader.com they redirect to arisetodo.com, so search engines see one copy. */
+/** Arise To Do's own pages: on arisereader.com they redirect to arisetodo.com, so search engines see one copy. */
 const TODO_ONLY_PAGES = new Set(TODO_SITEMAP.filter((p) => p.path !== "/").flatMap((p) => [p.path, p.path.replace(/\/$/, "")]));
 
 app.get("/sitemap.xml", (req, res, next) => {
@@ -80,7 +80,7 @@ app.use((req, res, next) => {
   res.redirect(301, "https://arisetodo.com" + path);
 });
 
-// The Arise To Duo custom domain gets the educator marketing page at its root.
+// The Arise To Do custom domain gets the educator marketing page at its root.
 // Keep the existing Arise Reader homepage unchanged on its own hostname.
 // The HTML is a self-contained public page; static assets and API routes are unaffected.
 app.get("/", (req, res, next) => {

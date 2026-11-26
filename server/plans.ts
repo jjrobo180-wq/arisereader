@@ -582,7 +582,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /**
    * Arise Reader is paid for accounts made from November 9, 2026. A new student, parent or
    * teacher without a plan is refused the Reader's own data (books, quizzes, points, dashboards);
-   * everything else (signing in, their plan and paying, To Duo, LifeHub, WorkHub, Arise AAC) stays
+   * everything else (signing in, their plan and paying, To Do, LifeHub, WorkHub, Arise AAC) stays
    * open. If the check itself fails the request goes through, so a hiccup never locks out a payer.
    */
   const readerGate: RequestHandler = async (req: any, res: any, next: any) => {
@@ -727,7 +727,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
         body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
-      // Personal Arise To Duo accounts have WorkHub too, so their plan page must say so.
+      // Personal Arise To Do accounts have WorkHub too, so their plan page must say so.
       if (user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) {
         const h = await hubAccess(user);
         const isTeacher = user.role === "teacher" && !user.isAdmin;
@@ -748,7 +748,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
       if (isPlanKind(req.body?.kind) && isAddonKind(req.body.kind)) throw new Refused("Add-ons are bought with their own button.", 400);
-      if (isHubKind(req.body?.kind)) throw new Refused("Arise To Duo Work and Life hubs are free. No payment is required.", 409);
+      if (isHubKind(req.body?.kind)) throw new Refused("Arise To Do Work and Life hubs are free. No payment is required.", 409);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
@@ -1031,14 +1031,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   /** Runs after a plan is saved. A teacher's new class add-on may take over some families' plans. */
   const afterGrant = async (grant: PlanGrant) => {
     if (grant.kind === "all_access" && grantLive(grant, now()) && grant.source === "stripe") {
-      // To Duo Unlimited includes them: they end at the end of what's already paid (no double billing).
+      // To Do Unlimited includes them: they end at the end of what's already paid (no double billing).
       for (const k of ["todo_unlimited", "todo_unlimited_year", "notes_basic", "notes_plus", "notes_plus_year", "fit_plus"] as PlanKind[]) {
         try {
           const g = await readGrant(k, grant.ownerId, true);
           if (!g || !grantLive(g, now()) || g.source !== "stripe" || !g.stripeSubscriptionId || g.cancelAtPeriodEnd || g.buyerId !== grant.ownerId) continue;
           await stripe("POST", subscriptionPath(g.stripeSubscriptionId), { cancel_at_period_end: "true" });
           await syncSubscription(g.stripeSubscriptionId);
-        } catch (e: any) { console.error("[plans] ending an older plan after To Duo Unlimited failed:", k, e?.message); }
+        } catch (e: any) { console.error("[plans] ending an older plan after To Do Unlimited failed:", k, e?.message); }
       }
       return;
     }
@@ -1053,15 +1053,15 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
   };
 
-  // ─── Arise To Duo Unlimited: $10 a month, one person, every app's paid tier ──────────────────────────
-  // To Duo Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Podster in one plan. It is now
+  // ─── Arise To Do Unlimited: $10 a month, one person, every app's paid tier ──────────────────────────
+  // To Do Unlimited, Notes Plus, Fit+ (with its guest pass) and ad-free Podster in one plan. It is now
   // the only thing those apps sell; anyone already paying for one of the older plans keeps it.
-  /** This account's To Duo Unlimited (paid, or given by the admin). The admin always has it. */
+  /** This account's To Do Unlimited (paid, or given by the admin). The admin always has it. */
   const allAccessOwn = async (userId: number, user?: AnyUser | null): Promise<{ live: boolean; admin: boolean; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { live: true, admin: true, grant: null };
     const grant = await current("all_access", userId);
     if (grantLive(grant, now())) return { live: true, admin: false, grant };
-    // One paid plan: Arise To Duo Unlimited from before it was one plan (the monthly or yearly To Duo plan,
+    // One paid plan: Arise To Do Unlimited from before it was one plan (the monthly or yearly To Do plan,
     // or a trial given in Admin) unlocks exactly the same things (App Review 2.3.1: one name, one plan).
     for (const kind of ["todo_unlimited", "todo_unlimited_year"] as PlanKind[]) {
       const g = await current(kind, userId);
@@ -1069,17 +1069,17 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
     return { live: false, admin: false, grant };
   };
-  const ALL_ACCESS_NAME = "Arise To Duo Unlimited";
-  const ALL_ACCESS_ABOUT = "Everything in Arise To Duo for one person: every plugin and unlimited AI, Notes Plus (1,500 minutes a month), and Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass. On the website, Podster is ad-free too.";
-  /** Opens Stripe's payment page for To Duo Unlimited. `returnPath` (in the body) says which app to come back to. */
+  const ALL_ACCESS_NAME = "Arise To Do Unlimited";
+  const ALL_ACCESS_ABOUT = "Everything in Arise To Do for one person: every plugin and unlimited AI, Notes Plus (1,500 minutes a month), and Cooked Fitness by Arise: Premium All in one Health & Fitness App with a guest pass. On the website, Podster is ad-free too.";
+  /** Opens Stripe's payment page for To Do Unlimited. `returnPath` (in the body) says which app to come back to. */
   const allAccessCheckout = async (req: any): Promise<string> => {
     const buyer: AnyUser = req.user;
     if (req.adminPreview || !buyer) throw new Refused("Sign in to your own account to subscribe.", 403);
-    if (buyer.isAdmin) throw new Refused("The admin account already has To Duo Unlimited.", 409);
-    if (buyer.role === "student" || !buyer.role) throw new Refused("Ask a parent or teacher about To Duo Unlimited.", 403);
+    if (buyer.isAdmin) throw new Refused("The admin account already has To Do Unlimited.", 409);
+    if (buyer.role === "student" || !buyer.role) throw new Refused("Ask a parent or teacher about To Do Unlimited.", 403);
     if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
     const kind: PlanKind = "all_access";
-    if ((await allAccessOwn(buyer.id, buyer)).live) throw new Refused("You already have To Duo Unlimited. Use Manage billing to change it.", 409, "has_plan");
+    if ((await allAccessOwn(buyer.id, buyer)).live) throw new Refused("You already have To Do Unlimited. Use Manage billing to change it.", 409, "has_plan");
     const pending = await readPending(kind, buyer.id);
     if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
     const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
@@ -1123,7 +1123,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const user: AnyUser = req.user;
       const grant = await current("all_access", user.id);
-      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for To Duo Unlimited.", 409);
+      if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for To Do Unlimited.", 409);
       if (grant.buyerId && grant.buyerId !== user.id) throw new Refused("Only the person who pays for this plan can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: addonReturn(req).back });
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
@@ -1131,7 +1131,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "all access portal"); }
   });
 
-  // ─── To Duo Unlimited bought in an iPhone app (Apple in-app purchase; server/appleStore.ts) ───────────
+  // ─── To Do Unlimited bought in an iPhone app (Apple in-app purchase; server/appleStore.ts) ───────────
   // The app asks for this account's purchase token first and hands it to Apple with the purchase, so
   // the signed purchase (and every renewal Apple reports later) names the account it belongs to.
   const APPLE = { tokenKey: "apple_token_key", token: (t: string) => `apple_token_${t}`, tx: (id: string) => `apple_tx_${id}` };
@@ -1143,7 +1143,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if ((await read(APPLE.token(token))) !== String(userId)) await write(APPLE.token(token), String(userId));
     return token;
   };
-  /** Saves what an Apple-signed To Duo Unlimited purchase says, for `userId`. A live plan from the website or
+  /** Saves what an Apple-signed To Do Unlimited purchase says, for `userId`. A live plan from the website or
    *  the admin is never replaced by an Apple one that has ended. */
   const applyAppleTransaction = (userId: number, t: AppleTransaction) => serial(async () => {
     const state = allAccessState(t, now());
@@ -1169,7 +1169,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const appleTransaction = (jws: unknown): AppleTransaction => {
     const t = verifyAppleJws<AppleTransaction>(jws, { now: now(), ...(deps.appleVerify ?? {}) });
-    if (!isAllAccessProduct(t.bundleId, t.productId)) throw new Refused("That purchase isn't Arise To Duo Unlimited.", 400);
+    if (!isAllAccessProduct(t.bundleId, t.productId)) throw new Refused("That purchase isn't Arise To Do Unlimited.", 400);
     if (!t.originalTransactionId) throw new Refused("That purchase is incomplete.", 400);
     return t;
   };
@@ -1177,7 +1177,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.get("/api/all-access/apple-token", auth, async (req: any, res: any) => {
     try {
       const user: AnyUser = req.user;
-      if (req.adminPreview || !user || user.role === "student" || !user.role) throw new Refused("Ask a parent or teacher about To Duo Unlimited.", 403);
+      if (req.adminPreview || !user || user.role === "student" || !user.role) throw new Refused("Ask a parent or teacher about To Do Unlimited.", 403);
       res.set("Cache-Control", "no-store");
       res.json({ token: await appleTokenOf(user.id) });
     } catch (e) { fail(res, e, "apple token"); }
@@ -1233,7 +1233,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     }
     if (product === "all_access") return "all_access";
     if (product === "unlimited" || product === "unlimited_year") {
-      if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("Arise To Duo Unlimited is for adult accounts.", 403);
+      if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("Arise To Do Unlimited is for adult accounts.", 403);
       return product === "unlimited_year" ? "todo_unlimited_year" : "todo_unlimited";
     }
     if (product === "bundle") {
@@ -1312,8 +1312,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
-      if (req.body?.product === "todo") throw new Refused("Arise To Duo is free. No checkout is needed.", 409);
-      // To Duo Unlimited is sold as To Duo Unlimited now (it includes Unlimited and every other app's paid tier).
+      if (req.body?.product === "todo") throw new Refused("Arise To Do is free. No checkout is needed.", 409);
+      // To Do Unlimited is sold as To Do Unlimited now (it includes Unlimited and every other app's paid tier).
       if (req.body?.product === "unlimited" || req.body?.product === "unlimited_year" || req.body?.product === "all_access") {
         if ((await todoUnlimited(buyer)).unlimited) throw new Refused("You're already on Unlimited. Use Manage billing to change it.", 409);
         return void res.json({ url: await allAccessCheckout(req) });
@@ -1391,7 +1391,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   const notesPlanOf = async (userId: number, user?: AnyUser | null): Promise<{ plan: NotesPlanId; product: NotesProduct | null; grant: PlanGrant | null }> => {
     if (user?.isAdmin) return { plan: "plus", product: null, grant: null };
     const live = await notesLive(userId);
-    // To Duo Unlimited includes Notes Plus (a Family plan someone already pays for stays Family).
+    // To Do Unlimited includes Notes Plus (a Family plan someone already pays for stays Family).
     if (!live.length || (live[0].kind !== "notes_family" && live[0].kind !== "notes_plus" && live[0].kind !== "notes_plus_year")) {
       const all = await allAccessOwn(userId, user);
       if (all.live) return { plan: "plus", product: null, grant: all.grant };
@@ -1428,7 +1428,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer = notesBuyer(req);
       const product = req.body?.product;
       if (!isNotesProduct(product)) throw new Refused("Choose a plan.", 400);
-      // New Notes plans are sold as To Duo Unlimited (Notes Plus is part of it).
+      // New Notes plans are sold as To Do Unlimited (Notes Plus is part of it).
       if ((await notesLive(buyer.id)).length === 0) return void res.json({ url: await allAccessCheckout(req) });
       if ((await notesLive(buyer.id)).length) throw new Refused("You already have an Arise Notes plan. Change it from the plans page instead.", 409, "has_plan");
       const kind = notesKindOf(product);
@@ -1514,7 +1514,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (user?.isAdmin) return { live: true, admin: true, grant: null };
     const grant = await current("fit_plus", userId);
     if (grantLive(grant, now())) return { live: true, admin: false, grant };
-    // To Duo Unlimited includes Fit+.
+    // To Do Unlimited includes Fit+.
     const all = await allAccessOwn(userId, user);
     return all.live ? { live: true, admin: false, grant: all.grant } : { live: false, admin: false, grant };
   };
@@ -1526,7 +1526,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind: PlanKind = "fit_plus";
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have Cooked Fitness by Arise Premium. Use Manage billing to change it.", 409, "has_plan");
-      // Fit+ is sold as To Duo Unlimited now (Fit+ and its guest pass are part of it).
+      // Fit+ is sold as To Do Unlimited now (Fit+ and its guest pass are part of it).
       req.body = { ...(req.body || {}), returnPath: "/fit" };
       return void res.json({ url: await allAccessCheckout(req) });
     } catch (e) { fail(res, e, "fit checkout"); }
@@ -1543,7 +1543,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "fit portal"); }
   });
 
-  // ─── Arise To Duo: Free and the $5 upgrade ────────────────────────────
+  // ─── Arise To Do: Free and the $5 upgrade ────────────────────────────
   // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
   // can read the hubs.)
@@ -1603,7 +1603,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           code: AI_LIMIT, limit: usage.limit, used: usage.used, unlimited: usage.unlimited,
           message: usage.unlimited
             ? `You've reached this month's fair-use limit of ${usage.limit} AI uses. It resets on the 1st.`
-            : `AI is part of Arise To Duo Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.`,
+            : `AI is part of Arise To Do Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.`,
         });
       }
       res.on("finish", () => { if (res.statusCode < 400) void countAiUse(user).catch(() => {}); });

@@ -1,4 +1,4 @@
-// Arise To Duo: Free, and the $5 Unlimited upgrade.
+// Arise To Do: Free, and the $5 Unlimited upgrade.
 //
 // Free (for everyone, including people on a $10 Arise Reader plan): every built-in section, plus up
 // to 3 apps from the App Store (across WorkHub and LifeHub together), and no AI. Unlimited, $5 a
@@ -25,7 +25,7 @@ export const FREE_APPS = 3;
 export const UNLIMITED_AI_PER_MONTH = 300;
 export { UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER } from "./todoPrices";
 
-export const UNLIMITED_NAME = "Arise To Duo Unlimited (every app, and AI)";
+export const UNLIMITED_NAME = "Arise To Do Unlimited (every app, and AI)";
 export const FAIR_USE =
   "Unlimited is meant for normal personal, family and classroom use. Using it in ways that put unusual strain on our service, like bulk data, automated use or anything far beyond normal use, isn't covered. If an account goes well beyond normal use, we'll contact you first. If it continues, we may limit the account or cancel the subscription and refund any unused time. Your data stays yours, and you can always export a copy.";
 

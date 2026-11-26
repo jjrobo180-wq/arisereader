@@ -1,4 +1,4 @@
-// The look shelf, used by Arise Notes (Settings > Appearance) and by To Duo and WorkHub (Customize):
+// The look shelf, used by Arise Notes (Settings > Appearance) and by To Do and WorkHub (Customize):
 // every look in its group, and a preview sheet that opens before anything changes.
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
@@ -12,7 +12,7 @@ import HubLookPreview, { type PreviewColors } from "./HubLookPreview";
 // recoloring of shared class names can turn the names white-on-white or navy-on-black.
 const C = { ink: "var(--an-ink, #0f172a)", muted: "var(--an-muted, #475569)", card: "var(--an-card, #ffffff)", line: "var(--an-line, rgba(15,23,42,.12))" };
 
-/** A theme that is not a look (To Duo's Tile and Old Computer): shown in its own small group. */
+/** A theme that is not a look (To Do's Tile and Old Computer): shown in its own small group. */
 export type PlainTheme = { id: string; name: string; blurb: string; swatch: string[]; colors?: PreviewColors };
 
 function Swatch({ colors, className = "h-12" }: { colors: string[]; className?: string }) {
@@ -62,7 +62,7 @@ function Sheet({ info, plain, on, onUse, onClose, accent, variants = [], onVaria
 }
 
 export default function LookPicker({ current, onPick, plain = [], accent = "#5b4fe0", testPrefix = "look", hideClassic = false, hub = false }: { current: string; onPick: (id: string) => void; plain?: PlainTheme[]; accent?: string; testPrefix?: string; hideClassic?: boolean;
-  /** For WorkHub and To Duo: previews show the hub's Tasks screen in each look, and the Task screen designs are offered. */ hub?: boolean }) {
+  /** For WorkHub and To Do: previews show the hub's Tasks screen in each look, and the Task screen designs are offered. */ hub?: boolean }) {
   const groups = groupedLooks().filter((g) => hub || g.group.id !== "tasks");
   const [open, setOpen] = useState<string | null>(null);
   const find = (id: string) => groups.flatMap((g) => g.items).find((l) => l.id === id);

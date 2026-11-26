@@ -1,4 +1,4 @@
-// What a look really does to the hubs: the WorkHub / To Duo Tasks screen, drawn full size (390 px
+// What a look really does to the hubs: the WorkHub / To Do Tasks screen, drawn full size (390 px
 // wide, like a phone) in the look's own colors, type, corners and borders, then scaled down evenly so
 // nothing is squeezed. Used for the cards and the preview sheet in Customize > Theme.
 // Nothing here can change anything; it is only for looking.

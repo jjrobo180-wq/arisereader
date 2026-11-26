@@ -1,4 +1,4 @@
-// Arise To Duo split screen: /#/duo. Two views open at once, one on each side of the iPhone Duo's
+// Arise To Do split screen: /#/duo. Two views open at once, one on each side of the iPhone Duo's
 // fold: LifeHub and WorkHub, or the To-Do list and Notes, or any two LifeHub sections.
 // No bars across the top: a small handle on the fold opens the Duo menu (components/DuoControls.tsx,
 // the same one as in Customize): what each side shows, swap, close the split, or turn Duo off.
@@ -41,7 +41,7 @@ export default function DuoSplit() {
 
   useEffect(() => {
     const before = document.title;
-    document.title = "Arise To Duo";
+    document.title = "Arise To Do";
     const update = () => setDir(splitDirection());
     window.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
@@ -61,7 +61,7 @@ export default function DuoSplit() {
     window.addEventListener("message", onReply);
     return () => window.removeEventListener("message", onReply);
   }, []);
-  // "Turn Duo off" or "Close split screen" from the Duo menu — here, or inside either pane.
+  // "Turn split screen off" or "Close split screen" from the Duo menu — here, or inside either pane.
   const backTo = picks.left === "workhub" ? "/workhub" : "/lifehub";
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -152,10 +152,10 @@ export default function DuoSplit() {
       {drag && <span aria-hidden className="pointer-events-none fixed z-50 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#6e5ae0] text-white shadow-2xl" style={{ left: drag.x, top: drag.y }}><Plus className="h-6 w-6" /></span>}
 
       {foldMenu && <div className="fixed inset-0 kb-sheet z-50 flex items-end justify-center bg-[#16152a]/40 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setFoldMenu(false); }}>
-        <div role="dialog" aria-modal="true" aria-label="Arise To Duo" onKeyDown={(e) => { if (e.key === "Escape") setFoldMenu(false); }}
+        <div role="dialog" aria-modal="true" aria-label="Arise To Do" onKeyDown={(e) => { if (e.key === "Escape") setFoldMenu(false); }}
           className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl" data-testid="duo-fold-menu">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
-            <h2 className="text-lg font-black text-slate-900">Arise To Duo</h2>
+            <h2 className="text-lg font-black text-slate-900">Arise To Do</h2>
             <button type="button" onClick={() => setFoldMenu(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white" data-autofocus><X className="h-4 w-4" /> Done</button>
           </div>
           <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">

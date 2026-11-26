@@ -1,5 +1,5 @@
-// Arise To Duo: open a chosen hub by time or place (Nov 25, 2026). "Weekday mornings, open LifeHub", "From 8 to 4 on
-// school days, open WorkHub", "At work, open WorkHub". When To Duo opens (or comes back after a while), the first rule
+// Arise To Do: open a chosen hub by time or place (Nov 25, 2026). "Weekday mornings, open LifeHub", "From 8 to 4 on
+// school days, open WorkHub", "At work, open WorkHub". When To Do opens (or comes back after a while), the first rule
 // that fits picks the hub; a place rule wins over a time rule. Switching hubs by hand stays put until the next open.
 // Saved with LifeHub (Family.hubOpen), so the rules follow the account; the client keeps a copy for the other hubs.
 
@@ -15,7 +15,7 @@ export type HubOpenRule = {
 export const HUB_NAMES: Record<DuoHub, string> = { life: "LifeHub", work: "WorkHub", family: "FamilyHub" };
 export const HUB_ROUTE: Record<DuoHub, string> = { life: "/lifehub", work: "/workhub", family: "/familyhub" };
 export const PLACE_RADIUS = 150;
-/** Away this long counts as opening To Duo again. */
+/** Away this long counts as opening To Do again. */
 export const REOPEN_AFTER_MS = 10 * 60_000;
 
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/;

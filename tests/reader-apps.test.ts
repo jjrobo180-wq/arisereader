@@ -9,7 +9,7 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 const T = "ab".repeat(32);
 
 test("Apple push devices remember which app they belong to", () => {
-  assert.equal(appleEndpoint(T), "apns:" + T, "Arise To Duo keeps its old form");
+  assert.equal(appleEndpoint(T), "apns:" + T, "Arise To Do keeps its old form");
   assert.equal(appleEndpoint(T, "educator"), "apns:com.arisereader.educator:" + T);
   assert.equal(appleEndpoint(T, "nope"), "apns:" + T);
   for (const e of [appleEndpoint(T), appleEndpoint(T, "educator")]) { assert.ok(isAppleDevice(e)); assert.equal(appleToken(e), T); }

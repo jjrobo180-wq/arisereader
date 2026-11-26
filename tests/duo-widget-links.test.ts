@@ -1,4 +1,4 @@
-// Arise To Duo's Home Screen widgets: a tap opens that widget's section, and a link on the Link page widget opens
+// Arise To Do's Home Screen widgets: a tap opens that widget's section, and a link on the Link page widget opens
 // that link (in Safari), not just the app's home screen.
 // Run with: npx tsx --test tests/duo-widget-links.test.ts
 import test from "node:test";
@@ -26,7 +26,7 @@ test("slots keep a safe tap address and one per line", () => {
   assert.deepEqual(cleanSlots([{ id: "x", title: "", value: "", open: "javascript:x" } as any])[0].open, undefined);
 });
 
-test("every To Duo widget opens its own section", () => {
+test("every To Do widget opens its own section", () => {
   const f = emptyFamily();
   const slots = duoWidgetSlots(f, [], "2026-11-18", null);
   assert.ok(slots.length > 0);

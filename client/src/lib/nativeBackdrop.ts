@@ -50,7 +50,7 @@ export function useNativeBackdrop(ref: RefObject<HTMLElement | null>, deps: unkn
     const before = [html.style.backgroundColor, body.style.backgroundColor];
     // No rubber-band past the page edge, so no strip of another colour shows when you scroll.
     const bounce = html.style.overscrollBehaviorY;
-    // The viewport is never touched here. Arise To Duo's "a touch smaller" scale is set once at start, locked
+    // The viewport is never touched here. Arise To Do's "a touch smaller" scale is set once at start, locked
     // (main.tsx): changing it each time the hub opened, while main.tsx put it back to 100% whenever the screen
     // changed size (the keyboard coming up counts), made the page jump in every time a text box was tapped.
     html.style.overscrollBehaviorY = "none";

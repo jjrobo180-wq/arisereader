@@ -1,4 +1,4 @@
-// Cooked's popups inside To Duo (the add-exercise picker, add food, every edit screen) are iPhone-style bottom
+// Cooked's popups inside To Do (the add-exercise picker, add food, every edit screen) are iPhone-style bottom
 // sheets: a grab handle you can swipe down, a pinned title bar, a pinned search box and a pinned main button
 // so only the list or form between them scrolls, and they rest on top of the keyboard.
 // Run with: npx tsx --test tests/fit-sheet.test.ts
@@ -43,7 +43,7 @@ test("a small sheet closes after a shorter pull (40% of its height) and a zero-h
 const ui = read("client/src/pages/fit/fitUi.tsx");
 const sheetSrc = ui.slice(ui.indexOf("export function Sheet("), ui.indexOf("export function Chips<"));
 
-test("inside To Duo the popup is a keyboard-aware bottom sheet with a handle, pinned bar, pinned top and pinned footer", () => {
+test("inside To Do the popup is a keyboard-aware bottom sheet with a handle, pinned bar, pinned top and pinned footer", () => {
   const duo = sheetSrc.slice(sheetSrc.indexOf("if (duo) return"), sheetSrc.indexOf("return <Layer><div className=\"fit-sheet"));
   assert.match(duo, /className="kb-sheet fit-duo-scrim fixed inset-0 /, "rests on the keyboard (lib/keyboardInset.ts)");
   assert.match(duo, /fit-duo-sheet/, "slides up");
@@ -62,15 +62,15 @@ test("the page behind a bottom sheet is locked while it is open", () => {
   assert.match(ui, /import \{ lockPageScroll \} from "@\/lib\/scrollLock";/);
 });
 
-test("on its own (not in To Duo) a screen keeps its old layout: top and footer just sit before and after the content", () => {
+test("on its own (not in To Do) a screen keeps its old layout: top and footer just sit before and after the content", () => {
   assert.match(sheetSrc, /\{top\}\{children\}\{stuckFooter\}/, "the full-screen sheet keeps a sticky main button");
   assert.match(sheetSrc, /\{top\}\{children\}\{plainFooter\}/, "a tab keeps it in the flow");
 });
 
-test("the slide-up is turned off by Reduce Motion and doesn't use the animations To Duo switches off", () => {
+test("the slide-up is turned off by Reduce Motion and doesn't use the animations To Do switches off", () => {
   assert.match(ui, /\.fit-duo-sheet\{animation:fitDuoSheet /);
   assert.match(ui, /prefers-reduced-motion: reduce\)\{\.fit-duo-scrim,\.fit-duo-sheet,/);
-  const calm = ui.slice(ui.indexOf("To Duo is calm"), ui.indexOf("To Duo's shapes"));
+  const calm = ui.slice(ui.indexOf("To Do is calm"), ui.indexOf("To Do's shapes"));
   assert.doesNotMatch(calm, /fit-duo-sheet|fit-duo-scrim/);
 });
 
@@ -102,5 +102,5 @@ test("add food pins its tabs and search box on top, and the Add button at the bo
 
 test("Btn can be tied to a form by id (a button in the pinned footer submits the form above it)", () => {
   assert.match(ui, /type\?: "button" \| "submit"; \/\*\*[^*]*\*\/ form\?: string \}\)/);
-  assert.equal((ui.match(/<button type=\{type\} form=\{form\} /g) || []).length, 2, "both looks (Cooked's and To Duo's)");
+  assert.equal((ui.match(/<button type=\{type\} form=\{form\} /g) || []).length, 2, "both looks (Cooked's and To Do's)");
 });

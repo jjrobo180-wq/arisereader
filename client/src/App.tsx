@@ -317,11 +317,11 @@ function WebHandoff({ app }: { app?: AllAccessApp } = {}) {
   return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 }
 
-/** Signed out on the To Duo Unlimited page: the sign-in of the app they came from (Cooked's, Notes', Podster's),
- *  in its colors, never the To Duo homepage. Signed in, the page shows the plan right here. */
+/** Signed out on the To Do Unlimited page: the sign-in of the app they came from (Cooked's, Notes', Podster's),
+ *  in its colors, never the To Do homepage. Signed in, the page shows the plan right here. */
 function AllAccessSignIn({ app }: { app: AllAccessApp }) {
   const brand = ALL_ACCESS_APPS[app];
-  const banner = <p className="px-4 py-3 text-center text-sm font-bold text-white" style={{ background: brand.from }} data-testid="all-access-signin-first">{app === "podster" ? "Sign in with the same email as your Podster account. Arise To Duo Unlimited ($10 a month) opens right here." : `Sign in with your ${brand.name} account. Arise To Duo Unlimited ($10 a month) opens right here.`}</p>;
+  const banner = <p className="px-4 py-3 text-center text-sm font-bold text-white" style={{ background: brand.from }} data-testid="all-access-signin-first">{app === "podster" ? "Sign in with the same email as your Podster account. Arise To Do Unlimited ($10 a month) opens right here." : `Sign in with your ${brand.name} account. Arise To Do Unlimited ($10 a month) opens right here.`}</p>;
   return app === "fit" || app === "notes"
     ? <div className="relative"><div className="fixed inset-x-0 top-0 z-[60]">{banner}</div><NativeSignIn flavor={app} /></div>
     : <div>{banner}<SignIn /></div>;
@@ -358,7 +358,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // teacher without it is sent to the plan page, the one place they can still use.
   const isPlanTeacher = !!user && user.role === "teacher" && !user.isAdmin;
   // Arise Reader is paid for accounts made from November 9, 2026 (older ones keep it free).
-  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Duo or Arise AAC.
+  // Only the Reader (arisereader.com and the Reader and Educator apps) is locked, never To Do or Arise AAC.
   const onReader = !!user && !user.isAdmin && isReaderHost() && nativeFlavor() !== "eyegaze";
   const { plan, loading: planLoading } = usePlan(isPlanTeacher || onReader ? token : null);
   // The page shows straight away and the plan arrives behind it. Only a teacher who
@@ -471,9 +471,9 @@ function ReaderToTodoRedirect() {
     window.location.replace("https://arisetodo.com/app#/lifehub");
   }, []);
   return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f6f7fc] p-6 text-center text-slate-900">
-    <h1 className="text-2xl font-black">Arise To Duo has its own home.</h1>
+    <h1 className="text-2xl font-black">Arise To Do has its own home.</h1>
     <p className="max-w-md text-sm text-slate-600">Your LifeHub workspace is now available at arisetodo.com. You can sign in with your existing A.R.I.S.E. account.</p>
-    <a href="https://arisetodo.com/app#/lifehub" className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Open Arise To Duo</a>
+    <a href="https://arisetodo.com/app#/lifehub" className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Open Arise To Do</a>
   </main>;
 }
 
@@ -558,7 +558,7 @@ function TodoPublicHomeRedirect() {
       window.location.replace("/");
     }
   }, []);
-  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open Arise To Duo</a></main>;
+  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href={window.location.protocol === "capacitor:" ? "#/signin" : "/"} className="font-semibold text-indigo-700 underline">Open Arise To Do</a></main>;
 }
 
 /** While a page's code arrives: the last hub's own background (never a white flash on a dark theme),
@@ -570,9 +570,9 @@ function PageFallback({ path }: { path: string }) {
 
 function AppRoutes() {
   const { user, isLoading, token } = useAuth();
-  // In the iPhone apps: hand Apple's running To Duo Unlimited subscriptions (renewals) to the server.
+  // In the iPhone apps: hand Apple's running To Do Unlimited subscriptions (renewals) to the server.
   useEffect(() => { if (user && token) startAppleSync(token); }, [user, token]);
-  // Arise To Duo: open the hub a time or place rule picks when the app opens (lib/hubAutoOpen.ts).
+  // Arise To Do: open the hub a time or place rule picks when the app opens (lib/hubAutoOpen.ts).
   useHubAutoOpen(user?.id, !!user && !isLoading);
   // The routes below remount when the page changes. A page that redirects lands on another page that
   // often redirects too (a game → "/" → the hub); without a fresh mount React reused the first Redirect,
@@ -583,7 +583,7 @@ function AppRoutes() {
   const eyeGazerApp = isEyeGazerApp();
   const isEyeGazeStudent = !!user && user.role !== 'parent' && (eyeGazerApp || (!user.isAdmin && user.role !== 'teacher' && !!user.is_eye_gaze_user));
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
-  // The two Arise Reader iPhone apps act as arisereader.com; the Arise To Duo app as arisetodo.com.
+  // The two Arise Reader iPhone apps act as arisereader.com; the Arise To Do app as arisetodo.com.
   const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com" || isReaderApp();
   const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com" || (window.location.protocol === "capacitor:" && !isReaderApp());
   // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
@@ -653,16 +653,16 @@ function AppRoutes() {
     // React stopped with error 426 and the Educator app showed "Something went wrong").
     return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}><AriseReader /></Suspense>;
   }
-  // The To Duo iPhone app opens only To Duo's own pages (shared/todoNativeRoutes.ts).
+  // The To Do iPhone app opens only To Do's own pages (shared/todoNativeRoutes.ts).
   if (isNativeApp() && nativeFlavor() === "todo" && !todoNativeAllows(routePath)) return isLoading ? null : <Redirect key="todo-only" to={user ? hubPathFor(user) : "/signin"} replace />;
   return (
     <Suspense fallback={<PageFallback path={routePath} />}>
     <Switch key={routePath}>
       <Route path="/fit">
-        {/* Signed out on the website: Cooked Fitness by Arise's own sign-in (from arisetodo.com/cooked/), not the To Duo homepage. */}
+        {/* Signed out on the website: Cooked Fitness by Arise's own sign-in (from arisetodo.com/cooked/), not the To Do homepage. */}
         <AppSignInGate flavor="fit"><ProtectedRoute><FitApp /></ProtectedRoute></AppSignInGate>
       </Route>
-      {/* Arise To Duo Unlimited: one $10 plan for To Duo, Notes, Fit and Podster (pages/AllAccess.tsx). */}
+      {/* Arise To Do Unlimited: one $10 plan for To Do, Notes, Fit and Podster (pages/AllAccess.tsx). */}
       <Route path="/all-access">
         {/* Signed out (from an app's "Get it on arisetodo.com" link): sign in or make a free account right here,
             then this same page shows the plan. Never the homepage. */}
@@ -791,7 +791,7 @@ function AppRoutes() {
       <Route path="/math-lessons">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <MathLessons /> : <Redirect to="/" replace />}
       </Route>
-      {/* Arise Notes, the AI note taker, inside Arise To Duo (also on its own at /notes/). */}
+      {/* Arise Notes, the AI note taker, inside Arise To Do (also on its own at /notes/). */}
       <Route path="/arise-notes">
         {!user ? <Redirect to="/signin" replace /> : <AriseNotesPage />}
       </Route>

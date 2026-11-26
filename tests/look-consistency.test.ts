@@ -1,4 +1,4 @@
-// Looks across Arise To Duo and Arise Notes (November 2026 audit): words on a look's accent use that look's
+// Looks across Arise To Do and Arise Notes (November 2026 audit): words on a look's accent use that look's
 // own "on accent" color, Classic matches the other light looks, and Tide's warnings and amounts read on it.
 // Run with: npx tsx --test tests/look-consistency.test.ts
 import test from "node:test";

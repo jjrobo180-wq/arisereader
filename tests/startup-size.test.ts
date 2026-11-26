@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-// Every app (To Duo, Reader, Notes, Cooked, Cooked PT, AAC, Talk, Educator, Undercover) runs client/src/main.tsx
+// Every app (To Do, Reader, Notes, Cooked, Cooked PT, AAC, Talk, Educator, Undercover) runs client/src/main.tsx
 // first, and everything it imports (not import()) must be read and run before the first screen. Keep it small:
 // the sign-in code once pulled in every hub's data model (1 MB more), and the iPhone apps opened slowly.
 const root = resolve(".");

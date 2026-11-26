@@ -74,7 +74,7 @@ test("buying in the app turns on All Access for that account, and Apple's notice
 
   const bought = await s.call("POST", "/api/all-access/apple", 90, { transaction: jws(tx({ appAccountToken: token.toUpperCase() })) });
   assert.equal(bought.status, 200); assert.equal(bought.body.live, true);
-  assert.equal((await s.plans.todoUnlimited(s.users[90])).via, "all-access", "To Duo Unlimited comes with it");
+  assert.equal((await s.plans.todoUnlimited(s.users[90])).via, "all-access", "To Do Unlimited comes with it");
   assert.equal((await s.plans.fitPlusOwn(90, s.users[90]))?.plus ?? (await s.plans.allAccess(90, s.users[90])).live, true);
 
   // Someone else can't use it.

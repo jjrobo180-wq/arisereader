@@ -1,4 +1,4 @@
-// Arise To Duo and WorkHub with an Arise Notes look: the hub root's colors and fonts, the areas around
+// Arise To Do and WorkHub with an Arise Notes look: the hub root's colors and fonts, the areas around
 // the page on the iPhone, and each look's own top of Home. Classic, Tile and Old Computer add nothing.
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { rememberHubBackdrop } from "@/lib/hubBackdrop";
@@ -88,7 +88,7 @@ export function HubLookHero({ look, date, greeting, primary, links, open, today,
       case "swiss": return <>{main(<b>Today</b>)}{rest}<h1 className="an-l-pad">{greeting}</h1></>;
       case "cassette": return <><div aria-hidden className="an-l-tape"><span>Side A: {date}</span><div><i /><i /></div></div>{title}{main(primary.label)}{rest}</>;
       case "grove": return <>{title}<div className="an-l-pills">{main(primary.label)}{links.slice(0, 2).map((l) => <button key={l.label} type="button" onClick={l.onClick}>{l.label}</button>)}</div></>;
-      case "gazette": return <><header className="an-l-masthead"><h1>The Daily Duo</h1><p>{date}</p></header><h2 className="an-l-headline">{greeting}</h2>{main(primary.label)}{rest}</>;
+      case "gazette": return <><header className="an-l-masthead"><h1>The Daily To Do</h1><p>{date}</p></header><h2 className="an-l-headline">{greeting}</h2>{main(primary.label)}{rest}</>;
       case "punch": return <><h1>{greeting.toUpperCase()}</h1>{main(primary.label.toUpperCase())}{rest}</>;
       case "chatline": return <><h1>{date}</h1><p className="an-l-bubble-them">{greeting}</p><button type="button" className="an-l-bubble-me" onClick={primary.onClick}>{primary.label}</button>{rest}</>;
       default: return <>{title}{main(primary.label)}{rest}</>;

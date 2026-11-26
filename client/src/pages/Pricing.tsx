@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
 import "./pricing.css";
 
-/** One public pricing page for both Arise Reader and Arise To Duo. */
+/** One public pricing page for both Arise Reader and Arise To Do. */
 export default function Pricing() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -15,7 +15,7 @@ export default function Pricing() {
   useEffect(() => {
     if (onTodoDomain) window.location.replace("/#pricing");
   }, [onTodoDomain]);
-  if (onTodoDomain) return <main className="min-h-screen bg-[#f9fafc] p-10 text-center"><a href="/#pricing">Open Arise To Duo pricing</a></main>;
+  if (onTodoDomain) return <main className="min-h-screen bg-[#f9fafc] p-10 text-center"><a href="/#pricing">Open Arise To Do pricing</a></main>;
 
   const home = () => { window.location.assign("https://www.arisereader.com/"); };
   const startReading = () => { window.location.assign("https://www.arisereader.com/#/signin"); };

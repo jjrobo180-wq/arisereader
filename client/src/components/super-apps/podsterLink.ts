@@ -1,5 +1,5 @@
-// Small pieces of Podster inside Arise To Duo that To Duo itself needs without loading Podster: this device's
-// Podster id, and turning off new-episode alerts when Podster is taken out of To Duo.
+// Small pieces of Podster inside Arise To Do that To Do itself needs without loading Podster: this device's
+// Podster id, and turning off new-episode alerts when Podster is taken out of To Do.
 import { API_BASE } from "@/lib/queryClient";
 import { isNativeApp } from "@/lib/nativeApp";
 
@@ -13,7 +13,7 @@ export function podDevice(): string {
   return id;
 }
 
-/** The To Duo iPhone app's notification token, once notifications are on (client/src/lib/applePush.ts). */
+/** The To Do iPhone app's notification token, once notifications are on (client/src/lib/applePush.ts). */
 export function duoPushToken(): string | null {
   if (!isNativeApp()) return null;
   let t = ""; try { t = localStorage.getItem("arise-apns-token") || ""; } catch { /* not allowed */ }
@@ -21,12 +21,12 @@ export function duoPushToken(): string | null {
 }
 
 const ALERTS_KEY = "arise-duo-podster-alerts";
-/** Podster's new-episode alerts in To Duo on this iPhone (on unless turned off in To Duo's Notifications). */
+/** Podster's new-episode alerts in To Do on this iPhone (on unless turned off in To Do's Notifications). */
 export const duoPodAlertsOn = (): boolean => { try { return localStorage.getItem(ALERTS_KEY) !== "0"; } catch { return true; } };
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 
-/** Hands the server this iPhone's To Duo token and the shows followed in To Duo's Podster (server/podPush.ts),
- *  so a new episode is a To Duo notification that opens it in Podster here. */
+/** Hands the server this iPhone's To Do token and the shows followed in To Do's Podster (server/podPush.ts),
+ *  so a new episode is a To Do notification that opens it in Podster here. */
 export function syncDuoPodPush(authToken: string | null | undefined, follows: string[]): void {
   const apns = duoPushToken();
   if (!apns || !duoPodAlertsOn()) return;
@@ -38,13 +38,13 @@ export function syncDuoPodPush(authToken: string | null | undefined, follows: st
   }).catch(() => {});
 }
 
-/** Turns Podster's alerts on or off for this iPhone (To Duo's Notifications). */
+/** Turns Podster's alerts on or off for this iPhone (To Do's Notifications). */
 export function setDuoPodAlerts(on: boolean, authToken: string | null | undefined, follows: string[]): void {
   try { localStorage.setItem(ALERTS_KEY, on ? "1" : "0"); } catch { /* this visit only */ }
   if (on) syncDuoPodPush(authToken, follows); else forgetDuoPodPush(authToken);
 }
 
-/** Podster was taken out of To Duo: no more new-episode alerts on this iPhone (server/podPush.ts). */
+/** Podster was taken out of To Do: no more new-episode alerts on this iPhone (server/podPush.ts). */
 export function forgetDuoPodPush(authToken: string | null | undefined): void {
   const apns = duoPushToken();
   if (!apns) return;

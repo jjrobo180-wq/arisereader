@@ -9,7 +9,7 @@ import { HELPS, InfoButton, STEPS } from "./BuddyInfo";
 const BuddyTeacher = lazy(() => import("./BuddyTeacher"));
 const BuddyLaptop = lazy(() => import("./BuddyLaptop"));
 
-/** `onPick`: inside To Duo (components/super-apps/BuddyInDuo.tsx), picking teacher or student switches in place
+/** `onPick`: inside To Do (components/super-apps/BuddyInDuo.tsx), picking teacher or student switches in place
  *  instead of going to #/buddy/…, so the hub's menus stay. */
 export default function TtsBuddy({ mode, onPick }: { mode?: string; onPick?: (m: "teach" | "kid") => void }) {
   useBuddyFont();

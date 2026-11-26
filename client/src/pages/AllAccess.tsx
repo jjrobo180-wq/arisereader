@@ -1,5 +1,5 @@
-// Arise To Duo Unlimited: one $10-a-month plan for every Arise app (shared/plans.ts "all_access", sold in
-// server/plans.ts). To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free
+// Arise To Do Unlimited: one $10-a-month plan for every Arise app (shared/plans.ts "all_access", sold in
+// server/plans.ts). To Do Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free
 // Podster. Sold on the website only; the iPhone apps show what's on the account, never a price.
 import { useEffect, useRef, useState } from "react";
 import { Check, Crown, Loader2 } from "lucide-react";
@@ -14,7 +14,7 @@ import { allAccessFor } from "@/lib/allAccessFor";
 type Status = { live: boolean; admin: boolean; source?: "stripe" | "admin" | "apple" | null; priceCents: number; payment: boolean; endsAt: string | null; cancelAtPeriodEnd: boolean; canManage: boolean; canBuy: boolean; about?: string };
 
 const PERKS: [string, string][] = [
-  ["Arise To Duo", "Unlimited: every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
+  ["Arise To Do", "Unlimited: every plugin in the Plugin Gallery and AI, in WorkHub and LifeHub."],
   ["Arise Notes", "Plus: 1,500 minutes a month, speaker labels, IEP mode and rollover."],
   ["Cooked Fitness by Arise", "Premium All in one Health & Fitness App, plus a free guest pass for one friend."],
   ["Arise Podcasts", "Ad-free: ads are found and skipped in the episodes you play."],
@@ -42,8 +42,8 @@ export default function AllAccessPage() {
       confirmed.current = true;
       try { const u = new URL(window.location.href); u.searchParams.delete("paid"); history.replaceState(null, "", u.toString()); } catch { /* keep the address */ }
       call("/api/billing/confirm", { sessionId: id })
-        .then((r) => setNote(r.ok ? "Payment received. To Duo Unlimited is on." : "We couldn't confirm the payment yet. If your card was charged, To Duo Unlimited switches on within a few minutes."))
-        .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, To Duo Unlimited switches on within a few minutes."))
+        .then((r) => setNote(r.ok ? "Payment received. To Do Unlimited is on." : "We couldn't confirm the payment yet. If your card was charged, To Do Unlimited switches on within a few minutes."))
+        .catch(() => setNote("We couldn't confirm the payment yet. If your card was charged, To Do Unlimited switches on within a few minutes."))
         .finally(() => void load());
     } else void load();
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -65,7 +65,7 @@ export default function AllAccessPage() {
         <div className="px-6 pb-6 pt-7 text-white" style={{ background: `linear-gradient(135deg, ${brand.from}, ${brand.to})` }} data-testid="all-access-brand" data-app={app}>
           {app !== "todo" && <p className="mb-2 text-[12px] font-bold uppercase tracking-[.14em] text-white/85">{brand.name}</p>}
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20"><Crown className="h-6 w-6" /></span>
-          <h1 className="mt-3 text-2xl font-extrabold leading-tight">{s?.live ? "You have To Duo Unlimited" : "Arise To Duo Unlimited"}</h1>
+          <h1 className="mt-3 text-2xl font-extrabold leading-tight">{s?.live ? "You have To Do Unlimited" : "Arise To Do Unlimited"}</h1>
           <p className="mt-1.5 text-sm text-white/90">One plan for every Arise app.{!native && !s?.live ? ` ${price} a month.` : ""}</p>
         </div>
         <div className="px-6 py-5">
@@ -74,19 +74,19 @@ export default function AllAccessPage() {
           <div className="mt-5">
             {!s ? <div className="flex justify-center py-3"><Loader2 className="h-6 w-6 animate-spin text-violet-600" /></div>
               : s.live ? <>
-                  <p className="text-sm text-slate-600">{s.admin ? "The admin account always has To Duo Unlimited." : s.endsAt ? `${s.cancelAtPeriodEnd ? "Ends" : "Renews"} ${date(s.endsAt)}.` : "On your account."}</p>
-                  {app !== "todo" && !native && <p className="mt-2 rounded-xl px-3 py-2 text-sm font-semibold text-white" style={{ background: brand.from }} data-testid="all-access-back">Go back to the {brand.name} app. To Duo Unlimited is already on there.</p>}
+                  <p className="text-sm text-slate-600">{s.admin ? "The admin account always has To Do Unlimited." : s.endsAt ? `${s.cancelAtPeriodEnd ? "Ends" : "Renews"} ${date(s.endsAt)}.` : "On your account."}</p>
+                  {app !== "todo" && !native && <p className="mt-2 rounded-xl px-3 py-2 text-sm font-semibold text-white" style={{ background: brand.from }} data-testid="all-access-back">Go back to the {brand.name} app. To Do Unlimited is already on there.</p>}
                   {s.source === "apple" && (native && appleStoreReady()
                     ? <button type="button" onClick={() => void manageAppleSubscription()} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Manage subscription</button>
                     : <p className="mt-2 text-sm text-slate-600">Bought in the iPhone app. Change or cancel it in Settings › Apple ID › Subscriptions.</p>)}
                   {s.canManage && !native && <button type="button" disabled={busy} onClick={() => void go("/api/all-access/portal")} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">{busy ? "Opening…" : "Manage billing"}</button>}
                 </>
               : native ? <AllAccessOffer app={app} note={NATIVE_NO_PURCHASE} authToken={token} onBought={() => void load()} />
-              : !s.canBuy ? <p className="text-sm text-slate-600">To Duo Unlimited is for adult accounts. Ask a parent or teacher about it.</p>
+              : !s.canBuy ? <p className="text-sm text-slate-600">To Do Unlimited is for adult accounts. Ask a parent or teacher about it.</p>
               : !s.payment ? <p className="text-sm text-slate-600">Payments aren't switched on for this site yet.</p>
-              : <button type="button" disabled={busy} onClick={() => void go("/api/all-access/checkout")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-60" style={{ background: brand.from }} data-testid="all-access-buy">{busy ? "Opening checkout…" : `Get To Duo Unlimited · ${price} a month`}</button>}
+              : <button type="button" disabled={busy} onClick={() => void go("/api/all-access/checkout")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-60" style={{ background: brand.from }} data-testid="all-access-buy">{busy ? "Opening checkout…" : `Get To Do Unlimited · ${price} a month`}</button>}
           </div>
-          <p className="mt-4 text-xs text-slate-500">Cancel any time. Already paying for To Duo Unlimited, a Notes plan or Fit+? You keep it. If you switch to To Duo Unlimited, those end at the close of their current period so you're never charged twice.</p>
+          <p className="mt-4 text-xs text-slate-500">Cancel any time. Already paying for To Do Unlimited, a Notes plan or Fit+? You keep it. If you switch to To Do Unlimited, those end at the close of their current period so you're never charged twice.</p>
         </div>
       </div>
     </main>

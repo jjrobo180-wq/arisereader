@@ -1,4 +1,4 @@
-// The Studio series: looks that change the whole feel of Arise Notes and Arise To Duo, not just the
+// The Studio series: looks that change the whole feel of Arise Notes and Arise To Do, not just the
 // colors. Each one has its own arrangement for Home, the list, recording, the note heading and (in
 // the hubs) the top of Home, the task list and the agenda. `arch` says which arrangement it uses
 // (client/src/components/arise-notes/protoLooks.tsx draws it; protoLooks.css dresses it).
@@ -111,7 +111,7 @@ export const PROTO_SPECS: ProtoSpec[] = [
   { id: "x-tape-rack", label: "Tape Rack", blurb: "Every note is a coloured cassette on a tan shelf.", arch: "cassette", group: "tactile", bg: "#CDBB9A", card: "#F6EFDC", ink: "#2A1D12", muted: "#53432F", line: "#B7A582", accent: "#C8261B", onAccent: "#FFFFFF", fd: "Special Elite", fb: "Inter", radius: 12 },
   { id: "x-chronograph", label: "Chronograph", blurb: "A dial for the record button and your day as a trail of dots.", arch: "dial", group: "dark", bg: "#14123A", card: "#2A2660", ink: "#F1F0FF", muted: "#B3B0E8", line: "#2E2A66", accent: "#FFD84D", onAccent: "#14123A", fd: "Unbounded", fb: "Space Grotesk", radius: 14, record: "#FF6B4A", onRecord: "#14123A" },
   { id: "x-evening-paper", label: "Evening Paper", blurb: "A warm greeting, one big ask button and notes grouped by day.", arch: "paper", group: "calm", bg: "#FBF8F2", card: "#FFFFFF", ink: "#22201C", muted: "#6B6558", line: "#E4DED0", accent: "#A0461F", onAccent: "#FFFFFF", fd: "Newsreader", fb: "Inter", radius: 14 },
-  // ─── Task screen designs (WorkHub and To Duo Tasks, picked in Customize) ───
+  // ─── Task screen designs (WorkHub and To Do Tasks, picked in Customize) ───
   { id: "x-t-calm", label: "Calm List", blurb: "A quiet grey page, one filter bar and your tasks grouped by Overdue and Today.", arch: "rows", group: "tasks", bg: "#F6F7F9", card: "#FFFFFF", ink: "#14161A", muted: "#5B6170", line: "#E6E8EC", accent: "#4F46E5", onAccent: "#FFFFFF", fd: "Inter", fb: "Inter", radius: 14 },
   { id: "x-t-today", label: "Today First", blurb: "Opens on today: a progress ring, three small counts and what is up next, in deep green.", arch: "paper", group: "tasks", bg: "#FBFAF7", card: "#FFFFFF", ink: "#1A1C1E", muted: "#5F6368", line: "#E7E4DC", accent: "#0F766E", onAccent: "#FFFFFF", fd: "Space Grotesk", fb: "Inter", radius: 16 },
   { id: "x-t-night", label: "Night Agenda", blurb: "Dark, with a day picker across the top and your tasks on a timeline in WorkHub cyan.", arch: "chron", group: "tasks", bg: "#0E1116", card: "#171B22", ink: "#E8EAED", muted: "#9AA0A6", line: "#262C36", accent: "#22D3EE", onAccent: "#06222A", fd: "Inter", fb: "Inter", radius: 14 },

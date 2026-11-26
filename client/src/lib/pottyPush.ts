@@ -1,7 +1,7 @@
 // Potty Training on the phone: turning notifications on for this device, telling the server when the reminder timer
 // ends (so a notification comes even with the app closed), and a "timer running" notification while it counts down.
 // The server side is server/pottyTimers.ts; the rules are in shared/pro/potty/timerPush.ts.
-// In the Arise To Duo iPhone app there is no Web Push: the phone itself schedules the timer's
+// In the Arise To Do iPhone app there is no Web Push: the phone itself schedules the timer's
 // notifications (LocalNotifications), so they ring with the app closed and no server is needed.
 import { API_BASE } from "@/lib/queryClient";
 import { isNativeApp, nativeCall } from "@/lib/nativeApp";

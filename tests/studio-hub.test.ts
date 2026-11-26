@@ -1,4 +1,4 @@
-// The Studio looks in Arise To Duo and WorkHub (November 2026). Each look draws the hubs the way its preview
+// The Studio looks in Arise To Do and WorkHub (November 2026). Each look draws the hubs the way its preview
 // and Arise Notes draw it: Stickies is a wall of sticky notes, Receipts paper slips, Tape Rack cassettes,
 // Chronograph a dial, and so on. They all shared one plain Home before, only the colors and type changed.
 // Run with: npx tsx --test tests/studio-hub.test.ts

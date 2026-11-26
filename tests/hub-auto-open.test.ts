@@ -1,4 +1,4 @@
-// Open a chosen hub by time or place when Arise To Duo opens (Nov 25, 2026).
+// Open a chosen hub by time or place when Arise To Do opens (Nov 25, 2026).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -38,7 +38,7 @@ test("rules are cleaned and saved with LifeHub", () => {
   assert.equal(ruleWords(work), "At Work");
 });
 
-test("To Duo switches only a hub page, when it opens or comes back", () => {
+test("To Do switches only a hub page, when it opens or comes back", () => {
   const lib = readFileSync("client/src/lib/hubAutoOpen.ts", "utf8");
   assert.match(lib, /const HUB_HASH = \/\^#\\\/\(lifehub\|workhub\|familyhub\)\\\/\?\$\//);
   assert.match(lib, /Date\.now\(\) - hiddenAt >= REOPEN_AFTER_MS/);

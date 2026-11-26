@@ -49,7 +49,7 @@ test("Podster home shows the episode you were on, to finish or continue", () => 
   assert.match(home, /chip === "all" && <ContinueListening/);
 });
 
-test("opening Arise To Duo on iPhone doesn't stop other apps' audio", () => {
+test("opening Arise To Do on iPhone doesn't stop other apps' audio", () => {
   const unlock = readFileSync("client/src/lib/mediaUnlock.ts", "utf8");
   assert.match(unlock, /window\.location\.protocol === "capacitor:"\) \{ startEnginesOnlyWhenPlaying\(\); return; \}/);
   assert.match(readFileSync("arisetodo/ios-app/configure-ios.py", "utf8"), /setCategory\(\.ambient, mode: \.default, options: \[\.mixWithOthers\]\)/);

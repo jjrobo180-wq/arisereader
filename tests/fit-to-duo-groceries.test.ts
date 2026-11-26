@@ -1,4 +1,4 @@
-// Cooked → Arise To Duo grocery list (November 2026). Run with: npx tsx --test tests/fit-to-duo-groceries.test.ts
+// Cooked → Arise To Do grocery list (November 2026). Run with: npx tsx --test tests/fit-to-duo-groceries.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -16,7 +16,7 @@ test("items merge into the family list: same name updates, new ones are added, t
   assert.equal(mergeIntoFamilyList([], Array.from({ length: 10 }, (_, i) => ({ name: `x${i}` })), id, 4).list.length, 4);
 });
 
-test("the route sends to the signed-in person's own list, and says when there is no Arise To Duo", async () => {
+test("the route sends to the signed-in person's own list, and says when there is no Arise To Do", async () => {
   const routes = new Map<string, any>(); const calls: any[] = [];
   const app: any = new Proxy({}, { get: (_t, m: string) => (path: any, ...h: any[]) => { if (typeof path === "string") routes.set(`${m} ${path}`, h.at(-1)); } });
   registerFitRoutes(app, ((_q: any, _r: any, n: any) => n()) as any, { addToDuoGroceries: async (uid, items) => { calls.push([uid, items]); return uid === 9 ? null : { added: items.length, updated: 0 }; } });
@@ -28,7 +28,7 @@ test("the route sends to the signed-in person's own list, and says when there is
   assert.equal((await run(null, { items: [{ name: "Oats" }] })).status, 403);
 });
 
-test("wired: the server writes the To Duo family list; Fit has the buttons", () => {
+test("wired: the server writes the To Do family list; Fit has the buttons", () => {
   const routes = read("server/routes.ts");
   assert.match(routes, /addToDuoGroceries: \(userId, items\) => updateTodoWorkspace\(userId,/);
   assert.match(routes, /mergeIntoFamilyList\(family\.groceries, items/);

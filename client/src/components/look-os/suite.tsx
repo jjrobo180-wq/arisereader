@@ -1,4 +1,4 @@
-// The Professional looks in Arise To Duo: Paper, Midnight, Folio, Nordic and Carbon (plus the four earlier
+// The Professional looks in Arise To Do: Paper, Midnight, Folio, Nordic and Carbon (plus the four earlier
 // minimal looks). Quiet and orderly, in the spirit of a classic notes app: a large title, inset grouped lists
 // with hairlines, one restrained accent color and a flat, frosted bar at the bottom. Real data throughout.
 import type { ReactNode } from "react";

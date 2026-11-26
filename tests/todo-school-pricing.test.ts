@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PLANS } from "../shared/plans.ts";
 import { readFileSync } from "node:fs";
 
-test("Arise To Duo WorkHub: $2,000 a school, $10,000 a district", () => {
+test("Arise To Do WorkHub: $2,000 a school, $10,000 a district", () => {
   assert.equal(PLANS.hub.schoolYearlyCents, 200000);
   assert.equal(PLANS.hub.districtYearlyCents, 1000000);
   assert.equal(PLANS.hub.districtStudentCap, 8000);
@@ -15,7 +15,7 @@ test("the district price is shown on the billing and hub pages", () => {
   }
 });
 
-test("the To Duo website's Pricing section shows the school and district prices", () => {
+test("the To Do website's Pricing section shows the school and district prices", () => {
   const home = readFileSync("client/public/educator.html", "utf8");
   const pricing = home.slice(home.indexOf('id="pricing"'), home.indexOf('id="faq"'));
   assert.match(pricing, /\$2,000 <span>\/ year/);

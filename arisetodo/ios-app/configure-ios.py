@@ -1,4 +1,4 @@
-"""Arise To Duo iPhone app: the Info.plist settings App Review checks.
+"""Arise To Do iPhone app: the Info.plist settings App Review checks.
 
 Run after `npx cap add ios && npx cap sync ios` (both GitHub Actions workflows do). Every permission the
 app can ask for needs a sentence saying why, or iOS stops the app the moment it asks:
@@ -14,7 +14,7 @@ import plistlib
 import sys
 
 PLIST = sys.argv[1] if len(sys.argv) > 1 else "ios/App/App/Info.plist"
-NAME = "Arise To Duo"
+NAME = "Arise To Do"
 KEYS = {
     "CFBundleDisplayName": NAME,
     "NSHealthShareUsageDescription": f"{NAME} reads your steps, active calories and weight to fill in your Food & fitness diary.",
@@ -43,7 +43,7 @@ with open(PLIST, "wb") as f:
     plistlib.dump(plist, f)
 print(f"Info.plist ready for {NAME}: {', '.join(sorted(KEYS))}")
 
-# Other apps' music and podcasts keep playing when Arise To Duo opens: the app starts with an
+# Other apps' music and podcasts keep playing when Arise To Do opens: the app starts with an
 # audio session that mixes with others (ambient), so it takes over the sound only when it really
 # plays something (a voice line, a story), which WebKit sets up by itself at that moment.
 import os
@@ -81,7 +81,7 @@ if os.path.exists(DELEGATE):
             print("AppDelegate: could not add the push token hook")
 
 
-# The launch screen: navy with the Arise To Duo icon (splash-2732.png), not Capacitor's placeholder "X".
+# The launch screen: navy with the Arise To Do icon (splash-2732.png), not Capacitor's placeholder "X".
 # It is the first frame of the app's own loading screen (client/todo-loading.html), so the two join up.
 import glob, os, shutil
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -89,4 +89,4 @@ SPLASH_SET = os.path.join(os.path.dirname(PLIST), "Assets.xcassets", "Splash.ima
 splash_pngs = glob.glob(os.path.join(SPLASH_SET, "*.png"))
 for png in splash_pngs:
     shutil.copyfile(os.path.join(HERE, "splash-2732.png"), png)
-print(f"Launch screen: Arise To Duo splash ({len(splash_pngs)} images)" if splash_pngs else "Launch screen: no Splash.imageset found")
+print(f"Launch screen: Arise To Do splash ({len(splash_pngs)} images)" if splash_pngs else "Launch screen: no Splash.imageset found")

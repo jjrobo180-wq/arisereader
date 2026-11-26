@@ -1,6 +1,6 @@
-// "Edit Tabs" for Health & Fitness inside Arise To Duo (Nov 25, 2026): the tabs (Daily, Food, Training, Yoga,
+// "Edit Tabs" for Health & Fitness inside Arise To Do (Nov 25, 2026): the tabs (Daily, Food, Training, Yoga,
 // Progress, Friends) switched on or off and put in order, and inside each tab the parts it shows (Period, say)
-// switched on or off. It replaces Cooked's own plugin store inside To Duo, so there's one place to change what shows.
+// switched on or off. It replaces Cooked's own plugin store inside To Do, so there's one place to change what shows.
 // Saved with the rest of the person's fitness data (FitApps.groups, shared/fitGroups.ts), the same on every device.
 import { CalendarRange, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import { NativeSheet, SheetGroup, SheetRow, SheetSwitch } from "@/components/NativeSheet";

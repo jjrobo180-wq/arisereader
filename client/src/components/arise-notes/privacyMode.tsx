@@ -49,7 +49,7 @@ export const MODE_TEXT: Record<PrivacyLevel, { name: string; short: string; good
       "The summary is written by the iPhone's own AI: shorter and simpler than Standard's, with no IEP draft or parent email",
       "Needs iOS 26 and Apple Intelligence (iPhone 15 Pro or newer) for the summary; otherwise you get the transcript only",
       "The note is only on this iPhone: it isn't in Ask your notes, on the website, shared, or backed up by Arise. Deleting the app deletes it",
-      "To-dos can go to Apple Reminders and the Calendar, but not to Arise To Duo",
+      "To-dos can go to Apple Reminders and the Calendar, but not to Arise To Do",
     ],
   },
 };

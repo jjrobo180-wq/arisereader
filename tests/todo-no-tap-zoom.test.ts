@@ -1,4 +1,4 @@
-// Arise To Duo on the iPhone zoomed in whenever a text box was tapped (November 2026). The app shrank the page with
+// Arise To Do on the iPhone zoomed in whenever a text box was tapped (November 2026). The app shrank the page with
 // initial-scale=0.93, so a 16px text box drew at about 15px and iPhone zoomed to 100% to make it readable; the native
 // zoom guard only undid zoom above 1, so a zoom from 0.93 to exactly 1 stayed. Run with: npx tsx --test tests/todo-no-tap-zoom.test.ts
 import test from "node:test";
@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("the To Duo page is never shrunk with the viewport; it's a touch smaller through the type size", () => {
+test("the To Do page is never shrunk with the viewport; it's a touch smaller through the type size", () => {
   const src = read("client/src/lib/nativeBackdrop.ts");
   assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /initial-scale=0\.\d/);
   assert.match(read("client/src/todo-app.css"), /html\.todo-edge\.todo-compact \{ font-size: 93\.75%; \}/);

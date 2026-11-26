@@ -1,4 +1,4 @@
-// Arise To Duo: Arise To Duo laid out for the iPhone Duo's folding inner screen.
+// Arise To Do: Arise To Do laid out for the iPhone Duo's folding inner screen.
 //
 // The Duo's inner screen is 7.6" (1878 x 2670 px, about 626 x 890 points). Opened flat like a book
 // it is 890 wide x 626 tall with the fold straight down the middle, so To-Do splits into two panes
@@ -12,7 +12,7 @@
 // for testing on a computer. turnDuoOff() switches the layout off AND closes the split screen.
 //
 // The mode is written to <html data-duo="book|stack">, which the duo-book: / duo-stack: / duo:
-// Tailwind variants (tailwind.config.ts) key off, and the page is named "Arise To Duo".
+// Tailwind variants (tailwind.config.ts) key off, and the page is named "Arise To Do".
 import { useEffect, useState } from "react";
 
 export type DuoMode = "book" | "stack" | null;
@@ -97,7 +97,7 @@ export function inSplitScreen(): boolean {
   return typeof window !== "undefined" && /^#\/duo(?:[?/]|$)/.test(window.location.hash);
 }
 
-/** The one "Turn Duo off": the two-pane layout goes off on this device, and the split screen closes
+/** The one "Turn split screen off": the two-pane layout goes off on this device, and the split screen closes
  *  wherever it is open — even when this is one of its panes, or it sits inside the Duo viewer. */
 export function turnDuoOff(): void {
   if (!previewChoice()) writeChoice("off");

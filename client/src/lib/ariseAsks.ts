@@ -1,4 +1,4 @@
-// "@arise" asks in Arise To Duo's tasks (shared/ariseAsks.ts, server/todoAsks.ts): sending one, the list of
+// "@arise" asks in Arise To Do's tasks (shared/ariseAsks.ts, server/todoAsks.ts): sending one, the list of
 // every ask (one store for the whole app, refreshed while any is still being made) and opening one from a
 // notification. The Tasks screen (components/teacher-hub/HubTasks.tsx) and the Add task sheet in
 // pages/AriseTodo.tsx both send asks through startTaskAsk.
@@ -11,7 +11,7 @@ let state: State = { asks: [], loaded: false, open: null, token: null };
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => { state = { ...state, ...next }; listeners.forEach((l) => l()); };
 const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
-/** Told when an ask finishes while the app is open (a toast in To Duo). */
+/** Told when an ask finishes while the app is open (a toast in To Do). */
 const finishedListeners = new Set<(a: AriseAsk) => void>();
 export const onAskFinished = (l: (a: AriseAsk) => void) => { finishedListeners.add(l); return () => { finishedListeners.delete(l); }; };
 

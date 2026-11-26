@@ -690,11 +690,11 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
   if (origin === "capacitor://localhost") return true;
   return /^https:\/\/podscroll[a-z0-9-]*\.onrender\.com$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
-/** Someone signed in to Arise To Duo, listening in Podster inside To Duo. */
+/** Someone signed in to Arise To Do, listening in Podster inside To Do. */
 export type AriseListener = { id: number; email?: string | null; role?: string | null; displayName?: string | null };
-/** Who a To Duo listener is to Podster: the Podster account with their email (made the first time), so their
+/** Who a To Do listener is to Podster: the Podster account with their email (made the first time), so their
  *  profile, posts, likes and All Access are the same as in the Podster app; or, with no email on the account,
- *  a listener tied to their To Duo account on every device. Students stay students (no social, no explicit). */
+ *  a listener tied to their To Do account on every device. Students stay students (no social, no explicit). */
 export async function ariseListener(u: AriseListener, device: string, sessions: { forEmail: (email: string, device: string) => Promise<{ id: number; email: string; device: string } | null> } | null): Promise<{ user: any; creator?: { email: string; id: number } }> {
   const role = u.role === "student" ? "student" : "public";
   const name = String(u.displayName || "").split(" ")[0].slice(0, 40);
@@ -707,7 +707,7 @@ const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"]
 
 export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any, more: {
   sendEmail?: (to: string, subject: string, html: string) => Promise<{ sent: boolean; error?: string }>; adFree?: (req: any) => Promise<boolean>;
-  /** Podster inside Arise To Duo sends the To Duo sign-in (Authorization: Bearer): who that is, so it's one login
+  /** Podster inside Arise To Do sends the To Do sign-in (Authorization: Bearer): who that is, so it's one login
    *  (client/src/components/super-apps/PodsterInDuo.tsx). */
   ariseUser?: (token: string) => Promise<AriseListener | null>;
 } = {}) {
@@ -736,7 +736,7 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     if (wait > 0) { res.set("Retry-After", String(Math.ceil(wait / 1000))); res.status(429).json({ message: `Too many requests. Try again in ${waitWords(wait)}.` }); return; }
     perIp.fail(ip);
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
-    // Inside Arise To Duo: the To Duo sign-in is the Podster sign-in (the account with the same email).
+    // Inside Arise To Do: the To Do sign-in is the Podster sign-in (the account with the same email).
     const arise = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
     if (arise && more.ariseUser) {
       more.ariseUser(arise).then(async (u) => {

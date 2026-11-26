@@ -22,8 +22,8 @@ export function HubAutoOpenSettings({ family, setFamily, say }: { family: Family
   // This device keeps a copy, so WorkHub and FamilyHub can switch too (AriseTodo also keeps it current).
   useEffect(() => { saveHubOpenCopy(user?.id, family.hubOpen); }, [user?.id, family.hubOpen]);
   const save = (fn: (r: HubOpenRule[]) => HubOpenRule[]) => setFamily((f) => ({ ...f, hubOpen: cleanHubOpen(fn(f.hubOpen ?? [])) ?? [] }));
-  return <Panel eyebrow="Arise To Duo" title="Open hubs automatically">
-    <p className="mb-3 text-sm text-slate-500">Pick a hub for a time of day or a place. When To Duo opens there, it goes straight to that hub. Switching by hand stays put until the next time you open it.</p>
+  return <Panel eyebrow="Arise To Do" title="Open hubs automatically">
+    <p className="mb-3 text-sm text-slate-500">Pick a hub for a time of day or a place. When To Do opens there, it goes straight to that hub. Switching by hand stays put until the next time you open it.</p>
     {rules.length > 0 && <ul className="mb-3 divide-y divide-slate-100 rounded-2xl ring-1 ring-slate-200" data-testid="hub-open-rules">
       {rules.map((r) => { const L = HUB_LOOK[r.hub]; return <li key={r.id} className="flex items-center gap-3 px-3 py-2.5">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ background: L.color }}><L.icon className="h-4 w-4" /></span>
@@ -49,7 +49,7 @@ function RuleSheet({ rule, isNew, say, onClose, onSave, onDelete }: { rule: HubO
     setFinding(true);
     const at = await herePosition(8000);
     setFinding(false);
-    if (!at) { say("Couldn't get your location. Check that To Duo can use it in Settings."); return; }
+    if (!at) { say("Couldn't get your location. Check that To Do can use it in Settings."); return; }
     set({ place: { name: r.place?.name || "Here", lat: at.lat, lng: at.lng, radius: r.place?.radius ?? PLACE_RADIUS } });
   };
   const ready = r.kind === "time" || (!!r.place && Number.isFinite(r.place.lat));
@@ -66,7 +66,7 @@ function RuleSheet({ rule, isNew, say, onClose, onSave, onDelete }: { rule: HubO
     {r.kind === "time" ? <SheetGroup caption="Between" note="A window past midnight, like 10 PM to 6 AM, works too.">
       <SheetRow label="From" right={<input type="time" value={r.from} onChange={(e) => e.target.value && set({ from: e.target.value })} className={field} aria-label="From" />} />
       <SheetRow label="To" right={<input type="time" value={r.to} onChange={(e) => e.target.value && set({ to: e.target.value })} className={field} aria-label="To" />} />
-    </SheetGroup> : <SheetGroup caption="Place" note="Stand where the place is (home, work, school) and tap Use where I am. To Duo checks where you are only when it opens.">
+    </SheetGroup> : <SheetGroup caption="Place" note="Stand where the place is (home, work, school) and tap Use where I am. To Do checks where you are only when it opens.">
       <SheetRow label="Name" right={<input value={r.place?.name ?? ""} placeholder="Work" onChange={(e) => setR((x) => ({ ...x, place: { name: e.target.value, lat: x.place?.lat ?? NaN, lng: x.place?.lng ?? NaN, radius: x.place?.radius ?? PLACE_RADIUS } }))} className={`${field} w-40 text-right`} aria-label="Place name" />} />
       <SheetRow label={r.place && Number.isFinite(r.place.lat) ? "Saved where you were" : "Not set yet"} sub={r.place && Number.isFinite(r.place.lat) ? `Within about ${r.place.radius} m` : undefined}
         right={<button type="button" onClick={() => void usePlace()} disabled={finding} className="rounded-full bg-[#34c759] px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">{finding ? "Finding…" : "Use where I am"}</button>} />

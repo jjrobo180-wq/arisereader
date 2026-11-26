@@ -273,7 +273,7 @@ export function registerTodoAdminRoutes(
 
   // ─── Programs: each app's memberships on their own ────────────────────────
   const vipOf = (u: Raw, vip: Awaited<ReturnType<typeof T.readVip>>) => onVipList(vip, { id: u.id, email: u.email, role: u.role, accountApproved: u.confirmed });
-  /** Everyone's standing in one program. To Duo's includes the VIP list, so the numbers match the people list. */
+  /** Everyone's standing in one program. To Do's includes the VIP list, so the numbers match the people list. */
   const programViews = async (prog: Program) => {
     const [l, infos, vipList] = await Promise.all([load(), T.programInfos(prog.kinds), prog.id === "todo" ? T.readVip() : Promise.resolve(null)]);
     return l.users.map((u) => {

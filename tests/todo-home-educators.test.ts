@@ -9,10 +9,10 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 test("the home page speaks to teachers, schools and parents, in the site's own look", () => {
   const home = read("client/public/educator.html");
   const duo = read("client/public/iphone-duo/index.html");
-  assert.match(home, /<title>Arise To Duo: The Free Workspace for Teachers, Schools and Families<\/title>/);
+  assert.match(home, /<title>Arise To Do: The Free Workspace for Teachers, Schools and Families<\/title>/);
   assert.match(home, /<h1>The free workspace <span class="gradient-text">for teachers and families\.<\/span><\/h1>/);
   assert.match(home, /href="\/app#\/signin\?create">I'm a teacher/);
-  assert.ok(!/teacher-signup|parent-signup/.test(home), "the sign-up buttons make an Arise To Duo account, not an Arise Reader one");
+  assert.ok(!/teacher-signup|parent-signup/.test(home), "the sign-up buttons make an Arise To Do account, not an Arise Reader one");
   assert.match(home, /href="\/app#\/signin\?create">I'm a parent/);
   assert.match(readFileSync("client/src/pages/SignIn.tsx", "utf8"), /\[\?&\]create\\b\/\.test\(window\.location\.hash\) && \/\^\(www\\\.\)\?arisetodo\\\.com\$\/i/);
   assert.match(home, /<a href="\/iphone-duo\/">iPhone Duo<\/a>/, "the menu links to the iPhone Duo page");

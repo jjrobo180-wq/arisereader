@@ -34,7 +34,7 @@ import {
 } from "@shared/pluginStore";
 
 /** In the iPhone app, a description never talks about the app "coming soon": that's this app. */
-const nativeBlurb = (text: string) => text.replace(/\s*The full browser, with every site, comes with the Arise To Duo iPhone app, coming soon to the App Store\./, "");
+const nativeBlurb = (text: string) => text.replace(/\s*The full browser, with every site, comes with the Arise To Do iPhone app, coming soon to the App Store\./, "");
 
 export const ICONS: Record<string, LucideIcon> = {
   ShieldAlert, MessagesSquare, FileCheck, Lightbulb: LightbulbCoach,

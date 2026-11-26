@@ -1,6 +1,6 @@
-// Cooked, Cooked PT, Arise Notes and Podster inside Arise To Duo (November 2026): each is a Plugin Gallery
-// plugin that opens in To Duo's frame and look, with its menu as To Duo's row of pages, signed in with the To
-// Duo account (one login), with its alerts opening it inside To Duo. The four App Store apps stay as they are.
+// Cooked, Cooked PT, Arise Notes and Podster inside Arise To Do (November 2026): each is a Plugin Gallery
+// plugin that opens in To Do's frame and look, with its menu as To Do's row of pages, signed in with the To
+// Duo account (one login), with its alerts opening it inside To Do. The four App Store apps stay as they are.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -96,7 +96,7 @@ test("they don't use one of Free's 3 plugins (each has its own free version)", (
   assert.ok(lifeApps({ family }).includes("section:chores"), "ordinary plugins still count");
 });
 
-test("their alerts and links open them inside To Duo", () => {
+test("their alerts and links open them inside To Do", () => {
   assert.equal(duoAppHash("cooked"), "/to-do?go=cooked");
   assert.equal(duoLinkFor("#/fit"), "/to-do?go=cooked");
   assert.equal(duoLinkFor("https://arisetodo.com/#/fit?coach=1a-abcdefghij"), "/to-do?go=cooked&coach=1a-abcdefghij");
@@ -106,17 +106,17 @@ test("their alerts and links open them inside To Duo", () => {
   assert.equal(duoLinkFor("#/lifehub?go=tasks"), null, "everything else is left alone");
   assert.equal(duoLinkFor("#/fitness"), null);
   assert.equal(duoLinkFor(""), null);
-  // The To Duo iPhone app maps a tapped notification before opening it.
+  // The To Do iPhone app maps a tapped notification before opening it.
   const push = read("client/src/lib/applePush.ts");
   assert.match(push, /const inDuo = nativeFlavor\(\) === "todo" \? duoLinkFor\(url\) : null;/);
-  // To Duo opens the plugin from go=… (and turns it on if it wasn't), with the page, episode or invite.
+  // To Do opens the plugin from go=… (and turns it on if it wasn't), with the page, episode or invite.
   const todo = read("client/src/pages/AriseTodo.tsx");
   assert.match(todo, /if \(isSuperApp\(go\)\) \{\s*setFamily\(\(f\) => \(f\.sections\[go\] \? f : \{ \.\.\.f, sections: \{ \.\.\.f\.sections, \[go\]: true \} \}\)\);/);
   assert.match(todo, /setSuperStart\(\{ app: go, page: params\.get\("page"\), s: params\.get\("s"\), e: params\.get\("e"\), coach: params\.get\("coach"\)/);
 });
 
 const T = "cd".repeat(32);
-test("Podster's new-episode alerts reach To Duo's Podster on the To Duo iPhone app", async () => {
+test("Podster's new-episode alerts reach To Do's Podster on the To Do iPhone app", async () => {
   assert.equal(podAlertUrl(T, "1", "2"), "?s=1&e=2");
   assert.equal(podAlertUrl("todo:" + T, "1", "2"), "/#/to-do?go=podster&s=1&e=2");
   const rows: PodPushRow[] = [
@@ -128,22 +128,22 @@ test("Podster's new-episode alerts reach To Duo's Podster on the To Duo iPhone a
   const n = await runPodPush({ db, newest: async () => ({ show: "Show", episodeId: "b", title: "New" }), send: async (token, m, topic) => { sent.push({ token, url: m.url!, topic }); return { ok: true, gone: false }; } }, new Date("2026-11-13T18:00:00Z"));
   assert.equal(n, 2);
   assert.deepEqual(sent.find((x) => x.url.startsWith("?")), { token: T, url: "?s=9&e=b", topic: "com.arisereader.podplus" });
-  assert.deepEqual(sent.find((x) => x.url.startsWith("/#")), { token: T, url: "/#/to-do?go=podster&s=9&e=b", topic: undefined }, "To Duo's own topic, its bare token");
+  assert.deepEqual(sent.find((x) => x.url.startsWith("/#")), { token: T, url: "/#/to-do?go=podster&s=9&e=b", topic: undefined }, "To Do's own topic, its bare token");
   const server = read("server/podPush.ts");
   assert.match(server, /const token = hex && req\.body\?\.app === "todo" \? TODO_PREFIX \+ hex : hex;/);
-  // To Duo signs its token up with the shows followed there, and forgets it when Podster is taken out.
+  // To Do signs its token up with the shows followed there, and forgets it when Podster is taken out.
   assert.match(read("client/src/components/super-apps/PodsterInDuo.tsx"), /syncDuoPodPush\(token, es\.follows\.map\(\(f\) => f\.id\)\)/);
   const link = read("client/src/components/super-apps/podsterLink.ts");
   assert.match(link, /body: JSON\.stringify\(\{ token: apns, follows, timeZone: zone\(\), app: "todo" \}\)/);
-  assert.match(link, /if \(!apns \|\| !duoPodAlertsOn\(\)\) return;/, "turned off in To Duo's Notifications: not sent");
-  // To Duo's Notifications lists what each plugin sends, with Podster's alerts as a switch.
+  assert.match(link, /if \(!apns \|\| !duoPodAlertsOn\(\)\) return;/, "turned off in To Do's Notifications: not sent");
+  // To Do's Notifications lists what each plugin sends, with Podster's alerts as a switch.
   const settings = read("client/src/components/family-hub/NotificationSettings.tsx");
   assert.match(settings, /data-testid="notify-super-apps"/);
   assert.match(settings, /setDuoPodAlerts\(on, token, \(family\.earshot\?\.follows \?\? \[\]\)\.map\(\(f\) => f\.id\)\)/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /p\.target\.section === "podster" && !on\) forgetDuoPodPush\(token\)/);
 });
 
-test("one login: the To Duo sign-in is the Podster account with the same email", async () => {
+test("one login: the To Do sign-in is the Podster account with the same email", async () => {
   const made: string[] = [];
   const sessions = { forEmail: async (email: string, device: string) => { made.push(`${email}|${device}`); return { id: 7, email, device: "profile-device-0001" }; } };
   const grown = await ariseListener({ id: 42, email: "Pat@Example.com", role: "todo", displayName: "Pat Lee" }, "this-device-00000001", sessions);
@@ -165,17 +165,17 @@ test("one login: the To Duo sign-in is the Podster account with the same email",
   assert.match(pod, /path\.replace\(\/\^\\\/api\\\/earshot\/, "\/api\/podscroll"\)/);
 });
 
-test("each app runs inside To Duo's frame: To Duo's heading and row of pages, its own screens below", () => {
+test("each app runs inside To Do's frame: To Do's heading and row of pages, its own screens below", () => {
   const todo = read("client/src/pages/AriseTodo.tsx");
   for (const [section, comp] of [["cooked", "CookedInDuo"], ["cookedpt", "CookedPtInDuo"], ["arisenotes", "NotesInDuo"], ["podster", "PodsterInDuo"]]) {
     assert.match(todo, new RegExp(`const ${comp} = lazy\\(\\(\\) => import\\("@/components/super-apps/${comp}"\\)\\);`), `${comp} loads when opened`);
-    assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperHeadExtra\\.Provider value=\\{moveButton\\}><SuperBoundary key="${section}" name="[^"]+"><Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Duo, and a crash in it stays in it`);
+    assert.match(todo, new RegExp(`shown === "${section}" \\? <SuperHeadExtra\\.Provider value=\\{moveButton\\}><SuperBoundary key="${section}" name="[^"]+"><Suspense fallback=\\{superWaiting\\}><${comp} `), `${section} renders in To Do, and a crash in it stays in it`);
   }
   assert.match(todo, /cooked: DumbbellNav2, cookedpt: HeartHandshake, arisenotes: NotebookPen, podster: PodcastNav3,/);
-  assert.doesNotMatch(todo, /arise-fam-|arise-from-duo/, "no shortcuts that leave To Duo");
+  assert.doesNotMatch(todo, /arise-fam-|arise-from-duo/, "no shortcuts that leave To Do");
   const app = read("client/src/App.tsx");
   assert.doesNotMatch(app, /FromDuoBack|PodsterEmbed/);
-  // Cooked and Cooked PT: their screens, To Duo's look on the page while they show.
+  // Cooked and Cooked PT: their screens, To Do's look on the page while they show.
   const ui = read("client/src/pages/fit/fitUi.tsx");
   assert.match(ui, /export const DUO_CSS = `html\[data-fit-duo="light"\]/);
   assert.match(ui, /\+ LAYOUT_CSS \+ DUO_CSS;/);
@@ -183,28 +183,28 @@ test("each app runs inside To Duo's frame: To Duo's heading and row of pages, it
   const fit = read("client/src/pages/fit/FitApp.tsx");
   assert.match(fit, /useDuoLook\(embed \? \(embed\.night \? "dark" : "light"\) : null\);/);
   assert.match(fit, /if \(embed\) return <PointsModeCtx\.Provider[^\n]*data-testid="fit-app" data-fit-embed="duo">/);
-  assert.match(fit, /const tabIds = \(embed \? apps\.added : apps\.tabs\)\.filter/, "every added Cooked plugin with a screen is a page in To Duo");
-  assert.match(fit, /\{!embed && <AllAccessPopup app="fit"/, "To Duo has its own All Access pop-up");
+  assert.match(fit, /const tabIds = \(embed \? apps\.added : apps\.tabs\)\.filter/, "every added Cooked plugin with a screen is a page in To Do");
+  assert.match(fit, /\{!embed && <AllAccessPopup app="fit"/, "To Do has its own All Access pop-up");
   const tr = read("client/src/pages/trainer/TrainerApp.tsx");
   assert.match(tr, /export default function TrainerApp\(\{ embed \}: \{ embed\?: TrainerEmbed \} = \{\}\)/);
   assert.match(tr, /if \(embed\) return <div className="min-w-0"[^\n]*data-testid="trainer-app" data-fit-embed="duo">/);
-  // Notes: To Duo's row of pages instead of Notes' own bar, To Duo's Day or Night, no backdrop of its own.
+  // Notes: To Do's row of pages instead of Notes' own bar, To Do's Day or Night, no backdrop of its own.
   const notes = read("client/src/components/arise-notes/NotesApp.tsx");
   assert.match(notes, /if \(ctx\.duo\) return null;/);
   assert.match(notes, /if \(bare \|\| duo\) return;/);
   assert.match(notes, /\{duo\?\.top\(\{ page: notesPageOf\(route\), go: \(page\) => go\(notesRouteOf\(page\)\) \}\)\}/);
   assert.match(read("client/src/components/super-apps/notes-duo.css"), /\.an-root\.an-in-duo::before \{ display: none !important; \}/);
-  // Podster: its home page without its own header, side menu or tab bar, and To Duo's address kept.
+  // Podster: its home page without its own header, side menu or tab bar, and To Do's address kept.
   const home = read("podscroll/Home.tsx");
   assert.match(home, /\{!embed && header\}/);
   assert.match(home, /const sidebar = !embed && side && /);
   assert.match(home, /\{!embed && view\.kind !== "watch" && <nav aria-label="Podster tabs"/);
   assert.match(home, /if \(embedRef\.current\) \{ embedRef\.current\.onView\(v\); window\.scrollTo\(0, 0\); return; \}/);
   assert.match(read("client/src/components/family-hub/earshot/EarshotPlayer.tsx"), /export function forceTheme\(t: Theme \| null, quiet = false\)/);
-  assert.match(read("tailwind.config.ts"), /"\.\/podscroll\/\*\.\{ts,tsx\}"/, "Podster's styles are built into To Duo");
+  assert.match(read("tailwind.config.ts"), /"\.\/podscroll\/\*\.\{ts,tsx\}"/, "Podster's styles are built into To Do");
 });
 
-test("the row of pages and the picker are To Duo's own (the same pills as Health Lite)", () => {
+test("the row of pages and the picker are To Do's own (the same pills as Health Lite)", () => {
   const shell = read("client/src/components/super-apps/SuperShell.tsx");
   assert.match(shell, /role="tablist" aria-label=\{`\$\{app\.name\} pages`\}/);
   // A segmented control in the hub's own look (super-shell.css): the open page lifts out on a card.

@@ -13,11 +13,11 @@ import type { Update } from "./fitStore";
 import { Bar, Btn, C, Card, Ring, Sheet, Title, display, fmtNum, haptic, inputCls, inputStyle } from "./fitUi";
 import { API_BASE } from "@/lib/queryClient";
 
-/** Sends items to the family grocery list in Arise To Duo (server/fit.ts). */
+/** Sends items to the family grocery list in Arise To Do (server/fit.ts). */
 export async function sendToDuo(token: string | null, items: { name: string; qty?: string; aisle?: string }[]): Promise<{ added: number; updated: number }> {
   const r = await fetch(`${API_BASE}/api/fit/to-duo-groceries`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ items }) });
   const b = await r.json().catch(() => null);
-  if (!r.ok) throw new Error(b?.message || "Couldn't reach Arise To Duo.");
+  if (!r.ok) throw new Error(b?.message || "Couldn't reach Arise To Do.");
   return b;
 }
 
@@ -142,7 +142,7 @@ export function GroceryList({ token, data, update, say, onClose , inline}: { tok
         <Btn kind="soft" onClick={() => void share()}><ClipboardCopy className="h-5 w-5" />Share</Btn>
         <Btn kind="soft" onClick={() => update((d) => ({ ...d, grocery: undefined }))}><RefreshCw className="h-5 w-5" />New list</Btn>
       </div>
-      {token !== undefined && left > 0 && <Btn kind="soft" className="mt-2 w-full" disabled={sending} onClick={async () => { setSending(true); try { const r = await sendToDuo(token ?? null, list.items.filter((i) => !i.done).map((i) => ({ name: i.name, qty: i.qty, aisle: i.aisle }))); haptic("success"); say(r.added || r.updated ? `Sent to Arise To Duo: ${r.added} new${r.updated ? `, ${r.updated} updated` : ""}.` : "Already on your Arise To Duo list."); } catch (e: any) { say(e.message); } finally { setSending(false); } }} testId="fit-grocery-duo"><Share2 className="h-5 w-5" />{sending ? "Sending…" : "Send to Arise To Duo (family list)"}</Btn>}
+      {token !== undefined && left > 0 && <Btn kind="soft" className="mt-2 w-full" disabled={sending} onClick={async () => { setSending(true); try { const r = await sendToDuo(token ?? null, list.items.filter((i) => !i.done).map((i) => ({ name: i.name, qty: i.qty, aisle: i.aisle }))); haptic("success"); say(r.added || r.updated ? `Sent to Arise To Do: ${r.added} new${r.updated ? `, ${r.updated} updated` : ""}.` : "Already on your Arise To Do list."); } catch (e: any) { say(e.message); } finally { setSending(false); } }} testId="fit-grocery-duo"><Share2 className="h-5 w-5" />{sending ? "Sending…" : "Send to Arise To Do (family list)"}</Btn>}
     </>}
   </Sheet>;
 }

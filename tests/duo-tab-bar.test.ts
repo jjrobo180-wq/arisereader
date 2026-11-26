@@ -6,7 +6,7 @@ import { cleanLayout } from "../shared/hubLayout";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
-test("Arise To Duo starts with the tab bar; an old default side rail moves to it once", () => {
+test("Arise To Do starts with the tab bar; an old default side rail moves to it once", () => {
   assert.equal(cleanLifeLayout(undefined).menuSide, "tabs");
   assert.equal(cleanLifeLayout({ menuSide: "left", menuClose: "button" }).menuSide, "tabs");
   // A menu picked on purpose (anything but the old default) is kept.

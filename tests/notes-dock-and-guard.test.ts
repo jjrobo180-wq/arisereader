@@ -1,4 +1,4 @@
-// November 2026: Arise Notes uses Arise To Duo's floating bottom bar in every look, its menu is calmer, and the
+// November 2026: Arise Notes uses Arise To Do's floating bottom bar in every look, its menu is calmer, and the
 // readability check that froze scrolling in the hubs only runs when the page is still, in idle time, on what's on screen.
 // Run with: npx tsx --test tests/notes-dock-and-guard.test.ts
 import test from "node:test";
@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("Notes' bar is To Duo's floating pill with a + menu, in every look", () => {
+test("Notes' bar is To Do's floating pill with a + menu, in every look", () => {
   const app = read("client/src/components/arise-notes/NotesApp.tsx");
   assert.match(app, /return <NotesDock on=\{on\}/);
   assert.doesNotMatch(app, /LookTabBar/);

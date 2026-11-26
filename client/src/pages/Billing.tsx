@@ -66,7 +66,7 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
-        "Arise To Duo is free for everyone. Arise Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included in your Class plan.",
+        "Arise To Do is free for everyone. Arise Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included in your Class plan.",
       ] };
     case "rules-off":
       return { tone: "plain", title: "Plans haven't started yet", lines: ["Every teacher tool is open to you for now. You don't need to do anything."] };
@@ -77,7 +77,7 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "need", title: "Teacher accounts come with a school license", lines: [
         "A school or district license includes Arise Reader, your teacher dashboard, book quizzes, live class games, game controls, Arise Math, Arise History and A.R.I.S.E. Connect for every teacher there.",
         "Your students keep reading, taking quizzes and playing for free either way.",
-        "Arise To Duo (Work & Life hubs) is free either way too — no plan needed.",
+        "Arise To Do (Work & Life hubs) is free either way too — no plan needed.",
       ] };
   }
 }
@@ -288,7 +288,7 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
   const own = hub.teacherPlan?.live ? hub.teacherPlan : null;
   const school = hub.schoolPlan?.live ? hub.schoolPlan : null;
   const price = blocks * H.monthlyCents;
-  // Arise To Duo (Work & Life hubs) is free for every teacher, unconditionally — nothing to
+  // Arise To Do (Work & Life hubs) is free for every teacher, unconditionally — nothing to
   // show here unless there's old paid billing left over to clean up.
   if (hub.via === "free") return own?.paidOnline ? (
     <div className="bl-hub" data-testid="billing-hub">

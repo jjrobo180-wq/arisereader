@@ -1,4 +1,4 @@
-// Accountability (an Arise To Duo app, shared/accountability.ts): shared spaces where people ask each
+// Accountability (an Arise To Do app, shared/accountability.ts): shared spaces where people ask each
 // other for things, get nudged until they're done, and check them off with proof (a photo or video,
 // a filled-in worksheet, a quiz a child took). Spaces, members, tasks and check-ins are rows in
 // Supabase (acct_* tables), so everyone in a space sees the same thing on every device. Proof files

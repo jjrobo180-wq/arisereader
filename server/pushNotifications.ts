@@ -58,7 +58,7 @@ const appleKey = () => loadAppleKey(async () => (await supabase.from("push_setti
 /** Sends to one saved device; forgets it if the phone says it is gone. Returns whether it was delivered. */
 async function deliver(row: Row, message: PushMessage, keys: VapidKeys | null): Promise<boolean> {
   try {
-    // The Arise To Duo iPhone app: straight to Apple.
+    // The Arise To Do iPhone app: straight to Apple.
     const result = isAppleDevice(row.endpoint) ? await sendApplePush(appleToken(row.endpoint), message, appleTopic(row.endpoint)) : !keys ? { ok: false, gone: false } : await sendWebPush({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, message, keys);
     if (result.gone) await supabase.from("push_subscriptions").delete().eq("id", row.id);
     return result.ok;
@@ -396,7 +396,7 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
   // "Send a test" goes to every phone signed up; a few a quarter-hour is plenty.
   const testSends = createAttemptLimiter({ max: 5, windowMs: 15 * 60_000 });
 
-  // The Arise To Duo iPhone app's Apple device token. It gets the same notifications as a phone with
+  // The Arise To Do iPhone app's Apple device token. It gets the same notifications as a phone with
   // Web Push (messages, shares, tests), never the scheduled reminders (the app schedules those itself).
   void appleKey();
   app.get("/api/push/apple/config", async (_req, res) => { await appleKey(); res.json({ enabled: hasApplePush() }); });

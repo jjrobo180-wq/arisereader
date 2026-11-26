@@ -1,4 +1,4 @@
-// What the Arise To Duo widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
+// What the Arise To Do widgets show (client/src/lib/widgets.ts sends it to the iPhone): a simple and a detailed
 // widget for each slot. The potty ones are sent from the potty app itself (components/pro/potty/PottyApp.tsx),
 // accountability from its own page. Pure, so it's tested.
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, daysBetween, eventsOn, isOn, money, toggleChore, type Family } from "@shared/familyHub";
@@ -7,7 +7,7 @@ import type { WidgetSlot, WidgetTap } from "./widgets";
 
 // The widgets themselves (ids and names) are listed in widgets.json next to the app's iOS project; the build reads it.
 
-/** A link that opens a LifeHub section in Arise To Duo (handled by listenForDuoLinks in AriseTodo.tsx). */
+/** A link that opens a LifeHub section in Arise To Do (handled by listenForDuoLinks in AriseTodo.tsx). */
 export const duoOpen = (section: string) => `arisetodo://open?s=${encodeURIComponent(section)}`;
 /** A link that opens a web address from a widget (the app hands it to Safari). */
 export const duoLink = (url: string) => `arisetodo://link?u=${encodeURIComponent(url)}`;

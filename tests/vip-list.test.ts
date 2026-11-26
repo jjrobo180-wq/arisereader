@@ -129,7 +129,7 @@ test("the Stripe key alone says whether payments are live or test", () => {
 });
 
 import { PLAN_KINDS, isAddonKind, priceOf } from "../shared/plans";
-test("Arise All Access: one $10 monthly plan that includes To Duo Unlimited", () => {
+test("Arise All Access: one $10 monthly plan that includes To Do Unlimited", () => {
   assert.ok(PLAN_KINDS.includes("all_access"));
   assert.equal(isAddonKind("all_access"), true);
   assert.deepEqual({ cents: priceOf("all_access").cents, interval: priceOf("all_access").interval }, { cents: 1000, interval: "month" });

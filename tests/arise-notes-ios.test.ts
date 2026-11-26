@@ -98,7 +98,7 @@ test("the TestFlight build signs and uploads Arise Notes like the other apps", (
 
 test("sign out, notifications, and Apple Reminders and Calendar in the Notes iPhone app", () => {
   const settings = read("client/src/components/arise-notes/SettingsScreen.tsx");
-  assert.match(settings, /\{ctx\.mode === "standalone" && <Row icon=\{<LogOut \/>\} label="Sign out"/, "the Notes app and /notes/ can sign out (To Duo has its own)");
+  assert.match(settings, /\{ctx\.mode === "standalone" && <Row icon=\{<LogOut \/>\} label="Sign out"/, "the Notes app and /notes/ can sign out (To Do has its own)");
   assert.match(settings, /onClick=\{\(\) => \{ logout\(\); window\.location\.hash = "#\/"; \}\}/);
   assert.match(read("client/src/context/AuthContext.tsx"), /forgetThisDevice\(/, "signing out stops this phone's notifications");
 
@@ -116,7 +116,7 @@ test("sign out, notifications, and Apple Reminders and Calendar in the Notes iPh
   const sheet = read("client/src/components/arise-notes/noteSheets.tsx");
   assert.match(sheet, /label="Add to-dos to Apple Reminders"/);
   assert.match(sheet, /label="Add events to the iPhone Calendar"/);
-  assert.ok(sheet.indexOf("await notesApi.send(") < sheet.indexOf("await addToAppleReminders("), "Arise To Duo first, then the iPhone");
+  assert.ok(sheet.indexOf("await notesApi.send(") < sheet.indexOf("await addToAppleReminders("), "Arise To Do first, then the iPhone");
   const memo = read("client/src/components/arise-notes/MemoScreen.tsx");
   assert.match(memo, /label="Also add to Apple Reminders"/);
   assert.match(memo, /label="Also add to the iPhone Calendar"/);

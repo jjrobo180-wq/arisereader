@@ -1,7 +1,7 @@
-// The Arise To Duo iPhone app runs this same site from capacitor://localhost. These helpers say when
+// The Arise To Do iPhone app runs this same site from capacitor://localhost. These helpers say when
 // we're inside it and call its native plugins (Apple Health, Calendar) without importing their
 // JavaScript packages, so the website build never depends on them.
-/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+/** True only in the Arise To Do iPhone app's own build (vite.todo.config.ts); unset in tests. */
 declare const __TODO_APP__: boolean | undefined;
 type Bridge = {
   PluginHeaders?: { name: string }[];
@@ -27,7 +27,7 @@ export function openOutside(url: string): void {
   if (!opened) window.location.href = url;
 }
 
-/** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Duo ("todo"),
+/** Which iPhone app this build is (set at build time with VITE_NATIVE_APP): Arise To Do ("todo"),
  *  Arise Reader for students ("reader"), or Arise Reader Educator for teachers and parents. */
 export type NativeFlavor = "todo" | "reader" | "educator" | "fit" | "eyegaze" | "trainer" | "notes" | "talk" | "undercover";
 export const nativeFlavor = (): NativeFlavor => {
@@ -52,9 +52,9 @@ export const isUndercoverApp = (): boolean => isNativeApp() && nativeFlavor() ==
  *  titled "Ask AI", with no looks that disguise it and nothing that hides it (App Review 5.6). */
 export const plainAsk = (): boolean => isNativeApp() && nativeFlavor() !== "undercover";
 /** Each app's name, bundle id (Sign in with Apple asks for it) and server. All three use the same
- *  server, through arisetodo.com, the address the Arise To Duo app is already allowed to call. */
+ *  server, through arisetodo.com, the address the Arise To Do app is already allowed to call. */
 export const NATIVE_APPS: Record<NativeFlavor, { name: string; bundle: string; api: string }> = {
-  todo: { name: "Arise To Duo", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
+  todo: { name: "Arise To Do", bundle: "com.arisereader.arisetodo", api: "https://arisetodo.com" },
   reader: { name: "Arise Reader", bundle: "com.arisereader.reader", api: "https://arisetodo.com" },
   educator: { name: "Arise Reader Educator", bundle: "com.arisereader.educator", api: "https://arisetodo.com" },
   fit: { name: "Cooked Fitness by Arise", bundle: "com.arisereader.fit", api: "https://arisetodo.com" },

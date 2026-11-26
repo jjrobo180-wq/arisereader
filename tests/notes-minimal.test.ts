@@ -23,7 +23,7 @@ test("minimal styles: flat rows, no icon tiles, white only in light mode", () =>
   assert.match(css, /\.pp-min \.pp-swipe-top \{ background: var\(--an-bg\); \}/, "rows stay solid so swipe actions don't show through");
 });
 
-test("inside To Duo, Notes follows To Duo: its Day/Night (not the computer's dark mode), its colors, one box beside the menu, no buttons twice", () => {
+test("inside To Do, Notes follows To Do: its Day/Night (not the computer's dark mode), its colors, one box beside the menu, no buttons twice", () => {
   const app = readFileSync(new URL("../client/src/components/arise-notes/NotesApp.tsx", import.meta.url), "utf8");
   assert.ok(app.includes("<ForcedDark.Provider value={props.duo ? !!props.duo.night : null}>"));
   assert.ok(app.includes("const proDark = pro && (duo ? !!duo.night :"));

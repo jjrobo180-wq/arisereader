@@ -100,7 +100,7 @@ function FamilyPeople({ family, meId, call, error, onClose }: { family: FamilyIn
         <h2 className="flex items-center gap-2 text-lg font-black text-slate-900"><Users className="h-5 w-5 text-amber-600" /> {family.name}</h2>
         <button onClick={onClose} aria-label="Close" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-slate-100"><X className="h-5 w-5" /></button>
       </div>
-      <p className="mt-4 text-sm text-slate-600">To invite someone, have them open <b>Family</b> in Arise To Duo and type this code:</p>
+      <p className="mt-4 text-sm text-slate-600">To invite someone, have them open <b>Family</b> in Arise To Do and type this code:</p>
       <button onClick={copy} className="mt-2 flex w-full items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200" data-testid="family-code-show">
         <span className="font-mono text-2xl font-black tracking-[.35em] text-slate-900">{family.code}</span>
         <span className="inline-flex items-center gap-1 text-sm font-bold text-amber-800"><Copy className="h-4 w-4" />{copied ? "Copied" : "Copy"}</span>

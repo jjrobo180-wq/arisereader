@@ -65,7 +65,7 @@ export function cleanSectionOrder(v: unknown): FamilySection[] {
 
 /** The toggleable sections in the family's chosen order, each paired with its fixed spot in the
  *  menu (the section right before it). Rendering splices this block in after that anchor. */
-/** Apps taken out of Arise To Duo: never shown or opened, nowhere to add them. What was saved in them
+/** Apps taken out of Arise To Do: never shown or opened, nowhere to add them. What was saved in them
  *  stays in the family's data. Earshot lives on as its own app, Podster. Health Lite (Nov 15, 2026): its
  *  tools are separate plugins again, and the ones someone picked inside it stay on, now in the menu. */
 // Health & fitness plugins are gone: Cooked (and Cooked PT) cover food, workouts and fitness, and the rest were
@@ -278,7 +278,7 @@ export type Family = {
   lifePlan?: LifePlan;
   /** Daily check-ins in the task list (shared/dailyCheckins.ts): what's hidden, times, reminders. Not set until changed. */
   daily?: DailySettings;
-  /** Open a chosen hub by time or place when To Duo opens (shared/hubAutoOpen.ts). */
+  /** Open a chosen hub by time or place when To Do opens (shared/hubAutoOpen.ts). */
   hubOpen?: HubOpenRule[];
   habits: Habit[];
   gratitude: GratitudeDay[];
@@ -343,7 +343,7 @@ export type Family = {
   briefOff?: boolean;
   /** Bundled plugins (shared/appBundles.ts) whose "Pick your tools" box has been answered. */
   bundleSet?: Record<string, boolean>;
-  /** Cooked, Cooked PT, Arise Notes and Podster inside To Duo (shared/superApps.ts): the pages each one
+  /** Cooked, Cooked PT, Arise Notes and Podster inside To Do (shared/superApps.ts): the pages each one
    *  shows, picked with its settings button. Missing means the app's defaults. */
   superPages?: Partial<Record<SuperAppId, string[]>>;
   /** Kitchen > Plan: who eats what this week, product picks and prices (shared/kitchen.ts). */

@@ -1,4 +1,4 @@
-// "@arise" asks in Arise To Duo's tasks: reading the ask and its timing (shared/ariseAsks.ts), making it now or at
+// "@arise" asks in Arise To Do's tasks: reading the ask and its timing (shared/ariseAsks.ts), making it now or at
 // its time and telling the person (server/todoAsks.ts), the Arise tab (components/teacher-hub/AriseAsks.tsx) and
 // how they're wired into Tasks.
 import test from "node:test";
@@ -165,7 +165,7 @@ test("Arise's Markdown is shown safely: no tags from the AI get through", async 
   assert.match(html, /<table>/);
 });
 
-test("wired into To Duo: @arise in Tasks and the Add sheet, the Arise tab, notifications and the server", () => {
+test("wired into To Do: @arise in Tasks and the Add sheet, the Arise tab, notifications and the server", () => {
   const tasks = read("client/src/components/teacher-hub/HubTasks.tsx");
   assert.match(tasks, /if \(sendAsk\(title, listId !== "all" \? \{ listId \} : \{\}\)\) \{ setQuick\(""\); return; \}/);
   assert.match(tasks, /data-testid="task-view-arise"/);
@@ -259,7 +259,7 @@ test("worksheets read cleanly: blanks stay on their line, the answer key is kept
   assert.match(read("server/routes.ts"), /lookup: makeLookup\(\{ search: \(system, user\) => perplexityChat\(system, user, 30_000\) \}\)/);
 });
 
-test("an ask made from the Work Hub opens the Work Hub from its notification; one from To Duo still opens To Duo", async () => {
+test("an ask made from the Work Hub opens the Work Hub from its notification; one from To Do still opens To Do", async () => {
   const f = fakeDeps(async () => GOOD);
   const asks = createAsks(f.deps);
   await asks.start(7, { ask: "make a worksheet for Kha", hub: "work" });
@@ -306,7 +306,7 @@ test("@arise after a sentence in the name still counts, and the words before it 
   assert.equal(parseTaskAsk("buy milk. @arise hi"), null);
 });
 
-test("@arise works when a to-do is edited too, in Work Hub Tasks and Home and in To Duo", () => {
+test("@arise works when a to-do is edited too, in Work Hub Tasks and Home and in To Do", () => {
   const tasks = read("client/src/components/teacher-hub/HubTasks.tsx");
   assert.match(tasks, /existingId\?: string/);
   assert.match(tasks, /sendAsk\(text, \{ listId: fields\.listId, priority: fields\.priority, \.\.\.\(editing\.id \? \{ existingId: editing\.id \} : \{\}\) \}\)/);

@@ -1,5 +1,5 @@
-// The Arise To Duo Unlimited offer in the iPhone apps (shared/allAccess.ts), on sign-up and upgrade screens.
-//  - With a free trial set in App Store Connect (3 days for To Duo) and not used yet by this Apple ID, the
+// The Arise To Do Unlimited offer in the iPhone apps (shared/allAccess.ts), on sign-up and upgrade screens.
+//  - With a free trial set in App Store Connect (3 days for To Do) and not used yet by this Apple ID, the
 //    button starts the trial and says what it costs after.
 //  - App builds with Apple in-app purchase (lib/appleStore.ts): subscribe in the app at Apple's price.
 //  - US App Store: also the website price and a link to buy it on arisetodo.com.
@@ -40,19 +40,19 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
     setBusy("buy"); setMsg("");
     try {
       const r = await buyAllAccessWithApple(authToken);
-      if (r.status === "purchased") { setMsg(r.live ? "You have To Duo Unlimited. Enjoy!" : "Purchase received. It switches on in a moment."); onBought?.(); }
-      else if (r.status === "pending") setMsg("Waiting for approval. To Duo Unlimited switches on once it's approved.");
+      if (r.status === "purchased") { setMsg(r.live ? "You have To Do Unlimited. Enjoy!" : "Purchase received. It switches on in a moment."); onBought?.(); }
+      else if (r.status === "pending") setMsg("Waiting for approval. To Do Unlimited switches on once it's approved.");
     } catch (e: any) { setMsg(e?.message || "The purchase didn't go through."); }
     setBusy("");
   };
   const restore = async () => {
     if (!authToken) return;
     setBusy("restore"); setMsg("");
-    try { const r: any = await restoreApplePurchases(authToken); setMsg(r?.none ? "No To Duo Unlimited purchase was found for this Apple ID." : r?.live ? "Restored. You have To Duo Unlimited." : "Your To Duo Unlimited purchase has ended."); if (r?.live) onBought?.(); }
+    try { const r: any = await restoreApplePurchases(authToken); setMsg(r?.none ? "No To Do Unlimited purchase was found for this Apple ID." : r?.live ? "Restored. You have To Do Unlimited." : "Your To Do Unlimited purchase has ended."); if (r?.live) onBought?.(); }
     catch (e: any) { setMsg(e?.message || "Couldn't restore purchases."); }
     setBusy("");
   };
-  // Signed in: Safari opens the To Duo Unlimited page already signed in (a one-use code, never the password or
+  // Signed in: Safari opens the To Do Unlimited page already signed in (a one-use code, never the password or
   // token). Signed out, or if the code can't be made: the plain link, where they sign in or make an account.
   const openSite = async (e: MouseEvent) => {
     if (!authToken && !handoff) return; // the plain link
@@ -76,7 +76,7 @@ export default function AllAccessOffer({ dark = false, className = "", note, aut
       <p className={`text-[16px] font-bold ${ink}`}>{ALL_ACCESS.name}</p>
       {shownPrice && <p className={`text-[15px] font-bold ${ink}`}>{shownPrice}<span className={`ml-1 text-[13px] font-medium ${soft}`}>{ALL_ACCESS.per}</span></p>}
     </div>
-    <p className={`mt-0.5 text-[13px] ${soft}`}>Everything in Arise To Duo. Signing up is free.</p>
+    <p className={`mt-0.5 text-[13px] ${soft}`}>Everything in Arise To Do. Signing up is free.</p>
     <ul className="mt-3 space-y-2.5">{ALL_ACCESS.perks.filter((p) => !(isNativeApp() && p.app === "Arise Podcasts")).map((p) => <li key={p.app} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#5b4fe0]" aria-hidden /><span className="min-w-0"><span className={`block text-[14px] font-semibold leading-snug ${ink}`}>{p.app}</span><span className={`block text-[12px] leading-snug ${soft}`}>{p.detail}</span></span></li>)}</ul>
     {inApp && (authToken
       ? <>

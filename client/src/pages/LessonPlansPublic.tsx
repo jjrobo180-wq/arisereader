@@ -56,7 +56,7 @@ export default function LessonPlansPublic() {
           {list.length ? <div className="mt-2 space-y-3">{list.map((l) => <LessonCard key={l.id} l={l} cls={classOf(l.classId)} token={token} />)}</div> : <p className="mt-2 text-sm text-slate-400">No lesson planned.</p>}
         </section>; })}
       </div>}
-      <footer className="mt-14 text-center text-xs text-slate-400 print:hidden">Shared from Arise To Duo · read only</footer>
+      <footer className="mt-14 text-center text-xs text-slate-400 print:hidden">Shared from Arise To Do · read only</footer>
     </div>
   </main>;
 }

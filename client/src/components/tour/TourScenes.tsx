@@ -1,4 +1,4 @@
-// Animated scenes for the iPhone apps' first-run tours (Arise To Duo, Arise Reader, Reader
+// Animated scenes for the iPhone apps' first-run tours (Arise To Do, Arise Reader, Reader
 // Educator and Podster): a small phone showing the app's real screens (the same tab bar, switch, cards
 // and labels), with a finger doing the step, on a loop. They replace the old single-icon pictures.
 // Inline styles only (no Tailwind classes), so Podster's separate build draws them the same way.
@@ -109,7 +109,7 @@ function Finger({ x, y, anim = "ts-tap", delay = 0, dur }: { x: number; y: numbe
 const Txt = ({ s, w = 600, c, children, style }: { s: number; w?: number; c?: string; children: ReactNode; style?: CSSProperties }) =>
   <span style={{ fontSize: s, fontWeight: w, color: c, whiteSpace: "nowrap", ...style }}>{children}</span>;
 
-// ——— Arise To Duo ————————————————————————————————————————————————————————————————————————————
+// ——— Arise To Do ————————————————————————————————————————————————————————————————————————————
 
 const LIFE = "#7968e5", WORK = "#0d9488", NAVY = "#1d1a33";
 const card: CSSProperties = { background: "#fff", borderRadius: 14, boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 6px 14px -10px rgba(30,20,80,.35)" };
@@ -238,7 +238,7 @@ function TodoNotify() {
     <div style={abs({ top: 40, left: 0, right: 0, textAlign: "center", color: "#fff" })}><div style={{ fontSize: 10, opacity: .8 }}>Friday, October 30</div><div style={{ fontSize: 44, fontWeight: 300, letterSpacing: -1 }}>8:41</div></div>
     <div className="ts-a" style={abs({ top: 132, left: 9, right: 9, borderRadius: 16, padding: 9, background: "rgba(255,255,255,.82)", color: "#111018", display: "flex", gap: 7, ...A("ts-drop") })}>
       <span style={{ width: 24, height: 24, borderRadius: 6, background: LIFE, flexShrink: 0 }} />
-      <div style={{ minWidth: 0 }}><div style={{ display: "flex", justifyContent: "space-between", fontSize: 8.5 }}><b>Arise To Duo</b><span style={{ color: "#6b6879" }}>now</span></div><div style={{ fontSize: 9, marginTop: 2 }}>Dentist at 3:00 PM. Leave in 20 minutes.</div></div>
+      <div style={{ minWidth: 0 }}><div style={{ display: "flex", justifyContent: "space-between", fontSize: 8.5 }}><b>Arise To Do</b><span style={{ color: "#6b6879" }}>now</span></div><div style={{ fontSize: 9, marginTop: 2 }}>Dentist at 3:00 PM. Leave in 20 minutes.</div></div>
     </div>
     <div className="ts-a" style={abs({ top: 190, left: 9, right: 9, borderRadius: 16, padding: 9, background: "rgba(255,255,255,.7)", color: "#111018", fontSize: 9, ...A("ts-drop"), animationDelay: ".5s" })}><b style={{ fontSize: 8.5 }}>Good morning</b><div style={{ marginTop: 2 }}>3 tasks, 2 events and a bill due today.</div></div>
   </Phone>;
@@ -252,7 +252,7 @@ function TodoSplit() {
     <div className="ts-a" style={abs({ top: 0, bottom: 0, width: "50%", overflow: "hidden", background: "#f4f7f7", ...A("ts-splitB") })}>
       <div style={{ position: "relative", width: 212, height: "100%" }}><HubHeader title="WorkHub" on="W" /><Widgets accent={WORK} /></div>
     </div>
-    <div style={abs({ bottom: 12, left: "50%", marginLeft: -36, width: 72, height: 24, borderRadius: 99, background: NAVY, color: "#fff", fontSize: 9, fontWeight: 800, display: "grid", placeItems: "center", zIndex: 20 })}>Duo</div>
+    <div style={abs({ bottom: 12, left: "50%", marginLeft: -36, width: 72, height: 24, borderRadius: 99, background: NAVY, color: "#fff", fontSize: 9, fontWeight: 800, display: "grid", placeItems: "center", zIndex: 20 })}>Split</div>
     <Finger x={144} y={262} delay={-1.4} />
   </Phone>;
 }
@@ -280,7 +280,7 @@ function TodoSearch() {
   </Phone>;
 }
 
-/** Arise To Duo tour scenes, by step id (components/AppWalkthrough.tsx). */
+/** Arise To Do tour scenes, by step id (components/AppWalkthrough.tsx). */
 export function TodoScene({ id }: { id: string }) {
   switch (id) {
     case "welcome": return <TodoWelcome />;

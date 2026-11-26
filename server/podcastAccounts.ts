@@ -50,7 +50,7 @@ export function accountSessions(getDb: () => any) {
     if (account && Date.now() - Date.parse(data.seen_at) > 6 * 3600_000) void getDb().from("podcast_account_sessions").update({ seen_at: new Date().toISOString() }).eq("token_hash", hash(token)).then(() => {}, () => {});
     return account;
   }
-  /** Podster inside Arise To Duo signs in with the To Duo account (one login): the Podster account with that
+  /** Podster inside Arise To Do signs in with the To Do account (one login): the Podster account with that
    *  email, made the first time (on the device it was first used on, like a code sign-in). Remembered a while. */
   const byEmail = new Map<string, { account: Account; at: number }>();
   async function forEmail(rawEmail: string, device: string): Promise<Account | null> {
@@ -243,7 +243,7 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** "Get it on arisetodo.com": a one-use code that opens the To Duo Unlimited page in Safari signed in to the
+  /** "Get it on arisetodo.com": a one-use code that opens the To Do Unlimited page in Safari signed in to the
    *  Arise account for this verified email (made then if there isn't one). Never the session itself. */
   const handoffs = createAttemptLimiter({ max: 20, windowMs: 60 * 60_000 });
   app.post(`${P}/web-handoff`, gate, async (req: any, res) => {

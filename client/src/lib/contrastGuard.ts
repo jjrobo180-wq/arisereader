@@ -1,7 +1,7 @@
 // A safety net for every look: finds text (and icon buttons) whose color can't be seen on the color
 // behind it (white on white, navy on black…) and switches that text to whichever of the look's ink,
 // black or white reads best there. It only steps in when text is really unreadable (under 3:1), so
-// a look's own muted greys and accents are left alone. Used by Arise Notes, To Duo and WorkHub.
+// a look's own muted greys and accents are left alone. Used by Arise Notes, To Do and WorkHub.
 import { useEffect } from "react";
 
 type RGBA = [number, number, number, number];

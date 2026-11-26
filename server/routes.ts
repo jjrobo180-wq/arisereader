@@ -1585,10 +1585,10 @@ export async function registerRoutes(
       path === "/api/arise-todo/resend-code" ||
       path === "/api/arise-todo/apple-health/sync"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
-    "todo_required", "Arise LifeHub needs Arise To Duo Unlimited.",
+    "todo_required", "Arise LifeHub needs Arise To Do Unlimited.",
   ));
   registerAdminHandoffRoutes(app, authMiddleware, {
-    // Podster's accounts are its own; To Duo Unlimited lives on the Arise account with the same (verified)
+    // Podster's accounts are its own; To Do Unlimited lives on the Arise account with the same (verified)
     // email. Its "Get it on arisetodo.com" opens that account signed in, made now if there isn't one.
     emailAccount: async (email) => {
       if (!looksLikeEmail(email)) return null;
@@ -1635,7 +1635,7 @@ export async function registerRoutes(
     },
   });
   registerClientErrorRoutes(app);
-  // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
+  // Arise To Do Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
   // add a 4th is refused. Nothing is ever taken away, and an account already over keeps every app
   // it has; it just can't add more.
@@ -1674,7 +1674,7 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Arise To Duo Unlimited ($${PLANS.allAccess.monthlyCents / 100} a month) for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} plugins from the Plugin Gallery. Remove one, or get Arise To Do Unlimited ($${PLANS.allAccess.monthlyCents / 100} a month) for every app and AI.` });
       }
       next();
     } catch (error: any) {
@@ -1698,7 +1698,7 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work, life, limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        // One paid plan, Arise To Duo Unlimited ($10 a month on the website; the Apple subscription in the app).
+        // One paid plan, Arise To Do Unlimited ($10 a month on the website; the Apple subscription in the app).
         priceCents: PLANS.allAccess.monthlyCents, yearlyCents: null, allAccess: true,
         payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
@@ -1706,14 +1706,14 @@ export async function registerRoutes(
       res.status(500).json({ message: "Your plan could not be loaded." });
     }
   });
-  // The personal Arise To Duo sign-up confirms its email with the same 6-digit code the teacher
+  // The personal Arise To Do sign-up confirms its email with the same 6-digit code the teacher
   // sign-up uses, so there is one mechanism to get right rather than two.
   registerFamilySpaceRoutes(app, authMiddleware);
   registerAriseTodoRoutes(app, authMiddleware, {
     codes: teacherEmailCodes,
     turnOn: (userId) => storage.approveTeacherAccount(userId),
     sendCode: async ({ email, displayName }, code) => {
-      const result = await sendEmail(email, `${code} is your Arise To Duo code`, todoEmailCodeEmail(displayName, code));
+      const result = await sendEmail(email, `${code} is your Arise To Do code`, todoEmailCodeEmail(displayName, code));
       if (!result.sent) console.error("[arise-todo] could not email a code:", result.error);
       return result.sent;
     },
@@ -1761,7 +1761,7 @@ export async function registerRoutes(
   // Older iPhone builds' updater is always told "nothing new"; desktop app downloads (server/ota.ts).
   registerOtaRoutes(app);
   registerContentCatalog(app);
-  // Accountability (an Arise To Duo app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
+  // Accountability (an Arise To Do app): shared to-dos with nudges until done, proof, AI worksheets and quizzes.
   const acctDeps = {
     db: () => getAdminSupabase(),
     // Each one also goes in the notification bell (both hubs, every device), so it's there even on a phone or
@@ -1797,7 +1797,7 @@ export async function registerRoutes(
     },
   });
   // Arise Notes, the AI note taker (server/ariseNotes.ts): its own app at /notes/ and an app inside
-  // Arise To Duo. Record or upload, a transcript with times, AI summaries, minutes per plan.
+  // Arise To Do. Record or upload, a transcript with times, AI summaries, minutes per plan.
   const notesStore = createSupabaseNotesStore(() => getAdminSupabase() as any);
   const notesMinutes = registerAriseNotesRoutes(app, authMiddleware, {
     store: notesStore,
@@ -1855,7 +1855,7 @@ export async function registerRoutes(
     left: (id) => notesMinutes.left(id),
     spend: (id, m, kind) => notesMinutes.spend(id, m, kind),
   });
-  // Ad-free Podster is part of Arise To Duo Unlimited. In To Duo the listener is the Arise account; in the Podster
+  // Ad-free Podster is part of Arise To Do Unlimited. In To Do the listener is the Arise account; in the Podster
   // app it's the Arise account with the same email as the person's Podster sign-in.
   const adFreeSeen = new Map<string, { ok: boolean; at: number }>();
   const allAccessListener = async (req: any): Promise<boolean> => {
@@ -1878,9 +1878,9 @@ export async function registerRoutes(
   };
   registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase, adFree: allAccessListener });
   registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html), adFree: allAccessListener,
-    // Podster inside Arise To Duo: the To Duo sign-in is the Podster sign-in (server/earshot.ts ariseListener).
+    // Podster inside Arise To Do: the To Do sign-in is the Podster sign-in (server/earshot.ts ariseListener).
     ariseUser: async (token) => { const s: any = await storage.getSession(token); const u = s?.user; return u ? { id: Number(u.id), email: u.email ?? null, role: u.role ?? null, displayName: u.displayName ?? null } : null; } });
-  // Contact us (server/supportContact.ts): Arise To Duo's and Podster's Support pages and apps.
+  // Contact us (server/supportContact.ts): Arise To Do's and Podster's Support pages and apps.
   registerSupportRoutes(app, {
     deliver: async (m) => {
       const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -1980,7 +1980,7 @@ export async function registerRoutes(
       const { data } = await getAdminSupabase().from("users").select("id").ilike("email", email).limit(1).maybeSingle();
       if (data?.id) { await notifyUser(Number(data.id), { title: `${ownerName} shared Kitchen with you`, body: "Tap to open it and accept.", url: "/#/pro?hub=life", tag: "sharing" }); return; }
       const site = APP_URL.replace(/\/$/, "");
-      await sendEmail(email, `${ownerName} shared an app with you on Arise To Duo`, `<p><b>${ownerName.replace(/[<>&]/g, "")}</b> shared an app with you on Arise To Duo.</p><p>Download Arise To Duo, make an account with this email address, and the invite will be waiting for you to accept.</p><p><a href="${site}">Get Arise To Duo</a></p>`);
+      await sendEmail(email, `${ownerName} shared an app with you on Arise To Do`, `<p><b>${ownerName.replace(/[<>&]/g, "")}</b> shared an app with you on Arise To Do.</p><p>Download Arise To Do, make an account with this email address, and the invite will be waiting for you to accept.</p><p><a href="${site}">Get Arise To Do</a></p>`);
     },
     // Accountability turned on for a linked person: the two share an Accountability space (server/accountability.ts).
     lifeWorkspace: {
@@ -2017,7 +2017,7 @@ export async function registerRoutes(
     try { const data = JSON.parse(raw)?.data; return data && data.push === true ? data : null; } catch { return null; }
   });
   registerProAppsAI(app, authMiddleware, plans.aiMeter);
-  // "@arise" asks typed as To Duo tasks: made by Arise's AI now or at their time, then a notification says they're ready.
+  // "@arise" asks typed as To Do tasks: made by Arise's AI now or at their time, then a notification says they're ready.
   registerTodoAsks(app, authMiddleware, plans.aiMeter, {
     read: (key) => storage.getSetting(key), write: (key, value) => storage.upsertSetting(key, value),
     ai: askOpenAiJson, aiReady: () => !!process.env.OPENAI_API_KEY,
@@ -2078,7 +2078,7 @@ export async function registerRoutes(
     }, text: textConfig ? createTextService(textConfig) : undefined });
   // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
   registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
-  // Google (Classroom, Docs, Calendar, Gmail) in Arise To Duo. Off until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+  // Google (Classroom, Docs, Calendar, Gmail) in Arise To Do. Off until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
   registerGoogleRoutes(app, authMiddleware, {
     gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(),
     clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -3371,7 +3371,7 @@ export async function registerRoutes(
         }
       }
 
-      // A personal Arise To Duo account that hasn't confirmed its email yet.
+      // A personal Arise To Do account that hasn't confirmed its email yet.
       if (user.role === 'todo' && !user.accountApproved) {
         let waitingForCode = false;
         try { waitingForCode = await teacherEmailCodes.waiting(user.id); } catch {}
@@ -3416,7 +3416,7 @@ export async function registerRoutes(
     }
   });
 
-  // Sign in with Apple (Arise To Duo iPhone app): the identity token is checked against Apple's keys
+  // Sign in with Apple (Arise To Do iPhone app): the identity token is checked against Apple's keys
   // (server/appleSignIn.ts). An Apple ID used before signs back in to its account; one that's new links
   // to the one account with the same verified email, or else makes a new personal account (Apple has
   // already confirmed the email, so it's on at once). The link is kept in settings both ways.
@@ -3429,7 +3429,7 @@ export async function registerRoutes(
     try {
       const claims = await verifyAppleToken(String(req.body?.identityToken || ""), [ARISE_APP, EDUCATOR_APP, FIT_APP, EYEGAZER_APP, TRAINER_APP, NOTES_APP, TALK_APP]);
       // A new account made from the Educator app is a parent account (like the website's parent sign-up,
-      // a child can be connected later); from Arise To Duo it's a personal LifeHub account.
+      // a child can be connected later); from Arise To Do it's a personal LifeHub account.
       const fromApp = claims.aud === EDUCATOR_APP ? EDUCATOR_APP : claims.aud === FIT_APP ? FIT_APP : claims.aud === EYEGAZER_APP ? EYEGAZER_APP : claims.aud === TRAINER_APP ? TRAINER_APP : claims.aud === NOTES_APP ? NOTES_APP : claims.aud === TALK_APP ? TALK_APP : ARISE_APP;
       const name = [req.body?.givenName, req.body?.familyName].filter((x) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 40)).join(" ");
       let userId = Number(await storage.getSetting(`apple_login:${claims.sub}`)) || 0;
@@ -13557,7 +13557,7 @@ Important:
     }
   });
 
-  // Admin: delete many accounts at once, by kind (students, Arise AAC users, teachers, parents, Arise To Duo and
+  // Admin: delete many accounts at once, by kind (students, Arise AAC users, teachers, parents, Arise To Do and
   // Podster accounts). Never an admin, never the person asking, never a sample (App Review) account. The admin
   // first gets the exact count, then must send "DELETE <count>" back; it runs in the background, one account
   // at a time through deleteUserAccount (everything that belongs to each goes too), and can be watched.
@@ -14705,7 +14705,7 @@ Important:
     }
   });
 
-  // Teacher/parent: Dismiss the Arise To Duo WorkHub tour (server-side, persists across devices)
+  // Teacher/parent: Dismiss the Arise To Do WorkHub tour (server-side, persists across devices)
   app.post("/api/todo-tour/dismiss", authMiddleware, async (req: any, res) => {
     try {
       const raw = await storage.getSetting('todo_tour_v2_shown_users');

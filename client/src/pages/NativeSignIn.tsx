@@ -1,4 +1,4 @@
-// The sign-in and sign-up screens of the iPhone apps: Arise To Duo, Arise Reader (students) and
+// The sign-in and sign-up screens of the iPhone apps: Arise To Do, Arise Reader (students) and
 // Arise Reader Educator (teachers and parents). Only inside an app; the website
 // keeps pages/SignIn.tsx). Built like an iPhone app's first screen: a welcome page with Sign in with
 // Apple first, then email sign-in and a free account on their own screens, with grouped fields,
@@ -14,7 +14,7 @@ import { LEGAL, NATIVE_APPS, nativeAppInfo, nativeFlavor, type NativeFlavor } fr
 import { API_BASE } from "@/lib/queryClient";
 import { BACKDROP_REFRESH, sendBackdrop } from "@/lib/nativeBackdrop";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
-/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+/** True only in the Arise To Do iPhone app's own build (vite.todo.config.ts); unset in tests. */
 declare const __TODO_APP__: boolean | undefined;
 
 type Screen = "welcome" | "signin" | "signup" | "code" | "forgot";
@@ -26,7 +26,7 @@ const showHubMenus = () => { try { localStorage.setItem("arise-hub-rail", "open"
  *  student app has no Sign in with Apple and no "free account" (an independent learner signs up on the
  *  same page the website uses). */
 const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { tint: string; icon: ReactNode; title: string; text: string }[]; apple: boolean; signInHint: string; create: string }> = {
-  todo: { icon: "/app-icons/todo-1024.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Duo or Arise Reader account.", create: "Create a free account",
+  todo: { icon: "/app-icons/todo-1024.png", tagline: "Your life and your work, side by side.", apple: true, signInHint: "Use your Arise To Do or Arise Reader account.", create: "Create a free account",
     features: [
       { tint: "#6a55dc", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "LifeHub", text: "Home, family, calendar, health and money." },
       { tint: "#0f766e", icon: <Briefcase className="h-[22px] w-[22px]" />, title: "WorkHub", text: "Projects, meetings and to-dos for work." },
@@ -50,7 +50,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#7c3aed", icon: <BookOpen className="h-[22px] w-[22px]" />, title: "Lessons and books", text: "Letters, words, life skills and stories at their level." },
       { tint: "#e0465f", icon: <Bell className="h-[22px] w-[22px]" />, title: "Notifications", text: "Progress and reminders for parents." },
     ] },
-  fit: { icon: "/app-icons/fit-1024.png", tagline: "Train smarter. Eat better. See it work.", apple: true, signInHint: "Use your Arise account (Arise To Duo or A.R.I.S.E.).", create: "Create a free account",
+  fit: { icon: "/app-icons/fit-1024.png", tagline: "Train smarter. Eat better. See it work.", apple: true, signInHint: "Use your Arise account (Arise To Do or A.R.I.S.E.).", create: "Create a free account",
     features: [
       { tint: "#5c8a12", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Programs and tracking", text: "Proven plans, every set logged, records and rest timer." },
       { tint: "#e0782f", icon: <AppleIcon className="h-[22px] w-[22px]" />, title: "Calories and macros", text: "Search, scan a barcode or snap a photo of your meal." },
@@ -62,11 +62,11 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#e0782f", icon: <Dumbbell className="h-[22px] w-[22px]" />, title: "Build and assign", text: "Workouts, programs, habits, nutrition and check-ins." },
       { tint: "#3b82f6", icon: <Bell className="h-[22px] w-[22px]" />, title: "Get found", text: "List your prices in the Arise trainer directory." },
     ] },
-  notes: { icon: "/app-icons/notes-1024.png", tagline: "Record it. Get the notes.", apple: true, signInHint: "Use your Arise account (the same one works in Arise To Duo).", create: "Create a free account",
+  notes: { icon: "/app-icons/notes-1024.png", tagline: "Record it. Get the notes.", apple: true, signInHint: "Use your Arise account (the same one works in Arise To Do).", create: "Create a free account",
     features: [
       { tint: "#6a55dc", icon: <Mic className="h-[22px] w-[22px]" />, title: "Record or upload", text: "Meetings, classes and IEP meetings, up to 2 hours." },
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Transcript and summary", text: "Every word with times, then the key points." },
-      { tint: "#ef4e5b", icon: <ListChecks className="h-[22px] w-[22px]" />, title: "Straight to your planner", text: "To-dos and dates go into Arise To Duo." },
+      { tint: "#ef4e5b", icon: <ListChecks className="h-[22px] w-[22px]" />, title: "Straight to your planner", text: "To-dos and dates go into Arise To Do." },
     ] },
   talk: { icon: "/app-icons/talk-1024.png", tagline: "Say it with a tap.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
     features: [
@@ -74,7 +74,7 @@ const COPY: Record<NativeFlavor, { icon: string; tagline: string; features: { ti
       { tint: "#7b5cf0", icon: <Sparkles className="h-[22px] w-[22px]" />, title: "Made for you", text: "Make boards with the words you use every day." },
       { tint: "#0f766e", icon: <HeartHandshake className="h-[22px] w-[22px]" />, title: "Share with family", text: "Keep the same boards on every device." },
     ] },
-  // Arise Undercover's own app only: none of it is in the Arise To Duo app's build.
+  // Arise Undercover's own app only: none of it is in the Arise To Do app's build.
   undercover: (typeof __TODO_APP__ !== "undefined" && __TODO_APP__) ? (undefined as never) : { icon: "/app-icons/undercover-1024.png", tagline: "Ask AI in the meeting. It looks like texting.", apple: true, signInHint: "Use your Arise account.", create: "Create a free account",
     features: [
       { tint: "#2563eb", icon: <MessageCircle className="h-[22px] w-[22px]" />, title: "Looks like texting", text: "Answers come back as texts or a group chat." },
@@ -176,8 +176,8 @@ export default function NativeSignIn({ flavor: forced, start }: { flavor?: Nativ
   });
 
   const apple = copy.apple && appleSignInAvailable();
-  /** The apps whose paid tier is part of Arise To Duo Unlimited show the plan on sign-up. */
-  /** Making an account: To Duo has its own screen; the Reader apps use the website's sign-up pages. */
+  /** The apps whose paid tier is part of Arise To Do Unlimited show the plan on sign-up. */
+  /** Making an account: To Do has its own screen; the Reader apps use the website's sign-up pages. */
   const create = () => (flavor === "reader" ? navigate("/parent-signup") :  flavor === "educator" ? setPicking(true) : go("signup"));
   const [picking, setPicking] = useState(false);
 
@@ -239,7 +239,7 @@ export default function NativeSignIn({ flavor: forced, start }: { flavor?: Nativ
   return <Shell>
     <NavBar title="" onBack={() => go("welcome")} />
     <form onSubmit={signingUp ? signUp : signIn} className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 px-5">
-      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked Fitness by Arise and Arise To Duo." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Duo." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
+      <Heading title={signingUp ? (eyeGazer ? "Create an Arise AAC account" : "Create your account") : "Sign in"} text={signingUp ? (eyeGazer ? "No school or teacher needed. Just a name, a username and a password, and every Arise AAC game, lesson and the talker are ready." : flavor === "fit" || flavor === "trainer" ? "Free, for anyone. The same account works in Cooked Fitness by Arise and Arise To Do." : flavor === "notes" ? "Free, for anyone, with 60 minutes a month. The same account works in Arise To Do." : "Free, for anyone. You get LifeHub and WorkHub.") : copy.signInHint} />
       <Group>
         {signingUp && <Field label="Name" value={name} onChange={setName} autoComplete="name" placeholder="Your name" testId="native-name" />}
         {(!signingUp || eyeGazer) && <Field label="Username" value={username} onChange={setUsername} autoComplete="username" placeholder={signingUp ? "Choose a username" : "Username or email"} testId="native-username" plain />}

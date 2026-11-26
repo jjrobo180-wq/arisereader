@@ -1,4 +1,4 @@
-// To Duo's setup and walkthrough show once per account, on any device (server: /api/arise-todo/seen).
+// To Do's setup and walkthrough show once per account, on any device (server: /api/arise-todo/seen).
 // This device also remembers it (the components' own localStorage keys), so it never waits on the
 // network once it knows.
 import { API_BASE, apiAuthToken } from "@/lib/queryClient";

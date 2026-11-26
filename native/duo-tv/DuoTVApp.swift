@@ -181,7 +181,7 @@ final class DuoTVModel: ObservableObject {
             updated = Date(); error = nil
             if let w = summary?.weather { await loadWeather(token, w) }
         } catch {
-            self.error = "Can't reach Arise Duo. Check the TV's internet connection."
+            self.error = "Can't reach Arise To Do. Check the TV's internet connection."
         }
         _ = await workPart
     }
@@ -205,7 +205,7 @@ final class DuoTVModel: ObservableObject {
             guard status == 200 else { toast = DuoToast(text: json["message"] as? String ?? "That didn't save. Try again."); return nil }
             return (json["created"] as? String, json["message"] as? String ?? "Saved")
         } catch {
-            toast = DuoToast(text: "Can't reach Arise Duo. Check the TV's internet connection.")
+            toast = DuoToast(text: "Can't reach Arise To Do. Check the TV's internet connection.")
             return nil
         }
     }
@@ -275,7 +275,7 @@ final class DuoTVModel: ObservableObject {
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let c = obj["code"] as? String, let p = obj["poll"] as? String else {
-            error = "Can't reach Arise Duo. Check the TV's internet connection."
+            error = "Can't reach Arise To Do. Check the TV's internet connection."
             return
         }
         code = c; poll = p

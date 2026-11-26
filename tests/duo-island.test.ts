@@ -1,4 +1,4 @@
-// Arise To Duo on the iPhone: checklist widgets you tap to check off, and the focus timer on the Lock Screen
+// Arise To Do on the iPhone: checklist widgets you tap to check off, and the focus timer on the Lock Screen
 // and in the Dynamic Island (a Live Activity). Swift is checked here by its text; the iOS builds compile it.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -108,7 +108,7 @@ test("add_widget.rb builds .check widgets as checklists and .live as the Live Ac
   assert.deepEqual(list.filter((w) => /\.(check|live)$/.test(w[0])), [["duo.focus.live", "Focus timer"]]);
 });
 
-test("the To Duo app turns Live Activities on and answers arisetodo:// links", () => {
+test("the To Do app turns Live Activities on and answers arisetodo:// links", () => {
   const dir = mkdtempSync(join(tmpdir(), "duo-plist-"));
   const plist = join(dir, "Info.plist");
   writeFileSync(plist, `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>other</string></array></dict></array></dict></plist>`);

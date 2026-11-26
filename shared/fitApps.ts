@@ -1,4 +1,4 @@
-// Cooked apps: the parts of Cooked you choose, like the apps in Arise To Duo. Each person keeps a
+// Cooked apps: the parts of Cooked you choose, like the apps in Arise To Do. Each person keeps a
 // list of the apps they've added (they show on the Apps tab) and up to three of them on the tab bar,
 // next to Today and Apps. Saved with the rest of their Cooked data (shared/fit.ts), so it's the
 // same on every device. The screens are in client/src/pages/fit/FitApps.tsx.
@@ -62,7 +62,7 @@ export const FIT_APP_BY_ID = new Map(FIT_APPS.map((a) => [a.id, a]));
 const IDS = new Set<string>(FIT_APPS.map((a) => a.id));
 
 import { cleanGroupPrefs, type FitGroupPrefs } from "./fitGroups";
-/** `groups`: the tabs inside Arise To Duo (shared/fitGroups.ts). */
+/** `groups`: the tabs inside Arise To Do (shared/fitGroups.ts). */
 export type FitApps = { added: FitAppId[]; tabs: FitAppId[]; groups?: FitGroupPrefs };
 export const TAB_MAX = 3;
 /** What a new person starts with: the main parts of Cooked, and Train, Food and Run on the tab bar. */
@@ -104,7 +104,7 @@ export function moveTab(a: FitApps | undefined, id: FitAppId, by: -1 | 1): FitAp
   return { ...x, tabs };
 }
 
-/* Inside Arise To Duo (Nov 24, 2026) there's no separate plugin store: every part of Health & Fitness is a tab (or,
+/* Inside Arise To Do (Nov 24, 2026) there's no separate plugin store: every part of Health & Fitness is a tab (or,
    for ones without a screen of their own, a tool opened from Today), switched on and off and put in order in
    one "Edit tabs" sheet. The order of `added` is the order of the tabs. */
 /** Turns a part on (at the end) or off. */

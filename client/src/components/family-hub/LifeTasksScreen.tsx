@@ -21,7 +21,7 @@ export default function LifeTasksScreen<T extends Life>({ data, setData, makeId,
   say: (message: string) => void;
   view: TaskView; setView: (v: TaskView) => void;
   list: string; setList: (id: string) => void;
-  /** Arise To Duo's "@arise" asks (lib/ariseAsks.ts), passed on to the Tasks screen. */
+  /** Arise To Do's "@arise" asks (lib/ariseAsks.ts), passed on to the Tasks screen. */
   arise?: { asks: AriseAsk[]; loaded: boolean; open: string | null; people: string[] };
 }) {
   const workspace = useMemo(() => workspaceFromLifeTasks(data), [data.tasks, data.lists]); // eslint-disable-line react-hooks/exhaustive-deps

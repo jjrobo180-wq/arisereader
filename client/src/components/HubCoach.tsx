@@ -1,4 +1,4 @@
-// The second half of the Arise To Duo app's first run, on the real hub (after the full-screen tour):
+// The second half of the Arise To Do app's first run, on the real hub (after the full-screen tour):
 // a spotlight on the actual thing to touch, an animated finger showing the gesture, and a short
 // card. Each step moves on when the person really does it (or taps Next):
 //   1. Press and hold a widget on Home: Home starts to jiggle (teacher-hub/HubHomeEdit.tsx).

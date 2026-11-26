@@ -1,6 +1,6 @@
 // Arise Notes in the iPhone app: the action items and dates a person checked can also go to the
 // iPhone's own Reminders and Calendar apps (plugin: @ebarooni/capacitor-calendar, Apple's EventKit),
-// alongside Arise To Duo. iOS asks once for each; nothing is read, only added.
+// alongside Arise To Do. iOS asks once for each; nothing is read, only added.
 import { hasNativePlugin, isNativeApp, nativeAppInfo, nativeCall } from "@/lib/nativeApp";
 
 const PLUGIN = /calendar/i;

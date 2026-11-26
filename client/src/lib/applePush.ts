@@ -1,4 +1,4 @@
-// Apple push notifications in the Arise To Duo iPhone app (plugin: @capacitor/push-notifications).
+// Apple push notifications in the Arise To Do iPhone app (plugin: @capacitor/push-notifications).
 // Reminders are scheduled on the phone (nativeReminders.ts); these are the notifications only the
 // server knows about (a message, something shared with you, a test). The app hands the server its
 // Apple device token once notifications are allowed; tapping a notification opens its page.
@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeFlavor, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { duoLinkFor } from "@shared/superApps";
 
-/** Which app the server sends to (Arise To Duo unless this is the Educator app). */
+/** Which app the server sends to (Arise To Do unless this is the Educator app). */
 const appKey = () => { const f = nativeFlavor(); return f === "educator" || f === "eyegaze" || f === "fit" || f === "trainer" || f === "notes" || f === "reader" ? f : undefined; };
 
 const PLUGIN = /^pushnotif/i;
@@ -25,7 +25,7 @@ export const applePushAvailable = (): boolean => hasNativePlugin(PLUGIN);
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 const open = (url: string) => {
   if (!url) return;
-  // In Arise To Duo, Cooked, Cooked PT, Arise Notes and Podster are plugins: a coach's message (#/fit), a
+  // In Arise To Do, Cooked, Cooked PT, Arise Notes and Podster are plugins: a coach's message (#/fit), a
   // client's request (#/trainer) or a Notes alert opens that plugin here, not the app's own screens.
   const inDuo = nativeFlavor() === "todo" ? duoLinkFor(url) : null;
   if (inDuo) { window.location.hash = inDuo; return; }
@@ -81,7 +81,7 @@ export async function ensureApplePush(ms = 10_000): Promise<boolean> {
   if (lastToken) return true;
   const waiting = new Promise<boolean>((resolve) => { tokenWaiters.push(resolve); setTimeout(() => resolve(!!lastToken), ms); });
   const asked = await startApplePush(true);
-  if (!asked) { if (!lastProblem) lastProblem = "Notifications are off for Arise To Duo in iPhone Settings."; settle(false); }
+  if (!asked) { if (!lastProblem) lastProblem = "Notifications are off for Arise To Do in iPhone Settings."; settle(false); }
   return waiting;
 }
 

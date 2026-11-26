@@ -46,7 +46,7 @@ export function PlannerSheet({ ctx, note, onClose, onDone }: { ctx: AppCtx; note
       const r = await notesApi.send(note.id, { hub, listId: hub === "life" ? listId : undefined, calendarId: hub === "life" ? calendarId : undefined, tasks: pickedTasks.map((x) => ({ id: x.id, title: x.title, who: x.who, due: x.due, time: x.time })), events: pickedEvents });
       announceSaved(hub === "work" ? "workhub" : "todo", ctx.me.user.id);
       const where = hub === "work" ? "WorkHub" : `LifeHub${r.list ? ` (${r.list})` : ""}`;
-      // Then the iPhone's own apps, when chosen. Arise To Duo already has them, so a problem here is
+      // Then the iPhone's own apps, when chosen. Arise To Do already has them, so a problem here is
       // said plainly and nothing is undone.
       const from = `From Arise Notes: ${note.title}`;
       const also: string[] = [];

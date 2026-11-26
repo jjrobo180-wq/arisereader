@@ -1,4 +1,4 @@
-// Opens the hub a rule picks (shared/hubAutoOpen.ts) when Arise To Duo opens, or comes back after REOPEN_AFTER_MS.
+// Opens the hub a rule picks (shared/hubAutoOpen.ts) when Arise To Do opens, or comes back after REOPEN_AFTER_MS.
 // LifeHub keeps a copy of the account's rules on this device (saveHubOpenCopy), so WorkHub and FamilyHub can use
 // them too. Only a hub page is switched (never a link into something, never another page), and only once per open.
 import { useEffect } from "react";
@@ -34,7 +34,7 @@ async function apply(userId: unknown) {
   if (window.location.hash.replace(/\/$/, "") !== to) window.location.hash = to;
 }
 
-/** Mounted once for a signed-in To Duo person. */
+/** Mounted once for a signed-in To Do person. */
 export function useHubAutoOpen(userId: unknown, active: boolean) {
   useEffect(() => {
     if (!active || !userId) return;

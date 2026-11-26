@@ -12,7 +12,7 @@ export default function CustomizeSheet({ title = "Customize", eyebrow, tabs, ini
   title?: string;
   eyebrow: string;
   tabs: CustomizeTab[];
-  /** Opens on this tab (the Duo button opens straight to "Duo & split screen"). */
+  /** Opens on this tab (the Duo button opens straight to "Split screen"). */
   initialTab?: string;
   /** Where the last tab is remembered (sessionStorage). */
   storageKey: string;

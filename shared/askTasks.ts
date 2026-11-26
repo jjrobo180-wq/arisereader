@@ -1,5 +1,5 @@
 // "@arise what tasks do I have left?" in Arise Notes (and Undercover): the answer comes from the person's real
-// Arise To Duo task lists (LifeHub, and WorkHub for teachers), not just their notes. server/undercover.ts adds
+// Arise To Do task lists (LifeHub, and WorkHub for teachers), not just their notes. server/undercover.ts adds
 // these lines to the AI's facts when the question is about tasks.
 
 /** Is the question about the person's tasks or to-dos? */
@@ -16,7 +16,7 @@ export function openTasks(life: any, work: any): Open[] {
   const lifeLists = new Map<string, string>((Array.isArray(life?.lists) ? life.lists : []).map((l: any) => [String(l?.id), s(l?.name, 40)]));
   for (const t of Array.isArray(life?.tasks) ? life.tasks : []) {
     if (!t || t.done || t.archived || !s(t.title)) continue;
-    out.push({ title: s(t.title), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due) ? t.due : "", time: /^\d{2}:\d{2}$/.test(t.time) ? t.time : "", list: lifeLists.get(String(t.listId)) || "", where: "To Duo" });
+    out.push({ title: s(t.title), due: /^\d{4}-\d{2}-\d{2}$/.test(t.due) ? t.due : "", time: /^\d{2}:\d{2}$/.test(t.time) ? t.time : "", list: lifeLists.get(String(t.listId)) || "", where: "To Do" });
   }
   const workLists = new Map<string, string>((Array.isArray(work?.taskLists) ? work.taskLists : []).map((l: any) => [String(l?.id), s(l?.name, 40)]));
   for (const t of Array.isArray(work?.tasks) ? work.tasks : []) {
@@ -28,8 +28,8 @@ export function openTasks(life: any, work: any): Open[] {
 
 /** The facts line for the AI: every open task (up to 60), or that there are none. */
 export function tasksFacts(tasks: Open[], today: string): string {
-  if (!tasks.length) return "The person's Arise To Duo task lists have no unfinished tasks. Say they're all caught up.";
+  if (!tasks.length) return "The person's Arise To Do task lists have no unfinished tasks. Say they're all caught up.";
   const line = (t: Open) => `${t.title}${t.due ? ` (due ${t.due}${t.time ? ` ${t.time}` : ""}${t.due < today ? ", overdue" : ""})` : ""}${t.list ? ` [${t.list}]` : ""}`;
   const shown = tasks.slice(0, 60);
-  return `The person's unfinished tasks from their Arise To Duo task lists (today is ${today}). When they ask about their tasks, list these one per line, soonest first, and don't say their notes have none: ${shown.map(line).join("; ")}${tasks.length > shown.length ? `; and ${tasks.length - shown.length} more` : ""}.`;
+  return `The person's unfinished tasks from their Arise To Do task lists (today is ${today}). When they ask about their tasks, list these one per line, soonest first, and don't say their notes have none: ${shown.map(line).join("; ")}${tasks.length > shown.length ? `; and ${tasks.length - shown.length} more` : ""}.`;
 }

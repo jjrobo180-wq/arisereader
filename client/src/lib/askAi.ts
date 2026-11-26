@@ -1,9 +1,9 @@
-// Ask AI in Arise Notes and Arise To Duo (server/undercover.ts, /api/ask/chat): a plain AI assistant that
+// Ask AI in Arise Notes and Arise To Do (server/undercover.ts, /api/ask/chat): a plain AI assistant that
 // says what it is. Sends the time zone, and for a weather question with no city, the phone's location.
 // (Arise Undercover's own app asks through client/src/undercover/askUndercover.ts instead.)
 import { API_BASE, apiAuthToken } from "@/lib/queryClient";
 import { wantsWeather, weatherPlaceFrom } from "@shared/askText";
-/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+/** True only in the Arise To Do iPhone app's own build (vite.todo.config.ts); unset in tests. */
 declare const __TODO_APP__: boolean | undefined;
 export { answerLines } from "@shared/askText";
 

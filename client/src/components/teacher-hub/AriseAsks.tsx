@@ -1,4 +1,4 @@
-// The Arise tab in Arise To Duo's Tasks: every "@arise" ask the person has made (shared/ariseAsks.ts), newest
+// The Arise tab in Arise To Do's Tasks: every "@arise" ask the person has made (shared/ariseAsks.ts), newest
 // first, with what Arise made for each. Open one to read it, copy it, print it, save it as a file, make it
 // again or delete it. Asks still waiting for their day show when they'll be made.
 import { useEffect, useMemo, useRef, useState } from "react";

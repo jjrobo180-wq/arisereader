@@ -190,7 +190,7 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
 
 test("the Reader opens the hub in a new tab, signs out to arisereader.com, and has a phone rail with a Hide button", () => {
   const page = read("client/src/pages/TeacherReader.tsx");
-  // In an iPhone app (To Duo opens it from a notification) it goes back in place: a new tab would go nowhere.
+  // In an iPhone app (To Do opens it from a notification) it goes back in place: a new tab would go nowhere.
   assert.match(page, /target=\{inApp \? undefined : "_blank"\} rel="noopener" onClick=\{inApp \? goBack : openHub\} data-testid="reader-open-workhub"/);
   assert.match(page, /export const READER_SIGN_IN = `\$\{READER_APP\}#\/signin`;/);
   assert.match(page, /onClick=\{\(\) => \{ logout\(\); if \(isReaderApp\(\)\) goToSignIn\(\); else window\.location\.assign\(READER_SIGN_IN\); \}\}/);
@@ -205,15 +205,15 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   // The hubs' own default is the same: sidebar left on a computer, left rail with a Hide button on a phone.
   // Both hubs moved to the floating tab bar on a phone, at the owner's request.
   assert.match(read("shared/hubLayout.ts"), /DEFAULT_LAYOUT: HubLayout = \{ menuSide: "tabs", deskSide: "left", folders: \[\], menuClose: "button"/);
-  // LifeHub (Arise To Duo) moved to the floating tab bar on a phone, at the owner's request.
+  // LifeHub (Arise To Do) moved to the floating tab bar on a phone, at the owner's request.
   assert.match(read("shared/lifeLayout.ts"), /\{ menuSide: "tabs", menuClose: "button", homeHidden: \["widgets"\] \}/);
 });
 
-test("the donation banner can't be closed and shows in the Reader; Arise To Duo's hubs have no Support", () => {
+test("the donation banner can't be closed and shows in the Reader; Arise To Do's hubs have no Support", () => {
   const support = read("client/src/components/SupportArise.tsx");
   const banner = support.slice(support.indexOf("export function SupportBanner"), support.indexOf("export function SupportMenuItem"));
   assert.doesNotMatch(banner, /support-banner-close|localStorage/, "no close button, nothing remembered");
-  // November 2026: the owner asked for Support (and its heart) to come off Arise To Duo's desktop.
+  // November 2026: the owner asked for Support (and its heart) to come off Arise To Do's desktop.
   for (const hub of ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx"]) assert.doesNotMatch(read(hub), /SupportBanner|SupportMenuItem|SupportButton/, hub);
   const reader = read("client/src/pages/TeacherReader.tsx");
   for (const href of ["/history/", "/math/", "/social/"]) assert.ok(reader.includes(`href: "${href}"`), href);

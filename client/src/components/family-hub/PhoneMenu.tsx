@@ -15,7 +15,7 @@ const KEY = "arise-life-rail";
 
 /** Whether the phone menu is showing, remembered on this device, and what the page must leave room for. */
 export function usePhoneMenu(side: MenuSide, close: MenuClose) {
-  // In a pane of the Arise To Duo split screen the menu starts tucked away, and opening it there
+  // In a pane of the Arise To Do split screen the menu starts tucked away, and opening it there
   // doesn't change how it starts everywhere else.
   const pane = inDuoPane();
   const [rail, setRailState] = useState(() => { if (pane) return false; try { return localStorage.getItem(KEY) !== "closed"; } catch { return true; } });

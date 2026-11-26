@@ -1,9 +1,9 @@
-// Arise To Duo: where a tap on a Home Screen widget goes. The widgets open the app with an arisetodo:// link
+// Arise To Do: where a tap on a Home Screen widget goes. The widgets open the app with an arisetodo:// link
 // (client/src/lib/duoWidgets.ts makes them): "open?s=calendar" opens a LifeHub section, and "link?u=…" (a link on
 // the Link page widget) opens that web address in Safari. Focus timer links (arisetodo://focus/…) are duoFocus.ts's.
 import { isNativeApp, nativeCall, nativeFlavor, nativeListen, openOutside } from "@/lib/nativeApp";
 
-/** The Arise To Duo iPhone app (the one with these widgets). */
+/** The Arise To Do iPhone app (the one with these widgets). */
 export const isTodoApp = () => isNativeApp() && nativeFlavor() === "todo";
 
 export type DuoLink = { kind: "section"; section: string } | { kind: "web"; url: string };

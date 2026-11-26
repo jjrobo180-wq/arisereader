@@ -5,7 +5,7 @@ import { NOTES_THEMES, nightLook } from "../shared/notesThemes";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-test("in the To Duo app the clock's space is never taken as zero: every top offset goes through --sat", () => {
+test("in the To Do app the clock's space is never taken as zero: every top offset goes through --sat", () => {
   for (const f of ["client/src/components/look-os/lookOS.css", "client/src/components/arise-notes/notes-themes.css", "client/src/components/arise-notes/protoLooks.css", "client/src/components/arise-notes/notes.css"]) {
     const css = read(f).replace(/var\(--sat, env\(safe-area-inset-top, 0px\)\)/g, "");
     assert.ok(!css.includes("env(safe-area-inset-top"), `${f} uses the raw safe area`);

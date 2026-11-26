@@ -1,4 +1,4 @@
-// Arise Notes inside Arise To Duo (#/arise-notes?hub=life|work): the same app as /notes/, opened from
+// Arise Notes inside Arise To Do (#/arise-notes?hub=life|work): the same app as /notes/, opened from
 // the App Store or the menu of either hub, or a side of the split screen. Back goes to the hub.
 import { useLocation } from "wouter";
 import NotesApp from "@/components/arise-notes/NotesApp";

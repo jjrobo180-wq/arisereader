@@ -1,6 +1,6 @@
-# Arise To Duo: iPhone app
+# Arise To Do: iPhone app
 
-Arise To Duo for iPhone and iPad (bundle ID `com.arisereader.arisetodo`). It is a Capacitor app with the web code
+Arise To Do for iPhone and iPad (bundle ID `com.arisereader.arisetodo`). It is a Capacitor app with the web code
 **bundled inside it**, so it opens without a connection and talks to https://arisetodo.com for sign-in, sync and AI.
 
 - **Build:** GitHub Actions, never a local Terminal. `.github/workflows/arisetodo-ios.yml` builds an unsigned simulator app;
@@ -9,9 +9,9 @@ Arise To Duo for iPhone and iPad (bundle ID `com.arisereader.arisetodo`). It is 
   `[approved-testflight]` or a manual run with the upload option.
 - **No live updates in any app** (App Review 2.5.2 / 2.5.19): the build Apple reviews has everything, and every change
   ships as an App Store/TestFlight build. `server/ota.ts` answers the updater in older builds with "nothing new".
-- **Only To Duo inside:** `vite.todo.config.ts` builds To Duo alone (no other product's pages or apps), and
+- **Only To Do inside:** `vite.todo.config.ts` builds To Do alone (no other product's pages or apps), and
   `.github/scripts/prune_todo_bundle.sh` leaves out other products' files, then fails the build if any are left.
-- **Purchases:** Arise To Duo Unlimited is sold with Apple in-app purchase. In the US App Store the app may also link to the website,
+- **Purchases:** Arise To Do Unlimited is sold with Apple in-app purchase. In the US App Store the app may also link to the website,
   where it shows the website price; elsewhere it shows only the Apple price.
 - **Privacy:** `PrivacyInfo.xcprivacy` goes into the app and each extension (`.github/scripts/add_privacy_manifest.rb`).
   Every permission has its sentence in `configure-ios.py`, and AI features ask before the first request

@@ -1,4 +1,4 @@
-// "@arise" in Arise To Duo's tasks: type "@arise make a worksheet for Kha by Monday" as a task, and Arise's AI
+// "@arise" in Arise To Do's tasks: type "@arise make a worksheet for Kha by Monday" as a task, and Arise's AI
 // makes it, saves it under the task and sends a notification when it's ready. Every ask, with what Arise
 // made, is kept in the Arise tab of Tasks (client/src/components/teacher-hub/AriseAsks.tsx). The server side
 // is server/todoAsks.ts.
@@ -19,7 +19,7 @@ export type AriseAsk = {
   id: string;
   /** What the person typed after @arise. */
   ask: string;
-  /** The task it made (in the To Duo workspace), when there is one. */
+  /** The task it made (in the To Do workspace), when there is one. */
   taskId?: string;
   kind: AskKind;
   status: AskStatus;
@@ -42,7 +42,7 @@ export type AriseAsk = {
   tz?: string;
   /** Where live facts came from for an answer (e.g. "Open-Meteo forecast for Denver, Colorado"). */
   source?: string;
-  /** "work" when it was asked from the Work Hub: its notification then opens the Work Hub, not To Duo. */
+  /** "work" when it was asked from the Work Hub: its notification then opens the Work Hub, not To Do. */
   hub?: "work";
 };
 
@@ -194,7 +194,7 @@ export function cleanAsks(raw: unknown): AriseAsk[] {
 /** Arise's instructions for making what was asked. The person's words only fill in the request. */
 export function askSystemPrompt(today: string, people: string[]): string {
   return [
-    "You are Arise, the AI helper inside Arise To Duo, a planner for families, parents and teachers.",
+    "You are Arise, the AI helper inside Arise To Do, a planner for families, parents and teachers.",
     "The person typed a request as a to-do. Make the finished thing they asked for, complete and ready to use right away, not advice about how to make it.",
     "Worksheets: a title, short instructions, numbered questions with space to answer (use ____ blanks), and an answer key at the end under its own heading.",
     "Quizzes: numbered questions with lettered choices, then an answer key. Lesson plans: objective, materials, steps with times, and a quick check.",

@@ -1,4 +1,4 @@
-// The in-hub coach that carries on after the Arise To Duo app's full-screen tour
+// The in-hub coach that carries on after the Arise To Do app's full-screen tour
 // (components/HubCoach.tsx): hold a widget, drag it, switch hubs, then Apps → Plugin Gallery.
 import test from "node:test";
 import assert from "node:assert/strict";

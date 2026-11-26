@@ -1,5 +1,5 @@
-// Health & Fitness inside To Duo: its parts are tabs switched on, off and reordered in one Edit tabs sheet
-// (no separate plugin store), under a To Duo-style tab bar. Also the renames and TTS Buddy in the hub.
+// Health & Fitness inside To Do: its parts are tabs switched on, off and reordered in one Edit tabs sheet
+// (no separate plugin store), under a To Do-style tab bar. Also the renames and TTS Buddy in the hub.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -20,7 +20,7 @@ test("tabs turn on and off, and move, keeping everything else", () => {
   assert.deepEqual(moveAdded(a, "maxes", -1), a, "the first can't go earlier");
 });
 
-test("inside To Duo: no Plugins tab, Edit tabs instead, and a To Duo tab bar", () => {
+test("inside To Do: no Plugins tab, Edit tabs instead, and a To Do tab bar", () => {
   const app = readFileSync("client/src/pages/fit/FitApp.tsx", "utf8");
   assert.match(app, /if \(embed && t === "apps"\) \{ setEditTabs\(true\); return; \}/);
   assert.match(app, /\{editTabs && <FitTabsEditor /);
@@ -32,7 +32,7 @@ test("inside To Duo: no Plugins tab, Edit tabs instead, and a To Duo tab bar", (
   assert.match(readFileSync("client/src/components/super-apps/CookedInDuo.tsx", "utf8"), /onEdit=\{editTabs\}/);
 });
 
-test("renamed in To Duo: Arise Health & Fitness, Arise Podcasts, TTS Buddy (inside the hub)", () => {
+test("renamed in To Do: Arise Health & Fitness, Arise Podcasts, TTS Buddy (inside the hub)", () => {
   assert.equal(superAppOf("cooked")!.name, "Arise Health & Fitness");
   assert.equal(superAppOf("podster")!.name, "Arise Podcasts");
   const buddy = pluginsFor("life", { teacher: true }).find((p) => p.id === "life-buddy")!;
@@ -41,7 +41,7 @@ test("renamed in To Duo: Arise Health & Fitness, Arise Podcasts, TTS Buddy (insi
   assert.match(readFileSync("client/src/pages/ProApps.tsx", "utf8"), /if \(id === "buddy"\) return/);
 });
 
-test("the plugin's heading is one slim row and To Duo's Move button sits in it, not above the app", () => {
+test("the plugin's heading is one slim row and To Do's Move button sits in it, not above the app", () => {
   const shell = readFileSync("client/src/components/super-apps/SuperShell.tsx", "utf8");
   assert.match(shell, /useContext\(SuperHeadExtra\)/);
   assert.doesNotMatch(shell, /\{app\.tagline\}<\/p>/);
@@ -59,7 +59,7 @@ test("plugins start at the top: no logo, the tabs share the name's row, less spa
   assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /\$\{isSuperApp\(shown\) \? "pt-2 sm:pt-3 lg:pt-4" : "pt-4 sm:pt-6 lg:pt-10"\}/);
 });
 
-test("inside To Duo, Health & Fitness is a few tabs of grouped parts (Nov 25, 2026)", async () => {
+test("inside To Do, Health & Fitness is a few tabs of grouped parts (Nov 25, 2026)", async () => {
   const g = await import("../shared/fitGroups");
   const ids = (id: string) => g.FIT_GROUP_BY_ID.get(id as never)!.parts.map((p) => p.id);
   for (const x of ["water", "meds", "period", "mind", "sleep", "fast"]) assert.ok(ids("g-daily").includes(x as never), x);
@@ -81,7 +81,7 @@ test("inside To Duo, Health & Fitness is a few tabs of grouped parts (Nov 25, 20
   assert.match(app, /case "prep": return <MealPrep inline=\{inline\}/);
 });
 
-test("plugin settings use To Duo's own sheets: Edit Tabs on the tab row, the gear for the plugin's settings", () => {
+test("plugin settings use To Do's own sheets: Edit Tabs on the tab row, the gear for the plugin's settings", () => {
   const app = readFileSync("client/src/pages/fit/FitApp.tsx", "utf8");
   assert.match(app, /return duo \? <DuoSettings \{\.\.\.p\} \/> : <AppSettings \{\.\.\.p\} \/>;/);
   const duo = app.slice(app.indexOf("function DuoSettings"), app.indexOf("function SettingsSheet"));

@@ -1,4 +1,4 @@
-// Accountability (an Arise To Duo app; shared/accountability.ts, server/accountability.ts): a space
+// Accountability (an Arise To Do app; shared/accountability.ts, server/accountability.ts): a space
 // you share with your partner or family. Ask for something once or on repeat, they're nudged until
 // it's done, and they check it off with a photo or video, an AI worksheet, or a quiz your child took.
 import { duoOpen } from "@/lib/duoWidgets";

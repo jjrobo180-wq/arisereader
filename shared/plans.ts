@@ -100,8 +100,8 @@ export const PLANS = {
     monthlyCents: 1000,
   },
   /**
-   * Arise To Duo Unlimited: one $10-a-month plan for one person that unlocks the paid tier of every app:
-   * Arise To Duo Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free Podster.
+   * Arise To Do Unlimited: one $10-a-month plan for one person that unlocks the paid tier of every app:
+   * Arise To Do Unlimited, Arise Notes Plus, Cooked+ (with its guest pass) and ad-free Podster.
    * It replaces selling those separately; people who already pay for one of them keep it.
    */
   allAccess: {
@@ -483,7 +483,7 @@ export type HubAccess = { access: boolean; via: HubVia | null; seats: number | n
 export function hubAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
   if (!person) return { access: false, via: null, seats: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { access: true, via: "admin", seats: null, endsAt: null };
-  // Both hubs are for anyone with an adult account: teachers, parents and personal Arise To Duo accounts.
+  // Both hubs are for anyone with an adult account: teachers, parents and personal Arise To Do accounts.
   if (person.role === "teacher" || person.role === "parent" || person.role === "todo") return { access: true, via: "free", seats: null, endsAt: null };
   return { access: false, via: null, seats: null, endsAt: null };
 }
@@ -584,7 +584,7 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
 }
 
 /**
- * Is this person on Arise To Duo Unlimited ($5 a month or $50 a year: every App Store app, and AI to the fair-use ceiling)?
+ * Is this person on Arise To Do Unlimited ($5 a month or $50 a year: every App Store app, and AI to the fair-use ceiling)?
  * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
  * plan bought before Unlimited existed.
  */
@@ -657,7 +657,7 @@ export const BUNDLE_REQUIRED = "bundle_required";
 export const TODO_REQUIRED = "todo_required";
 
 export const HUB_REQUIRED = "hub_required";
-export const hubMessage = "Arise To Duo is free for parents and teachers. Please sign in to continue.";
+export const hubMessage = "Arise To Do is free for parents and teachers. Please sign in to continue.";
 
 /** The message shown when something needs Premium. */
 export const PREMIUM_REQUIRED = "premium_required";

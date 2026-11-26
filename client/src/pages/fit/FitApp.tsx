@@ -192,7 +192,7 @@ function TodayTab({ layout, data, update, onApp, onAllApps, onStartProgram, onSe
     {analysis && insights && <ProPlusAnalysis i={insights} data={data} onClose={() => setAnalysis(false)} onAsk={() => { setAnalysis(false); setAsking(true); }} />}
   </>;
   // Each layout arranges the same few pieces its own way. Today stays short: check in, log food, today's
-  // goals (in To Duo they're on the Tasks screen instead), the workout and the week. Coach, split, Ask,
+  // goals (in To Do they're on the Tasks screen instead), the workout and the week. Coach, split, Ask,
   // form tips, calories and weight live on their tabs (Train, Food, Progress).
   const goalsHere = !duo && dayCard;
   const body = layout === "studio" ? <>{checkin}{logFood}{goalsHere}<StudioTrio v={v} open={open} />{heroTabs}{heroCard}{week}</>
@@ -281,8 +281,8 @@ function ProgressSheet({ data, update, list, onSettings, onClose, inline }: { da
   </Sheet>;
 }
 
-/** Settings inside Arise To Duo (Nov 25, 2026): To Duo's own grouped list, with only what belongs to Health & Fitness.
- *  To Duo looks after the look, the theme and signing out, so Cooked's layouts, themes and Sign out aren't here. */
+/** Settings inside Arise To Do (Nov 25, 2026): To Do's own grouped list, with only what belongs to Health & Fitness.
+ *  To Do looks after the look, the theme and signing out, so Cooked's layouts, themes and Sign out aren't here. */
 function DuoSettings({ data, update, say, onClose, onGoals, onTour, onAccount, onSiri, onApps }: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void; onGoals: () => void; onTour: () => void; onAccount: () => void; onSiri: () => void; onApps: () => void }) {
   const [sheet, setSheet] = useState<"" | "health" | "reminders">("");
   const g = goals(data.profile, latestKg(data));
@@ -389,19 +389,19 @@ export default function FitApp() {
   </PlusProvider>;
 }
 
-/** Cooked inside Arise To Duo (components/super-apps/CookedInDuo.tsx): To Duo draws the heading and the row of
- *  pages (`top`), Cooked draws the page in To Duo's look (useDuoLook), and its sheets open over To Duo. */
+/** Cooked inside Arise To Do (components/super-apps/CookedInDuo.tsx): To Do draws the heading and the row of
+ *  pages (`top`), Cooked draws the page in To Do's look (useDuoLook), and its sheets open over To Do. */
 export type FitEmbed = {
   night: boolean;
-  /** To Duo's heading and page row, given Cooked's pages: Today, every Cooked plugin with a screen, Plugins. */
+  /** To Do's heading and page row, given Cooked's pages: Today, every Cooked plugin with a screen, Plugins. */
   top: (p: { tabs: { id: string; label: string }[]; tab: string; go: (id: string) => void; openSettings: () => void; editTabs: () => void; groupWaiting: (id: string) => boolean }) => ReactNode;
-  /** The page to open on (a link into To Duo, like go=cooked&page=food). */
+  /** The page to open on (a link into To Do, like go=cooked&page=food). */
   start?: string | null;
   /** A trainer's invite code from a link (#/to-do?go=cooked&coach=…). */
   coach?: string | null;
 };
 
-/** Cooked as a plugin inside Arise To Duo: the same screens and data, To Duo's look, To Duo's messages. */
+/** Cooked as a plugin inside Arise To Do: the same screens and data, To Do's look, To Do's messages. */
 export function FitInDuo({ say, embed }: { say: (m: string) => void; embed: FitEmbed }) {
   const [passCode, setPassCode] = useState<string | undefined>();
   return <PlusProvider say={say} passCode={passCode} onPassShown={() => setPassCode(undefined)}>
@@ -441,7 +441,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const [account, setAccount] = useState(false);
   const { plus, ask, loaded: plusLoaded } = usePlus();
   // Pro+ is Fit+: without it (or once it ends) the app shows the plain Pro layout.
-  // Inside To Duo, Today keeps one arrangement and To Duo's own type (the layouts are Cooked's own look).
+  // Inside To Do, Today keeps one arrangement and To Do's own type (the layouts are Cooked's own look).
   const layout = embed ? "athletic" : chosenLayout === "proplus" && !plus ? "pro" : chosenLayout;
   const [over, setOverRaw] = useState<Over>("");
   // Gyms near me and Eat out are Fit+.
@@ -449,9 +449,9 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const [joinCode, setJoinCode] = useState<string | undefined>();
   const [snap, setSnap] = useState(false);
   const apps = appsOf(data.apps);
-  // Inside To Duo the row of pages has room for every added plugin with a screen of its own (the iPhone
+  // Inside To Do the row of pages has room for every added plugin with a screen of its own (the iPhone
   // app's tab bar holds three).
-  // Inside To Duo (Nov 25, 2026) the tabs are groups of parts (shared/fitGroups.ts): Daily, Food, Training, Yoga,
+  // Inside To Do (Nov 25, 2026) the tabs are groups of parts (shared/fitGroups.ts): Daily, Food, Training, Yoga,
   // Progress and Friends, each a page with its parts in a row at the top. The iPhone app keeps its own tab bar.
   const gprefs = groupPrefsOf(apps.groups, apps.added);
   const groups = embed ? groupsOn(gprefs) : [];
@@ -461,7 +461,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const waiting = (part: string) => (dots[`fit:${part}`] ?? 0) > 0;
   const groupWaiting = (id: string) => isGroupId(id) && partsOn(gprefs, FIT_GROUP_BY_ID.get(id)!).some((p) => waiting(p.id));
   const tabIds: Tab[] = embed ? groups.map((g) => g.id) : apps.tabs.filter((id) => FIT_APP_BY_ID.get(id)?.tab);
-  /** Inside To Duo: shows a part in its tab, if that tab and part are on. */
+  /** Inside To Do: shows a part in its tab, if that tab and part are on. */
   const showPart = (id: FitPartId): boolean => {
     const g = groupOf(id);
     if (!embed || !g || !groups.some((x) => x.id === g) || gprefs.partsOff.includes(id) || !INLINE_PARTS.has(id)) return false;
@@ -475,12 +475,12 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass) onPass(l.pass); if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
   // A tab that was taken off the tab bar (here or on another device) goes back to Today.
-  // Inside To Duo there's no plugin store page: "apps" opens Edit tabs (FitTabsEditor.tsx) instead.
+  // Inside To Do there's no plugin store page: "apps" opens Edit tabs (FitTabsEditor.tsx) instead.
   const [editTabs, setEditTabs] = useState(false);
   useEffect(() => { if (embed && tab === "apps") { setTab("today"); setEditTabs(true); } }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (tab === "today" || tab === "apps" || tabIds.includes(tab)) return;
-    // Inside To Duo a part's name (from a link, Today or an older saved tab) opens it in its tab.
+    // Inside To Do a part's name (from a link, Today or an older saved tab) opens it in its tab.
     const g = embed ? groupOf(tab) : null;
     if (g && groups.some((x) => x.id === g)) { setPartOf((p) => ({ ...p, [g]: tab as FitPartId })); setTab(g); return; }
     setTab("today");
@@ -515,7 +515,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     go(to ?? "today", true);
   };
   // iPhone swipe-back / browser back: one entry in the history while a screen other than Today is open.
-  // (Inside To Duo, To Duo's own Back looks after that.)
+  // (Inside To Do, To Do's own Back looks after that.)
   useEffect(() => {
     if (tab === "today" || embed) return;
     window.history.pushState({ fitTab: tab }, "");
@@ -614,8 +614,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     {active && <LiveWorkout active={active} setActive={setActive} data={data} update={update} list={list} say={say} />}
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
-    {/* After setup (the first-run goals): the To Duo Unlimited pop-up, once. */}
-    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise To Duo Unlimited adds Premium with a guest pass for a friend, plus the extras in To Duo, Notes and Podster." />}
+    {/* After setup (the first-run goals): the To Do Unlimited pop-up, once. */}
+    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise To Do Unlimited adds Premium with a guest pass for a friend, plus the extras in To Do, Notes and Podster." />}
     {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}
@@ -636,7 +636,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     {over === "scan" && <ScanMachine data={data} update={update} onClose={() => setOver("")} />}
     {account && <Layer><div className="fixed inset-0 z-[90]"><AccountPrivacy onClose={() => setAccount(false)} /></div></Layer>}
   </>;
-  // Inside To Duo: To Duo's heading and row of pages, then the page, in the page's own flow (To Duo scrolls).
+  // Inside To Do: To Do's heading and row of pages, then the page, in the page's own flow (To Do scrolls).
   if (embed) return <PointsModeCtx.Provider value={data.profile.trackMode === "points"}><div className="min-w-0" style={{ color: C.text, ...font }} data-testid="fit-app" data-fit-embed="duo">
     {embed.top({ tabs: tabs.map(([id, label]) => ({ id, label })), tab, go: (id) => go(id as Tab), openSettings: () => setSettings(true), editTabs: () => setEditTabs(true), groupWaiting })}
     {page}

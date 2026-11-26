@@ -2,7 +2,7 @@
 // The iPhone apps ask once per account, before the first AI request. "Allow" is remembered; "Not now" sends
 // nothing and asks again the next time. localStorage is already kept per signed-in account
 // (client/src/lib/accountStorage.ts), so the saved answer follows the account, not the phone.
-/** True only in the Arise To Duo iPhone app's own build (vite.todo.config.ts); unset in tests. */
+/** True only in the Arise To Do iPhone app's own build (vite.todo.config.ts); unset in tests. */
 declare const __TODO_APP__: boolean | undefined;
 
 /** The server's AI routes (the AI-metered list in server/routes.ts, and /api/apps/ai). */

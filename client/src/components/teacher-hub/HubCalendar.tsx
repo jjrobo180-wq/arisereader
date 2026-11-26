@@ -186,7 +186,7 @@ async function readCalendarLink(token: string | null, url: string) {
 /** A connected calendar's events: from its link, or from the phone itself for the iPhone Calendar. */
 async function readCalendar(token: string | null, url: string): Promise<{ name: string; events: Omit<HubEvent, "id" | "calendarId">[] }> {
   if (!isIphoneCalendar(url)) return readCalendarLink(token, url);
-  if (!inIphoneApp()) throw new Error("Your iPhone Calendar refreshes when you open your Hub in the Arise To Duo iPhone app.");
+  if (!inIphoneApp()) throw new Error("Your iPhone Calendar refreshes when you open your Hub in the Arise To Do iPhone app.");
   return { name: "iPhone Calendar", events: await readIphoneEvents() };
 }
 

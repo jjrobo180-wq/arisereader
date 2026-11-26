@@ -232,7 +232,7 @@ export function ProtoNoteTitle({ look, title, meta }: { look: NotesTheme; title:
   }
 }
 
-// ───────────────────────── To Duo and WorkHub ─────────────────────────
+// ───────────────────────── To Do and WorkHub ─────────────────────────
 // Billboard's own pieces are here; every other arrangement draws the hubs in protoHub.tsx, the way it draws Notes.
 export type ProtoHubLink = { label: string; onClick: () => void };
 export function ProtoHubHero({ look, date, greeting, primary, links, open, today, hubName }: { look: NotesTheme; date: string; greeting: string; primary: ProtoHubLink; links: ProtoHubLink[]; open?: number; today?: number; hubName?: string }): ReactNode {

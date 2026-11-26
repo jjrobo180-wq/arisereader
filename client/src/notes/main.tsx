@@ -74,7 +74,7 @@ function Welcome() {
     <section className="space-y-6">
       <div className="flex items-center gap-3"><Logo size={44} /><span className="text-[22px] font-extrabold tracking-tight">Arise Notes</span></div>
       <h1 className="text-[34px] font-extrabold leading-[1.1] tracking-[-.02em] sm:text-[44px]">Every meeting, class and visit, written down for you.</h1>
-      <p className="max-w-lg text-[17px] leading-relaxed text-[var(--an-muted)]">Record or upload. Get a transcript with times, a clear summary, decisions and the to-dos, straight into your Arise To Duo planner. Made for teachers, special education teams, students and families.</p>
+      <p className="max-w-lg text-[17px] leading-relaxed text-[var(--an-muted)]">Record or upload. Get a transcript with times, a clear summary, decisions and the to-dos, straight into your Arise To Do planner. Made for teachers, special education teams, students and families.</p>
       <ul className="space-y-3">
         {[[<Mic key="m" className="h-5 w-5" />, "Record live or upload up to 2 hours"], [<Sparkles key="s" className="h-5 w-5" />, "Summaries for IEP meetings, parent conferences, lectures, doctor visits"], [<Upload key="u" className="h-5 w-5" />, "Action items become to-dos after you check them"], [<Shield key="p" className="h-5 w-5" />, "Audio deleted after transcription by default. Never used to train AI."]].map(([icon, text], i) =>
           <li key={i} className="flex items-center gap-3 text-[15px] font-medium"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--an-violet-soft)] text-[var(--an-violet)]">{icon}</span>{text}</li>)}
@@ -90,7 +90,7 @@ function Welcome() {
         <button className="an-btn an-primary w-full" disabled={busy || code.length < 6}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}Confirm</button>
       </form> : <form onSubmit={mode === "in" ? signIn : signUp} className="space-y-3">
         <h2 className="text-[20px] font-bold">{mode === "in" ? "Sign in" : "Create a free account"}</h2>
-        <p className="text-[14px] text-[var(--an-muted)]">{mode === "in" ? "Use your Arise To Duo or A.R.I.S.E. account." : "One account for Arise Notes, Arise To Duo and A.R.I.S.E."}</p>
+        <p className="text-[14px] text-[var(--an-muted)]">{mode === "in" ? "Use your Arise To Do or A.R.I.S.E. account." : "One account for Arise Notes, Arise To Do and A.R.I.S.E."}</p>
         {mode === "up" && <input className={field} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" aria-label="Your name" />}
         {mode === "in" && <input className={field} placeholder="Username or email" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} aria-label="Username" />}
         {mode === "up" && <input className={field} type="email" placeholder="Email (you sign in with this)" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" aria-label="Email" />}

@@ -26,8 +26,8 @@ import { BrandCard } from "../coach/Brand";
 
 type Tab = "clients" | "inbox" | "schedule" | "library" | "business";
 
-/** Cooked PT inside Arise To Duo (components/super-apps/CookedPtInDuo.tsx): To Duo draws the heading and the
- *  row of pages (`top`, with what's waiting on each), Cooked PT the page, in To Duo's look and messages. */
+/** Cooked PT inside Arise To Do (components/super-apps/CookedPtInDuo.tsx): To Do draws the heading and the
+ *  row of pages (`top`, with what's waiting on each), Cooked PT the page, in To Do's look and messages. */
 export type TrainerEmbed = {
   night: boolean;
   say: (m: string) => void;
@@ -77,7 +77,7 @@ export default function TrainerApp({ embed }: { embed?: TrainerEmbed } = {}) {
     {bell && <TrainerNotificationsSheet onClose={() => setBell(false)} />}
     {open && data && <ClientSheet token={token} me={me} linkId={open.id} name={open.name} lib={data.library} saveLib={saveLib} quick={quick} say={say} onClose={() => { setOpen(null); reload(); }} />}
   </>;
-  // Inside To Duo: To Duo's heading and row of pages (with what's waiting on each), then the page.
+  // Inside To Do: To Do's heading and row of pages (with what's waiting on each), then the page.
   if (embed) return <div className="min-w-0" style={{ color: C.text, ...font }} data-testid="trainer-app" data-fit-embed="duo">
     {embed.top({ tabs: tabs.map(([id, label, , badge]) => ({ id, label, badge })), tab, go: (id) => setTab(id as Tab), openBell: () => setBell(true) })}
     {page}

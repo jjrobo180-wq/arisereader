@@ -20,7 +20,7 @@ test("the payload carries only what the native screen shows", async () => {
   assert.deepEqual(out.lists, [{ id: "l1", name: "Home" }]);
 });
 
-test("the plugin is in the To Duo app and its Swift is whole", () => {
+test("the plugin is in the To Do app and its Swift is whole", () => {
   assert.equal(JSON.parse(read("arisetodo/ios-app/package.json")).dependencies["arise-native"], "file:../../native/arise-native");
   for (const f of ["AriseNativePlugin.swift", "TasksView.swift"]) {
     const src = read(`native/arise-native/ios/Sources/AriseNativePlugin/${f}`);

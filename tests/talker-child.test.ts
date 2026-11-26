@@ -13,7 +13,7 @@ test("a child uses their own, a parent their linked child, anyone else themselve
   assert.deepEqual(chooseTalkerChild(parent, false, [{ id: 4, eyeGaze: true }], 77), { kind: "none" }, "never a child that isn't theirs");
   assert.deepEqual(chooseTalkerChild(parent, false, [], null), { kind: "self" }, "a parent with no child linked yet");
   assert.deepEqual(chooseTalkerChild({ id: 1, role: "student", is_eye_gaze_user: false }, true, [], null), { kind: "self" }, "the site owner in a preview");
-  assert.deepEqual(chooseTalkerChild({ id: 2, role: "todo" }, false, [], null), { kind: "self" }, "a To Duo account");
+  assert.deepEqual(chooseTalkerChild({ id: 2, role: "todo" }, false, [], null), { kind: "self" }, "a To Do account");
 });
 
 test("every Arise AAC page uses it", () => {

@@ -1,4 +1,4 @@
-// Arise To Duo ↔ Google (Classroom, Docs, Calendar, Gmail). The rules are in shared/googleConnect.ts.
+// Arise To Do ↔ Google (Classroom, Docs, Calendar, Gmail). The rules are in shared/googleConnect.ts.
 //
 // The Google sign-in stays here: the refresh token is kept encrypted in the settings table, one row per
 // account, and the browser and the iPhone app only ever talk to these routes. Signing in happens in a real
@@ -155,20 +155,20 @@ export function registerGoogleRoutes(app: Express, auth: RequestHandler, deps: G
   // Google sends the person back here with a one-time code. No sign-in on this request (it comes from
   // Google's page): the signed state says which account asked.
   app.get("/api/google/callback", async (req: any, res) => {
-    const page = (title: string, text: string, link?: string) => res.status(200).type("html").send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:-apple-system,system-ui,sans-serif;max-width:28rem;margin:15vh auto;padding:0 1.5rem;text-align:center;color:#1f2430"><h1 style="font-size:1.5rem">${title}</h1><p style="font-size:1.05rem;line-height:1.5">${text}</p>${link ? `<p><a href="${link}" style="display:inline-block;margin-top:1rem;padding:.8rem 1.4rem;border-radius:999px;background:#1f2430;color:#fff;text-decoration:none;font-weight:600">Back to Arise To Duo</a></p>` : ""}</body>`);
+    const page = (title: string, text: string, link?: string) => res.status(200).type("html").send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:-apple-system,system-ui,sans-serif;max-width:28rem;margin:15vh auto;padding:0 1.5rem;text-align:center;color:#1f2430"><h1 style="font-size:1.5rem">${title}</h1><p style="font-size:1.05rem;line-height:1.5">${text}</p>${link ? `<p><a href="${link}" style="display:inline-block;margin-top:1rem;padding:.8rem 1.4rem;border-radius:999px;background:#1f2430;color:#fff;text-decoration:none;font-weight:600">Back to Arise To Do</a></p>` : ""}</body>`);
     const state = readState(deps.key(), String(req.query.state || ""), now());
-    if (!state) return page("That link expired", "Go back to Arise To Duo and tap Connect again.");
+    if (!state) return page("That link expired", "Go back to Arise To Do and tap Connect again.");
     const back = `${deps.siteUrl.replace(/\/$/, "")}${state.returnTo}`;
-    if (req.query.error) return page("Not connected", "Google wasn't connected. You can try again any time from Arise To Duo.", state.app ? undefined : back);
+    if (req.query.error) return page("Not connected", "Google wasn't connected. You can try again any time from Arise To Do.", state.app ? undefined : back);
     try {
       const t = await tokenCall({ grant_type: "authorization_code", code: String(req.query.code || ""), redirect_uri: deps.redirectUri });
       const old = await load(state.userId);
       let email = old?.email || "";
       if (t.id_token) { try { email = JSON.parse(Buffer.from(String(t.id_token).split(".")[1], "base64url").toString()).email || email; } catch { /* keep */ } }
       const refresh = t.refresh_token || old?.refresh;
-      if (!refresh) return page("Almost", "Google didn't send a lasting sign-in. Go back to Arise To Duo and tap Connect again.");
+      if (!refresh) return page("Almost", "Google didn't send a lasting sign-in. Go back to Arise To Do and tap Connect again.");
       await save(state.userId, { refresh, access: t.access_token, expiresAt: now() + (Number(t.expires_in) || 3600) * 1000, scope: String(t.scope || ""), email });
-      if (state.app) return page("Connected", "Google is connected. Go back to the Arise To Duo app; it picks this up as soon as you're back.");
+      if (state.app) return page("Connected", "Google is connected. Go back to the Arise To Do app; it picks this up as soon as you're back.");
       return res.redirect(302, `${back}${back.includes("?") ? "&" : "?"}google=connected`);
     } catch (e: any) {
       return page("Not connected", e instanceof GoogleError ? e.message : "Google didn't answer. Try again.", state.app ? undefined : back);

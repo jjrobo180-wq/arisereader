@@ -1,11 +1,11 @@
-// Health & Fitness stats as an iPhone widget and as a To Duo Home card (Nov 24, 2026).
+// Health & Fitness stats as an iPhone widget and as a To Do Home card (Nov 24, 2026).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { emptyFit } from "../shared/fit";
 import { fitDuoSlot, fitHomeStats } from "../client/src/lib/fitWidgets";
 
-test("the To Duo widget is one Health & Fitness slot that opens the plugin", () => {
+test("the To Do widget is one Health & Fitness slot that opens the plugin", () => {
   const slot = fitDuoSlot(emptyFit(), undefined);
   assert.equal(slot.id, "duo.fit.today");
   assert.equal(slot.title, "Health & Fitness");
@@ -14,7 +14,7 @@ test("the To Duo widget is one Health & Fitness slot that opens the plugin", () 
   assert.ok((slot.lines ?? []).some((l) => l.startsWith("Water")));
 });
 
-test("the widget is listed for the To Duo iPhone build", () => {
+test("the widget is listed for the To Do iPhone build", () => {
   const list = JSON.parse(readFileSync("arisetodo/ios-app/widgets.json", "utf8")) as [string, string][];
   assert.ok(list.some(([id]) => id === "duo.fit.today"));
 });
@@ -24,7 +24,7 @@ test("Home stats carry every number the card shows", () => {
   for (const k of ["calories", "water", "protein", "workouts", "streak"] as const) assert.ok(s[k], k);
 });
 
-test("To Duo Home shows the card and tile when Health & Fitness is on", () => {
+test("To Do Home shows the card and tile when Health & Fitness is on", () => {
   const home = readFileSync("client/src/components/family-hub/FamilyHome.tsx", "utf8");
   assert.match(home, /FitHomeCard onOpen=\{openFitness\}/);
   assert.match(home, /id: "live-fitness"/);

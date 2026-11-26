@@ -1,4 +1,4 @@
-// The animated pictures in the Arise To Duo tour (AppWalkthrough.tsx): one small looping scene per step,
+// The animated pictures in the Arise To Do tour (AppWalkthrough.tsx): one small looping scene per step,
 // drawn in HTML and CSS (no image files), so each idea is shown rather than explained. Calm and short;
 // people who asked for less motion see the scene standing still.
 import type { ReactNode } from "react";
@@ -71,7 +71,7 @@ export function TourArt({ id, tint }: { id: string; tint: string }) {
     case "customize": scene = <><span className="ta-w a">Calendar</span><span className="ta-w b">To-dos</span>
       <div className="ta-dots">{["#f87171", "#fbbf24", "#34d399", "#a78bfa"].map((c, i) => <i key={c} style={{ background: c, animationDelay: `${i * 0.3}s` }} />)}<Palette size={16} style={{ marginLeft: 4 }} /></div></>; break;
     case "connect": scene = <><span className="ta-fly l"><CalendarDays /></span><span className="ta-fly r"><ListChecks /></span><div className="ta-big" style={{ width: 54, height: 54, margin: "-27px 0 0 -27px" }}><Sparkles /></div></>; break;
-    case "notify": scene = <><div className="ta-note"><Bell size={18} color="#e11d48" /><span><b>Arise To Duo · now</b>Soccer practice in 30 min</span></div>{sparks(4)}</>; break;
+    case "notify": scene = <><div className="ta-note"><Bell size={18} color="#e11d48" /><span><b>Arise To Do · now</b>Soccer practice in 30 min</span></div>{sparks(4)}</>; break;
     case "split": scene = <div className="ta-split"><i>LifeHub</i><i>WorkHub</i></div>; break;
     case "arise": scene = <><div className="ta-big"><BookOpen /></div>{sparks(6)}</>; break;
     case "done": scene = <><div className="ta-big"><Check strokeWidth={3} /></div>{sparks(8)}</>; break;

@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 
-// Arise To Duo's guided tour for teachers (WorkHub) and parents (LifeHub).
+// Arise To Do's guided tour for teachers (WorkHub) and parents (LifeHub).
 //
 // Instead of describing the app in a box, every step opens the real section and points at the
 // real thing on screen: the page dims except for that button or section, a label sits right on
@@ -140,7 +140,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
   ],
   life: [
     {
-      title: "Welcome to Arise To Duo",
+      title: "Welcome to Arise To Do",
       body: "Here's a quick walk around. Each step opens the real screen and points at it, so you'll know exactly where everything is. It takes about a minute.",
     },
     {
@@ -468,7 +468,7 @@ export default function WorkHubTour() {
   const labelLeft = box ? Math.min(Math.max(box.left, 8), vw - 200) : 0;
 
   return (
-    <div className="fixed inset-0 z-[300]" role="dialog" aria-modal="true" aria-label={`Arise To Duo tour, step ${step + 1} of ${steps.length}: ${current.title}`} data-testid="todo-tour">
+    <div className="fixed inset-0 z-[300]" role="dialog" aria-modal="true" aria-label={`Arise To Do tour, step ${step + 1} of ${steps.length}: ${current.title}`} data-testid="todo-tour">
       {/* Catches clicks so the page underneath isn't changed mid-tour. */}
       <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
       {pointing && box ? (

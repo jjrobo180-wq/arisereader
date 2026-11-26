@@ -1,4 +1,4 @@
-// Arise To Duo ↔ Google: Classroom, Docs (Drive), Calendar and Gmail, from one Google sign-in.
+// Arise To Do ↔ Google: Classroom, Docs (Drive), Calendar and Gmail, from one Google sign-in.
 //
 // Each part is switched on by itself ("Connect Classroom", "Connect Docs"…), and Google asks only for what
 // that part needs, adding it to what was already allowed (include_granted_scopes), so a family that only
@@ -26,10 +26,10 @@ export const FEATURE_SCOPES: Record<GoogleFeature, string[]> = {
 
 export const FEATURE_INFO: Record<GoogleFeature, { name: string; does: string }> = {
   classroom: { name: "Google Classroom", does: "Assignments become to-dos with their due dates, checked off when they're turned in. Teachers also see their classes and class lists." },
-  classroomPost: { name: "Post to Classroom", does: "Teachers: post an announcement or an assignment to a class from To Duo." },
+  classroomPost: { name: "Post to Classroom", does: "Teachers: post an announcement or an assignment to a class from To Do." },
   docs: { name: "Google Docs", does: "Attach a Doc, Sheet or Slides to a to-do, see your recent Docs, make a new Doc from a to-do, and add to a Doc." },
   calendar: { name: "Google Calendar", does: "See what's coming up, and put to-dos that have a time on your Google Calendar." },
-  gmail: { name: "Gmail", does: "Turn an email into a to-do. To Duo only reads; it never sends or deletes email." },
+  gmail: { name: "Gmail", does: "Turn an email into a to-do. To Do only reads; it never sends or deletes email." },
 };
 
 /** Which features the scopes Google granted cover (all of a feature's scopes, not just some). */
@@ -56,7 +56,7 @@ export function googleAuthUrl(opts: { clientId: string; redirectUri: string; fea
 
 // ——— Classroom ———
 
-/** One Classroom assignment as To Duo shows it. `dueAt` is the moment it's due (Classroom keeps due times
+/** One Classroom assignment as To Do shows it. `dueAt` is the moment it's due (Classroom keeps due times
  *  in UTC), or "" when it has a due day but no time (`dueDay`), or neither. */
 export type ClassroomItem = { key: string; title: string; course: string; link: string; dueAt: string; dueDay: string; done: boolean; notes: string };
 

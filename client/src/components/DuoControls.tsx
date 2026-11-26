@@ -1,4 +1,4 @@
-// The one Arise To Duo menu. The same panel shows in LifeHub's and WorkHub's Customize (tab "Duo &
+// The one Arise To Do menu. The same panel shows in LifeHub's and WorkHub's Customize (tab "Duo &
 // split screen"), behind the header's Duo button while Duo is on, and on the split screen's fold
 // handle — so there is one place to look, and one switch that turns Duo off everywhere at once
 // (the two-pane layout AND the split screen; see turnDuoOff in lib/useAriseDuo.ts).
@@ -58,7 +58,7 @@ export default function DuoControls({ canWork, onClose, split, dark = "#292446" 
   const status = !on ? "Off on this phone."
     : inSplit ? "On · split screen is open."
     : duo.isDuo ? (duo.mode === "book" ? "On · two panes, one each side of the fold." : "On · one roomy column.")
-    : "On · switches to the Duo layout when there's room.";
+    : "On · switches to two panes when there's room.";
 
   const [picking, setPicking] = useState<SplitSide | null>(null);
   const groups = (["LifeHub", "WorkHub"] as const).map((g) => ({ g, list: options.filter((o) => o.group === g) })).filter((x) => x.list.length);
@@ -135,8 +135,8 @@ export default function DuoControls({ canWork, onClose, split, dark = "#292446" 
 export function DuoHeaderButton({ onOpen }: { onOpen: () => void }) {
   const duo = useAriseDuo();
   if (!duo.isDuo && duo.choice !== "on") return null;
-  return <button type="button" onClick={onOpen} aria-label="Arise To Duo menu: split screen, or turn Duo off" title="Duo"
+  return <button type="button" onClick={onOpen} aria-label="Arise To Do menu: split screen, or turn it off" title="Split"
     className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-3 text-sm font-bold text-white" data-testid="duo-menu-button">
-    <Columns2 className="h-4 w-4" /> <span className="hidden min-[400px]:inline">Duo</span>
+    <Columns2 className="h-4 w-4" /> <span className="hidden min-[400px]:inline">Split</span>
   </button>;
 }

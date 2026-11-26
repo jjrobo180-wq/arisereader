@@ -1,4 +1,4 @@
-// The Arise To Duo iPhone app is built with To Duo alone inside (vite.todo.config.ts, App Review 2.5.19:
+// The Arise To Do iPhone app is built with To Do alone inside (vite.todo.config.ts, App Review 2.5.19:
 // no hidden or dormant features): other products' pages become stand-ins, the Undercover looks are dropped,
 // other products' files are taken out, and the build fails if a forbidden word is left.
 // Run with: npx tsx --test tests/todo-bundle.test.ts
@@ -13,7 +13,7 @@ import { TODO_FORBIDDEN, TODO_STAND_IN, todoLeavesOut } from "../script/todoBund
 
 const read = (p: string) => readFileSync(p, "utf8");
 
-test("the To Duo build: its own config, one page, the stand-ins, and __TODO_APP__ on", () => {
+test("the To Do build: its own config, one page, the stand-ins, and __TODO_APP__ on", () => {
   const cfg = read("vite.todo.config.ts");
   assert.match(cfg, /import base from "\.\/vite\.config";/);
   assert.match(cfg, /plugins: \[leaveOutOtherProducts\(\), todoLoadingScreen\(\)\]/);
@@ -28,7 +28,7 @@ test("the To Duo build: its own config, one page, the stand-ins, and __TODO_APP_
   assert.match(TODO_STAND_IN, /export default function LeftOutOfToDuo/);
 });
 
-test("what's left out, and what To Duo keeps", () => {
+test("what's left out, and what To Do keeps", () => {
   for (const f of ["client/src/undercover/UndercoverApp.tsx", "client/src/undercover/askUndercover.ts", "client/src/pages/talk/TalkApp.tsx",
     "client/src/pages/arise-kids/KidsApp.tsx", "client/src/pages/EyeGazeTalker.tsx", "client/src/pages/Library.tsx", "client/src/pages/FypPage.tsx",
     "client/src/pages/PaintballArena.tsx", "client/src/pages/TodoAdmin.tsx", "client/src/pages/reads/ReadHub.tsx", "client/src/components/AdvisoryChallenge.tsx"]) {
@@ -76,11 +76,11 @@ test("the prune step takes other products' files out and fails on a forbidden wo
   const dir = mkdtempSync(join(tmpdir(), "todo-bundle-"));
   const out = join(dir, "public");
   for (const d of ["eyegaze/wren", "eyegaze/pictures", "reads/book", "classics/x", "avatar", "assets"]) mkdirSync(join(out, d), { recursive: true });
-  writeFileSync(join(out, "index.html"), "<!doctype html><title>Arise To Duo</title>");
+  writeFileSync(join(out, "index.html"), "<!doctype html><title>Arise To Do</title>");
   writeFileSync(join(out, "reader-landing.html"), "Arise Reader");
   writeFileSync(join(out, "prize-wheel.html"), "spin");
   writeFileSync(join(out, "eyegaze/pictures/apple.svg"), "<svg/>");
-  writeFileSync(join(out, "assets/index.js"), "console.log('To Duo')");
+  writeFileSync(join(out, "assets/index.js"), "console.log('To Do')");
   execFileSync("bash", [".github/scripts/prune_todo_bundle.sh", out]);
   for (const gone of ["eyegaze/wren", "reads", "classics", "avatar", "reader-landing.html", "prize-wheel.html"]) assert.equal(existsSync(join(out, gone)), false, gone);
   for (const kept of ["index.html", "eyegaze/pictures/apple.svg", "assets/index.js"]) assert.equal(existsSync(join(out, kept)), true, kept);

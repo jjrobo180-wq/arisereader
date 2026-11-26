@@ -231,7 +231,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   // Opening the hub: on arisereader.com the sign-in has to be carried over to arisetodo.com. Doing
   // that here, before the new tab loads anything, takes the tab straight to the hub instead of
   // loading the Reader site, then a "carrying your sign-in" screen, then the hub.
-  // Inside an iPhone app (To Duo opens the Reader from a notification) a new tab goes nowhere: go back in place.
+  // Inside an iPhone app (To Do opens the Reader from a notification) a new tab goes nowhere: go back in place.
   const inApp = isNativeApp() && !isReaderApp();
   const goBack = (e: React.MouseEvent) => { e.preventDefault(); window.location.assign(workhubHref); };
   const openHub = async (e: React.MouseEvent<HTMLAnchorElement>) => {

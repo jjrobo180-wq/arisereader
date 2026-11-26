@@ -481,7 +481,7 @@ function TeacherHubPage() {
     goToReader();
   }, [tab, setTab]);
   const [customize, setCustomize] = useState(false);
-  // Which Customize tab to open on: the header's Duo button opens straight to "Duo & split screen".
+  // Which Customize tab to open on: the header's Duo button opens straight to "Split screen".
   const [customizeTab, setCustomizeTab] = useState<string | undefined>(undefined);
   const [lockSettings, setLockSettings] = useState(false);
   /** Bumped to reopen the notes board on a note a link points at. */
@@ -505,7 +505,7 @@ function TeacherHubPage() {
   const [more, setMore] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
-  // In a pane of the Arise To Duo split screen the menu starts tucked away (and that isn't remembered).
+  // In a pane of the Arise To Do split screen the menu starts tucked away (and that isn't remembered).
   const [rail, setRailState] = useState(() => { if (inDuoPane()) return false; try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
   /** A WorkHub plugin (from the Plugin Kit) open as its own page. Picking any tab closes it. */
   const [kitOpen, setKitOpen] = useStayOnRefresh<string | null>("work-kit", null);
@@ -536,7 +536,7 @@ function TeacherHubPage() {
     return () => window.removeEventListener(OPEN_APPS_EVENT, show);
   }, []);
   const [youOpen, setYouOpen] = useState(false);
-  // Arise To Duo: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
+  // Arise To Do: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
   const duo = useAriseDuo();
   const setRail = (open: boolean) => { setRailState(open); if (inDuoPane()) return; try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
   // The ⋯ menu (components/HubMoreMenu.tsx) closes itself on a tap outside it or Escape.
@@ -584,7 +584,7 @@ function TeacherHubPage() {
   }, [subMenu]);
   useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
 
-  // WorkHub is for anyone with an adult account, personal Arise To Duo accounts included —
+  // WorkHub is for anyone with an adult account, personal Arise To Do accounts included —
   // which is what the server has always said (hubAccessFor in shared/plans.ts: "Both hubs are for
   // anyone with an adult account"). This gate disagreed and turned those people away at the door.
   // What stays paid is the A.R.I.S.E. programs inside, not the hub itself.
@@ -608,7 +608,7 @@ function TeacherHubPage() {
     window.addEventListener(REMINDERS_CHANGED, again); document.addEventListener("visibilitychange", front);
     return () => { window.removeEventListener(REMINDERS_CHANGED, again); document.removeEventListener("visibilitychange", front); };
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Arise To Duo Free: up to 3 App Store apps across WorkHub and LifeHub (shared/todoPlan.ts). A
+  // Arise To Do Free: up to 3 App Store apps across WorkHub and LifeHub (shared/todoPlan.ts). A
   // change that would add a 4th is held back here (so a save never fails over it), and the
   // upgrade box opens, at most once every ten minutes so a background refresh can't keep popping it.
   const todoPlan = useTodoPlan();
@@ -699,7 +699,7 @@ function TeacherHubPage() {
   /** The to-do being changed from the To do card on Home. */
   const [homeTask, setHomeTask] = useStayOnRefresh<string | null>("work-home-task", null);
   const [homeQuick, setHomeQuick] = useState("");
-  // "@arise" asks (lib/ariseAsks.ts), the same as in To Duo: typing "@arise ..." in a to-do sends it to Arise's AI.
+  // "@arise" asks (lib/ariseAsks.ts), the same as in To Do: typing "@arise ..." in a to-do sends it to Arise's AI.
   /** The tabs that are off (read by the "?go=" handler below, which is set up once). */
   const workOffNow = useRef<readonly string[]>([]);
   // The ones asked from here open here (the notification's link is "#/workhub?go=asks&ask=...").
@@ -1028,7 +1028,7 @@ function TeacherHubPage() {
         <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
           <h1 className="mt-4 text-2xl font-bold text-slate-950">This one's for grown-ups</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Arise WorkHub comes with any Arise To Duo account — yours, a parent's or a teacher's. Student accounts are for reading, so sign in with an adult account to open it.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Arise WorkHub comes with any Arise To Do account — yours, a parent's or a teacher's. Student accounts are for reading, so sign in with an adult account to open it.</p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <GhostButton onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
             <a href="#/signin?mode=signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create an account</a>
@@ -1315,8 +1315,8 @@ function TeacherHubPage() {
           setWorkspace((prev) => { const had = prev.calendars.find((c) => isIphoneCalendar(c.url)); return replaceCalendarEvents(prev, { id: had?.id || id(), name: "iPhone Calendar", url: IPHONE_CALENDAR_URL, syncedAt: new Date().toISOString() }, events, id); });
           return events.length;
         }} />}
-      {/* After the first-run walkthrough: the To Duo Unlimited pop-up, once (iPhone app only). The same one LifeHub shows. */}
-      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Duo is free with 3 plugins from the Plugin Gallery. Arise To Duo Unlimited unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />}
+      {/* After the first-run walkthrough: the To Do Unlimited pop-up, once (iPhone app only). The same one LifeHub shows. */}
+      {canUseHub && loaded && !loadError && !needsPlan && <AllAccessPopup userId={user.id} token={token} doneKey={`arise-walkthrough-v1:${user.id}`} intro="To Do is free with 3 plugins from the Plugin Gallery. Arise To Do Unlimited unlocks every plugin and the AI, plus the extras in Notes, Cooked Fitness by Arise and Podster." />}
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         initialOpen={storeOpenApp ?? undefined}
@@ -1865,7 +1865,7 @@ function TeacherHubPage() {
                   })}
               </div>
               </CustomizeGroup> },
-              { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <DuoControls canWork onClose={() => { setCustomize(false); setCustomizeTab(undefined); }} dark="#020617" /> },
+              { id: "duo", label: "Split screen", icon: <Columns2 />, content: <DuoControls canWork onClose={() => { setCustomize(false); setCustomizeTab(undefined); }} dark="#020617" /> },
               { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
                 <SameBothHubs testId="hub-same-both" />
                 <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">

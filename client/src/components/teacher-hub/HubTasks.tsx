@@ -35,7 +35,7 @@ type SectionProps = {
   remove: <K extends keyof Workspace>(key: K, rowId: string) => void;
 };
 
-export function TaskRow({ plain = false, task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive, ariseAsk }: { plain?: boolean; task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void; /** The "@arise" ask this to-do was made from (Arise To Duo). */ ariseAsk?: AriseAsk }) {
+export function TaskRow({ plain = false, task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete, list, onArchive, ariseAsk }: { plain?: boolean; task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void; list?: { name: string; color: string }; onArchive?: (task: Task, archived: boolean) => void; /** The "@arise" ask this to-do was made from (Arise To Do). */ ariseAsk?: AriseAsk }) {
   const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
   return (
     <li className="group flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:gap-y-2 sm:p-4" data-testid="task-row" data-task-id={task.id}>
@@ -108,7 +108,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
   controls?: { view: TaskView; setView: (v: TaskView) => void; list: string; setList: (id: string) => void };
   /** LifeHub's to-dos have no emails or pins, so those are left out. */
   plain?: boolean;
-  /** Arise To Duo: "@arise" to-dos go to Arise's AI, and the Arise tab lists every ask (lib/ariseAsks.ts). */
+  /** Arise To Do: "@arise" to-dos go to Arise's AI, and the Arise tab lists every ask (lib/ariseAsks.ts). */
   arise?: { asks: AriseAsk[]; loaded: boolean; open: string | null; people: string[]; hub?: "work" | "life" };
 }) {
   // Laid out like LifeHub's to-do lists: views (All, Today, Upcoming, Completed, Archived) and the
@@ -166,7 +166,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
     archived: { title: "Archived", icon: <Archive className="h-4 w-4" /> },
   };
 
-  // The Arise tab (Arise To Duo): every "@arise" ask. A notification or a to-do's chip opens it on one ask.
+  // The Arise tab (Arise To Do): every "@arise" ask. A notification or a to-do's chip opens it on one ask.
   const [aiTab, setAiTab] = useState(false);
   // open is "" for the list itself, an ask id for one ask, and null when nothing asked for it.
   useEffect(() => { if (arise && arise.open !== null) setAiTab(true); }, [arise?.open]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,5 +1,5 @@
-// The frame Cooked, Cooked PT, Arise Notes and Podster share inside Arise To Duo: To Duo's own heading, its
-// row of pages (a tab bar in To Duo's look), a settings
+// The frame Cooked, Cooked PT, Arise Notes and Podster share inside Arise To Do: To Do's own heading, its
+// row of pages (a tab bar in To Do's look), a settings
 // button that picks which pages show, and the page below. Each app's pages are in shared/superApps.ts.
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import "./super-shell.css";
@@ -19,7 +19,7 @@ export function useSuperPages(app: SuperApp, family: Family, setFamily: (update:
   return { pages, save };
 }
 
-/** To Duo's heading for the app (Nov 25, 2026): one slim row with no logo, so the app starts at the top. On a wide
+/** To Do's heading for the app (Nov 25, 2026): one slim row with no logo, so the app starts at the top. On a wide
  *  screen the page tabs sit in the same row; on a phone they go just under the name. Colours come from the hub's look
  *  (super-shell.css). A screen that isn't one of the picked pages still shows in the tabs where it belongs. */
 export function SuperHead({ app, onSettings, settingsLabel, right, tabs }: { app: SuperApp; onSettings?: () => void; settingsLabel?: string; right?: ReactNode; tabs?: ReactNode }) {
@@ -35,7 +35,7 @@ export function SuperHead({ app, onSettings, settingsLabel, right, tabs }: { app
   </header>;
 }
 
-/** The row of pages as a segmented control in To Duo's look: the open page lifts out on a card in the accent
+/** The row of pages as a segmented control in To Do's look: the open page lifts out on a card in the accent
  *  colour, a number on a page for something waiting there. `onEdit` adds Edit at the end (Health & Fitness's tabs).
  *  The open page is kept in view when there are more than fit. */
 export function PageStrip({ app, pages, current, onPick, badges, dots, onEdit }: { app: SuperApp; pages: string[]; current: string; onPick: (id: string) => void; badges?: Record<string, number>; dots?: Record<string, boolean>; onEdit?: () => void }) {
@@ -58,7 +58,7 @@ export function PageStrip({ app, pages, current, onPick, badges, dots, onEdit }:
   </div>;
 }
 
-/** "Edit Tabs" (Nov 25, 2026): the app's pages switched on and off in To Duo's own sheet, the same one Health &
+/** "Edit Tabs" (Nov 25, 2026): the app's pages switched on and off in To Do's own sheet, the same one Health &
  *  Fitness uses. Each switch saves at once; what's left out stays, one switch away. */
 export function PagePicker({ app, pages, onSave, onClose }: { app: SuperApp; pages: string[]; onSave: (ids: string[]) => void; onClose: () => void }) {
   const [draft, setDraft] = useState<Set<string>>(() => new Set(pages));

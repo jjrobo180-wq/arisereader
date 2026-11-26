@@ -25,7 +25,7 @@ test("checking off rolls to the next chosen day", () => {
   assert.equal(r.rolledTo, "2026-11-18");
 });
 
-test("weekday repeat survives To Duo's own task shape", () => {
+test("weekday repeat survives To Do's own task shape", () => {
   const work = [{ id: "a", title: "x", dueDate: "2026-11-16", recurring: "Days:1,3,5", done: false }];
   const life = lifeTasksFromWork([], work, "l1", "now");
   assert.equal(life[0].repeat, "weekly");

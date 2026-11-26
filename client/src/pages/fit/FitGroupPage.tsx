@@ -1,4 +1,4 @@
-// One Health & Fitness tab inside Arise To Duo (Nov 25, 2026): a calm row of the tab's parts at the top, then the
+// One Health & Fitness tab inside Arise To Do (Nov 25, 2026): a calm row of the tab's parts at the top, then the
 // part that's open. Parts with a page of their own show here; the tools (camera, sleep sounds, coach...) open over
 // it, marked with an arrow. Which tabs and parts show is set in Edit (FitTabsEditor.tsx); shared/fitGroups.ts.
 import { useEffect, useRef, type ReactNode } from "react";

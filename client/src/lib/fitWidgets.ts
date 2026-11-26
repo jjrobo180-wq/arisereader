@@ -90,8 +90,8 @@ export function applyWatchActions(data: FitData, actions: { type: string; at: nu
   return next;
 }
 
-/** Arise To Duo's one Health & Fitness widget (arisetodo/ios-app/widgets.json, "duo.fit.today"): today's stats in one
- *  place, built from the same numbers as the Cooked widgets above. A tap opens Health & Fitness inside To Duo. */
+/** Arise To Do's one Health & Fitness widget (arisetodo/ios-app/widgets.json, "duo.fit.today"): today's stats in one
+ *  place, built from the same numbers as the Cooked widgets above. A tap opens Health & Fitness inside To Do. */
 export function fitDuoSlot(data: FitData, kg: number | undefined, now = Date.now()): WidgetSlot {
   const all = fitWidgetSlots(data, kg, now);
   const by = (id: string) => all.find((s) => s.id === id);
@@ -109,7 +109,7 @@ export function fitDuoSlot(data: FitData, kg: number | undefined, now = Date.now
   };
 }
 
-/** The same numbers for To Duo's Home card (components/super-apps/FitHomeCard.tsx). */
+/** The same numbers for To Do's Home card (components/super-apps/FitHomeCard.tsx). */
 export function fitHomeStats(data: FitData, kg: number | undefined, now = Date.now()) {
   const all = fitWidgetSlots(data, kg, now);
   const pick = (id: string) => all.find((s) => s.id === id);

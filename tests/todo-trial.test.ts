@@ -1,4 +1,4 @@
-// To Duo has one subscription (Arise All Access) with a 3-day free trial when it's bought in the iPhone
+// To Do has one subscription (Arise All Access) with a 3-day free trial when it's bought in the iPhone
 // app (App Store Connect's introductory offer). The website's pricing shows that one subscription.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -27,9 +27,9 @@ test("the paywall offers the trial and says what it costs after", () => {
 });
 
 test("arisetodo.com pricing shows the one subscription and the trial", () => {
-  // The full To Duo pricing lives on the iPhone Duo page now; the home page is for teachers, schools and parents.
+  // The full To Do pricing lives on the iPhone Duo page now; the home page is for teachers, schools and parents.
   const html = read("client/public/iphone-duo/index.html");
-  assert.match(html, /The one Arise To Duo subscription/);
-  assert.match(html, /data-testid="pricing-trial"><strong>3-day free trial<\/strong> when you subscribe in the Arise To Duo iPhone app/);
+  assert.match(html, /The one Arise To Do subscription/);
+  assert.match(html, /data-testid="pricing-trial"><strong>3-day free trial<\/strong> when you subscribe in the Arise To Do iPhone app/);
   assert.match(html, /One subscription, \$10\./);
 });

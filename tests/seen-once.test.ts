@@ -1,4 +1,4 @@
-// To Duo's setup and walkthrough show once per account, not once per device.
+// To Do's setup and walkthrough show once per account, not once per device.
 // Run with: npx tsx --test tests/seen-once.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

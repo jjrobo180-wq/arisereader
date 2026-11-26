@@ -1,5 +1,5 @@
 // The Rise Score: how someone is doing with their checklist, food, exercise and money, as a percent and a letter
-// grade for today, this week and this year. Arise To Duo shows it in a score card on its pages
+// grade for today, this week and this year. Arise To Do shows it in a score card on its pages
 // (client/src/components/RiseScoreCard.tsx) and sends it to the iPhone's Rise Score widgets
 // (native/widget-extension/DuoScores.swift) as the "duo.scores" slot. Pure, so it's tested (tests/rise-score.test.ts).
 //
