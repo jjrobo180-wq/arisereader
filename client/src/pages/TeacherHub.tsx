@@ -1103,7 +1103,10 @@ function TeacherHubPage() {
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
           if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
           if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
-            if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
+            // An app that opens inside the hub (Google, TTS Buddy…) opens right away, instead of leaving you to find it.
+            const inHubNow = on && p.target.kind === "officeApp" ? inHubOf(p.target.href) : "";
+            if (inHubNow) { setStore(false); closeApps(); setKitOpen(inHubNow); toasts.show(`${p.name} added.`, []); }
+            else if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
           }
         };
   /** "Remove app" on a My plugins item that isn't a menu group (Notes, Sheets and Office apps, Drive, Dropbox), with Undo. */

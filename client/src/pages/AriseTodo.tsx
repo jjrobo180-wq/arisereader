@@ -1379,6 +1379,9 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
         }
         if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") {
           setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, on) }));
+          // An app that opens inside the hub (Google, TTS Buddy…) opens right away, instead of leaving you to find it.
+          const proNow = on && p.target.kind === "officeApp" ? proAppOf(p.target.href) : "";
+          if (proNow) { setStore(false); closeApps(); setKitOpen(`pro:${proNow}`); setMessage(`${p.name} added.`); return; }
           if (on) setMessage(`${p.name} added. Find it in your menu.`);
           else if (p.target.kind === "sheetsApp" && sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
           return;

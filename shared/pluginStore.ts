@@ -744,7 +744,7 @@ export function pluginTier(p: Plugin): PluginTier {
 export const PREMIUM_SHELVES: readonly string[] = ["Super apps", "Office & files", "Sleep & Standby", "Learning apps"];
 export const MINI_SHELVES: Record<PluginHub, readonly string[]> = {
   work: ["Teaching", "School & study", "Work & planning", "Everyday tools", "Checklists", "Health & wellness", "Family", "Kitchen", "Money & home", "Fun & inspiration", "Connections", "For teachers"],
-  life: ["Family", "Everyday tools", "Health & wellness", "Kitchen", "Money & home", "School & study", "Work & planning", "Checklists", "Fun & inspiration", "Teaching", "Connections"],
+  life: ["Family", "Everyday tools", "Connections", "Health & wellness", "Kitchen", "Money & home", "School & study", "Work & planning", "Checklists", "Fun & inspiration", "Teaching"],
 };
 
 /** The single-purpose AI tools, by task, to the shelf for what they make. */

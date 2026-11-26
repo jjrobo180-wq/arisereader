@@ -195,3 +195,13 @@ test("Google is a plugin in every hub, and works with the hub it's opened from (
   assert.match(readFileSync("client/src/pages/TeacherHub.tsx", "utf8"), /<HubTasksContext\.Provider value=\{tasksBridge\}>/);
   assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /hub: familySpace \? "family" : "life",/);
 });
+
+test("Adding Google opens it right away in LifeHub and WorkHub, and Connections sits near the top of LifeHub's gallery (Nov 25, 2026)", async () => {
+  const fs = await import("node:fs");
+  const life = fs.readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
+  const work = fs.readFileSync("client/src/pages/TeacherHub.tsx", "utf8");
+  assert.match(life, /proNow\) \{ setStore\(false\); closeApps\(\); setKitOpen\(`pro:\$\{proNow\}`\)/);
+  assert.match(work, /inHubNow\) \{ setStore\(false\); closeApps\(\); setKitOpen\(inHubNow\)/);
+  const { MINI_SHELVES } = await import("../shared/pluginStore");
+  assert.ok(MINI_SHELVES.life.indexOf("Connections") <= 2, "Google is easy to find in LifeHub");
+});
