@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { CalendarPlus, ExternalLink, FileText, Loader2, Mail, RefreshCw, School, Search } from "lucide-react";
 import {
-  FEATURE_INFO, GOOGLE_FEATURES, attachDoc, classroomSummary, mergeClassroom, taskFromMail,
+  FEATURE_INFO, OFFERED_FEATURES, attachDoc, classroomSummary, mergeClassroom, taskFromMail,
   type CalendarEvent, type ClassroomItem, type GoogleFeature, type GoogleFile, type GoogleTask, type MailItem,
 } from "@shared/googleConnect";
 import type { Workspace } from "@shared/teacherHub";
@@ -86,11 +86,11 @@ export default function GoogleCard({ token, bridge, status, check }: {
     <div data-plugin-anchor="google" className="mt-4 space-y-4">
       <Card title="Google" right={status.connected ? <span className="max-w-[12rem] truncate rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{status.email || "Connected"}</span> : undefined}>
         {!status.configured ? (
-          <p className="text-sm leading-6 text-slate-600">Google Classroom, Docs, Calendar and Gmail can connect here once the site owner adds the site's Google sign-in keys (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Render).</p>
+          <p className="text-sm leading-6 text-slate-600">Google Classroom, Docs and Calendar can connect here once the site owner adds the site's Google sign-in keys (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Render).</p>
         ) : <>
           <p className="text-sm text-slate-600">Connect only the parts you want. Google asks you to allow each one.</p>
           <ul className="mt-3 divide-y divide-slate-100">
-            {GOOGLE_FEATURES.filter((f) => bridge.syncClassroom || (f !== "classroom" && f !== "classroomPost")).map((f) => (
+            {OFFERED_FEATURES.filter((f) => bridge.syncClassroom || (f !== "classroom" && f !== "classroomPost")).map((f) => (
               <li key={f} className="flex items-start gap-3 py-3">
                 <div className="min-w-0 flex-1"><div className="font-semibold text-slate-900">{FEATURE_INFO[f].name}</div><p className="text-sm text-slate-600">{FEATURE_INFO[f].does}</p></div>
                 {on.has(f) ? <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">On</span>
@@ -201,7 +201,7 @@ function DocsPanel({ token, bridge }: { token: string | null; bridge: HubTasksBr
   return (
     <Card title="Google Docs" right={<FileText className="h-5 w-5 text-slate-500" aria-hidden />}>
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search(); }}>
-        <Field aria-label="Search your Docs" placeholder="Search your Docs, Sheets and Slides" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Field aria-label="Search your Docs" placeholder="Search the Docs you made in To Do" value={q} onChange={(e) => setQ(e.target.value)} />
         <PrimaryButton type="submit" disabled={busy}><Busy on={busy} /><Search className="h-4 w-4" aria-hidden /><span className="sr-only sm:not-sr-only">Search</span></PrimaryButton>
       </form>
       <ul className="mt-3 space-y-2">

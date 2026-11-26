@@ -9,7 +9,7 @@
 // project's OAuth client); until then every route says Google isn't set up yet.
 import crypto from "node:crypto";
 import type { Express, RequestHandler } from "express";
-import {
+import { OFFERED_FEATURES,
   FEATURE_SCOPES, GOOGLE_FEATURES, calendarEvent, classroomItem, driveFile, driveQuery, eventForTask, featuresFromScopes,
   googleAuthUrl, mailItem, type ClassroomItem, type GoogleFeature,
 } from "../shared/googleConnect";
@@ -147,7 +147,7 @@ export function registerGoogleRoutes(app: Express, auth: RequestHandler, deps: G
   app.post("/api/google/connect", auth, route(async (req, _res, userId) => {
     if (!configured()) throw new GoogleError("Google isn't set up on this site yet. The site owner adds it in Render (see the setup steps).", 503);
     const feature = req.body?.feature;
-    if (!isFeature(feature)) throw new GoogleError("Pick what to connect.");
+    if (!isFeature(feature) || !OFFERED_FEATURES.includes(feature)) throw new GoogleError("Pick what to connect.");
     const state = makeState(deps.key(), userId, feature, now(), !!req.body?.app, String(req.body?.returnTo || "/"));
     return { url: googleAuthUrl({ clientId: deps.clientId!, redirectUri: deps.redirectUri, feature, state, email: String(req.user?.email || "") || undefined }) };
   }));

@@ -8,6 +8,10 @@ import type { Task } from "./teacherHub";
 
 export const GOOGLE_FEATURES = ["classroom", "classroomPost", "docs", "calendar", "gmail"] as const;
 export type GoogleFeature = typeof GOOGLE_FEATURES[number];
+/** What people can switch on. Gmail is left out (Nov 25, 2026): reading the inbox is a "restricted" Google
+ *  permission that needs a paid outside security review before anyone but the owner can connect. Docs uses
+ *  drive.file (only Docs made in, or opened from, To Do) for the same reason; neither needs that review. */
+export const OFFERED_FEATURES: readonly GoogleFeature[] = GOOGLE_FEATURES.filter((f) => f !== "gmail");
 
 const G = "https://www.googleapis.com/auth/";
 export const BASE_SCOPES = ["openid", "email", "profile"];
@@ -16,8 +20,8 @@ export const FEATURE_SCOPES: Record<GoogleFeature, string[]> = {
   classroom: [`${G}classroom.courses.readonly`, `${G}classroom.coursework.me.readonly`, `${G}classroom.coursework.students.readonly`, `${G}classroom.rosters.readonly`],
   // Write, for teachers: post an announcement or an assignment to a class.
   classroomPost: [`${G}classroom.announcements`, `${G}classroom.coursework.students`],
-  // Find and open her Docs, Sheets and Slides; make a new Doc; add to one.
-  docs: [`${G}drive.readonly`, `${G}documents`],
+  // Make a new Doc from a to-do, see and add to the Docs made in To Do (drive.file: never the rest of Drive).
+  docs: [`${G}drive.file`],
   // See events and put to-dos with a time on the calendar.
   calendar: [`${G}calendar.events`],
   // Read the inbox to turn an email into a to-do (never sends or deletes).
@@ -27,7 +31,7 @@ export const FEATURE_SCOPES: Record<GoogleFeature, string[]> = {
 export const FEATURE_INFO: Record<GoogleFeature, { name: string; does: string }> = {
   classroom: { name: "Google Classroom", does: "Assignments become to-dos with their due dates, checked off when they're turned in. Teachers also see their classes and class lists." },
   classroomPost: { name: "Post to Classroom", does: "Teachers: post an announcement or an assignment to a class from To Do." },
-  docs: { name: "Google Docs", does: "Attach a Doc, Sheet or Slides to a to-do, see your recent Docs, make a new Doc from a to-do, and add to a Doc." },
+  docs: { name: "Google Docs", does: "Make a Google Doc from a to-do, attach it, and add to it later. To Do only sees the Docs it made, never the rest of your Drive." },
   calendar: { name: "Google Calendar", does: "See what's coming up, and put to-dos that have a time on your Google Calendar." },
   gmail: { name: "Gmail", does: "Turn an email into a to-do. To Do only reads; it never sends or deletes email." },
 };

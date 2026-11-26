@@ -1,4 +1,4 @@
-// The Google plugin (Nov 25, 2026): connect Google Docs and Drive, Calendar and Gmail (and Classroom in WorkHub)
+// The Google plugin (Nov 25, 2026): connect Google Docs and Calendar (and Classroom in WorkHub)
 // from any hub. Docs attach to the hub's own to-dos, emails become its to-dos, and to-dos with a time go on Google
 // Calendar. The hub supplies its to-do list (lib/hubTasksBridge.ts); the panels are in teacher-hub/HubGoogle.tsx.
 import { useAuth } from "@/context/AuthContext";

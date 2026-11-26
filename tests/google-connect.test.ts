@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  FEATURE_SCOPES, attachDoc, calendarEvent, classroomItem, driveQuery, eventForTask, featuresFromScopes, googleAuthUrl,
+  FEATURE_SCOPES, OFFERED_FEATURES, attachDoc, calendarEvent, classroomItem, driveQuery, eventForTask, featuresFromScopes, googleAuthUrl,
   mailItem, mergeClassroom, taskFromMail,
 } from "../shared/googleConnect";
 import { makeState, readState, registerGoogleRoutes, safeReturn, seal, unseal } from "../server/googleConnect";
@@ -20,7 +20,10 @@ test("each part asks Google only for its own permissions, added to what was alre
   assert.ok(!scopes.some((s) => /gmail|drive|calendar/.test(s)), "Classroom never asks for email, Drive or Calendar");
   assert.equal(url.searchParams.get("include_granted_scopes"), "true");
   assert.equal(url.searchParams.get("access_type"), "offline");
-  assert.deepEqual(featuresFromScopes([...FEATURE_SCOPES.classroom, ...FEATURE_SCOPES.gmail, FEATURE_SCOPES.docs[0]]), ["classroom", "gmail"], "a part counts only when all of it is allowed");
+  assert.deepEqual(featuresFromScopes([...FEATURE_SCOPES.classroom, ...FEATURE_SCOPES.gmail, FEATURE_SCOPES.classroomPost[0]]), ["classroom", "gmail"], "a part counts only when all of it is allowed");
+  // Nothing offered needs Google's restricted-scope security review (Gmail read, all of Drive).
+  for (const f of OFFERED_FEATURES) assert.ok(!FEATURE_SCOPES[f].some((s) => /gmail|drive\.readonly|auth\/drive$/.test(s)), f);
+  assert.ok(!OFFERED_FEATURES.includes("gmail"));
 });
 
 test("a Classroom assignment: due moment in UTC, due day without a time, turned in = done", () => {
