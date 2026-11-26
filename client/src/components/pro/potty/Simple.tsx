@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { phoneState, sendPottyTest, turnOnPhone, type PushPhase } from "@/lib/pottyPush";
 import { isNativeApp } from "@/lib/nativeApp";
 import { useTick, fmtDuration } from "../kit";
-import { AGO_CHOICES, DRINK_TYPES, JUST_NOW, clockOf, dayOf, isPeeEvent, isPoopEvent, comingText, mlToOz, minutesAfter, nextRing, ozToMl, planSits, resolveWhen, whenText, type DrinkType, type Entry, type Kind, type When } from "@shared/pro/potty";
+import { AGO_CHOICES, DRINK_TYPES, JUST_NOW, KINDS, clockOf, dayOf, isPeeEvent, isPoopEvent, comingText, mlToOz, minutesAfter, nextRing, ozToMl, planSits, resolveWhen, whenText, type DrinkType, type Entry, type Kind, type When } from "@shared/pro/potty";
 import { usePotty } from "./ctx";
 import { Btn2, C, Chip, Panel } from "./theme";
 
@@ -100,7 +100,6 @@ export default function Simple() {
   const now = Date.now();
   const timer = data.timer && data.timer.kid === kid.id ? data.timer : null;
   const mine = data.logs.filter((x) => x.kid === kid.id && dayOf(x.at) === dayOf(now));
-  const lastPeeAt = mine.filter((x) => isPeeEvent(x.kind)).reduce((m, x) => Math.max(m, x.at), 0), lastPoopAt = mine.filter((x) => isPoopEvent(x.kind)).reduce((m, x) => Math.max(m, x.at), 0);
 
   /** Sets the reminder for whichever comes first: the regular trip or a planned sit. */
   const arm = (fake: Entry) => {
@@ -159,6 +158,8 @@ export default function Simple() {
       </> : <p className="mt-3 text-lg font-bold leading-snug">Tap Peed or Pooped when {kid.name} goes. I'll set the timer.</p>}
     </Panel>
 
+    <TodaySoFar entries={mine} kidName={kid.name} />
+
     <div className="flex flex-wrap justify-center gap-1.5">{WHERE.map(([id, l]) => <Chip key={id} on={where === id} onClick={() => setWhere(id)}>{l}</Chip>)}</div>
 
     <WhenRow when={markWhen} setWhen={setMarkWhen} now={now} label="When?" />
@@ -189,10 +190,6 @@ export default function Simple() {
 
     {coming[0] && <p className="px-1 text-center text-sm font-bold" style={{ color: C.muted }}>{coming[0]}</p>}
 
-    <p className="text-center text-sm" style={{ color: C.muted }}>
-      {lastPeeAt ? `Last pee ${clockOf(lastPeeAt)}` : "No pee yet today"} · {lastPoopAt ? `last poop ${clockOf(lastPoopAt)}` : "no poop yet today"}
-    </p>
-
     <details className="group">
     <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between rounded-2xl bg-white px-4 text-base font-extrabold" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>Reminder settings<span className="text-xl transition group-open:rotate-45" aria-hidden>+</span></summary>
     <div className="mt-2 space-y-3">
@@ -209,4 +206,28 @@ export default function Simple() {
     </div>
     </details>
   </div>;
+}
+
+
+/** Everything logged for this child today, newest first, with who logged it: shared with a partner, it's where you
+ *  see at a glance whether they tracked it (they also get a notification: server/pottySync.ts). */
+function TodaySoFar({ entries, kidName }: { entries: Entry[]; kidName: string }) {
+  const [all, setAll] = useState(false);
+  const shown = entries.filter((e) => { const g = KINDS[e.kind].group; return g === "potty" || g === "accident" || g === "diaper" || g === "sleep"; }).sort((a, b) => b.at - a.at);
+  const pees = entries.filter((e) => isPeeEvent(e.kind)).length, poops = entries.filter((e) => isPoopEvent(e.kind)).length;
+  const list = all ? shown : shown.slice(0, 4);
+  return <Panel>
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-base font-extrabold">Today so far</p>
+      <p className="text-[13px] font-bold" style={{ color: C.muted }}>💧 {pees} · 💩 {poops}</p>
+    </div>
+    {shown.length ? <ul className="mt-2 divide-y" style={{ borderColor: C.line }}>
+      {list.map((e) => <li key={e.id} className="flex items-center gap-3 py-2">
+        <span className="text-2xl" aria-hidden>{KINDS[e.kind].emoji}</span>
+        <span className="min-w-0 flex-1"><span className="block text-sm font-extrabold">{KINDS[e.kind].label}</span>
+          <span className="block text-[13px]" style={{ color: C.muted }}>{clockOf(e.at)}{e.by ? ` · logged by ${e.by}` : ""}</span></span>
+      </li>)}
+    </ul> : <p className="mt-1 text-sm" style={{ color: C.muted }}>Nothing logged for {kidName} yet today.</p>}
+    {shown.length > 4 && <button type="button" onClick={() => setAll(!all)} className="mt-1 min-h-11 text-sm font-extrabold" style={{ color: C.ink }}>{all ? "Show less" : `Show all ${shown.length}`}</button>}
+  </Panel>;
 }

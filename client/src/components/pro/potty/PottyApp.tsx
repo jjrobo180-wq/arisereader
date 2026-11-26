@@ -37,7 +37,9 @@ const AVATARS = ["🧒", "👧", "👦", "👶", "🦁", "🐻", "🐰", "🦄",
 const COMMS: { id: Comms; label: string }[] = [{ id: "words", label: "Talks in sentences" }, { id: "few-words", label: "A few words" }, { id: "signs", label: "Signs" }, { id: "pictures", label: "Pictures / PECS" }, { id: "device", label: "Speech device (AAC)" }, { id: "none", label: "Not yet" }];
 
 export default function PottyApp() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  /** Who's logging, so the others who share the app see it (and hear about it: server/pottySync.ts). */
+  const me = String(user?.displayName || user?.username || "").trim().split(/\s+/)[0].slice(0, 40);
   const { data, setData, state } = useAppData("pro-potty", cleanData);
   const set = useCallback((fn: (d: typeof DEFAULT_DATA) => typeof DEFAULT_DATA) => setData((d) => fn(d)), [setData]);
   const [tab, setTab] = useState<Tab>("simple"); const [sub, setSub] = useState("");
@@ -57,13 +59,13 @@ export default function PottyApp() {
 
   const log = useCallback((kind: Kind, extra: Partial<Entry> = {}) => {
     if (!kid) return;
-    const e: Entry = { id: uid(), kid: kid.id, at: extra.at ?? Date.now(), kind, ...Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined && v !== "")) } as Entry;
+    const e: Entry = { id: uid(), kid: kid.id, at: extra.at ?? Date.now(), kind, ...(me ? { by: me } : {}), ...Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined && v !== "")) } as Entry;
     set((d) => ({ ...d, logs: [...d.logs, e] }));
     if (earnsSticker(kind) || (kind === "try" && kid.tryStickers)) setParty(kind === "poop" ? `${kid.words.poop[0].toUpperCase()}${kid.words.poop.slice(1)} in the ${kid.words.potty}` : kind === "both" ? `${kid.words.pee} and ${kid.words.poop} in the ${kid.words.potty}` : kind === "pee" ? `${kid.words.pee[0].toUpperCase()}${kid.words.pee.slice(1)} in the ${kid.words.potty}` : kind === "try" ? "Great sitting" : kind === "dry" ? "Dry pants" : kind === "night-dry" ? "A dry night" : "A dry nap");
     else if (isAccident(kind)) say(`That's okay. ${kid.words.pee[0].toUpperCase()}${kid.words.pee.slice(1)} goes in the ${kid.words.potty}. Next time!`, data.voice);
     // A potty trip resets the running reminder.
     if ((isSuccess(kind) || isAccident(kind) || kind === "try") && data.timer?.kid === kid.id) startTimer(intervalOf(kid), kid.id);
-  }, [kid, set, data.voice, data.timer, startTimer]);
+  }, [kid, set, data.voice, data.timer, startTimer, me]);
 
   // Reminder timer.
   useTick(!!data.timer || !!data.schedRun, 1000);

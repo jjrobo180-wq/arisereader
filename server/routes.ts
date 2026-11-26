@@ -92,7 +92,8 @@ import { registerCoachRoutes } from "./coach";
 import { registerTalkRoutes } from "./talk";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
-import { ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { checkOffLinkedTasks, ensureSharedSpace, registerAccountabilityRoutes, startAccountabilityTicker } from "./accountability";
+import { makePottyWatcher, POTTY_APP } from "./pottySync";
 import { ACCOUNTABILITY_SHARE } from "../shared/profileLinks";
 import { ACCOUNTABILITY_BELL_TYPE } from "../shared/notifications";
 import { registerOtaRoutes } from "./ota";
@@ -2020,7 +2021,14 @@ export async function registerRoutes(
     },
     onActive: async (link) => { if (link.grants[ACCOUNTABILITY_SHARE] && link.viewerId) await ensureSharedSpace(acctDeps, link.ownerId, link.viewerId); },
   });
-  registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
+  // Potty Training, shared (server/pottySync.ts): a log tells the others who share it and checks off linked to-dos.
+  const pottyWatcher = makePottyWatcher({
+    push: (userId, m) => acctDeps.push(userId, m),
+    nameOf: acctDeps.nameOf,
+    sharers: profileLinks.appPeople,
+    checkOff: (userId, what) => checkOffLinkedTasks(acctDeps, userId, "potty", what),
+  });
+  registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp, pottyWatcher, (a) => a === POTTY_APP);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
   // Arise Reader app: a message to a reader (from their teacher, being added to a class, a reward) is also a
   // notification on their iPhone. Its link opens the inbox (Library.tsx reads ?inbox=1).

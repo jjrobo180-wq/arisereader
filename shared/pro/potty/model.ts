@@ -49,6 +49,8 @@ export type Entry = {
   where?: Place;
   pain?: boolean;
   note?: string;
+  /** Who logged it (first name), when the app is shared: "Sarah". */
+  by?: string;
 };
 
 export type KindInfo = { label: string; short: string; emoji: string; color: string; group: "potty" | "accident" | "diaper" | "sleep" | "intake" | "other" };
@@ -203,6 +205,7 @@ export function cleanData(raw: unknown): PottyData {
     if (e.where === "home" || e.where === "daycare" || e.where === "out") out.where = e.where;
     if (e.pain === true) out.pain = true;
     if (typeof e.note === "string" && e.note.trim()) out.note = e.note.slice(0, 500);
+    if (typeof e.by === "string" && e.by.trim()) out.by = e.by.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 40);
     return out;
   });
   const recordOf = <T>(v: unknown, f: (x: unknown) => T): Record<string, T> => Object.fromEntries(Object.entries(obj(v)).map(([k, x]) => [k, f(x)]));

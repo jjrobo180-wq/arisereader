@@ -9,3 +9,4 @@ export * from "./library";
 export * from "./special";
 export * from "./when";
 export * from "./timerPush";
+export * from "./news";
