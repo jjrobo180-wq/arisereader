@@ -11,6 +11,8 @@ import { Avatar, FormGroup, FormRow, Label, MemberPicker, Modal, PageHead, Panel
 import { ShareButton } from "./ShareLink";
 import { addToIphoneCalendar, inIphoneApp, readIphoneEvents, type PhoneEvent } from "@/lib/nativeCalendar";
 import { isNativeApp } from "@/lib/nativeApp";
+import { connectGoogle, useGoogleStatus } from "@/components/teacher-hub/HubGoogle";
+import { googleEventsForCalendar } from "@shared/googleConnect";
 
 /** The calendar the iPhone's own events go in (Arise To Do iPhone app). */
 const PHONE_CAL = { id: "iphone", name: "iPhone Calendar", color: "#64748b", show: true };
@@ -26,6 +28,10 @@ export function withPhoneEvents<F extends { calendars: any[]; events: FamilyEven
 }
 /** Read once per app launch when the calendar opens; the button reads again whenever asked. */
 let phoneReadThisLaunch = false;
+
+/** The calendar Google Calendar's events go in, once Google Calendar is connected (no plugin needed). */
+const GOOGLE_CAL = { id: "google", name: "Google Calendar", color: "#1a73e8", show: true };
+let googleReadThisLaunch = false;
 
 /** Linked calendars (by their .ics link) are read again when the calendar opens, at most every few hours. */
 const LINK_STALE_MS = 4 * 3600_000;
@@ -158,6 +164,38 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     void (async () => { for (const c of family.calendars) if (c.url && (!c.syncedAt || Date.now() - Date.parse(c.syncedAt) > LINK_STALE_MS)) await refreshLink(c, true); })();
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Google Calendar, connected right here: its next 30 days go in the "Google Calendar" calendar, read again
+  // each time the calendar opens and as soon as it's connected (coming back from Google or Safari).
+  const google = useGoogleStatus(token);
+  const googleOn = !!google.status?.features?.includes("calendar");
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleNote, setGoogleNote] = useState("");
+  const pullGoogle = async (quiet = false) => {
+    if (googleBusy || !token) return;
+    setGoogleBusy(true); if (!quiet) setGoogleNote("");
+    try {
+      const r = await fetch(`${API_BASE}/api/google/calendar/events`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.message || "Google Calendar couldn't be read right now.");
+      const list = googleEventsForCalendar(Array.isArray(body.events) ? body.events : []).slice(0, 1000);
+      setFamily((f) => ({
+        ...f,
+        calendars: f.calendars.some((c) => c.id === GOOGLE_CAL.id) ? f.calendars : [...f.calendars, { ...GOOGLE_CAL }],
+        events: [...f.events.filter((e) => e.calendarId !== GOOGLE_CAL.id), ...list.map((e): FamilyEvent => ({ id: makeId(), title: e.title.slice(0, 120), date: e.date, time: e.start, endTime: e.start ? e.end : "", calendarId: GOOGLE_CAL.id, memberIds: [], location: "", notes: e.link ? `Open in Google Calendar: ${e.link}` : "", repeat: "none" }))],
+      }));
+      setGoogleNote(quiet ? "" : `${list.length} ${list.length === 1 ? "event" : "events"} from Google Calendar.`);
+      if (!quiet) say("Google Calendar is up to date");
+    } catch (e: any) { if (!quiet) setGoogleNote(e?.message || "Google Calendar couldn't be read right now."); }
+    finally { setGoogleBusy(false); }
+  };
+  useEffect(() => {
+    if (!googleOn) return;
+    setGoogleNote((n) => (/Safari|Google's page/.test(n) ? "" : n));
+    if (googleReadThisLaunch) return;
+    googleReadThisLaunch = true;
+    void pullGoogle(true);
+  }, [googleOn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const first = fromDay(`${month}-01`);
   const gridStart = addDays(`${month}-01`, -first.getDay());
   const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
@@ -289,6 +327,11 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
                 : hub.state === "error" ? "Couldn’t reach your Hub calendar. It will try again when you change months."
                 : <>Events from your Hub, shown here read-only. <a href="/#/workhub" className="inline-flex items-center gap-0.5 font-bold text-teal-700 underline">Edit in the Hub<ExternalLink size={10} /></a></>}
             </p>}
+          </div>}
+          {google.status?.configured && <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/60 p-2.5" data-testid="calendar-google">
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="h-3.5 w-3.5 shrink-0 rounded" style={{ background: GOOGLE_CAL.color }} />Google Calendar{googleOn && <span className="ml-auto rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">On</span>}</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-500" role="status">{googleNote || (googleOn ? `Connected${google.status.email ? ` as ${google.status.email}` : ""}. Your next 30 days refresh each time you open your calendar.` : "Show your Google Calendar here. Nothing on it is changed.")}</p>
+            <button type="button" onClick={() => void (googleOn ? pullGoogle() : connectGoogle(token, "calendar", setGoogleNote))} disabled={googleBusy} className={plain + " mt-2 min-h-11"} data-testid="calendar-google-button">{googleBusy ? "Reading Google Calendar…" : googleOn ? "Refresh now" : "Connect Google Calendar"}</button>
           </div>}
           {phone && <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5" data-testid="life-iphone-calendar">
             <p className="text-sm font-semibold text-slate-800">iPhone Calendar</p>

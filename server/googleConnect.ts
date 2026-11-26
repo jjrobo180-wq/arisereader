@@ -168,7 +168,9 @@ export function registerGoogleRoutes(app: Express, auth: RequestHandler, deps: G
       const refresh = t.refresh_token || old?.refresh;
       if (!refresh) return page("Almost", "Google didn't send a lasting sign-in. Go back to Arise To Do and tap Connect again.");
       await save(state.userId, { refresh, access: t.access_token, expiresAt: now() + (Number(t.expires_in) || 3600) * 1000, scope: String(t.scope || ""), email });
-      if (state.app) return page("Connected", "Google is connected. Go back to the Arise To Do app; it picks this up as soon as you're back.");
+      // In the iPhone app, connecting happened in Safari: the button (and Safari's "Open in Arise To Do?") takes
+      // them straight back, to the Calendar when it was Google Calendar.
+      if (state.app) return page("Connected", "Google is connected. Tap below to go back to Arise To Do.", state.feature === "calendar" ? "arisetodo://open?s=calendar" : "arisetodo://open?s=back");
       return res.redirect(302, `${back}${back.includes("?") ? "&" : "?"}google=connected`);
     } catch (e: any) {
       return page("Not connected", e instanceof GoogleError ? e.message : "Google didn't answer. Try again.", state.app ? undefined : back);

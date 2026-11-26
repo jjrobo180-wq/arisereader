@@ -219,3 +219,22 @@ test("The iPhone app's loading screen and page title say Arise To Do, never To D
     assert.ok(!/To Duo/.test(fs.readFileSync(f, "utf8")), f);
   }
 });
+
+test("Google Calendar connects from the Calendar page itself, and its events show in the calendar (Nov 26, 2026)", async () => {
+  const { googleEventsForCalendar } = await import("../shared/googleConnect");
+  const at = new Date(2026, 11, 8, 9, 30), end = new Date(2026, 11, 8, 10, 15);
+  const got = googleEventsForCalendar([
+    { id: "1", title: "Birthday", start: "2026-12-08", end: "2026-12-09", allDay: true, link: "https://g/1" },
+    { id: "2", title: "Meeting", start: at.toISOString(), end: end.toISOString(), allDay: false, link: "" },
+    { id: "3", title: "Broken", start: "", end: "", allDay: false, link: "" },
+  ]);
+  assert.deepEqual(got.map((e) => [e.title, e.date, e.start, e.end]), [["Birthday", "2026-12-08", "", ""], ["Meeting", "2026-12-08", "09:30", "10:15"]]);
+  const fs = await import("node:fs");
+  const cal = fs.readFileSync("client/src/components/family-hub/FamilyCalendar.tsx", "utf8");
+  assert.match(cal, /data-testid="calendar-google"/);
+  assert.match(cal, /connectGoogle\(token, "calendar"/);
+  const server = fs.readFileSync("server/googleConnect.ts", "utf8");
+  assert.match(server, /arisetodo:\/\/open\?s=calendar/, "Safari's Connected page goes straight back to the app");
+  const card = fs.readFileSync("client/src/components/teacher-hub/HubGoogle.tsx", "utf8");
+  assert.match(card, /\/Safari\/\.test\(n\) \? "" : n/, "'Finish in Safari' goes away once connected");
+});

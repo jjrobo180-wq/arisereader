@@ -63,7 +63,8 @@ export function useClassroomSync(enabled: boolean, token: string | null, setWork
   return () => pull.current();
 }
 
-async function connect(token: string | null, feature: GoogleFeature, setNote: (s: string) => void) {
+/** Starts connecting one part of Google: this tab goes to Google (on the website), or Safari opens (in the app). */
+export async function connectGoogle(token: string | null, feature: GoogleFeature, setNote: (s: string) => void) {
   try {
     const app = isNativeApp();
     const { url } = await api(token, "POST", "/api/google/connect", { feature, app, returnTo: app ? "/" : `${window.location.pathname}${window.location.search.replace(/[?&]google=connected/, "")}` });
@@ -80,6 +81,9 @@ export default function GoogleCard({ token, bridge, status, check }: {
   token: string | null; bridge: HubTasksBridge; status: Status | null; check: () => Promise<void>;
 }) {
   const [note, setNote] = useState("");
+  // "Finish in Safari…" is only for while connecting: it goes once Google says the part is on.
+  const featureKey = (status?.features || []).join(",");
+  useEffect(() => { if (featureKey) setNote((n) => (/Safari/.test(n) ? "" : n)); }, [featureKey]);
   if (!status) return null;
   const on = new Set(status.features);
   return (
@@ -94,7 +98,7 @@ export default function GoogleCard({ token, bridge, status, check }: {
               <li key={f} className="flex items-start gap-3 py-3">
                 <div className="min-w-0 flex-1"><div className="font-semibold text-slate-900">{FEATURE_INFO[f].name}</div><p className="text-sm text-slate-600">{FEATURE_INFO[f].does}</p></div>
                 {on.has(f) ? <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">On</span>
-                  : <PrimaryButton onClick={() => void connect(token, f, setNote)}>Connect</PrimaryButton>}
+                  : <PrimaryButton onClick={() => void connectGoogle(token, f, setNote)}>Connect</PrimaryButton>}
               </li>
             ))}
           </ul>

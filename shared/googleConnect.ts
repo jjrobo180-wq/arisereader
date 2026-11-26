@@ -168,6 +168,28 @@ export const calendarEvent = (e: any): CalendarEvent => ({
   allDay: !e.start?.dateTime, link: String(e.htmlLink || ""),
 });
 
+/** Google Calendar events as days and times on the Calendar page ("Google Calendar" calendar), in the
+ *  viewer's own time. An all-day event keeps its day; anything without a readable day is left out. */
+export function googleEventsForCalendar(list: CalendarEvent[]): { title: string; date: string; start: string; end: string; link: string }[] {
+  const local = (iso: string) => {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return null;
+    return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+  };
+  const out: { title: string; date: string; start: string; end: string; link: string }[] = [];
+  for (const e of list || []) {
+    if (e.allDay) {
+      if (!/^\d{4}-\d{2}-\d{2}/.test(e.start)) continue;
+      out.push({ title: e.title, date: e.start.slice(0, 10), start: "", end: "", link: e.link });
+      continue;
+    }
+    const a = local(e.start), b = e.end ? local(e.end) : null;
+    if (!a) continue;
+    out.push({ title: e.title, date: a.date, start: a.time, end: b && b.date === a.date ? b.time : "", link: e.link });
+  }
+  return out;
+}
+
 /** A to-do as a Google Calendar event: at its time for 30 minutes, or all day when it has no time. */
 export function eventForTask(task: { title: string; dueDate: string; dueTime?: string; notes?: string }, timeZone: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate)) throw new Error("Give the to-do a date first.");
