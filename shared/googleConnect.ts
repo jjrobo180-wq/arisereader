@@ -31,7 +31,7 @@ export const FEATURE_SCOPES: Record<GoogleFeature, string[]> = {
 export const FEATURE_INFO: Record<GoogleFeature, { name: string; does: string }> = {
   classroom: { name: "Google Classroom", does: "Assignments become to-dos with their due dates, checked off when they're turned in. Teachers also see their classes and class lists." },
   classroomPost: { name: "Post to Classroom", does: "Teachers: post an announcement or an assignment to a class from To Do." },
-  docs: { name: "Google Docs", does: "Make a Google Doc from a to-do, attach it, and add to it later. To Do only sees the Docs it made, never the rest of your Drive." },
+  docs: { name: "Google Docs", does: "Open, read and edit your Google Docs here, make new ones, and attach them to to-dos. To Do sees only the Docs it made and the ones you pick, never the rest of your Drive." },
   calendar: { name: "Google Calendar", does: "See what's coming up, and put to-dos that have a time on your Google Calendar." },
   gmail: { name: "Gmail", does: "Turn an email into a to-do. To Do only reads; it never sends or deletes email." },
 };

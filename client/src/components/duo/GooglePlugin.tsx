@@ -3,7 +3,8 @@
 // Calendar. The hub supplies its to-do list (lib/hubTasksBridge.ts); the panels are in teacher-hub/HubGoogle.tsx.
 import { useAuth } from "@/context/AuthContext";
 import { useHubTasks } from "@/lib/hubTasksBridge";
-import GoogleCard, { GoogleRecentDocs, useGoogleStatus } from "@/components/teacher-hub/HubGoogle";
+import GoogleCard, { useGoogleStatus } from "@/components/teacher-hub/HubGoogle";
+import GoogleDocsPanel from "@/components/teacher-hub/GoogleDocsPanel";
 
 export default function GooglePlugin() {
   const { token } = useAuth();
@@ -12,7 +13,7 @@ export default function GooglePlugin() {
   if (!bridge) return <p className="py-10 text-center text-sm text-slate-500">Open Google from WorkHub, LifeHub or FamilyHub.</p>;
   if (!google.status) return <p className="py-10 text-center text-sm font-semibold text-slate-500">Checking Google…</p>;
   return <div data-testid="google-plugin" className="space-y-4">
-    <GoogleRecentDocs token={token} status={google.status} />
+    <GoogleDocsPanel token={token} status={google.status} />
     <GoogleCard token={token} bridge={bridge} status={google.status} check={google.check} />
   </div>;
 }

@@ -2106,7 +2106,7 @@ export async function registerRoutes(
   // Google (Classroom, Docs, Calendar, Gmail) in Arise To Do. Off until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
   registerGoogleRoutes(app, authMiddleware, {
     gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(),
-    clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, apiKey: process.env.GOOGLE_API_KEY,
     redirectUri: process.env.GOOGLE_REDIRECT_URI || "https://arisetodo.com/api/google/callback",
     siteUrl: process.env.TODO_SITE_URL || "https://arisetodo.com",
   });

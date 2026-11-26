@@ -204,7 +204,7 @@ function DocsPanel({ token, bridge }: { token: string | null; bridge: HubTasksBr
     catch (e: any) { setNote(e?.message || "Couldn't add to the Doc."); } finally { setBusy(false); }
   };
   return (
-    <Card title="Google Docs" right={<FileText className="h-5 w-5 text-slate-500" aria-hidden />}>
+    <Card title="Docs and to-dos" right={<FileText className="h-5 w-5 text-slate-500" aria-hidden />}>
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search(); }}>
         <Field aria-label="Search your Docs" placeholder="Search the Docs you made in To Do" value={q} onChange={(e) => setQ(e.target.value)} />
         <PrimaryButton type="submit" disabled={busy}><Busy on={busy} /><Search className="h-4 w-4" aria-hidden /><span className="sr-only sm:not-sr-only">Search</span></PrimaryButton>

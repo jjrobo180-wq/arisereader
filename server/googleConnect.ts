@@ -13,6 +13,7 @@ import { OFFERED_FEATURES,
   FEATURE_SCOPES, GOOGLE_FEATURES, calendarEvent, classroomItem, driveFile, driveQuery, eventForTask, featuresFromScopes,
   googleAuthUrl, mailItem, type ClassroomItem, type GoogleFeature,
 } from "../shared/googleConnect";
+import { addAfterRequests, docParagraphs, projectNumberOf, replaceParaRequests } from "../shared/googleDocText";
 
 export type GoogleDeps = {
   gate(req: any, res: any): Promise<unknown | null>;
@@ -22,6 +23,8 @@ export type GoogleDeps = {
   key(): Buffer;
   clientId?: string;
   clientSecret?: string;
+  /** A browser API key from the same Google Cloud project (GOOGLE_API_KEY), for Google's file picker. */
+  apiKey?: string;
   /** Where Google sends people back to. Must be listed on the Google OAuth client exactly. */
   redirectUri: string;
   /** Where people land on the website afterwards. */
@@ -265,6 +268,41 @@ export function registerGoogleRoutes(app: Express, auth: RequestHandler, deps: G
     const end = Math.max(1, Number(doc.body?.content?.at(-1)?.endIndex || 2) - 1);
     await google(userId, "docs", `https://docs.googleapis.com/v1/documents/${id}:batchUpdate`, { method: "POST", body: { requests: [{ insertText: { location: { index: end }, text: `\n${text}` } }] } });
     return { ok: true };
+  }));
+
+  /** The doc a paragraph at a time, to read and edit on the site. */
+  app.get("/api/google/docs/:id", auth, route(async (req, res, userId) => {
+    const id = docId(req.params.id);
+    const doc = await google(userId, "docs", `https://docs.googleapis.com/v1/documents/${id}`);
+    res.set("Cache-Control", "no-store");
+    return { id, title: String(doc.title || "Untitled"), link: `https://docs.google.com/document/d/${id}/edit`, paras: docParagraphs(doc) };
+  }));
+
+  /** Changes one paragraph's words, or adds a paragraph after it. Body { start, old, text, add? }: `old` is the
+   *  paragraph's words as they were read, so a doc that changed since (someone else typing) isn't overwritten. */
+  app.post("/api/google/docs/:id/paragraph", auth, route(async (req, _res, userId) => {
+    const id = docId(req.params.id);
+    const start = Number(req.body?.start), old = String(req.body?.old ?? ""), text = String(req.body?.text ?? "").slice(0, 20000);
+    const doc = await google(userId, "docs", `https://docs.googleapis.com/v1/documents/${id}`);
+    const all = docParagraphs(doc);
+    const p = all.find((x) => x.start === start && x.other !== "table");
+    if (!p || p.text !== old) throw new GoogleError("This doc changed since you opened it. Open it again to see the newest version.", 409);
+    if (p.other === "picture" && !req.body?.add) throw new GoogleError("That paragraph has a picture in it. Change it in Google Docs.");
+    const last = !all.some((q) => q.start > p.start);
+    const requests = req.body?.add ? addAfterRequests(p, text) : replaceParaRequests(p, text, last);
+    if (!requests.length) throw new GoogleError("Write something to add.");
+    await google(userId, "docs", `https://docs.googleapis.com/v1/documents/${id}:batchUpdate`, { method: "POST", body: { requests } });
+    return { ok: true };
+  }));
+
+  /** What Google's file picker needs in the browser to add someone's own Docs: a short-lived sign-in, the
+   *  site's browser key and its project number. Picked files are then open to this site (drive.file). */
+  app.get("/api/google/picker", auth, route(async (_req, res, userId) => {
+    res.set("Cache-Control", "no-store");
+    const appId = projectNumberOf(deps.clientId || "");
+    if (!deps.apiKey || !appId) throw new GoogleError("Adding Docs from Google Drive isn't set up on this site yet.", 503);
+    const { token } = await access(userId, "docs");
+    return { token, apiKey: deps.apiKey, appId };
   }));
 
   // ——— Calendar ———
