@@ -57,3 +57,8 @@ test("the app reloads itself once before showing Something went wrong, and says 
   assert.match(read("client/src/components/super-apps/SuperBoundary.tsx"), /shouldAutoReload/);
   assert.match(read("client/src/main.tsx"), /vite:preloadError[\s\S]*shouldAutoReload/);
 });
+
+test("LifeHub's Life Score icon is the imported one (ReferenceError: Gauge is not defined, Nov 26, 2026)", () => {
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /lifescore: GaugeNav2,/);
+  assert.match(read("client/src/components/family-hub/Members.tsx"), /lifescore: \{[^}]*icon: <GaugeIcon2 /);
+});
