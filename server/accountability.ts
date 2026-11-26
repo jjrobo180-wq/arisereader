@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
   LIMITS, QUIZ_PROMPT, WORKSHEET_PROMPT, aiUserMessage, cleanAiAsk, cleanAnswers, cleanCode, cleanDoneAlready, cleanQuiz, cleanTask, cleanWorksheet, dueOn,
-  inviteCode, isDone, localNow, missedNow, missedText, newId, nudgeNow, nudgeText, scoreQuiz, cleanNotify, wantsAlert,
+  acctLinkName, type AcctLink, inviteCode, isDone, localNow, missedNow, missedText, newId, nudgeNow, nudgeText, scoreQuiz, cleanNotify, wantsAlert,
   type AcctTask, type Checkin, type Member, type NotifyKind, type Proof, type Space,
 } from "../shared/accountability";
 import { goUrl } from "../shared/todoReminders";
@@ -565,6 +565,40 @@ export async function sendDueAccountabilityNudges(deps: Pick<AccountabilityDeps,
     }
   }
   return sent;
+}
+
+/** Something was logged in a linked app (Potty Training): each of this person's to-dos linked to it that's due
+ *  today is checked off for today, as if they had tapped Done, and whoever asked hears about it.
+ *  `what` says what was logged ("Pee in the potty"). Returns how many were checked off. */
+export async function checkOffLinkedTasks(deps: Pick<AccountabilityDeps, "db" | "push" | "now">, userId: number, link: Exclude<AcctLink, "">, what: string): Promise<number> {
+  const db = deps.db(); const nowMs = (deps.now ?? Date.now)();
+  const { data: rows, error } = await db.from("acct_tasks").select("*").eq("assignee", userId).eq("archived", false).limit(500);
+  if (error) throw error;
+  const tasks = (rows || []).map(rowToTask).filter((t: AcctTask) => t.link === link && t.kind === "task");
+  if (!tasks.length) return 0;
+  const { data: mrows } = await db.from("acct_members").select("space_id, user_id, name, tz, notify").in("space_id", Array.from(new Set(tasks.map((t: AcctTask) => t.spaceId))));
+  const members = (mrows || []) as { space_id: string; user_id: number; name: string; tz: string; notify?: unknown }[];
+  const member = (spaceId: string, id: number) => members.find((m) => m.space_id === spaceId && m.user_id === id);
+  const app = acctLinkName(link);
+  let done = 0;
+  for (const t of tasks) {
+    const me = member(t.spaceId, userId);
+    if (!me) continue;
+    const day = localNow(nowMs, me.tz || members.find((m) => m.user_id === userId && m.tz)?.tz || "America/Denver").day;
+    if (!dueOn(t, day)) continue;
+    const { data: old } = await db.from("acct_checkins").select("id").eq("task_id", t.id).eq("day", day).maybeSingle();
+    if (old) continue;
+    const status = t.review && t.createdBy !== userId ? "done" : "approved";
+    const data = { note: `Logged in ${app}: ${what}`.slice(0, LIMITS.note), proof: [], answers: {}, score: null, status, feedback: "", reviewedBy: null, reviewedAt: null, via: link };
+    const { error: e } = await db.from("acct_checkins").insert({ id: newId(), task_id: t.id, space_id: t.spaceId, day, by_user: userId, at: new Date(nowMs).toISOString(), data });
+    if (e) { console.error("[accountability] linked check-off:", e.message); continue; }
+    done++;
+    const asker = t.createdBy !== userId ? member(t.spaceId, t.createdBy) : undefined;
+    if (asker && wantsAlert(asker.notify, "done")) {
+      try { await deps.push(t.createdBy, { title: `✓ ${me.name || "They"} did it: ${t.title}`, body: `${what} · logged in ${app}`, url: URL_FOR(t.id), tag: `acct-done-${t.id}-${day}` }); } catch { /* the check-off still counts */ }
+    }
+  }
+  return done;
 }
 
 export function startAccountabilityTicker(deps: Pick<AccountabilityDeps, "db" | "push">) {

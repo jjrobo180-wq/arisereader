@@ -7,8 +7,8 @@ import { AlarmClock, BadgeCheck, Bell, CircleAlert, MessageSquarePlus, Camera, C
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import {
-  NAG_CHOICES, NOTIFY_KINDS, activityDayLabel, activityWords, addDays, buildActivity, cleanNotify, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
-  type AcctEvent, type ActivityItem, type ActivityKind, type AcctTask, type Checkin, type NotifyKind, type NotifyPrefs, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
+  ACCT_LINKS, acctLinkName, NAG_CHOICES, NOTIFY_KINDS, activityDayLabel, activityWords, addDays, buildActivity, cleanNotify, builtinQuiz, builtinWorksheet, checkinFor, dueOn, isDone, localNow, minutesOf, newId, personStats, repeatWords, scoreQuiz, streak, timeWords,
+  type AcctEvent, type AcctLink, type ActivityItem, type ActivityKind, type AcctTask, type Checkin, type NotifyKind, type NotifyPrefs, type Proof, type ProofKind, type Quiz, type Repeat, type Space, type TaskKind, type Worksheet, type WsItem,
 } from "@shared/accountability";
 import { publishWidgets } from "@/lib/widgets";
 import { isNativeApp } from "@/lib/nativeApp";
@@ -236,6 +236,8 @@ function TaskRow({ t, c, mine, nowMin, who, color, streak: run, onOpen, onCheck,
       <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
         <span className={`rounded-full px-2 py-0.5 ${status[1]}`}>{status[0]}</span>
         {t.kind !== "task" && <span className="rounded-full bg-violet-50 px-2 py-0.5 text-violet-700">{t.kind === "quiz" ? "Quiz" : "Worksheet"}</span>}
+        {t.link && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-700" title="Checks itself off when they log there">🔗 {acctLinkName(t.link)}</span>}
+        {done && c?.note.startsWith("Logged in ") && <span className="truncate text-slate-500">{c.note.replace(/^Logged in [^:]+: /, "")}</span>}
         {t.proof !== "none" && t.kind === "task" && <span className="flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-sky-700">{t.proof === "video" ? <Video size={11} /> : <Camera size={11} />}{t.proof === "video" ? "Video" : t.proof === "photo" ? "Photo" : "Proof"}</span>}
         {run > 1 && <span className="rounded-full bg-orange-50 px-2 py-0.5 text-orange-600">🔥 {run}</span>}
         <span className="text-slate-400">{mine ? `from ${who}` : who}</span>
@@ -410,6 +412,8 @@ function TaskEditor({ space, me, task, api, say, onClose, onSave }: { space: Spa
   const [due, setDue] = useState(task?.due ?? "15:00");
   const [nag, setNag] = useState(task?.nag ?? 60);
   const [proof, setProof] = useState<ProofKind>(task?.proof ?? "photo");
+  /** Linked to an app (Potty Training): logging there checks it off, and the one who asked hears about it. */
+  const [link, setLink] = useState<AcctLink>(task?.link ?? "");
   const [review, setReview] = useState(task?.review ?? true);
   const [ws, setWs] = useState<Worksheet | null>(task?.worksheet ?? null);
   const [quiz, setQuiz] = useState<Quiz | null>(task?.quiz ?? null);
@@ -448,11 +452,13 @@ function TaskEditor({ space, me, task, api, say, onClose, onSave }: { space: Spa
       {repeat.every === "once" && <input type="date" className={field} value={repeat.date} onChange={(e) => setRepeat((r) => ({ ...r, date: e.target.value }))} />}</Lbl>
     <div className="grid grid-cols-2 gap-3"><Lbl t="Done by"><input type="time" className={field} value={due} onChange={(e) => setDue(e.target.value || "17:00")} /></Lbl>
       <Lbl t="Remind every"><select className={field} value={nag} onChange={(e) => setNag(Number(e.target.value))}>{NAG_CHOICES.map((n) => <option key={n} value={n}>{n === 0 ? "No reminders" : n < 60 ? `${n} minutes` : n === 60 ? "Hour" : `${n / 60} hours`}</option>)}</select></Lbl></div>
-    {kind === "task" && <Lbl t="Proof when it's done"><Chips value={proof} options={[["none", "Just a check"], ["photo", "Photo"], ["video", "Video"], ["either", "Photo or video"]]} onChange={setProof} /></Lbl>}
+    {kind === "task" && <Lbl t="Link to an app"><Chips value={link || "none"} options={[["none", "No link"], ...ACCT_LINKS.map((l) => [l.id, l.name] as [string, string])]} onChange={(v) => { const l = (v === "none" ? "" : v) as AcctLink; setLink(l); const t = ACCT_LINKS.find((x) => x.id === l); if (t && !title.trim()) setTitle(t.title); }} />
+      {link && <p className="text-xs text-slate-500">{ACCT_LINKS.find((l) => l.id === link)?.does}. No photo needed.</p>}</Lbl>}
+    {kind === "task" && !link && <Lbl t="Proof when it's done"><Chips value={proof} options={[["none", "Just a check"], ["photo", "Photo"], ["video", "Video"], ["either", "Photo or video"]]} onChange={setProof} /></Lbl>}
     <label className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3.5"><span><span className="block text-sm font-black">I'll approve it</span><span className="text-xs text-slate-500">Look at it and OK it, or ask for a redo</span></span><input type="checkbox" checked={review} onChange={(e) => setReview(e.target.checked)} className="h-6 w-6 accent-teal-600" /></label>
     <Lbl t="Notes (optional)"><textarea className={`${field} min-h-20 py-2`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Use the flash cards on the fridge" maxLength={1000} /></Lbl>
     <p className="text-xs text-slate-400">Reminders go out from {timeWords(due)} until it's checked off, between 7am and 9:30pm.</p>
-    <button type="button" disabled={!canSave || busy} onClick={async () => { setBusy(true); await onSave({ title, notes, kind, assignee, repeat, due, nag, proof: kind === "task" ? proof : "none", review, worksheet: kind === "worksheet" ? ws : null, quiz: kind === "quiz" ? quiz : null }); setBusy(false); }} className={`${tealBtn} w-full text-base`} data-testid="acct-save">{busy ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} strokeWidth={3} />}{task ? "Save" : assignee === me ? "Add it" : "Send it"}</button>
+    <button type="button" disabled={!canSave || busy} onClick={async () => { setBusy(true); await onSave({ title, notes, kind, assignee, repeat, due, nag, proof: kind === "task" && !link ? proof : "none", link: kind === "task" ? link : "", review, worksheet: kind === "worksheet" ? ws : null, quiz: kind === "quiz" ? quiz : null }); setBusy(false); }} className={`${tealBtn} w-full text-base`} data-testid="acct-save">{busy ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} strokeWidth={3} />}{task ? "Save" : assignee === me ? "Add it" : "Send it"}</button>
   </div></Sheet>;
 }
 

@@ -12,6 +12,12 @@ export type RepeatEvery = "once" | "daily" | "weekdays" | "weekly";
 export type Repeat = { every: RepeatEvery; days: number[]; date: string };
 export type ProofKind = "none" | "photo" | "video" | "either";
 export type TaskKind = "task" | "worksheet" | "quiz";
+/** An app a to-do is linked to: logging in that app checks the to-do off for the day (server/pottySync.ts). */
+export type AcctLink = "" | "potty";
+export const ACCT_LINKS: { id: Exclude<AcctLink, "">; name: string; does: string; title: string }[] = [
+  { id: "potty", name: "Potty Training", does: "Checks itself off when they log a potty trip, an accident or a diaper", title: "Track potty training" },
+];
+export const acctLinkName = (id: unknown) => ACCT_LINKS.find((l) => l.id === id)?.name ?? "";
 
 export type WsKind = "short" | "choice" | "trace" | "draw";
 export type WsItem = { id: string; kind: WsKind; prompt: string; choices: string[]; answer: string };
@@ -30,6 +36,8 @@ export type AcctTask = {
   /** The one who asked approves it (or asks for a redo). */
   review: boolean;
   worksheet: Worksheet | null; quiz: Quiz | null;
+  /** Linked to an app: logging there checks it off (none: checked off by hand). */
+  link?: AcctLink;
   archived: boolean; createdAt: string;
 };
 export type Proof = { path: string; type: "photo" | "video" };
@@ -103,10 +111,13 @@ export function cleanTask(v: any, members: number[]): Omit<AcctTask, "id" | "spa
   if (kind === "worksheet" && !worksheet) return null;
   if (kind === "quiz" && !quiz) return null;
   const nag = NAG_CHOICES.includes(Number(v?.nag) as any) ? Number(v.nag) : 60;
+  // A to-do linked to an app is checked off by logging there, so it needs no photo.
+  const link: AcctLink = kind === "task" && ACCT_LINKS.some((l) => l.id === v?.link) ? v.link : "";
   return {
+    link,
     title, notes: str(v?.notes, LIMITS.notes), kind, assignee, repeat: cleanRepeat(v?.repeat),
     due: typeof v?.due === "string" && TIME.test(v.due) ? v.due : "17:00", nag,
-    proof: ["none", "photo", "video", "either"].includes(v?.proof) ? v.proof : "none",
+    proof: link ? "none" : ["none", "photo", "video", "either"].includes(v?.proof) ? v.proof : "none",
     review: v?.review !== false, worksheet, quiz,
   };
 }

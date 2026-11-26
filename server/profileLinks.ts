@@ -135,6 +135,13 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     return allows(accessFor(await ownerLinks(ownerId), viewer.id, appShareId(appId)), need);
   }
 
+  /** Everyone this owner shares a premium app with (signed up and accepted), for telling them what's new. */
+  async function appPeople(ownerId: number, appKey: string): Promise<number[]> {
+    const appId = appIdFromKey(appKey);
+    if (!appId) return [];
+    return (await ownerLinks(ownerId)).flatMap((l) => (l.viewerId && l.viewerId !== ownerId && allows(accessFor([l], l.viewerId, appShareId(appId)), "view") ? [l.viewerId] : []));
+  }
+
   app.get("/api/profile-links", authMiddleware, async (req: any, res) => {
     const u = me(req);
     if (!u) return res.status(401).json({ message: "Sign in first." });
@@ -509,5 +516,5 @@ export function registerProfileLinkRoutes(app: Express, authMiddleware: RequestH
     }
   });
 
-  return { canUseApp };
+  return { canUseApp, appPeople };
 }

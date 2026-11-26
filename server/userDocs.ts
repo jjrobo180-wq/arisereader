@@ -96,7 +96,9 @@ function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 /** Linked profiles (server/profileLinks.ts): may this person read or change another account's app? */
 export type OwnerAppAccess = (req: any, ownerId: number, appKey: string, need: "view" | "edit") => Promise<boolean>;
 
-export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandler, store: DocStore, now: () => number = Date.now, ownerAccess?: OwnerAppAccess) {
+/** A premium app was saved: what it held before and after, whose it is and who saved it (server/pottySync.ts). */
+export type AppSaved = { app: string; ownerId: number; editorId: number; before: unknown; after: unknown };
+export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandler, store: DocStore, now: () => number = Date.now, ownerAccess?: OwnerAppAccess, onSaved?: (s: AppSaved) => Promise<void> | void, watched: (app: string) => boolean = () => false) {
   const uid = (req: any) => (req.user?.id ? String(req.user.id) : "");
   const indexPath = (u: string) => `${u}/_index.json`;
   const docPath = (u: string, id: string) => `${u}/docs/${id}.json`;
@@ -301,8 +303,12 @@ export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandl
     const body = JSON.stringify({ data: req.body?.data ?? null, updatedAt: new Date(now()).toISOString() });
     if (Buffer.byteLength(body) > MAX_APP_BYTES) return res.status(413).json({ message: "This app is full. Delete some older entries to save more." });
     try {
+      // Watched apps (Potty Training) tell the others what's new, so the copy before this save is kept to compare.
+      const watch = !!onSaved && watched(appId);
+      const before = watch ? await store.read(`${u}/apps/${appId}.json`).then((r) => (r ? JSON.parse(r).data : null)).catch(() => null) : null;
       await store.write(`${u}/apps/${appId}.json`, body);
       res.json({ ok: true, updatedAt: JSON.parse(body).updatedAt });
+      if (watch) void Promise.resolve(onSaved!({ app: appId, ownerId: Number(u), editorId: Number(uid(req)), before, after: req.body?.data ?? null })).catch((e) => console.error("[app-data] after save:", e?.message));
     } catch {
       res.status(500).json({ message: "Couldn't save. It's kept on this device and will save when you're back online." });
     }
