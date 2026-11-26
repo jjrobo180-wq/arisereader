@@ -17,7 +17,7 @@ LEFT_OUT=(
   reader-landing.html educator.html notes-landing.html cooked-landing.html cooked-pt-landing.html notes-app
   teacher-guide advisory-kit reading-rewards reading-quizzes special-education-reading accelerated-reader-alternative
   teacher-workspace family-to-do-app foldable-phone-to-do-app iphone-duo iphone-duo-split-screen-guide
-  iphone-duo-to-do-app split-screen-to-do-app teacher-to-do-app to-do-list-with-notes
+  iphone-duo-to-do-app split-screen-to-do-app teacher-to-do-app to-do-list-with-notes for
   ab-days.json app-links.json robots.txt sitemap.xml google298ee7b3cd657a24.html 9cdb74bc86132db459cb5c8432f3214b.txt
   og-image.png todo-og.png reader-app-icon.png
   # Other apps' pages, in case a build made them.

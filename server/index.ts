@@ -57,6 +57,24 @@ const TODO_SITEMAP: { path: string; lastmod: string; priority: string }[] = [
   { path: "/to-do-list-with-notes/", lastmod: "2026-10-24", priority: "0.8" },
   { path: "/family-to-do-app/", lastmod: "2026-10-24", priority: "0.8" },
   { path: "/teacher-to-do-app/", lastmod: "2026-10-24", priority: "0.8" },
+  // Who it's for (script/industryPages.ts): the list, one page per job and one for everyone.
+  { path: "/for/", lastmod: "2026-11-26", priority: "0.9" },
+  { path: "/for/teachers/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/business-owners/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/accountants/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/creators/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/personal-trainers/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/real-estate-agents/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/health-care/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/contractors/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/salons-and-barbers/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/restaurants/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/sales/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/freelancers/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/nonprofits/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/legal/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/job-seekers/", lastmod: "2026-11-26", priority: "0.8" },
+  { path: "/for/everyone/", lastmod: "2026-11-26", priority: "0.8" },
 ];
 /** Arise To Do's own pages: on arisereader.com they redirect to arisetodo.com, so search engines see one copy. */
 const TODO_ONLY_PAGES = new Set(TODO_SITEMAP.filter((p) => p.path !== "/").flatMap((p) => [p.path, p.path.replace(/\/$/, "")]));
