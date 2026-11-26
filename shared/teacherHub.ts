@@ -202,7 +202,7 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "coach", "lessons", "tasks", "notes", "journal", "arise", "behavior", "passes", "attendance", "gradebook", "wall", "parents", "schedules", "email", "reader", "admin",
+  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "solver", "coach", "lessons", "tasks", "notes", "journal", "arise", "behavior", "passes", "attendance", "gradebook", "wall", "parents", "schedules", "email", "reader", "admin",
   "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
   "readerAdvisory", "readerCatalog",
 ] as const;
@@ -217,7 +217,7 @@ export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "cale
  *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
  *  not by the App Store. */
 export const WORK_ADD_ON_TABS: readonly HubTab[] = [
-  "caseload", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "coach", "lessons", "arise", "behavior", "passes", "attendance",
+  "caseload", "minutes", "iep", "prep", "focus", "incidents", "oneonone", "profiles", "makeups", "gradeplans", "solver", "coach", "lessons", "arise", "behavior", "passes", "attendance",
   "gradebook", "wall", "parents", "schedules", "email",
 ];
 
@@ -242,6 +242,8 @@ export type Workspace = {
   /** Grade Plans: plans for missing and failed work, and its settings (shared/gradePlans.ts). */
   gradePlans?: import("./gradePlans").GradePlan[];
   gradePlanSettings?: import("./gradePlans").GradePlanSettings;
+  /** Problem Solver: problems solved lately (shared/problemSolver.ts). No photos are kept. */
+  solved?: import("./problemSolver").SolvedProblem[];
   /** Coach: what was tried with each student and whether it worked, and saved lesson prep (shared/hubCoach.ts). */
   helpLogs?: import("./hubCoach").HelpLog[];
   coachPreps?: import("./hubCoach").SavedPrep[];

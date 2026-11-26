@@ -38,7 +38,7 @@ import {
   CheckCheck,
   ChevronDown,
   ChevronUp,
-  ClipboardCheck, ClipboardList,
+  ClipboardCheck, ClipboardList, Calculator,
   Clock3,
   GraduationCap,
   Home,
@@ -163,6 +163,7 @@ import HubProfiles from "@/components/teacher-hub/HubProfiles";
 import HubTeachCoach from "@/components/teacher-hub/HubCoach";
 import HubMakeups from "@/components/teacher-hub/HubMakeups";
 import HubGradePlans from "@/components/teacher-hub/HubGradePlans";
+import HubProblemSolver from "@/components/teacher-hub/HubProblemSolver";
 import { addSupplementary, studentsWithoutProfiles } from "@shared/hubSupplementary";
 import { FocusTimer } from "@/components/family-hub/Focus";
 import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
@@ -290,6 +291,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "profiles", label: "Student profiles", icon: <Users className="h-4 w-4" /> },
   { id: "makeups", label: "Makeup tests", icon: <FileCheck className="h-4 w-4" /> },
   { id: "gradeplans", label: "Grade Plans", icon: <ClipboardList className="h-4 w-4" /> },
+  { id: "solver", label: "Problem Solver", icon: <Calculator className="h-4 w-4" /> },
   { id: "coach", label: "Coach", icon: <Lightbulb className="h-4 w-4" /> },
   { id: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
 ];
@@ -297,7 +299,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   start: <Rocket className="h-4 w-4" />,
-  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />, incidents: <ShieldAlert className="h-4 w-4" />, oneonone: <MessagesSquare className="h-4 w-4" />, profiles: <Users className="h-4 w-4" />, makeups: <FileCheck className="h-4 w-4" />, gradeplans: <ClipboardList className="h-4 w-4" />, coach: <Lightbulb className="h-4 w-4" />,
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, prep: <ClipboardCheck className="h-4 w-4" />, focus: <Timer className="h-4 w-4" />, incidents: <ShieldAlert className="h-4 w-4" />, oneonone: <MessagesSquare className="h-4 w-4" />, profiles: <Users className="h-4 w-4" />, makeups: <FileCheck className="h-4 w-4" />, gradeplans: <ClipboardList className="h-4 w-4" />, solver: <Calculator className="h-4 w-4" />, coach: <Lightbulb className="h-4 w-4" />,
   notes: <StickyNote className="h-4 w-4" />, journal: <NotebookPen className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />,
@@ -2068,6 +2070,7 @@ function TeacherHubPage() {
             students={[...workspace.students.map((s) => s.name)].sort((a, b) => a.localeCompare(b))}
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}
           {tab === "coach" && <HubTeachCoach workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])} token={token} />}
+          {tab === "solver" && <HubProblemSolver workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(t) => toasts.show(t, [])} />}
           {tab === "gradeplans" && <HubGradePlans workspace={workspace} setWorkspace={setWorkspace} token={token} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])} />}
           {tab === "makeups" && <HubMakeups workspace={workspace} setWorkspace={setWorkspace} today={TODAY()} makeId={id} say={(t) => toasts.show(t, [])}
             openStudent={(name) => { const st = workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase()); if (st) { setProfileStudent(st.id); goTab("caseload"); } }} />}

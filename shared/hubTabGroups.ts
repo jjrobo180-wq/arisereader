@@ -4,7 +4,7 @@
 import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "oneonone" | "profiles" | "makeups" | "gradeplans" | "coach" | "goals"
+  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "iep" | "prep" | "focus" | "incidents" | "oneonone" | "profiles" | "makeups" | "gradeplans" | "solver" | "coach" | "goals"
   | "tasks" | "notes" | "journal" | "lessons" | "gradebook" | "behavior" | "passes" | "attendance" | "wall" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
@@ -38,6 +38,8 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "makeups", label: "Makeup tests", tabs: ["makeups"] },
   // Grade Plans (shared/gradePlans.ts): plans for missing and failed work, with emails and a retake time.
   { id: "gradeplans", label: "Grade Plans", tabs: ["gradeplans"] },
+  // Problem Solver (shared/problemSolver.ts): snap a problem, get checked steps and the answer.
+  { id: "solver", label: "Problem Solver", tabs: ["solver"] },
   { id: "coach", label: "Coach", tabs: ["coach"] },
   { id: "goals", label: "Goals", tabs: ["goals"] },
   { id: "tasks", label: "Tasks", tabs: ["tasks"] },
@@ -60,7 +62,7 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
-  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus", incidents: "Incident reports", oneonone: "1-on-1 meetings", profiles: "Student profiles", makeups: "Makeup tests", gradeplans: "Grade Plans", coach: "Coach",
+  iep: "IEP", caseload: "Caseload", minutes: "Minutes", prep: "Prep", focus: "Focus", incidents: "Incident reports", oneonone: "1-on-1 meetings", profiles: "Student profiles", makeups: "Makeup tests", gradeplans: "Grade Plans", solver: "Problem Solver", coach: "Coach",
   goals: "Goals",
   tasks: "Tasks", notes: "Notes", journal: "Journal",
   lessons: "Lessons", gradebook: "Gradebook",
