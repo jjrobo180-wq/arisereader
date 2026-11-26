@@ -4,8 +4,11 @@
 
 - **Always push.** After a change is made and its tests pass, commit it and push it to `master`. Do not ask
   first and do not wait to be told "push" or "merge": the owner has said to push every change, every time.
-- When a change touches the iPhone widgets or other native code (`native/`, `arisetodo/ios-app/`), also start
-  the signed To Duo build with TestFlight upload (`gh workflow run arisetodo-signed-release.yml --ref master -f upload=true`).
+- **Always send it to TestFlight.** After pushing any change to what runs in the app (`client/`, `shared/`,
+  `native/`, `arisetodo/ios-app/`), also start the signed To Duo build with TestFlight upload
+  (`gh workflow run arisetodo-signed-release.yml -R jjrobo180-wq/arisereader --ref master -f upload=true`), without
+  asking: the iPhone app gets no web updates (see "No live updates" below), so a fix reaches the owner's phone
+  only in a new build. The owner said so on Nov 26, 2026. Changes only to `server/`, `tests/` or docs need no build.
 
 ## App Store rules this repository follows
 
