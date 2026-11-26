@@ -238,3 +238,10 @@ test("Google Calendar connects from the Calendar page itself, and its events sho
   const card = fs.readFileSync("client/src/components/teacher-hub/HubGoogle.tsx", "utf8");
   assert.match(card, /\/Safari\/\.test\(n\) \? "" : n/, "'Finish in Safari' goes away once connected");
 });
+
+test("every Google card is given its hub's to-dos (WorkHub's Tasks page broke without them)", () => {
+
+  const files = ["client/src/pages/TeacherHub.tsx", "client/src/components/duo/GooglePlugin.tsx"];
+  for (const f of files) for (const m of readFileSync(f, "utf8").matchAll(/<GoogleCard [^>]*\/>/g)) assert.match(m[0], /bridge=\{/, f);
+  assert.match(readFileSync("client/src/components/teacher-hub/HubGoogle.tsx", "utf8"), /if \(!status \|\| !bridge\) return null;/);
+});

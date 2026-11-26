@@ -84,7 +84,8 @@ export default function GoogleCard({ token, bridge, status, check }: {
   // "Finish in Safari…" is only for while connecting: it goes once Google says the part is on.
   const featureKey = (status?.features || []).join(",");
   useEffect(() => { if (featureKey) setNote((n) => (/Safari/.test(n) ? "" : n)); }, [featureKey]);
-  if (!status) return null;
+  // Without the hub's to-dos (bridge) there is nothing to connect them to: show nothing rather than break the page.
+  if (!status || !bridge) return null;
   const on = new Set(status.features);
   return (
     <div data-plugin-anchor="google" className="mt-4 space-y-4">
