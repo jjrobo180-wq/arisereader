@@ -6,7 +6,7 @@ import type { GoogleFile } from "@shared/googleConnect";
 
 export type HubTasksBridge = {
   hub: "work" | "life" | "family";
-  tasks: { id: string; title: string; done: boolean; dueDate: string; dueTime?: string; notes?: string }[];
+  tasks: { id: string; title: string; done: boolean; dueDate: string; dueTime?: string; notes?: string; /** When it was checked off (an ISO time, or a day). */ completedAt?: string }[];
   /** Adds a to-do; returns its id. */
   add: (title: string, notes: string) => string;
   /** Puts a Google file's link on a to-do. */

@@ -884,7 +884,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   // This hub's to-dos for plugins outside its own code, like Google (lib/hubTasksBridge.ts).
   const tasksBridge: HubTasksBridge = {
     hub: familySpace ? "family" : "life",
-    tasks: data.tasks.map((t) => ({ id: t.id, title: t.title, done: t.done, dueDate: t.due, dueTime: t.time, notes: t.notes })),
+    tasks: data.tasks.map((t) => ({ id: t.id, title: t.title, done: t.done, dueDate: t.due, dueTime: t.time, notes: t.notes, completedAt: t.completedAt })),
     add: (title, notes) => {
       const nid = uid();
       setData((p) => ({ ...p, tasks: [...p.tasks, { id: nid, title: title.slice(0, 200), notes: notes.slice(0, 2000), listId: p.lists[0]?.id ?? "", assignee: "", due: "", time: "", priority: "normal" as Priority, repeat: "none" as Repeat, done: false, createdAt: new Date().toISOString() }] }));

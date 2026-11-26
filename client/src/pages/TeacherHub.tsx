@@ -1308,7 +1308,7 @@ function TeacherHubPage() {
   // WorkHub's to-dos for plugins outside its own code, like Google (lib/hubTasksBridge.ts).
   const tasksBridge: HubTasksBridge = {
     hub: "work",
-    tasks: workspace.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, done: t.done, dueDate: t.dueDate, dueTime: (t as any).dueTime, notes: t.notes })),
+    tasks: workspace.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, done: t.done, dueDate: t.dueDate, dueTime: (t as any).dueTime, notes: t.notes, completedAt: t.done ? (t as any).lastDone || undefined : undefined })),
     add: (title, notes) => { const nid = id(); setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: nid, title, notes, dueDate: "", recurring: "", done: false }] })); return nid; },
     attach: (taskId, file) => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, notes: attachDoc(t.notes, file) } : t)) })),
     syncClassroom,

@@ -188,6 +188,8 @@ export type LifeInput = {
   kcalGoal?: number; weightLb?: number;
   /** The Health & Fitness (Cooked) data, when it could be read: its diary counts too. */
   fit?: any;
+  /** To-dos checked off, any hub, with the day (YYYY-MM-DD): a measure's own "How to raise it" to-dos raise it. */
+  doneTodos?: { title: string; date: string }[];
 };
 
 /** Life Score's input from the LifeHub (the first person's own logs). */
@@ -514,7 +516,27 @@ export function preventionParts(d: string, x: Ctx): { id: string; name: string; 
 }
 
 // ——— Putting it together ——————————————————————————————————————————————————————————————————————————————————————
-export type MetricResult = { id: MetricId; area: AreaId; name: string; score: number | null; value: string; series: (number | null)[]; change: number | null };
+export type MetricResult = { id: MetricId; area: AreaId; name: string; score: number | null; value: string; series: (number | null)[]; change: number | null;
+  /** Its to-dos checked off in the last 7 days, and the points they add today. */ todosDone: string[]; todoPoints: number };
+
+// ——— To-dos from Life Score count ——————————————————————————————————————————————————————————————————————————————
+/** Each of a measure's own to-dos checked off in the last 7 days adds this much, up to TODO_MAX. */
+export const TODO_POINTS = 10;
+export const TODO_MAX = 20;
+/** A measure with no numbers yet gets a score from its to-dos alone: 60 for one, 70 for two, 80 for three or more. */
+export const TODO_START = 60;
+const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+/** The measure's to-dos done in the 7 days up to d (each counted once). */
+export function todosDoneFor(m: Pick<MetricDef, "todos">, done: readonly { title: string; date: string }[], d: string): string[] {
+  const from = plusDays(d, -6);
+  return m.todos.filter((t) => done.some((x) => sameTitle(x.title, t) && x.date >= from && x.date <= d));
+}
+/** The day's score with its to-dos counted. */
+export function withTodos(base: number | null, n: number): number | null {
+  if (n <= 0) return base;
+  if (base === null) return Math.min(TODO_START + (n - 1) * TODO_POINTS, 80);
+  return clamp(base + Math.min(n * TODO_POINTS, TODO_MAX));
+}
 export type AreaResult = { id: AreaId; name: string; color: string; score: number | null; series: (number | null)[] };
 export type Pattern = { text: string; diff: number; days: number };
 export type LifeScoreResult = {
@@ -534,11 +556,17 @@ export function lifeScore(input: LifeInput, today: string, days = 30): LifeScore
   const x: Ctx = { input, facts, today };
   const off = new Set(input.data.settings.off ?? []);
   const dates = lastDays(today, days);
+  const done = (input.doneTodos ?? []).filter((t) => t && typeof t.title === "string" && DAY.test(t.date));
   const metrics: MetricResult[] = METRICS.filter((m) => !off.has(m.id)).map((m) => {
-    const series = dates.map((d) => m.score(d, x));
+    const series = dates.map((d) => withTodos(m.score(d, x), todosDoneFor(m, done, d).length));
     const score = series[series.length - 1];
     const before = series[series.length - 8] ?? null;
-    return { id: m.id, area: m.area, name: m.name, score, value: m.value(today, x), series, change: score !== null && before !== null ? score - before : null };
+    const todosDone = todosDoneFor(m, done, today);
+    const base = m.score(today, x);
+    const todoPoints = todosDone.length ? (score ?? 0) - (base ?? 0) : 0;
+    const value = m.value(today, x);
+    return { id: m.id, area: m.area, name: m.name, score, value: todosDone.length && base === null ? `${todosDone.length} to-do${todosDone.length > 1 ? "s" : ""} done this week` : value,
+      series, change: score !== null && before !== null ? score - before : null, todosDone, todoPoints };
   });
   const areas: AreaResult[] = AREAS.map((a) => {
     const mine = metrics.filter((m) => m.area === a.id);

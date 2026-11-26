@@ -100,3 +100,37 @@ test("Life Score is a LifeHub plugin, saved with the hub, and Apple Health's per
   const reads = readFileSync("client/src/lib/lifeScoreHealth.ts", "utf8");
   assert.match(reads, /write: \[\]/, "read only");
 });
+
+test("checking off a Life Score to-do raises that measure for a week (Nov 26, 2026)", async () => {
+  const { withTodos, todosDoneFor, TODO_POINTS, TODO_MAX } = await import("../shared/lifeScore");
+  const spending = METRICS.find((m) => m.id === "budget")!;
+  const todo = spending.todos[0];
+  // No budget yet: the to-do alone gives Spending a score, and the Life Score with it.
+  const input = { ...base(), doneTodos: [{ title: todo.toUpperCase() + " ", date: today }] };
+  const r = lifeScore(input, today);
+  const m = r.metrics.find((x) => x.id === "budget")!;
+  assert.equal(m.score, 60);
+  assert.deepEqual(m.todosDone, [todo]);
+  assert.notEqual(r.score, null);
+  // On a measure with numbers: +10 each, up to +20, and gone after 7 days.
+  assert.equal(withTodos(50, 1), 50 + TODO_POINTS);
+  assert.equal(withTodos(50, 5), 50 + TODO_MAX);
+  assert.equal(withTodos(95, 2), 100);
+  assert.equal(withTodos(null, 0), null);
+  assert.deepEqual(todosDoneFor(spending, [{ title: todo, date: plusDays(today, -6) }], today), [todo]);
+  assert.deepEqual(todosDoneFor(spending, [{ title: todo, date: plusDays(today, -7) }], today), []);
+  // Someone else's to-do with another title does nothing; nothing done, nothing changes.
+  assert.equal(lifeScore({ ...base(), doneTodos: [{ title: "Buy milk", date: today }] }, today).score, null);
+});
+
+test("the Life Score app: done to-dos feed the score, the to-do buttons show where each stands, and Check in is always in sight", async () => {
+  const { readFileSync } = await import("node:fs");
+  const app = readFileSync(new URL("../client/src/components/family-hub/LifeScoreApp.tsx", import.meta.url), "utf8");
+  assert.match(app, /fit: extra\.fit, doneTodos \}/);
+  assert.match(app, /data-testid="life-score-checkin-top"/);
+  assert.match(app, /data-testid="life-score-metric-checkin"/);
+  assert.match(app, /data-testid="life-score-how"/);
+  assert.match(app, /data-state=\{state\}/);
+  const bridge = readFileSync(new URL("../client/src/lib/hubTasksBridge.ts", import.meta.url), "utf8");
+  assert.match(bridge, /completedAt\?: string \}\[\];/, "every hub tells plugins when a to-do was checked off");
+});

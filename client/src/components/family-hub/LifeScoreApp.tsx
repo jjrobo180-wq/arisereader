@@ -13,7 +13,7 @@ import {
 } from "@shared/lifeScore";
 import { inputClass, type SectionProps } from "./ui";
 import { API_BASE } from "@/lib/queryClient";
-import { lastDays, type LifeInput } from "@shared/lifeScore";
+import { lastDays, TODO_MAX, TODO_POINTS, type LifeInput } from "@shared/lifeScore";
 import { lifeStats, type AnyTask } from "@shared/lifeStats";
 import { SCALES, scoreScale, type Labs, type ScaleId } from "@shared/lifeScales";
 import { ChartView, Explorer, Records, SectionPage, StatsHome } from "./LifeStatsViews";
@@ -162,6 +162,8 @@ const Group = ({ title, children }: { title: string; children: ReactNode }) => (
 );
 
 // ——— The app ————————————————————————————————————————————————————————————————————————————————————————————————
+/** The local day (YYYY-MM-DD) of a check-off time; a plain day stays as it is. */
+const localDay = (when: string) => { if (/^\d{4}-\d{2}-\d{2}$/.test(when)) return when; const d = new Date(when); return Number.isNaN(d.getTime()) ? when.slice(0, 10) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 type HubTask = { title: string; due: string; done: boolean; createdAt?: string; completedAt?: string; listId?: string; priority?: string; archived?: boolean; repeat?: string };
 type Props = SectionProps & { token?: string | null; lifeTasks?: HubTask[]; lists?: { id: string; name: string }[]; familySpace?: boolean };
 
@@ -186,7 +188,13 @@ export default function LifeScoreApp({ family, setFamily, today, say, token, lif
     ];
   }, [lifeTasks, bridge?.tasks, lists, extra, familySpace]);
   const tasks = useMemo(() => allTasks.map((t) => ({ due: t.due, done: t.done })), [allTasks]);
-  const input: LifeInput = useMemo(() => ({ ...lifeInputFrom(family, tasks), fit: extra.fit }), [family, tasks, extra.fit]);
+  // To-dos checked off, on the day they were checked off here (a measure's own to-dos raise it: shared/lifeScore.ts).
+  const doneTodos = useMemo(() => allTasks.filter((t) => t.done && t.completedAt).map((t) => ({ title: t.title, date: localDay(t.completedAt!) })), [allTasks]);
+  const input: LifeInput = useMemo(() => ({ ...lifeInputFrom(family, tasks), fit: extra.fit, doneTodos }), [family, tasks, extra.fit, doneTodos]);
+  /** Where one of Life Score's to-dos stands: checked off this week, on the list, or not added yet. */
+  const todoState = (metric: MetricId, title: string): "done" | "open" | "add" =>
+    result.metrics.find((m) => m.id === metric)?.todosDone.some((t) => t.toLowerCase() === title.toLowerCase()) ? "done"
+      : allTasks.some((t) => !t.done && t.title.trim().toLowerCase() === title.trim().toLowerCase()) ? "open" : "add";
   const result = useMemo(() => lifeScore(input, today), [input, today]);
   // Stats are worked out only once one of their screens is open (they read everything).
   const tab = tabOf(view);
@@ -231,7 +239,7 @@ export default function LifeScoreApp({ family, setFamily, today, say, token, lif
       {view.kind === "trends" && <Trends result={result} back={() => go({ kind: "overview" })} go={go} />}
       {view.kind === "settings" && <SettingsView data={data} today={today} update={update} back={() => go({ kind: "overview" })} syncing={syncing} sync={() => void sync()} connect={() => void connect()} />}
       {view.kind === "area" && <AreaView id={view.id} result={result} back={() => go({ kind: "overview" })} go={go} />}
-      {view.kind === "metric" && <MetricView id={view.id} result={result} family={family} tasks={tasks} today={today} back={() => go({ kind: "overview" })} addTodo={addTodo} openSettings={() => go({ kind: "settings" })} />}
+      {view.kind === "metric" && <MetricView id={view.id} result={result} family={family} tasks={tasks} today={today} back={() => go({ kind: "overview" })} addTodo={addTodo} openSettings={() => go({ kind: "settings" })} checkIn={() => go({ kind: "checkin" })} todoState={(t) => todoState(view.id, t)} />}
     </div>
   );
 }
@@ -282,6 +290,7 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
           <h1 className="mt-1 text-[28px] font-extrabold tracking-[-0.02em] text-slate-900">Life Score</h1>
         </div>
         <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={() => go({ kind: "checkin" })} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-slate-900 px-3.5 text-sm font-semibold text-white hover:bg-slate-700" data-testid="life-score-checkin-top"><CalendarCheck className="h-4 w-4" />{checked ? "Update" : "Check in"}</button>
           <button type="button" onClick={() => go({ kind: "trends" })} className="min-h-10 rounded-full border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Trends</button>
           <button type="button" aria-label="Life Score settings" onClick={() => go({ kind: "settings" })} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" data-testid="life-score-settings"><Settings2 className="h-[18px] w-[18px]" /></button>
         </div>
@@ -329,6 +338,17 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
       ) : (
         <button type="button" onClick={() => go({ kind: "checkin" })} className="flex w-full items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-left text-sm font-semibold text-emerald-800"><Check className="h-4 w-4" />Checked in today<span className="ml-auto text-emerald-700/70">Edit</span></button>
       )}
+
+      {/* How the score works, in plain words */}
+      <details className="rounded-2xl border border-slate-200 bg-white px-4 py-3" data-testid="life-score-how">
+        <summary className="cursor-pointer text-sm font-bold text-slate-800">How your Life Score works</summary>
+        <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-slate-600">
+          <li><b className="text-slate-800">It's the average of six areas</b> (Body, Mind, Connection, Growth, Money, Prevention). Tap any area or measure to see what's behind it.</li>
+          <li><b className="text-slate-800">Check in once a day</b> (the Check in button, top right): how you feel, people, faith, screens, food. Change it any time that day.</li>
+          <li><b className="text-slate-800">To-dos count.</b> Add one from a measure's "How to raise it", check it off in your to-dos, and that measure goes up {TODO_POINTS} points for a week (up to {TODO_MAX}).</li>
+          <li><b className="text-slate-800">The rest fills in by itself</b> from Apple Health, your budget and spending, goals, habits, sleep and other LifeHub apps.</li>
+        </ul>
+      </details>
 
       {/* Today's best move */}
       {focus && result.focus && (
@@ -441,9 +461,10 @@ function AreaView({ id, result, back, go }: { id: AreaId; result: R; back: () =>
   );
 }
 
-function MetricView({ id, result, family, tasks, today, back, addTodo, openSettings }: { id: MetricId; result: R; family: SectionProps["family"]; tasks: { due: string; done: boolean }[]; today: string; back: () => void; addTodo: (t: string) => void; openSettings: () => void }) {
+function MetricView({ id, result, family, tasks, today, back, addTodo, openSettings, checkIn, todoState }: { id: MetricId; result: R; family: SectionProps["family"]; tasks: { due: string; done: boolean }[]; today: string; back: () => void; addTodo: (t: string) => void; openSettings: () => void; checkIn: () => void; todoState: (title: string) => "done" | "open" | "add" }) {
   const def = metricDef(id), m = result.metrics.find((x) => x.id === id);
   const color = areaOf(def.area).color;
+  // Added a moment ago (before the to-do list has saved it).
   const [added, setAdded] = useState<string[]>([]);
   const parts = useMemo(() => {
     if (id !== "prevention") return [];
@@ -464,7 +485,12 @@ function MetricView({ id, result, family, tasks, today, back, addTodo, openSetti
             <h1 className="text-[26px] font-extrabold tracking-[-0.02em] text-slate-900">{def.name}</h1>
             <p className="text-sm text-slate-600">{m.value}</p>
             <p className="mt-0.5 text-xs text-slate-400">{m.change !== null ? `${m.change >= 0 ? "▲" : "▼"} ${Math.abs(m.change)} vs a week ago` : ""}{avg !== null ? `${m.change !== null ? " · " : ""}30-day average ${avg}` : ""}</p>
+            {m.todoPoints > 0 && <p className="mt-1 text-xs font-semibold text-emerald-700" data-testid="life-score-todo-points">+{m.todoPoints} from to-dos you checked off this week</p>}
           </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 p-3">
+          <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-600"><b className="text-slate-800">What moves it:</b> {def.from} Each to-do below you check off adds {TODO_POINTS} points for a week (up to {TODO_MAX}).</p>
+          <button type="button" onClick={checkIn} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-slate-900 px-3.5 text-[13px] font-semibold text-white" data-testid="life-score-metric-checkin"><CalendarCheck className="h-3.5 w-3.5" />Update today</button>
         </div>
         <div className="mt-5"><Bars series={m.series} dates={result.dates} color={color} /></div>
       </Card>
@@ -485,9 +511,15 @@ function MetricView({ id, result, family, tasks, today, back, addTodo, openSetti
           {def.improve.map((s, i) => <li key={i} className="flex gap-3 text-[15px] leading-6 text-slate-700"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: color }}>{i + 1}</span><span>{s}</span></li>)}
         </ol>
         <div className="mt-4 border-t border-slate-100 pt-3">
-          <p className="text-xs font-semibold text-slate-500">Add to my to-dos</p>
+          <p className="text-xs font-semibold text-slate-500">Add to my to-dos, then check it off there to raise {def.name}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {def.todos.map((t) => { const done = added.includes(t); return <button key={t} type="button" disabled={done} onClick={() => { addTodo(t); setAdded((a) => [...a, t]); }} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold ${done ? "bg-emerald-50 text-emerald-700" : "border border-slate-200 text-slate-700 hover:bg-slate-50"}`}>{done ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}{t}</button>; })}
+            {def.todos.map((t) => {
+              const state = todoState(t) === "add" && added.includes(t) ? "open" : todoState(t);
+              return <button key={t} type="button" disabled={state !== "add"} onClick={() => { addTodo(t); setAdded((a) => [...a, t]); }} data-testid="life-score-todo" data-state={state}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold ${state === "done" ? "bg-emerald-50 text-emerald-700" : state === "open" ? "bg-sky-50 text-sky-800" : "border border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
+                {state === "done" ? <Check className="h-3.5 w-3.5" /> : state === "open" ? <CalendarCheck className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}{t}
+                {state === "done" ? <span className="font-bold">· +{TODO_POINTS}</span> : state === "open" ? <span className="font-normal text-sky-700">· in your to-dos</span> : null}</button>;
+            })}
           </div>
         </div>
       </Card>
