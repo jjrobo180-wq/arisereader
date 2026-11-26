@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Arise To Duo on iPhone Duo · Preview</title>
+<title>Arise To Do on iPhone Duo · Preview</title>
 <link rel="icon" type="image/svg+xml" href="/todo-favicon.svg?v=20261012" />
 <style>
 :root{--bg:#0f0d1f;--panel:#1b1833;--line:#2f2a52;--text:#ecebf7;--muted:#a19dc4;--accent:#8b78f0;--body:#1d1b2e}
@@ -53,7 +53,7 @@ html.embed #reload{display:none}
 <body>
 <div class="app">
   <div class="bar">
-    <div class="brand">Arise To Duo on iPhone Duo<small id="brandNote">Live preview · your real account</small></div>
+    <div class="brand">Arise To Do on iPhone Duo<small id="brandNote">Live preview · your real account</small></div>
     <div class="group" role="group" aria-label="How the phone is held">
       <span>Phone</span>
       <div class="seg" id="modes">
@@ -115,7 +115,7 @@ html.embed #reload{display:none}
     var siteBtn = document.querySelector('#views [data-view="site"]'); if (siteBtn) siteBtn.remove();
     document.getElementById("brandNote").innerHTML = 'Try it now <span class="sample-tag">SAMPLE PROFILE</span>';
     document.getElementById("footNote").innerHTML = "A sample profile, not your account: nothing you do here is saved." + (EMBED ? ' <a class="full" href="/duo-preview.html?sample=1" target="_blank" rel="noopener">Open full screen ↗</a>' : "");
-    document.title = "Try Arise To Duo on iPhone Duo · Sample";
+    document.title = "Try Arise To Do on iPhone Duo · Sample";
   }
   var state = { mode: "open", view: "home" };
   if (!SAMPLE) try { var saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved && MODES[saved.mode] && VIEWS[saved.view]) state = saved; } catch (e) {}
@@ -156,7 +156,7 @@ html.embed #reload{display:none}
     if (frame) frame.remove();
     frame = document.createElement("iframe");
     frame.name = m.frame;
-    frame.title = "Arise To Duo";
+    frame.title = "Arise To Do";
     frame.src = VIEWS[state.view];
     screen.insertBefore(frame, screen.firstChild);
     fit();

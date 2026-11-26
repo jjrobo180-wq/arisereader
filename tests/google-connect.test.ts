@@ -212,3 +212,10 @@ test("A page left open across an update reloads itself instead of showing Someth
   assert.match(src, /failed to fetch dynamically imported module/);
   assert.match(src, /stale-chunk-reload/);
 });
+
+test("The iPhone app's loading screen and page title say Arise To Do, never To Duo (App Review 5.2.5)", async () => {
+  const fs = await import("node:fs");
+  for (const f of ["client/todo-loading.html", "client/index.html", "client/public/privacy/index.html", "client/public/terms/index.html"]) {
+    assert.ok(!/To Duo/.test(fs.readFileSync(f, "utf8")), f);
+  }
+});
