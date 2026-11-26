@@ -1,6 +1,7 @@
 import path from "node:path";
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
+import { keepOldAssets } from "./keepOldAssets";
 import { rm, readFile } from "node:fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
@@ -69,6 +70,8 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
+  // Pages open from before this update still find their code files (script/keepOldAssets.ts).
+  try { await keepOldAssets(path.resolve("dist/public/assets")); } catch (e: any) { console.log("[keep-old-assets] skipped:", e?.message || e); }
 
   // Podster's website, served on arisetodo.com at /podster/ (homepage, /podster/app/, /podster/creators/).
   console.log("building podster...");

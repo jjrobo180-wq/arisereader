@@ -2,6 +2,7 @@
 // a way to try again), and the rest of To Do keeps working. The crash is reported like any other.
 import { Component, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
+import { shouldAutoReload } from "@/lib/crashReload";
 
 type Props = { name: string; children: ReactNode };
 type State = { error: string | null; tries: number };
@@ -15,6 +16,12 @@ export class SuperBoundary extends Component<Props, State> {
       void fetch("/api/client-error", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ host: location.hostname, route: location.hash || location.pathname, role: "plugin", name: error?.name, message: `${this.props.name}: ${error?.message}`, where }) }).catch(() => {});
     } catch { /* reporting never breaks the page further */ }
+    // Its code from before an update is gone: only a reload brings the new copy. Anything else gets one quiet
+    // second try before the message shows.
+    if (/failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk/i.test(String(error?.message || ""))) {
+      if (shouldAutoReload(location.hash || location.pathname, Date.now())) { window.setTimeout(() => window.location.reload(), 150); return; }
+    }
+    if (this.state.tries === 0) window.setTimeout(() => this.setState((s) => (s.tries === 0 ? { error: null, tries: 1 } : s)), 300);
   }
   render() {
     if (!this.state.error) return <div key={this.state.tries}>{this.props.children}</div>;

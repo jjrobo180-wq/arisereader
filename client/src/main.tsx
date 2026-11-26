@@ -5,6 +5,7 @@ import "./lib/sampleBoot";
 import { isFitApp, isNativeApp, isNotesApp, isReaderApp, isTalkApp, isTrainerApp, isUndercoverApp, nativeAppInfo, nativeFlavor } from "./lib/nativeApp";
 import { allowPopups } from "./lib/popupSupport";
 import { createRoot } from "react-dom/client";
+import { shouldAutoReload } from "@/lib/crashReload";
 import App from "./App";
 import "./index.css";
 import "./login-mobile-fix.css";
@@ -275,7 +276,10 @@ watchKeyboard();
 // without it instead — the screen just uses the fallback font. (A failed script still counts.)
 window.addEventListener("vite:preloadError", (event) => {
   const message = String((event as Event & { payload?: { message?: string } }).payload?.message || "");
-  if (/preload CSS/i.test(message)) event.preventDefault();
+  if (/preload CSS/i.test(message)) { event.preventDefault(); return; }
+  // A screen's code from before the last update is gone: reload once to get the new version, instead of
+  // letting the screen crash into "Something went wrong" (ErrorBoundary's shouldAutoReload keeps it to once a minute).
+  if (shouldAutoReload(location.hash || location.pathname, Date.now())) { event.preventDefault(); window.location.reload(); }
 });
 createRoot(document.getElementById("root")!).render(<App />);
 // Only where the 5-Minute Reads' covers can show: the apps that open straight into their own screens

@@ -20,6 +20,11 @@ export function serveStatic(app: Express, distPath = path.resolve(__dirname, "pu
   // copy never changes: browsers and Cloudflare keep them for a year instead of asking the server
   // again on every visit. Everything else (the page itself, icons, images without a fingerprint)
   // keeps the short default, so an update shows up right away.
+  // The list of code files kept from earlier updates (script/keepOldAssets.ts) changes every update.
+  app.get("/assets/asset-list.json", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.type("application/json").sendFile(path.resolve(distPath, "assets", "asset-list.json"), (err) => { if (err && !res.headersSent) res.status(404).json({ builtAt: "", files: {} }); });
+  });
   app.use("/assets", express.static(path.resolve(distPath, "assets"), {
     immutable: true, maxAge: "365d", fallthrough: true, index: false,
   }));

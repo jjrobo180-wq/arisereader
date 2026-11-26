@@ -1,8 +1,11 @@
 import { Component, ReactNode } from "react";
 import { isNativeApp } from "@/lib/nativeApp";
+import { shouldAutoReload } from "@/lib/crashReload";
 
 interface State {
   hasError: boolean;
+  /** Reloading on its own; the error screen isn't shown. */
+  recovering?: boolean;
   /** In the iPhone apps, what broke is shown in small print, so a screenshot says what to fix. */
   detail?: string;
 }
@@ -45,7 +48,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   handleRouteChange = () => {
-    if (this.state.hasError) this.setState({ hasError: false, detail: undefined });
+    if (this.state.hasError) this.setState({ hasError: false, detail: undefined, recovering: false });
   };
 
   static getDerivedStateFromError(): State {
@@ -54,17 +57,16 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: any) {
     console.error("App error:", error, info);
-    // After an update, a page left open asks for files the new version renamed. Reload once (at most every
-    // two minutes) to pick up the new version, instead of showing "Something went wrong".
-    if (/failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk/i.test(String(error?.message || ""))) {
-      try {
-        const last = Number(sessionStorage.getItem("stale-chunk-reload") || 0);
-        if (Date.now() - last > 120_000) { sessionStorage.setItem("stale-chunk-reload", String(Date.now())); window.location.reload(); return; }
-      } catch { /* storage off: show the message */ }
-    }
-    const where = String(info?.componentStack || "").split("\n").map((x: string) => x.trim()).filter(Boolean).slice(0, 3).join(" < ");
-    this.setState({ detail: `${error?.name || "Error"}: ${error?.message || "unknown"}${where ? ` @ ${where}` : ""} · ${location.hash || "/"}`.slice(0, 400) });
     reportCrash(error, info);
+    const where = String(info?.componentStack || "").split("\n").map((x: string) => x.trim()).filter(Boolean).slice(0, 3).join(" < ");
+    this.setState({ detail: `${error?.name || "Error"}: ${error?.message || "unknown"}${where ? ` @ ${where}` : ""} · ${location.hash || location.pathname || "/"}`.slice(0, 400) });
+    // Recover on its own before ever showing this screen: a reload fixes almost every crash (a page left
+    // open across an update, a dropped connection, a one-off glitch). Once per page per minute, so a page
+    // that really is broken shows the screen instead of reloading forever.
+    if (shouldAutoReload(location.hash || location.pathname, Date.now())) {
+      this.setState({ recovering: true });
+      window.setTimeout(() => window.location.reload(), 150);
+    }
   }
 
   handleReload = () => {
@@ -81,6 +83,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   };
 
   render() {
+    if (this.state.hasError && this.state.recovering) {
+      return <div className="min-h-screen flex items-center justify-center bg-background" data-testid="error-recovering"><p className="text-sm text-muted-foreground">Reloading…</p></div>;
+    }
     if (this.state.hasError) {
       const role = savedRole();
       const adult = role === "teacher" || role === "admin" || role === "parent" || role === "todo";
@@ -110,7 +115,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
                 {adult ? "Back to my hub" : role === "guest" ? "Go to sign in" : "Back to Library"}
               </button>
             </div>
-            {isNativeApp() && this.state.detail && <p className="mt-6 select-text break-words text-left font-mono text-[11px] leading-snug text-muted-foreground" data-testid="error-detail">{this.state.detail}</p>}
+            {this.state.detail && (isNativeApp()
+              ? <p className="mt-6 select-text break-words text-left font-mono text-[11px] leading-snug text-muted-foreground" data-testid="error-detail">{this.state.detail}</p>
+              : <details className="mt-6 text-left"><summary className="cursor-pointer text-xs text-muted-foreground">What went wrong</summary><p className="mt-2 select-text break-words font-mono text-[11px] leading-snug text-muted-foreground" data-testid="error-detail">{this.state.detail}</p></details>)}
           </div>
         </div>
       );

@@ -208,9 +208,9 @@ test("Adding Google opens it right away in LifeHub and WorkHub, and Connections 
 
 test("A page left open across an update reloads itself instead of showing Something went wrong (Nov 26, 2026)", async () => {
   const fs = await import("node:fs");
+  // Now any crash reloads once (client/src/lib/crashReload.ts; tests/error-recovery.test.ts has the details).
   const src = fs.readFileSync("client/src/components/ErrorBoundary.tsx", "utf8");
-  assert.match(src, /failed to fetch dynamically imported module/);
-  assert.match(src, /stale-chunk-reload/);
+  assert.match(src, /shouldAutoReload\(location\.hash \|\| location\.pathname, Date\.now\(\)\)/);
 });
 
 test("The iPhone app's loading screen and page title say Arise To Do, never To Duo (App Review 5.2.5)", async () => {

@@ -80,7 +80,7 @@ import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerTvLinkRoutes } from "./tvLink";
 import { readWorkspace as readTodoWorkspace, updateWorkspace as updateTodoWorkspace } from "./ariseTodo";
 import { applyLifeTv, applyWorkTv } from "../shared/tvActions";
-import { registerClientErrorRoutes } from "./clientErrors";
+import { crashKeeper, registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerKrogerRoutes } from "./kroger";
@@ -1635,7 +1635,12 @@ export async function registerRoutes(
       return null;
     },
   });
-  registerClientErrorRoutes(app);
+  // Crash reports are also kept (newest 300) in settings "client_error_log", so they can be read without the host's logs.
+  const crashes = crashKeeper(
+    async (list) => { await supabase.from("settings").upsert({ key: "client_error_log", value: JSON.stringify(list) }, { onConflict: "key" }); },
+    { load: async () => { const { data } = await supabase.from("settings").select("value").eq("key", "client_error_log").maybeSingle(); try { return data?.value ? JSON.parse(String(data.value)) : []; } catch { return []; } } },
+  );
+  registerClientErrorRoutes(app, { keep: (e) => crashes.add(e) });
   // Arise To Do Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
   // add a 4th is refused. Nothing is ever taken away, and an account already over keeps every app
