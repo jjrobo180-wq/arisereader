@@ -1,4 +1,5 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
+import { registerVersionRoute } from "./version";
 import { registerGoalQuizRoutes } from "./goalQuiz";
 import { registerIepAiRoutes } from "./iepAi";
 import { dedupeBooks } from "./bookDedupe";
@@ -1258,6 +1259,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Which commit is live (server/version.ts), so a deploy can be checked after a push.
+  registerVersionRoute(app);
   // One admin-managed changelog drives both public A.R.I.S.E. domains.
   registerWhatsNewRoutes(app, authMiddleware);
   // Picking a school at sign-up: search the US school list, or (teachers) type one that is missing.
