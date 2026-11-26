@@ -1437,6 +1437,12 @@ export async function registerRoutes(
     userForToken: async (token) => (await storage.getSession(token))?.user ?? null,
     getUser: (id) => storage.getUser(id),
     findUserByUsername: (username) => storage.getUserByUsername(username),
+    // Reader scholarships: the applicant's parent account, by the email they applied with.
+    findParentByEmail: async (email) => {
+      const { data } = await supabase.from("users").select("id, username, display_name, role, email").ilike("email", email.trim()).eq("role", "parent").is("archived_at", null).limit(1);
+      return (data && data[0]) || null;
+    },
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
     // students only: a parent account carries its child's teacher too, and must not use up a place
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
@@ -1499,6 +1505,7 @@ export async function registerRoutes(
   // Emails to parents from the admin (server/parentMessages.ts).
   registerParentMessages(app, {
     auth: authMiddleware, admin: adminMiddleware,
+    testEmail: () => ADMIN_NOTIFY_EMAIL,
     async parents() {
       const [rows, links] = await Promise.all([
         pagedRows((a, b) => supabase.from("users").select("id, username, display_name, email, school_id, role, archived_at").eq("role", "parent").is("archived_at", null).order("id", { ascending: true }).range(a, b)),

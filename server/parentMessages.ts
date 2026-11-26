@@ -15,6 +15,8 @@ type Deps = {
   readLog: () => Promise<string>;
   saveLog: (json: string) => Promise<void>;
   ask?: (system: string, user: string) => Promise<string>;
+  /** Where a test goes when the admin's own account has no email (ADMIN_NOTIFY_EMAIL). */
+  testEmail?: () => string;
 };
 
 const openAiJson = async (system: string, user: string) => {
@@ -66,7 +68,7 @@ export function registerParentMessages(app: Express, deps: Deps) {
       const all = await deps.parents();
       let to: ParentRecipient[];
       if (test) {
-        const me = String(req.user?.email || "").trim();
+        const me = String(req.user?.email || "").trim() || String(deps.testEmail?.() || "").trim();
         if (!me) return res.status(400).json({ message: "Your admin account has no email to send the test to." });
         to = [{ id: 0, name: String(req.user?.displayName || req.user?.display_name || "Test"), email: me, schoolIds: [], kids: ["Maya"] }];
       } else {

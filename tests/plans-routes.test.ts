@@ -39,6 +39,7 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
   const settings = new Map<string, string>();
   if (opts.enforced !== false) settings.set("plans_enforced", "1");
   const calls: Call[] = [];
+  const emails: { to: string; subject: string; html: string }[] = [];
   const app = express();
   // Match the production request parser: Stripe signatures must be checked
   // against the exact bytes received, not JSON that Express parsed/re-encoded.
@@ -55,6 +56,8 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
     readSetting: async (k) => { if (db.down) throw new Error("database unreachable"); return settings.get(k) ?? ""; },
     userForToken: async (token) => USERS[Number(token)] ?? null,
     getUser: async (id) => USERS[id] ?? null,
+    findParentByEmail: async (email) => (email.toLowerCase() === "fam@x.org" ? { id: 80 } : null),
+    sendEmail: async (to, subject, html) => { emails.push({ to, subject, html }); return { sent: true }; },
     countTeacherStudents: async () => opts.students ?? 30,
     countSchoolStudents: async (id) => (id === 7 ? 2600 : 240),
     schoolName: async (id) => { if (db.down) throw new Error("database unreachable"); return SCHOOLS[id] ?? ""; },
@@ -93,7 +96,7 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
     const sig = createHmac("sha256", over.secret ?? WHSEC).update(`${time}.${payload}`).digest("hex");
     return call(null, "POST", "/api/billing/webhook", over.tamper ? payload.replace("active", "actlve") : payload, { "Stripe-Signature": `t=${time},v1=${sig}` });
   };
-  return { call, hook, plans, settings, calls, clock, db };
+  return { call, hook, plans, settings, calls, clock, db, emails };
 }
 
 const subscription = (over: any = {}) => ({
@@ -720,4 +723,36 @@ test("a brand-new teacher is locked out of Premium right away; Arise WorkHub sta
   assert.equal((await call(15, "POST", "/api/student/iarise-quiz", {})).status, 402);
   // the plan page still opens, so they can pay
   assert.equal((await call(55, "GET", "/api/plan")).status, 200);
+});
+
+test("approving a family scholarship gives the family plan and emails them, once", async (t) => {
+  const { call, settings, emails } = await setup(t);
+  const apply = (email: string) => call(null, "POST", "/api/reader-scholarship", { who: "family", name: "Kelley Olsen", email, reason: "Four homeschooled children who love to read." }, { "X-Forwarded-For": email });
+  assert.equal((await apply("fam@x.org")).status, 200);
+  const id = JSON.parse(settings.get("reader_scholarships")!)[0].id;
+  let r = await call(1, "POST", `/api/admin/reader-scholarships/${id}`, { status: "approved" });
+  assert.equal(r.status, 200);
+  assert.match(r.body.message, /Family plan given for 12 months\. Email sent to fam@x\.org\./);
+  const grant = JSON.parse(settings.get("plan_bundle_family_80")!);
+  assert.equal(grant.status, "active");
+  assert.equal(grant.note, "Reader scholarship");
+  assert.equal(emails.length, 1);
+  assert.match(emails[0].subject, /scholarship is approved/);
+  assert.match(emails[0].html, /Hi Kelley,/);
+  const saved = JSON.parse(settings.get("reader_scholarships")!)[0];
+  assert.ok(saved.grantedAt && saved.emailedAt && saved.grantedTo === 80);
+  // Approving again doesn't email twice.
+  r = await call(1, "POST", `/api/admin/reader-scholarships/${id}`, { status: "approved" });
+  assert.equal(emails.length, 1);
+  assert.match(r.body.message, /already emailed/);
+});
+
+test("approving a family with no parent account yet says so, and gives nothing", async (t) => {
+  const { call, settings, emails } = await setup(t);
+  await call(null, "POST", "/api/reader-scholarship", { who: "family", name: "Ash", email: "nobody@x.org", reason: "I want my child to get a good grade from reading." });
+  const id = JSON.parse(settings.get("reader_scholarships")!)[0].id;
+  const r = await call(1, "POST", `/api/admin/reader-scholarships/${id}`, { status: "approved" });
+  assert.match(r.body.message, /No parent account uses nobody@x\.org yet/);
+  assert.equal(emails.length, 0);
+  assert.equal(settings.get("plan_bundle_family_80"), undefined);
 });

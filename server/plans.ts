@@ -62,6 +62,9 @@ export type PlanDeps = {
   /** The signed-in user for a session token, or null. Used to check teachers before a route runs. */
   userForToken(token: string): Promise<AnyUser | null>;
   getUser(id: number): Promise<AnyUser | null | undefined>;
+  /** A parent account by its email (Reader scholarships). */
+  findParentByEmail?(email: string): Promise<{ id: number; username?: string; display_name?: string } | null>;
+  sendEmail?(to: string, subject: string, html: string): Promise<{ sent: boolean; error?: string }>;
   /** An account by its username, for putting an existing account on the VIP list. */
   findUserByUsername?(username: string): Promise<AnyUser | null | undefined>;
   /** Approved students on a teacher's roster. */
@@ -1633,6 +1636,48 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   });
 
   // ── Reader scholarships: a family, teacher or school asks for a free plan ──
+  /** How long a family scholarship lasts, in months. */
+  const SCHOLARSHIP_MONTHS = 12;
+  /**
+   * An approved family scholarship: the family plan (bundle_family) on the parent account with the email they
+   * applied with, for SCHOLARSHIP_MONTHS, and an email telling them. Each happens once: approving again only
+   * does what didn't happen before (no account yet, or the email failed).
+   */
+  const approveFamily = async (a: any): Promise<{ message: string; record: Record<string, unknown> }> => {
+    const record: Record<string, unknown> = {};
+    const said: string[] = [];
+    let parentId = Number(a.grantedTo) || 0;
+    if (!a.grantedAt) {
+      const parent = deps.findParentByEmail ? await deps.findParentByEmail(String(a.email || "")).catch(() => null) : null;
+      if (!parent) return { message: `No parent account uses ${a.email} yet. When they sign up as a parent with that email, press Approved again.`, record: {} };
+      parentId = Number(parent.id);
+      const held = await readGrant("bundle_family", parentId, true);
+      if (held && grantLive(held, now())) { record.grantedTo = parentId; record.grantedAt = iso(now()); said.push("They already had the family plan."); }
+      else {
+        const grant: PlanGrant = { kind: "bundle_family", ownerId: parentId, source: "admin", status: "active", seats: priceOf("bundle_family").seats(1),
+          endsAt: iso(now() + SCHOLARSHIP_MONTHS * 30.4375 * DAY), updatedAt: iso(now()), note: "Reader scholarship" };
+        await serial(async () => { await saveGrant(grant); });
+        await afterGrant(grant);
+        record.grantedTo = parentId; record.grantedAt = iso(now()); record.endsAt = grant.endsAt;
+        said.push(`Family plan given for ${SCHOLARSHIP_MONTHS} months.`);
+      }
+    }
+    if (!a.emailedAt && deps.sendEmail) {
+      const first = String(a.name || "").trim().split(/\s+/)[0] || "there";
+      const ends = new Date(String(record.endsAt || a.endsAt || iso(now() + SCHOLARSHIP_MONTHS * 30.4375 * DAY))).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+      const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:16px;line-height:1.55;color:#111827;max-width:560px">
+<p>Hi ${esc(first)},</p>
+<p>Good news: your Arise Reader scholarship is approved. Your family plan is on now, free, through <b>${esc(ends)}</b>.</p>
+<p>Sign in to your parent account at <a href="${esc(deps.appUrl || "https://www.arisereader.com")}">${esc((deps.appUrl || "https://www.arisereader.com").replace(/^https?:\/\//, ""))}</a> with this email to add your children and get started. There's nothing to pay and no card needed.</p>
+<p>If you have any questions, just reply to this email.</p>
+<p>Happy reading,<br>The Arise Reader team</p></div>`;
+      const r = await deps.sendEmail(String(a.email), "Your Arise Reader scholarship is approved", html).catch((e: any) => ({ sent: false, error: e?.message }));
+      if (r.sent) { record.emailedAt = iso(now()); said.push(`Email sent to ${a.email}.`); }
+      else said.push(`The email to ${a.email} didn't send (${r.error || "unknown error"}). Press Approved again to retry.`);
+    } else if (a.emailedAt) said.push("They were already emailed.");
+    return { message: said.join(" "), record };
+  };
   const SCHOLARSHIP_KEY = "reader_scholarships";
   const lastAsk = new Map<string, number>();
   const clip = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, n);
@@ -1661,14 +1706,27 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/admin/reader-scholarships/:id", auth, admin, async (req: any, res: any) => {
     try {
       const status = ["new", "approved", "declined"].includes(req.body?.status) ? req.body.status : "new";
+      let entry: any = null;
       await serial(async () => {
         const list = parse<any[]>(await read(SCHOLARSHIP_KEY), []);
         const hit = list.find((x) => x.id === String(req.params.id));
         if (!hit) throw new Refused("That application isn't there any more.", 404);
         hit.status = status;
+        entry = { ...hit };
         await write(SCHOLARSHIP_KEY, JSON.stringify(list));
       });
-      res.json({ ok: true });
+      // Approving a family does the whole job: the family plan on their parent account, and an email saying so.
+      let done = "";
+      if (status === "approved" && entry?.who === "family") {
+        const result = await approveFamily(entry);
+        done = result.message;
+        await serial(async () => {
+          const list = parse<any[]>(await read(SCHOLARSHIP_KEY), []);
+          const hit = list.find((x) => x.id === entry.id);
+          if (hit) { Object.assign(hit, result.record); await write(SCHOLARSHIP_KEY, JSON.stringify(list)); }
+        });
+      } else if (status === "approved") done = "Marked approved. Give their teacher or school plan with \"Give a plan by hand\" above.";
+      res.json({ ok: true, message: done });
     } catch (e) { fail(res, e, "scholarship update"); }
   });
 
