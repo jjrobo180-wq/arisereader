@@ -162,6 +162,7 @@ h3{font:800 18px/1.3 Manrope,system-ui,sans-serif;margin:0 0 6px}
 .tools li small{display:block;font-weight:500;color:var(--muted)}
 ol.steps{counter-reset:s;list-style:none;padding:0;margin:18px 0 0;display:grid;gap:12px}
 ol.steps li{counter-increment:s;position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px 16px 62px}
+ol.steps b{display:block}
 ol.steps li::before{content:counter(s);position:absolute;left:18px;top:16px;width:30px;height:30px;border-radius:10px;background:var(--dark);color:#fff;display:grid;place-items:center;font-weight:800}
 .check{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
 .check li{padding-left:30px;position:relative}.check li::before{content:"✓";position:absolute;left:4px;font-weight:900;color:#10a99f}
@@ -216,7 +217,8 @@ const topBar = `<header class="top"><div class="wrap">
 
 const footer = `<footer><div class="wrap"><span>Arise To Do · To-dos, calendar and the tools for your work and your life · Updated November 26, 2026</span><span><a href="/">Home</a> · <a href="/for/">Who it's for</a> · <a href="/#pricing">Pricing</a> · <a href="/privacy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/app#/signin">Sign in</a></span></div></footer>`;
 
-const allLinks = (current: string) => `<div class="more">${AUDIENCES.map((a) => `<a href="/for/${a.slug}/"${a.slug === current ? ' aria-current="page"' : ""}>${esc(a.nav)}<small>${esc(a.kicker.replace(/^For /, ""))}</small></a>`).join("")}</div>`;
+const who = (a: Audience) => (a.bundle ? a.kicker.replace(/^For (\w)/, (_, c: string) => c.toUpperCase()) : "To-dos, home, family and money");
+const allLinks = (current: string) => `<div class="more">${AUDIENCES.map((a) => `<a href="/for/${a.slug}/"${a.slug === current ? ' aria-current="page"' : ""}>${esc(a.nav)}<small>${esc(who(a))}</small></a>`).join("")}</div>`;
 
 export function audiencePage(a: Audience): string {
   const path = `/for/${a.slug}/`;
@@ -230,8 +232,8 @@ export function audiencePage(a: Audience): string {
     { "@type": "FAQPage", mainEntity: a.faq.map(([q, ans]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: ans } })) },
   ] };
   const setup = a.bundle
-    ? [["Make your free account", "It takes a minute, with email or Sign in with Apple."], [`Open WorkHub's Plugin Gallery`, `Under <b>Bundles by job</b>, tap <b>${esc(pack!.name)}</b>, then <b>Add all</b>.`], ["Make it yours", "Hide what you don't use, add your to-dos, and connect Google Calendar from the Calendar page."]]
-    : [["Make your free account", "It takes a minute, with email or Sign in with Apple."], ["Start in LifeHub", "Add your to-dos, groceries and bills. Due dates and reminders come back on their own."], ["Bring in your family and calendar", "Invite your family to FamilyHub and connect Google Calendar or your iPhone calendar."]];
+    ? [["Make your free account", "It takes a minute, and it's free."], [`Open WorkHub's Plugin Gallery`, `Under <b>Bundles by job</b>, tap <b>${esc(pack!.name)}</b>, then <b>Add all</b>.`], ["Make it yours", "Hide what you don't use, add your to-dos, and connect Google Calendar from the Calendar page."]]
+    : [["Make your free account", "It takes a minute, and it's free."], ["Start in LifeHub", "Add your to-dos, groceries and bills. Due dates and reminders come back on their own."], ["Bring in your family and calendar", "Invite your family to FamilyHub and connect Google Calendar or your iPhone calendar."]];
   return `${head(title, a.lead, path, ld)}
 <body style="--tone:${tone}">
 ${topBar}
@@ -243,7 +245,7 @@ ${topBar}
 <h1>${esc(a.h1[0])}<span>${esc(a.h1[1])}</span></h1>
 <p class="lead">${esc(a.lead)}</p>
 <div class="cta"><a class="btn primary" href="/app#/signin?create">Get it free</a><a class="btn ghost" href="#inside">See what's inside</a></div>
-<p class="note">Free to start · iPhone, Android and the web · No credit card</p>
+<p class="note">Free to start · Any phone, tablet or computer · No credit card</p>
 </div>
 <div class="phone" aria-label="Example: a ${esc(hub)} to-do list"><div><small>${esc(hub)} · Today</small><h4>${esc(a.nav === "Everyone" ? "My day" : `${a.nav} to-dos`)}</h4><ul>${a.sample.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>
 </div>
