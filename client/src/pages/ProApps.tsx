@@ -10,6 +10,7 @@ import { linksApi } from "@/lib/profileLinks";
 import { appShareId } from "@shared/profileLinks";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { PRO_GROUPS, PRO_LIVE_GROUPS, liveProApps, proApp, type ProGroup } from "@shared/pro/apps";
+const GooglePlugin = lazy(() => import("@/components/duo/GooglePlugin"));
 const BuddyInDuo = lazy(() => import("@/components/super-apps/BuddyInDuo"));
 
 type Bundle = Record<string, ComponentType>;
@@ -95,6 +96,8 @@ export default function ProApps() {
 /** A premium app inside LifeHub or WorkHub (no page of its own): the hub's menu stays beside it, like any plugin. */
 export function ProAppInHub({ id }: { id: string }) {
   // TTS Buddy is its own app (pages/buddy/), shown in the hub page like the rest.
+  // Google (Docs, Drive, Calendar, Gmail) works with the hub it's opened from (components/duo/GooglePlugin.tsx).
+  if (id === "google") return <Suspense fallback={<p className="py-10 text-center text-sm font-semibold text-slate-500">Opening Google…</p>}><GooglePlugin /></Suspense>;
   if (id === "buddy") return <Suspense fallback={<p className="py-10 text-center text-sm font-semibold text-slate-500">Opening TTS Buddy…</p>}><BuddyInDuo /></Suspense>;
   const found = proApp(id);
   const meta = found && PRO_LIVE_GROUPS.includes(found.group) ? found : undefined;

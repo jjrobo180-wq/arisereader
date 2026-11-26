@@ -125,6 +125,8 @@ import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { HubAutoOpenSettings } from "@/components/duo/HubAutoOpenSettings";
 import { saveHubOpenCopy } from "@/lib/hubAutoOpen";
 import { usePluginDots } from "@/lib/pluginDots";
+import { HubTasksContext, type HubTasksBridge } from "@/lib/hubTasksBridge";
+import { attachDoc } from "@shared/googleConnect";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
@@ -895,6 +897,17 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     linksApi(token).list().then((r) => { if (live) setLinkInvites(r.withMe.filter((l) => l.status === "pending").map((l) => ({ ownerName: l.ownerName }))); }).catch(() => {});
     return () => { live = false; };
   }, [token, shown === "home" || shown === "linked"]);
+  // This hub's to-dos for plugins outside its own code, like Google (lib/hubTasksBridge.ts).
+  const tasksBridge: HubTasksBridge = {
+    hub: familySpace ? "family" : "life",
+    tasks: data.tasks.map((t) => ({ id: t.id, title: t.title, done: t.done, dueDate: t.due, dueTime: t.time, notes: t.notes })),
+    add: (title, notes) => {
+      const nid = uid();
+      setData((p) => ({ ...p, tasks: [...p.tasks, { id: nid, title: title.slice(0, 200), notes: notes.slice(0, 2000), listId: p.lists[0]?.id ?? "", assignee: "", due: "", time: "", priority: "normal" as Priority, repeat: "none" as Repeat, done: false, createdAt: new Date().toISOString() }] }));
+      return nid;
+    },
+    attach: (taskId, file) => setData((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, notes: attachDoc(t.notes, file) } : t)) })),
+  };
   // Red dots (shared/pluginDots.ts): a plugin with something still to track today.
   const pluginDots = usePluginDots();
   const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue || (pluginDots.pills ?? 0) : id === "linked" ? linkInvites.length : (pluginDots[id] ?? 0);
@@ -1741,7 +1754,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
         </div>
       </aside>
 
-      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-28 sm:pb-10 sm:px-7 lg:px-9 xl:px-12 ${isSuperApp(shown) ? "pt-2 sm:pt-3 lg:pt-4" : "pt-4 sm:pt-6 lg:pt-10"} ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
+      <HubTasksContext.Provider value={tasksBridge}><main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-28 sm:pb-10 sm:px-7 lg:px-9 xl:px-12 ${isSuperApp(shown) ? "pt-2 sm:pt-3 lg:pt-4" : "pt-4 sm:pt-6 lg:pt-10"} ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
 
           <div className={osCore ? "los-alerts" : "contents"}>
@@ -1835,7 +1848,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
           </>}
           </LockedApp>
         </div>
-      </main>
+      </main></HubTasksContext.Provider>
     </div>
 
     {editing && <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4 duo-book:items-stretch duo-book:justify-start duo-book:bg-[#16152a]/25 duo-book:p-0 duo-book:backdrop-blur-none" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>

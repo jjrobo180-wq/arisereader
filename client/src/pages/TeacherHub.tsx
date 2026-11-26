@@ -11,6 +11,8 @@ import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
 import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { Palmtree, Lightbulb, NotebookPen, Bell, Columns2, LayoutGrid, PanelLeft, Palette, DoorOpen, Newspaper } from "lucide-react";
 import { cleanHubNotify, onVacation } from "@shared/hubNotify";
+import { HubTasksContext, type HubTasksBridge } from "@/lib/hubTasksBridge";
+import { attachDoc } from "@shared/googleConnect";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { STORE_KIND } from "@shared/hubSearch";
@@ -1294,6 +1296,14 @@ function TeacherHubPage() {
   const osShortcuts = [{ id: "classes", label: "Classes", onClick: () => setClassesOpen(true) }, ...(["caseload", "lessons", "iep", "goals"] as const).filter((t) => isTabOn(t, visible, seeAll)).map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t, onClick: () => goTab(t) }))];
   // Vacation mode (shared/hubNotify.ts): the bell goes quiet too, not just the phone notifications.
   const workVacation = (() => { const v = cleanHubNotify(workspace.notify).vacation; return onVacation({ vacation: v }, osToday) ? (v.until ? `WorkHub notifications are paused through ${new Date(`${v.until}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}.` : "WorkHub notifications are paused until you turn vacation off.") : ""; })();
+  // WorkHub's to-dos for plugins outside its own code, like Google (lib/hubTasksBridge.ts).
+  const tasksBridge: HubTasksBridge = {
+    hub: "work",
+    tasks: workspace.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, done: t.done, dueDate: t.dueDate, dueTime: (t as any).dueTime, notes: t.notes })),
+    add: (title, notes) => { const nid = id(); setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: nid, title, notes, dueDate: "", recurring: "", done: false }] })); return nid; },
+    attach: (taskId, file) => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, notes: attachDoc(t.notes, file) } : t)) })),
+    syncClassroom,
+  };
   // The bell: in the header, or in the themed top bar beside the Work/Life switch.
   const workBell = <NotificationBell
               extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
@@ -1302,7 +1312,7 @@ function TeacherHubPage() {
               paused={workVacation ? { note: workVacation, onResume: () => setWorkspace((w) => ({ ...w, notify: { ...cleanHubNotify(w.notify), vacation: { on: false, until: "" } } })) } : undefined}
               triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />;
   return (
-    <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} addDriveFile={(f) => setWorkspace((w) => ({ ...w, drive: addDriveFile(cleanDriveFiles((w as any).drive), f) } as Workspace))} readDocument={(student) => {
+    <HubTasksContext.Provider value={tasksBridge}><PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} addDriveFile={(f) => setWorkspace((w) => ({ ...w, drive: addDriveFile(cleanDriveFiles((w as any).drive), f) } as Workspace))} readDocument={(student) => {
       const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
       setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
     }}><WidgetLinksProvider page={workLinks} open={() => openKit("link-page")}>
@@ -2191,7 +2201,7 @@ function TeacherHubPage() {
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <SnoozeBar />
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
-    </div></WidgetLinksProvider></HubLinkProvider></PrivacyLockProvider>
+    </div></WidgetLinksProvider></HubLinkProvider></PrivacyLockProvider></HubTasksContext.Provider>
   );
 }
 

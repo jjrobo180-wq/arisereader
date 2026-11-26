@@ -178,3 +178,17 @@ test("To Do shows it: the Google box under Tasks, recent Docs on Home, the store
   assert.match(routes, /registerGoogleRoutes\(app, authMiddleware, \{/);
   assert.match(routes, /clientId: process\.env\.GOOGLE_CLIENT_ID, clientSecret: process\.env\.GOOGLE_CLIENT_SECRET/);
 });
+
+test("Google is a plugin in every hub, and works with the hub it's opened from (Nov 25, 2026)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { pluginsFor } = await import("../shared/pluginStore");
+  for (const hub of ["work", "life"] as const) {
+    const g = pluginsFor(hub, { teacher: true, arise: true }).find((p) => p.id === `${hub}-google`);
+    assert.ok(g && (g.target as any).href === "#/pro?app=google", hub);
+  }
+  for (const id of ["work-google-classroom", "work-google-docs", "work-google-calendar"])
+    assert.equal((pluginsFor("work", { teacher: true, arise: true }).find((p) => p.id === id)!.target as any).href, "#/pro?app=google", id);
+  assert.match(readFileSync("client/src/pages/ProApps.tsx", "utf8"), /if \(id === "google"\) return/);
+  assert.match(readFileSync("client/src/pages/TeacherHub.tsx", "utf8"), /<HubTasksContext\.Provider value=\{tasksBridge\}>/);
+  assert.match(readFileSync("client/src/pages/AriseTodo.tsx", "utf8"), /hub: familySpace \? "family" : "life",/);
+});

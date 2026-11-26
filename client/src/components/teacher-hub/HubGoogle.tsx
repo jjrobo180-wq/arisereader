@@ -11,6 +11,7 @@ import type { Workspace } from "@shared/teacherHub";
 import { api } from "./HubAvailability";
 import { Card, Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 import { isNativeApp, openOutside } from "@/lib/nativeApp";
+import type { HubTasksBridge } from "@/lib/hubTasksBridge";
 
 type SetWorkspace = Dispatch<SetStateAction<Workspace>>;
 type Status = { configured: boolean; connected: boolean; email: string; features: GoogleFeature[] };
@@ -75,9 +76,8 @@ const KIND_LABEL: Record<GoogleFile["kind"], string> = { doc: "Doc", sheet: "She
 const open = (url: string) => (isNativeApp() ? openOutside(url) : window.open(url, "_blank", "noopener"));
 const tz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } };
 
-export default function GoogleCard({ token, workspace, setWorkspace, makeId, syncClassroom, status, check }: {
-  token: string | null; workspace: Workspace; setWorkspace: SetWorkspace; makeId: () => string;
-  syncClassroom: () => Promise<string>; status: Status | null; check: () => Promise<void>;
+export default function GoogleCard({ token, bridge, status, check }: {
+  token: string | null; bridge: HubTasksBridge; status: Status | null; check: () => Promise<void>;
 }) {
   const [note, setNote] = useState("");
   if (!status) return null;
@@ -90,7 +90,7 @@ export default function GoogleCard({ token, workspace, setWorkspace, makeId, syn
         ) : <>
           <p className="text-sm text-slate-600">Connect only the parts you want. Google asks you to allow each one.</p>
           <ul className="mt-3 divide-y divide-slate-100">
-            {GOOGLE_FEATURES.map((f) => (
+            {GOOGLE_FEATURES.filter((f) => bridge.syncClassroom || (f !== "classroom" && f !== "classroomPost")).map((f) => (
               <li key={f} className="flex items-start gap-3 py-3">
                 <div className="min-w-0 flex-1"><div className="font-semibold text-slate-900">{FEATURE_INFO[f].name}</div><p className="text-sm text-slate-600">{FEATURE_INFO[f].does}</p></div>
                 {on.has(f) ? <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">On</span>
@@ -102,10 +102,10 @@ export default function GoogleCard({ token, workspace, setWorkspace, makeId, syn
           {status.connected && <div className="mt-2"><GhostButton onClick={() => { void api(token, "POST", "/api/google/disconnect").then(check).then(() => setNote("Google is disconnected. To-dos already brought in stay.")); }}>Disconnect Google</GhostButton></div>}
         </>}
       </Card>
-      {on.has("classroom") && <ClassroomPanel token={token} sync={syncClassroom} canPost={on.has("classroomPost")} />}
-      {on.has("docs") && <DocsPanel token={token} workspace={workspace} setWorkspace={setWorkspace} />}
-      {on.has("calendar") && <CalendarPanel token={token} workspace={workspace} />}
-      {on.has("gmail") && <GmailPanel token={token} setWorkspace={setWorkspace} makeId={makeId} />}
+      {on.has("classroom") && bridge.syncClassroom && <ClassroomPanel token={token} sync={bridge.syncClassroom} canPost={on.has("classroomPost")} />}
+      {on.has("docs") && <DocsPanel token={token} bridge={bridge} />}
+      {on.has("calendar") && <CalendarPanel token={token} bridge={bridge} />}
+      {on.has("gmail") && <GmailPanel token={token} bridge={bridge} />}
     </div>
   );
 }
@@ -168,7 +168,7 @@ function ClassroomPanel({ token, sync, canPost }: { token: string | null; sync: 
 }
 
 // ——— Docs ———
-function DocsPanel({ token, workspace, setWorkspace }: { token: string | null; workspace: Workspace; setWorkspace: SetWorkspace }) {
+function DocsPanel({ token, bridge }: { token: string | null; bridge: HubTasksBridge }) {
   const [q, setQ] = useState("");
   const [files, setFiles] = useState<GoogleFile[]>([]);
   const [busy, setBusy] = useState(false);
@@ -177,12 +177,12 @@ function DocsPanel({ token, workspace, setWorkspace }: { token: string | null; w
   const [taskId, setTaskId] = useState("");
   const [add, setAdd] = useState("");
   const [preview, setPreview] = useState("");
-  const open_tasks = workspace.tasks.filter((t) => !t.done);
+  const open_tasks = bridge.tasks.filter((t) => !t.done);
   const search = async (words = q) => { setBusy(true); try { setFiles((await api(token, "GET", `/api/google/drive/files?q=${encodeURIComponent(words)}`)).files || []); } catch (e: any) { setNote(e?.message || ""); } finally { setBusy(false); } };
   useEffect(() => { void search(""); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
-  const attach = (file: GoogleFile, id: string) => setWorkspace((p) => ({ ...p, tasks: p.tasks.map((t) => (t.id === id ? { ...t, notes: attachDoc(t.notes, file) } : t)) }));
+  const attach = (file: GoogleFile, id: string) => bridge.attach(id, file);
   const newDoc = async () => {
-    const task = workspace.tasks.find((t) => t.id === taskId);
+    const task = bridge.tasks.find((t) => t.id === taskId);
     if (!task) return setNote("Pick a to-do first.");
     setBusy(true);
     try { const { file } = await api(token, "POST", "/api/google/docs/create", { title: task.title, text: task.notes || "" }); attach(file, task.id); setNote(`Made "${file.name}" and attached it to the to-do.`); open(file.link); void search(q); }
@@ -252,14 +252,14 @@ export function GoogleRecentDocs({ token, status }: { token: string | null; stat
 }
 
 // ——— Calendar ———
-function CalendarPanel({ token, workspace }: { token: string | null; workspace: Workspace }) {
+function CalendarPanel({ token, bridge }: { token: string | null; bridge: HubTasksBridge }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [taskId, setTaskId] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const load = () => api(token, "GET", "/api/google/calendar/events").then((r) => setEvents(r.events || [])).catch((e) => setNote(e?.message || ""));
   useEffect(() => { void load(); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
-  const dated = workspace.tasks.filter((t) => !t.done && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate));
+  const dated = bridge.tasks.filter((t) => !t.done && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate));
   const push = async () => {
     const t = dated.find((x) => x.id === taskId) as GoogleTask | undefined;
     if (!t) return;
@@ -284,7 +284,7 @@ function CalendarPanel({ token, workspace }: { token: string | null; workspace: 
 }
 
 // ——— Gmail ———
-function GmailPanel({ token, setWorkspace, makeId }: { token: string | null; setWorkspace: SetWorkspace; makeId: () => string }) {
+function GmailPanel({ token, bridge }: { token: string | null; bridge: HubTasksBridge }) {
   const [mail, setMail] = useState<MailItem[]>([]);
   const [q, setQ] = useState("");
   const [made, setMade] = useState<Set<string>>(new Set());
@@ -293,7 +293,7 @@ function GmailPanel({ token, setWorkspace, makeId }: { token: string | null; set
   useEffect(() => { void load(""); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
   const toTask = (m: MailItem) => {
     const t = taskFromMail(m);
-    setWorkspace((p) => ({ ...p, tasks: [...p.tasks, { id: makeId(), title: t.title, notes: t.notes, dueDate: "", recurring: "", done: false }] }));
+    bridge.add(t.title, t.notes);
     setMade(new Set(made).add(m.id)); setNote("Made a to-do.");
   };
   return (
