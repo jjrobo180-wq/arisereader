@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   AlertTriangle, BarChart3, Bell, BookPlus, Brain, CheckCircle2, ChevronRight, Eye, FileSearch, Gift,
   GraduationCap, MessageSquare, PartyPopper, RefreshCw, School, ShieldCheck, TrendingUp, UserPlus, Users, X,
+  Palmtree,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -67,6 +68,7 @@ export function NotificationBell({
   extraItems,
   triggerClassName,
   onSettings,
+  paused,
 }: {
   refreshKey?: number;
   onNavigate?: (type: ActionableType, id: number) => void;
@@ -77,6 +79,9 @@ export function NotificationBell({
   triggerClassName?: string;
   /** Adds a "Notification settings" row at the bottom of the dropdown. */
   onSettings?: () => void;
+  /** Vacation mode (shared/hubNotify.ts): no badge and nothing listed while it's on, only a note with a way back
+   *  (and a way to look anyway). Nov 25, 2026. */
+  paused?: { note: string; onResume: () => void };
 }) {
   const { token, user } = useAuth();
   const [, navigate] = useLocation();
@@ -190,7 +195,9 @@ export function NotificationBell({
   const items = useMemo(() => [...(extraItems ?? []), ...feed.items].filter((item) => !hidden.has(item.key) && !clearedKeys.has(item.key)), [extraItems, feed.items, hidden, clearedKeys]);
   const actions = items.filter((item) => item.kind === "action");
   const updates = items.filter((item) => item.kind === "update");
-  const badge = actions.length + updates.length;
+  const [peek, setPeek] = useState(false);
+  const quiet = !!paused && !peek;
+  const badge = paused ? 0 : actions.length + updates.length;
 
   useEffect(() => {
     onCountsRef.current?.({ actionCount: actions.length, updateCount: updates.length, unreadCount: badge, inboxUnread: feed.inboxUnread || 0 });
@@ -353,7 +360,7 @@ export function NotificationBell({
         <div className="min-w-0">
           <p className="nf-h text-sm font-black">{words.title}</p>
           <p className="nf-sub mt-0.5 text-xs">
-            {!loaded ? "Checking…" : badge === 0 ? "Nothing new" : [actions.length && `${actions.length} need${actions.length === 1 ? "s" : ""} you`, updates.length && `${updates.length} update${updates.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
+            {quiet ? "Paused while you're on vacation" : !loaded ? "Checking…" : actions.length + updates.length === 0 ? "Nothing new" : [actions.length && `${actions.length} need${actions.length === 1 ? "s" : ""} you`, updates.length && `${updates.length} update${updates.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -374,7 +381,17 @@ export function NotificationBell({
       )}
 
       <div className="nf-list flex-1 overflow-y-auto overscroll-contain">
-        {!loaded ? (
+        {quiet ? (
+          <div className="px-5 py-10 text-center" data-testid="notification-bell-paused">
+            <div className="nf-icon nf-empty-icon mx-auto grid grid-cols-1 h-12 w-12 place-items-center"><Palmtree className="h-6 w-6" /></div>
+            <p className="nf-h mt-3 text-sm font-black">On vacation</p>
+            <p className="nf-sub mt-1 text-xs">{paused!.note}</p>
+            <div className="mt-4 flex justify-center gap-2">
+              <button type="button" onClick={() => { paused!.onResume(); setOpen(false); }} className="nf-btn px-3 py-1.5 text-xs font-bold">I'm back</button>
+              {items.length > 0 && <button type="button" onClick={() => setPeek(true)} className="nf-btn px-3 py-1.5 text-xs font-bold">Show them anyway ({items.length})</button>}
+            </div>
+          </div>
+        ) : !loaded ? (
           <p className="nf-sub py-10 text-center text-sm">Checking notifications…</p>
         ) : items.length === 0 ? (
           <div className="px-5 py-10 text-center">

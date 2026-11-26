@@ -31,3 +31,11 @@ test("anything else meant for WorkHub is held too, and the hub shows it's on vac
   assert.match(readFileSync("client/src/components/teacher-hub/HubNotifySettings.tsx", "utf8"), /<HubVacationCard workspace=\{workspace\} setWorkspace=\{setWorkspace\} \/>/);
   assert.match(readFileSync("client/src/pages/TeacherHub.tsx", "utf8"), /data-testid="hub-vacation-banner"/);
 });
+
+test("WorkHub's bell goes quiet on vacation: no badge, nothing listed, a way back and a way to look", () => {
+  const bell = readFileSync("client/src/components/NotificationBell.tsx", "utf8");
+  assert.match(bell, /const badge = paused \? 0 : actions\.length \+ updates\.length;/);
+  assert.match(bell, /data-testid="notification-bell-paused"/);
+  assert.match(bell, /Show them anyway/);
+  assert.match(readFileSync("client/src/pages/TeacherHub.tsx", "utf8"), /paused=\{workVacation \? \{ note: workVacation, onResume:/);
+});
