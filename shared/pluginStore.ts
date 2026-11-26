@@ -484,6 +484,9 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-habits", hub: "life", name: "Habits", tagline: "Build habits, one day at a time", category: "Health & wellness", icon: "Repeat", color: "#8b5cf6", featured: true, target: section("habits"),
     description: "Tap off each habit every day, see your week at a glance, and grow a streak.",
     features: ["Check off in one tap", "See the whole week", "Streaks for every habit", "Quick-add ideas"] },
+  { id: "life-lifescore", hub: "life", name: "Life Score", tagline: "Every part of your life, scored, with how to raise it", category: "Everyday", icon: "Gauge", color: "#ff5a5f", featured: true, target: section("lifescore"),
+    description: "One beautiful page for every part of your life: steps, exercise, sleep, heart, food, happiness, stress, energy, screen time, nature, relationships, faith, gratitude, goals, habits, money and cancer-prevention habits. Apple Health fills in what your iPhone and Apple Watch know; a one-minute check-in adds the rest. Every score shows 30 days of history, the research behind it and in-depth ways to raise it, and Patterns shows what your own best days have in common.",
+    features: ["22 scores in six areas, and one Life Score", "Apple Health: steps, calories, sleep, heart, mindful minutes", "The science behind every score, and how to improve it", "Patterns in your own data", "Screenings due by age"] },
   { id: "life-risescore", hub: "life", name: "Rise Score", tagline: "Your day, week and year in one score", category: "Health & wellness", icon: "TrendingUp", color: "#ffb347", target: section("risescore"),
     description: "One page for your Rise Score: tasks, food, workouts, money, water, sleep and habits. Choose what counts and which hubs' to-dos count.",
     features: ["Today, week and year scores", "Five looks", "Choose what counts", "Count FamilyHub and WorkHub to-dos"] },
@@ -1009,7 +1012,7 @@ const stem = (w: string): string => {
  *  Keyed by the id without its hub, so both hubs' copies get them. Scored just under the name. */
 const SEARCH_ALIASES: Readonly<Record<string, string>> = {
   cycle: "period menstrual", health: "food diet nutrition calories", pills: "medicine meds vitamins", podster: "podcast podcasts podster audiobook radio music",
-  cooked: "fitness workout recipes meals coach calorie calories food diary diet nutrition macros water weight steps run running gym exercise health cooked health fitness", cookedpt: "personal trainer clients coach", "arise-notes": "transcribe transcription recording meeting",
+  lifescore: "life score scores stats statistics dashboard wellbeing well-being happiness sleep stress screen time faith relationships health apple health watch steps calories heart rate hrv cancer prevention screening longevity self improvement", cooked: "fitness workout recipes meals coach calorie calories food diary diet nutrition macros water weight steps run running gym exercise health cooked health fitness", cookedpt: "personal trainer clients coach", "arise-notes": "transcribe transcription recording meeting",
   "office-doc": "document word writing", "office-sheet": "spreadsheet excel", sheets: "spreadsheet excel", "office-slides": "presentation powerpoint deck",
   drive: "files photos storage upload", drop: "airdrop share send files", atmosphere: "clock nightstand standby", "sleep-studio": "rain sleep sounds white noise",
   datehub: "birthday birthdays anniversary anniversaries gifts", moneyhub: "budget bills finance", kitchen: "meals recipes grocery cooking", listhub: "reading watchlist bucket",

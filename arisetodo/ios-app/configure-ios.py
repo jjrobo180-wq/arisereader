@@ -2,7 +2,8 @@
 
 Run after `npx cap add ios && npx cap sync ios` (both GitHub Actions workflows do). Every permission the
 app can ask for needs a sentence saying why, or iOS stops the app the moment it asks:
-  - Apple Health (read only: steps, active calories, weight for the Food & fitness diary)
+  - Apple Health (read only: steps, active calories, weight for the Food & fitness diary; sleep, heart rate,
+    resting heart rate, heart rate variability and mindful minutes for Life Score)
   - Calendars (the iPhone Calendar in WorkHub and LifeHub)
   - Camera, photos and microphone (barcode scanner, photos in notes and posts, voice features)
   - Location (only the plugins that ask for it, like weather and mileage)
@@ -17,7 +18,7 @@ PLIST = sys.argv[1] if len(sys.argv) > 1 else "ios/App/App/Info.plist"
 NAME = "Arise To Do"
 KEYS = {
     "CFBundleDisplayName": NAME,
-    "NSHealthShareUsageDescription": f"{NAME} reads your steps, active calories and weight to fill in your Food & fitness diary.",
+    "NSHealthShareUsageDescription": f"{NAME} reads your steps, active calories, weight, sleep, heart rate, resting heart rate, heart rate variability and mindful minutes to fill in your Food & fitness diary and your Life Score.",
     "NSHealthUpdateUsageDescription": f"{NAME} does not write to Apple Health.",
     "NSCalendarsFullAccessUsageDescription": f"{NAME} shows the events from your iPhone's calendars on your WorkHub and LifeHub calendar.",
     "NSCalendarsUsageDescription": f"{NAME} shows the events from your iPhone's calendars on your WorkHub and LifeHub calendar.",
