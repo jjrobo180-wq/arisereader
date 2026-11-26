@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { FIT_APPS, FIT_APP_BY_ID, TAB_MAX, addApp, appsOf, cleanApps, defaultApps, moveTab, removeApp, toggleTab } from "../shared/fitApps";
 import { cleanFit, emptyFit } from "../shared/fit";
-import { addNight, cleanSleep, healthNight, nightHours, phoneNight, scheduleNight, sleepScore, sleepStats, clockOf } from "../shared/fitSleep";
+import { addNight, cleanSleep, healthNight, healthWins, morningGuess, nightHours, phoneNight, scheduleNight, sleepScore, sleepStats, clockOf } from "../shared/fitSleep";
 import { readiness } from "../shared/fitReadiness";
 import { TIMER_PRESETS, cleanTimers, timerSecs, timerSession } from "../shared/fitTimers";
 import { SESSIONS, SESSION_BY_ID, sessionSecs, sessionsIn } from "../shared/fitSessions";
@@ -85,6 +85,8 @@ test("sleep: Apple Health stage pieces become one night with deep, REM, core and
   assert.equal(n.asleepMin, 410);
   const inBed = healthNight([{ state: "inBed", start: at(22, 30, -1), end: at(6, 30) }])!;
   assert.equal(inBed.asleepMin, 480, "only time in bed: that's the night");
+  assert.equal(inBed.inBedOnly, true, "...but only a guess, to be confirmed");
+  assert.equal(n.inBedOnly, false);
   assert.equal(healthNight([]), null);
 });
 
@@ -169,4 +171,63 @@ test("Siri and reminders: going to sleep, I'm awake, sleep, yoga and breathe", (
 test("the website keeps the site's side tabs and pop-ups off Cooked", () => {
   const fs = /const FULLSCREEN_GAME_ROUTES = \[([^\]]+)\]/.exec(read("client/src/App.tsx"))![1];
   for (const r of ["/fit", "/trainer", "/talk"]) assert.ok(fs.includes(`"${r}"`), r);
+});
+
+// ── Sleep times you can trust (Nov 26, 2026: "I didn't go to bed or get up at the time it said") ──
+test("sleep: with a watch, bedtime and wake time are the first and last minute asleep, not the iPhone's time in bed", () => {
+  // The iPhone's Sleep Focus wrote "in bed" from 10:00 PM to 7:00 AM (the schedule); the watch measured 11:40 PM to 6:10 AM.
+  const n = healthNight([
+    { state: "inBed", start: at(22, 0, -1), end: at(7) },
+    { state: "awake", start: at(23, 20, -1), end: at(23, 40, -1) },
+    { state: "core", start: at(23, 40, -1), end: at(2) }, { state: "deep", start: at(2), end: at(3) }, { state: "rem", start: at(3), end: at(6, 10) },
+    { state: "awake", start: at(6, 10), end: at(6, 40) },
+  ])!;
+  assert.equal(n.bed, at(23, 40, -1));
+  assert.equal(n.wake, at(6, 10));
+  assert.equal(n.inBedOnly, false);
+  assert.equal(n.stages.awake, 0, "awake before falling asleep or after getting up isn't counted");
+  assert.equal(n.asleepMin, 390);
+});
+
+test("sleep: Apple Health only replaces a night with sleep it measured, and never one you logged", () => {
+  const night = (src: any, stages = false) => ({ date: "2026-11-26", bed: 1, wake: 2, src, ...(stages ? { stages: { deep: 1, rem: 1, core: 1, awake: 0 } } : {}) });
+  assert.equal(healthWins(undefined, true), false, "the iPhone's time in bed is never saved by itself");
+  assert.equal(healthWins(undefined, false), true);
+  assert.equal(healthWins(night("button") as any, false), false, "the button's times stay");
+  assert.equal(healthWins(night("manual") as any, false), false);
+  assert.equal(healthWins(night("schedule") as any, false), true, "a confirmed guess gives way to measured sleep");
+  assert.equal(healthWins(night("health", true) as any, false), false);
+});
+
+test("sleep: the morning guess caps the wake time at the first time the app was used, and never says a time still to come", () => {
+  const now = new Date(at(8));
+  const sc = { bed: "22:30", wake: "06:30" };
+  // Up and using the phone at 5:50: the schedule's 6:30 can't be right.
+  const g = morningGuess({ schedule: sc, firstUp: at(5, 50), now })!;
+  assert.deepEqual([g.bed, g.wake, g.src], [at(22, 30, -1), at(5, 50), "schedule"]);
+  // The phone's own guess wins over the schedule.
+  const p = morningGuess({ schedule: sc, phone: { bed: at(23, 55, -1), wake: at(6, 20) }, firstUp: at(6, 20), now })!;
+  assert.deepEqual([p.bed, p.wake, p.src], [at(23, 55, -1), at(6, 20), "phone"]);
+  // Checked at 6:10 with a 6:30 schedule: woke by now at the latest.
+  const early = morningGuess({ schedule: sc, now: new Date(at(6, 10)) })!;
+  assert.equal(early.wake, at(6, 10));
+  assert.equal(morningGuess({ now }), null, "nothing to go on");
+  assert.equal(morningGuess({ schedule: sc, firstUp: at(5, 50, -1), now })!.wake, at(6, 30), "yesterday's first use doesn't count");
+});
+
+test("sleep: the bedtime reminder is on unless it was turned off", () => {
+  assert.equal(cleanSleep({ schedule: { bed: "22:30", wake: "06:30" }, remind: { windDown: true, morning: true } })!.remind!.bedtime, true);
+  assert.equal(cleanSleep({ schedule: { bed: "22:30", wake: "06:30" }, remind: { windDown: true, morning: true, bedtime: false } })!.remind!.bedtime, false);
+});
+
+test("sleep: the app notes when it's put away at night and first opened in the morning, wherever you are in it", async () => {
+  const mem = new Map<string, string>();
+  (globalThis as any).localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
+  const { notePhone, readPhone, firstUpToday } = await import("../client/src/lib/phoneUse");
+  notePhone("up", at(21, 0, -1)); notePhone("down", at(23, 30, -1));
+  notePhone("up", at(6, 5)); notePhone("down", at(6, 20)); notePhone("up", at(7, 0));
+  assert.equal(firstUpToday(at(9)), at(6, 5));
+  assert.deepEqual(readPhone().guess, { bed: at(23, 45, -1), wake: at(6, 5) });
+  assert.equal(firstUpToday(at(9, 0, 1)), null, "a new day starts over");
+  delete (globalThis as any).localStorage;
 });

@@ -77,3 +77,21 @@ test("the server checks the switches, and both apps have a Notifications screen"
   const tr = readFileSync("client/src/pages/trainer/TrainerApp.tsx", "utf8");
   assert.ok(tr.includes("<TrainerNotificationsSheet") && tr.includes("useSessionReminders(token, data?.clients)"));
 });
+
+test("sleep reminders: wind down only opens Sleep, bedtime starts the timer, morning saves the night", async () => {
+  const { buildLocalReminders, defaultReminders } = await import("../shared/fitReminders");
+  const out = buildLocalReminders(defaultReminders(), { bed: "22:30", wake: "06:30", windDown: true, morning: true, bedtime: true });
+  const url = (id: number) => out.find((n) => n.id === id)?.url;
+  assert.equal(url(600), "arisefit://do/sleep", "tapping wind down mustn't start the timer 30 minutes early");
+  assert.equal(url(602), "arisefit://do/sleep-start");
+  assert.equal(url(601), "arisefit://do/sleep-end");
+});
+
+test("inside To Do: a tapped sleep reminder opens Health & Fitness and does it, and the hubs leave room for sleep reminders", () => {
+  const src = readFileSync(new URL("../client/src/lib/nativeReminders.ts", import.meta.url), "utf8");
+  assert.match(src, /notificationHash\(url\) \?\? fitLinkHash\(url\)/);
+  assert.match(src, /\/lifehub\?go=cooked&do=\$\{a\.toLowerCase\(\)\}/);
+  assert.match(src, /slice\(0, mostFor\(kind, fitCount\(\)\)\)/);
+  assert.match(readFileSync(new URL("../client/src/pages/fit/fitNative.ts", import.meta.url), "utf8"), /write\(FIT_LOCAL_COUNT, String\(list\.length\)\)/);
+  assert.match(readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8"), /installPhoneUse\(\)/);
+});

@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Mic } from "lucide-react";
 import { TODO_APP } from "@/lib/hubs";
-import { isNativeApp, nativeCall, nativeListen } from "@/lib/nativeApp";
+import { isNativeApp, nativeCall, nativeFlavor, nativeListen } from "@/lib/nativeApp";
 import { Btn, C, Card, Sheet, Title, display, haptic } from "./fitUi";
 import { SIRI_ACTIONS, readLink, type FitLink, type SiriAction } from "@shared/fitLinks";
 export { SIRI_ACTIONS, readLink, type SiriAction };
@@ -28,8 +28,9 @@ export function useDeepLinks(handle: (l: FitLink) => void) {
     if (!isNativeApp()) return;
     nativeCall(/^App$/, "App", "getLaunchUrl").then((r: any) => run(r?.url)).catch(() => {});
     void nativeListen("App", "appUrlOpen", (e: any) => run(e?.url));
-    // A tapped reminder (the morning sleep check-in, wind down) carries its link.
-    void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => run(e?.notification?.extra?.url));
+    // A tapped reminder (the morning sleep check-in, wind down) carries its link. Inside To Do the hub
+    // hears the tap (lib/nativeReminders.ts) and opens this app with "?do=", which is read on opening.
+    if (nativeFlavor() !== "todo") void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => run(e?.notification?.extra?.url));
   }, []);
 }
 

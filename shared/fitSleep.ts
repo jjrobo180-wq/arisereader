@@ -47,7 +47,8 @@ export function cleanSleep(raw: any): Sleep | undefined {
     .filter((x: Nap) => Number.isFinite(x.start) && Number.isFinite(x.end) && x.end - x.start >= 5 * 60_000 && x.end - x.start <= 4 * 3_600_000);
   if (naps.length) out.naps = naps;
   if (raw.schedule && hhmm(raw.schedule.bed) && hhmm(raw.schedule.wake)) out.schedule = { bed: hhmm(raw.schedule.bed), wake: hhmm(raw.schedule.wake) };
-  if (raw.remind && typeof raw.remind === "object") out.remind = { windDown: !!raw.remind.windDown, morning: !!raw.remind.morning, ...(raw.remind.bedtime === true ? { bedtime: true } : {}) };
+  // The bedtime reminder is what starts tracking at night, so it's on unless it was turned off.
+  if (raw.remind && typeof raw.remind === "object") out.remind = { windDown: !!raw.remind.windDown, morning: !!raw.remind.morning, bedtime: raw.remind.bedtime !== false };
   const skipped = (Array.isArray(raw.skipped) ? raw.skipped : []).map(String).filter((k: string) => /^\d{4}-\d{2}-\d{2}$/.test(k)).slice(-14);
   if (skipped.length) out.skipped = skipped;
   if (!nights.length && !out.asleepAt && out.goalH === 8 && !naps.length && !out.schedule && !out.remind) return undefined;
@@ -150,35 +151,78 @@ export function phoneNight(downAt: number, upAt: number): { bed: number; wake: n
   return { bed: downAt + 15 * 60_000, wake: upAt };
 }
 
+const ASLEEP_STATES = new Set(["deep", "rem", "light", "core", "asleep", "asleepunspecified", "asleep_unspecified", "sleeping"]);
+const isAsleep = (state: string) => ASLEEP_STATES.has(state.toLowerCase().replace(/[^a-z_]/g, ""));
+
 /** Apple Health sleep samples (stage, start, end) folded into one night ending today: the longest run
- *  of sleep with gaps under 90 minutes, stage minutes added up. */
-export function healthNight(samples: { state: string; start: number; end: number }[], today = new Date()): { bed: number; wake: number; stages: SleepStages; asleepMin: number } | null {
+ *  of sleep with gaps under 90 minutes, stage minutes added up.
+ *  Bedtime and wake time come from the first and last minute ASLEEP, not from "in bed": the iPhone's
+ *  Sleep Focus writes "in bed" from your schedule (and from when the phone sits untouched), so those
+ *  times are your schedule, not when you slept. A night with only "in bed" pieces is returned with
+ *  `inBedOnly` so it's confirmed in the morning instead of saved as if it were measured. */
+export function healthNight(samples: { state: string; start: number; end: number }[], today = new Date()): { bed: number; wake: number; stages: SleepStages; asleepMin: number; inBedOnly: boolean } | null {
   const noon = new Date(today); noon.setHours(14, 0, 0, 0);
   const from = noon.getTime() - 24 * 3_600_000;
-  const xs = samples.filter((x) => x.end > from && x.start < noon.getTime() && x.end > x.start).sort((a, b) => a.start - b.start);
-  if (!xs.length) return null;
+  const all = samples.filter((x) => x.end > from && x.start < noon.getTime() && x.end > x.start).sort((a, b) => a.start - b.start);
+  if (!all.length) return null;
+  // When anything measured sleep (an Apple Watch, a sleep app), the night is built from those pieces only.
+  const measured = all.some((x) => isAsleep(x.state));
+  const xs = measured ? all.filter((x) => isAsleep(x.state) || x.state.toLowerCase() === "awake") : all;
   const groups: (typeof xs)[] = [];
   for (const x of xs) { const g = groups[groups.length - 1]; if (g && x.start - Math.max(...g.map((y) => y.end)) < 90 * 60_000) g.push(x); else groups.push([x]); }
-  const span = (g: typeof xs) => Math.max(...g.map((y) => y.end)) - g[0].start;
+  const asleepIn = (g: typeof xs) => g.filter((y) => !measured || isAsleep(y.state));
+  const span = (g: typeof xs) => { const a = asleepIn(g); return a.length ? Math.max(...a.map((y) => y.end)) - a[0].start : 0; };
   const g = groups.sort((a, b) => span(b) - span(a))[0];
+  const asleepPieces = asleepIn(g);
+  if (!asleepPieces.length) return null;
   const stages: SleepStages = { deep: 0, rem: 0, core: 0, awake: 0 };
-  let asleep = 0, inBedOnly = true;
+  let asleep = 0;
+  const bed = asleepPieces[0].start, wake = Math.max(...asleepPieces.map((y) => y.end));
   for (const x of g) {
-    const m = (x.end - x.start) / 60_000;
+    // Awake minutes count only between falling asleep and waking up.
+    const a = Math.max(x.start, bed), b = Math.min(x.end, wake);
+    if (b <= a) continue;
+    const m = (b - a) / 60_000;
     const st = x.state.toLowerCase();
-    if (st === "deep") { stages.deep += m; asleep += m; inBedOnly = false; }
-    else if (st === "rem") { stages.rem += m; asleep += m; inBedOnly = false; }
-    else if (st === "light" || st === "core") { stages.core += m; asleep += m; inBedOnly = false; }
-    else if (st === "asleep") { stages.core += m; asleep += m; inBedOnly = false; }
+    if (st === "deep") { stages.deep += m; asleep += m; }
+    else if (st === "rem") { stages.rem += m; asleep += m; }
     else if (st === "awake") stages.awake += m;
+    else if (isAsleep(st)) { stages.core += m; asleep += m; }
   }
-  const bed = g[0].start, wake = Math.max(...g.map((y) => y.end));
   if (wake - bed < MIN_MS) return null;
-  // Only "in bed" samples (no stages): count the time in bed.
-  if (inBedOnly) asleep = (wake - bed) / 60_000;
+  // Only "in bed" pieces: the time in bed, to be confirmed.
+  if (!measured) asleep = (wake - bed) / 60_000;
   const r = (v: number) => Math.round(v);
   const hasStages = stages.deep + stages.rem > 0;
-  return { bed, wake, stages: hasStages ? { deep: r(stages.deep), rem: r(stages.rem), core: r(stages.core), awake: r(stages.awake) } : { deep: 0, rem: 0, core: 0, awake: 0 }, asleepMin: r(asleep) };
+  return { bed, wake, stages: hasStages ? { deep: r(stages.deep), rem: r(stages.rem), core: r(stages.core), awake: r(stages.awake) } : { deep: 0, rem: 0, core: 0, awake: 0 }, asleepMin: r(asleep), inBedOnly: !measured };
+}
+
+/** Whether a night from Apple Health should replace the one already saved: only real measured sleep
+ *  does, and never a night you logged with the button or by hand (or a measured night with stages). */
+export function healthWins(old: SleepNight | undefined, inBedOnly: boolean): boolean {
+  if (inBedOnly) return false;
+  if (!old) return true;
+  if (old.src === "manual" || old.src === "button" || old.src === "pillow") return false;
+  return !(old.src === "health" && old.stages);
+}
+
+/** The best guess at last night, for the morning check-in, from what the app saw:
+ *  - bedtime: the last time the phone app was used last night (put down), else the schedule;
+ *  - wake time: no later than the first time the app was opened this morning (you were up by then),
+ *    else the schedule's wake time.
+ *  `firstUp` is the first use of the app after 4 AM today. Returns null if there's nothing to go on. */
+export function morningGuess(o: { schedule?: SleepSchedule; phone?: { bed: number; wake: number } | null; firstUp?: number | null; now?: Date }): { bed: number; wake: number; src: "phone" | "schedule" } | null {
+  const now = o.now ?? new Date();
+  const today = dayKey(now);
+  const phone = o.phone && dayKey(new Date(o.phone.wake)) === today ? o.phone : null;
+  const sc = o.schedule ? scheduleNight(o.schedule, now) : null;
+  const up = o.firstUp && dayKey(new Date(o.firstUp)) === today ? o.firstUp : null;
+  let night: { bed: number; wake: number; src: "phone" | "schedule" } | null = phone ? { ...phone, src: "phone" } : sc && sc.wake <= now.getTime() + 60 * 60_000 ? { ...sc, src: "schedule" } : null;
+  if (!night) return null;
+  if (up && up < night.wake && up - night.bed >= MIN_MS) night = { ...night, wake: up };
+  // Never a wake time still to come.
+  if (night.wake > now.getTime() && now.getTime() - night.bed >= MIN_MS) night = { ...night, wake: now.getTime() };
+  return night;
 }
 
 export const SOURCE_NAME: Record<SleepSource, string> = { health: "Apple Health", schedule: "Your schedule", phone: "Phone down", button: "Sleep button", manual: "Logged by hand", pillow: "Pillow tracking" };

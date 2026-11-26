@@ -25,6 +25,7 @@ import { programArt } from "./fitArt";
 import { SoundsScreen, PillowTracker } from "./FitSleepLab";
 import { CounterScreen } from "./FitMindExtras";
 import { SleepCheckIn, SleepSheet, sleepLine, useSleepAuto, type SleepGuess } from "./FitSleep";
+import { firstUpToday } from "@/lib/phoneUse";
 import { MedsApp, PeriodApp } from "./FitTrackers";
 import { MaxesApp, TemplatesApp } from "./FitMaxes";
 import { AppsTab, APP_ICONS, FriendsApp, GuidedApp, RecoveryApp, StepsApp, WaterApp, YourAppsRow } from "./FitApps";
@@ -553,7 +554,12 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
       const at = data.sleep?.asleepAt;
       if (!at) { say("Sleep wasn't being tracked. Open Sleep to add last night."); openApp("sleep"); }
       else if (Date.now() - at < 30 * 60_000) { update((d) => ({ ...d, sleep: { ...(d.sleep ?? emptySleep()), asleepAt: undefined } })); say("That was under 30 minutes, so it wasn't saved."); }
-      else { update((d) => ({ ...d, sleep: addNight(d.sleep, at, Date.now(), undefined, { src: "button" }) })); say("Good morning. Last night is saved."); openApp("sleep"); }
+      else {
+        // Up since the first time the app was used this morning, if that was earlier than this tap.
+        const up = firstUpToday(), end = up && up - at >= 30 * 60_000 && up < Date.now() ? up : Date.now();
+        update((d) => ({ ...d, sleep: addNight(d.sleep, at, end, undefined, { src: "button" }) }));
+        say(`Good morning. Last night is saved: ${new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} to ${new Date(end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`); openApp("sleep");
+      }
     }
     else if (a === "sleep") openApp("sleep");
     else if (a === "yoga") openApp("yoga");
@@ -579,7 +585,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
       case "food": return <Sheet inline={inline} title="Food" onClose={close} testId="fit-app-food"><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></Sheet>;
       case "fast": return <FastingSheet inline={inline} data={data} update={update} onClose={close} />;
       case "run": return <OutdoorHub inline={inline} data={data} update={update} say={say} onClose={close} />;
-      case "sleep": return <SleepSheet inline={inline} data={data} update={update} say={say} onClose={close} onBreathe={() => openApp("mind")} />;
+      case "sleep": return <SleepSheet inline={inline} data={data} update={update} say={say} onClose={close} onBreathe={() => openApp("mind")}
+        checkin={sleepAuto.guess ? <SleepCheckIn guess={sleepAuto.guess} data={data} update={update} say={say} onSkip={sleepAuto.skip} /> : null} />;
       case "yoga": case "mobility": case "hiit": case "c25k": return <GuidedApp kind={id} inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "mind": return <GuidedApp kind="mind" inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "water": return <WaterApp inline={inline} data={data} update={update} say={say} onClose={close} />;

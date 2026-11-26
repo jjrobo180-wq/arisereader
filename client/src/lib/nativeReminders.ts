@@ -19,6 +19,19 @@ const STEP_MS = 5 * 60_000;
 const AHEAD_MS = 72 * 3600_000;
 /** iOS keeps at most 64 waiting notifications for an app; the three hubs share them. */
 export const MOST_PER_KIND: Record<ReminderKind, number> = { life: 26, work: 24, family: 14 };
+/** Each hub's share once Health & Fitness's repeating reminders (bedtime, morning check-in, water...) have
+ *  their room: those are counted by pages/fit/fitNative.ts. Without this the hubs filled all 64 and iPhone
+ *  dropped the sleep reminders. */
+export function mostFor(kind: ReminderKind, fitCount: number): number {
+  const room = 64 - Math.min(24, Math.max(0, fitCount));
+  return Math.max(4, Math.floor((MOST_PER_KIND[kind] * room) / 64));
+}
+const fitCount = () => { try { return Number(localStorage.getItem("arise-fit-local-count")) || 0; } catch { return 0; } };
+/** A tapped Health & Fitness reminder (arisefit://do/sleep-start) opens Health & Fitness inside To Do and does it. */
+export function fitLinkHash(url: string): string | null {
+  const a = /^arisefit:\/\/do\/([a-z-]+)/i.exec(url)?.[1];
+  return a ? `/lifehub?go=cooked&do=${a.toLowerCase()}` : null;
+}
 
 const flagKey = (kind: ReminderKind) => `arise_native_reminders:${kind}`;
 /** One switch for both hubs (LifeHub and WorkHub start out the same; October 2026). */
@@ -151,7 +164,7 @@ export function installReminderTaps(): void {
     void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => {
       const url = String(e?.notification?.extra?.url || "");
       if (!url) return;
-      const hash = notificationHash(url);
+      const hash = notificationHash(url) ?? fitLinkHash(url);
       if (hash !== null) window.location.hash = hash;
     });
   } catch { /* no listener here */ }
@@ -172,7 +185,7 @@ async function cancelScheduled(kind: ReminderKind) {
 export async function scheduleNativeReminders(kind: ReminderKind, workspace: unknown): Promise<number> {
   if (!nativeRemindersOn(kind) || !nativeRemindersAvailable()) return 0;
   const now = Date.now();
-  const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, MOST_PER_KIND[kind]);
+  const plan = planReminders(kind, workspace, now + 60_000, zone()).slice(0, mostFor(kind, fitCount()));
   const notifications = plan.length ? nativeNotifications(kind, plan) : [];
   // Same reminders as the ones already waiting on the phone (most edits don't touch them): nothing to
   // redo. Cancelling and re-adding them all after every change made the app hitch a few seconds later.

@@ -167,13 +167,15 @@ if (window.location.protocol === "capacitor:") {
     // A tapped reminder's "?go=pills" is a one-time instruction; remembering it would re-open that screen on a later start.
     // Arise Reader is never reopened on its own either: a notification opens it in To Do, but starting the app
     // again should land in your hub, not on the Reader (the Reader apps open on it anyway).
-    try { const h = window.location.hash.split(/[?&](?:go|plan)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
+    try { const h = window.location.hash.split(/[?&](?:go|plan|do)=/)[0]; if (h && h !== "#/") { localStorage.setItem(LAST, h); localStorage.setItem(LAST_AT, String(Date.now())); } } catch { /* fine */ }
   });
   // A tap on a To Do widget opens the section (or task) it shows, in its hub (lib/duoFocus.ts).
   void import("@/lib/duoFocus").then((m) => m.listenForWidgetGo()).catch(() => {});
   // A tap on the Link widget opens that site in Safari, whichever hub or screen is open (lib/duoLinks.ts).
   void import("@/lib/duoLinks").then((m) => { if (m.isTodoApp()) m.listenForWidgetWebLinks(); }).catch(() => {});
 }
+// When the app is put away at night and first opened in the morning, for the sleep check-in (lib/phoneUse.ts).
+void import("@/lib/phoneUse").then((m) => m.installPhoneUse()).catch(() => {});
 
 // No zoom, anywhere: index.html fixes the page at scale 1 (maximum-scale=1, user-scalable=no), which
 // stops iPhone zooming in when a text box is tapped. The iPhone apps also hold the web view at 1

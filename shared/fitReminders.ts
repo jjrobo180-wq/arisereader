@@ -85,9 +85,11 @@ export function buildLocalReminders(r: Reminders, sleep?: SleepRemind | null): L
   MEALS.forEach((m, i) => { const s = r.food.meals[m.key]; if (s.on) out.push({ id: 700 + i, title: m.label, body: m.line, on: hm(s.time), url: "arisefit://do/meal" }); });
   if (r.food.recap.on) out.push({ id: 704, title: "Log your day", body: "Anything you ate that isn't logged yet? Add it before bed.", on: hm(r.food.recap.time), url: "arisefit://do/meal" });
   if (sleep && TIME.test(sleep.bed) && TIME.test(sleep.wake)) {
-    if (sleep.windDown) out.push({ id: 600, title: "Time to wind down", body: "Bedtime in 30 minutes. Dim the lights, put the phone down, or try a breathing session.", on: hm(sleep.bed, -30), url: "arisefit://do/sleep-start" });
-    if (sleep.bedtime) out.push({ id: 602, title: "Bedtime", body: "Lights out. Tap to start tracking tonight's sleep.", on: hm(sleep.bed), url: "arisefit://do/sleep-start" });
-    if (sleep.morning) out.push({ id: 601, title: "Good morning", body: "How did you sleep? Tap to check in.", on: hm(sleep.wake, 15), url: "arisefit://do/sleep" });
+    // Wind down only opens Sleep: tapping it mustn't start the sleep timer 30 minutes early.
+    if (sleep.windDown) out.push({ id: 600, title: "Time to wind down", body: "Bedtime in 30 minutes. Dim the lights, put the phone down, or try a breathing session.", on: hm(sleep.bed, -30), url: "arisefit://do/sleep" });
+    if (sleep.bedtime) out.push({ id: 602, title: "Going to bed?", body: "Tap when you're getting into bed to start tracking tonight's sleep.", on: hm(sleep.bed), url: "arisefit://do/sleep-start" });
+    // Tapping it saves last night with the time you got up (or the first time you used the app this morning).
+    if (sleep.morning) out.push({ id: 601, title: "Good morning", body: "Tap when you're up to save last night's sleep.", on: hm(sleep.wake, 15), url: "arisefit://do/sleep-end" });
   }
   return out;
 }

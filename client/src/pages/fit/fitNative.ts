@@ -105,6 +105,8 @@ export function saveToHealth(kind: "weight" | "calories" | "distance", value: nu
 export type { Reminders } from "@shared/fitReminders";
 export const defaultReminders = defaults;
 const LS_SLEEP = "arise-fit-sleep-remind";
+/** How many repeating Health & Fitness reminders are on this phone (read by lib/nativeReminders.ts). */
+export const FIT_LOCAL_COUNT = "arise-fit-local-count";
 export function readReminders(): Reminders {
   try { return cleanReminders(JSON.parse(read(LS.reminders) || "{}")); } catch { return defaults(); }
 }
@@ -125,13 +127,16 @@ export async function applyReminders(r: Reminders, sleep: SleepRemind | null = r
     await notes("cancel", { notifications: REPEATING_IDS.map((id) => ({ id })) });
     if (r.paused) await notes("cancel", { notifications: [{ id: 400 }, { id: 500 }] });
     if (list.length) await notes("schedule", { notifications: list.map((n) => ({ id: n.id, title: n.title, body: n.body, schedule: { on: n.on, allowWhileIdle: true }, ...(n.url ? { extra: { url: n.url } } : {}) })) });
+    // iPhone keeps only 64 waiting notifications per app. Inside To Do the hubs' reminders leave room for
+    // these (lib/nativeReminders.ts reads this count), so bedtime and morning reminders aren't dropped.
+    write(FIT_LOCAL_COUNT, String(list.length));
   } catch (e) { throw friendly(e, "Reminders"); }
 }
 
 /** Sleep reminders, around a bedtime schedule ("22:30", "06:30"): wind down 30 minutes before bed, a
  *  bedtime nudge, and a morning check-in 15 minutes after waking. Off when `sc` is missing. */
 export async function applySleepReminders(sc: { bed: string; wake: string } | undefined, on: { windDown: boolean; morning: boolean; bedtime?: boolean }): Promise<void> {
-  await applyReminders(readReminders(), sc ? { bed: sc.bed, wake: sc.wake, windDown: on.windDown, morning: on.morning, bedtime: on.bedtime === true } : null);
+  await applyReminders(readReminders(), sc ? { bed: sc.bed, wake: sc.wake, windDown: on.windDown, morning: on.morning, bedtime: on.bedtime !== false } : null);
 }
 
 /** A test notification in 5 seconds, so you can see they work. false when notifications are off. */

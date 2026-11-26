@@ -2,15 +2,18 @@
 //   1. Apple Health: an Apple Watch, the iPhone's Sleep schedule or any sleep app that saves to Health.
 //      Nights come in by themselves, with deep, REM and core sleep when the watch measured them.
 //   2. Your bedtime schedule: each morning the app asks "Did you sleep 10:30 to 6:30?" One tap.
-//   3. Phone down: when you put the phone down at night and picked it up in the morning (Cooked only
-//      sees when it went to the background and came back, on this phone).
+//   3. Phone down: the last time the app was used at night and the first time in the morning (any part of
+//      the app counts: lib/phoneUse.ts). The first use in the morning also caps the wake time of any guess.
 //   4. The "Going to sleep" / "I'm awake" button, or Siri ("Hey Siri, going to sleep").
 //   5. Typed in, for any night, and naps.
-// Each night gets a sleep score (shared/fitSleep.ts). Wind-down and morning reminders follow the schedule.
-import { useCallback, useEffect, useMemo, useState } from "react";
+// Each night gets a sleep score (shared/fitSleep.ts). Bedtime and morning reminders follow the schedule: tapping
+// the bedtime one starts the timer, tapping the morning one saves the night. A guess is never saved without you
+// seeing its times; only sleep an Apple Watch or sleep app measured comes in by itself.
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Bed, Check, ChevronRight, Clock, HeartPulse, Moon, Pencil, Plus, Smartphone, Sun, Sunrise, Trash2, Watch, Wind, X } from "lucide-react";
 import { dayKey, type FitData } from "@shared/fit";
-import { SOURCE_NAME, addNap, addNight, clockOf, emptySleep, healthNight, lastDays, nightHours, phoneNight, rateNight, scheduleNight, scoreWord, sleepScore, sleepStats, type Sleep, type SleepNight, type SleepSource } from "@shared/fitSleep";
+import { SOURCE_NAME, addNap, addNight, clockOf, emptySleep, healthNight, healthWins, lastDays, morningGuess, nightHours, rateNight, scoreWord, sleepScore, sleepStats, type Sleep, type SleepNight, type SleepSource } from "@shared/fitSleep";
+import { firstUpToday, readPhone } from "@/lib/phoneUse";
 import { Btn, C, Card, Field, Ring, Sheet, Title, display, fmtNum, haptic, inputCls, inputStyle } from "./fitUi";
 import { applySleepReminders, connectHealth, healthConnected, readSleepHealth } from "./fitNative";
 import { isNativeApp } from "@/lib/nativeApp";
@@ -36,35 +39,30 @@ export function nightFrom(wakeDay: string, bedHHMM: string, wakeHHMM: string) {
 }
 const okNight = (bed: number, wake: number) => wake - bed >= 30 * 60_000 && wake - bed <= 20 * 3_600_000 && wake <= Date.now() + 5 * 60_000;
 
-// ——— Phone down, phone up ———————————————————————————————————————————————————————————————————————
-const PHONE = "arise-fit-phone", PHONE_ON = "arise-fit-sleep-phone";
-type PhoneLog = { down?: number; guess?: { bed: number; wake: number } };
-const readPhone = (): PhoneLog => { try { return JSON.parse(localStorage.getItem(PHONE) || "{}"); } catch { return {}; } };
-const writePhone = (p: PhoneLog) => { try { localStorage.setItem(PHONE, JSON.stringify(p)); } catch { /* not kept */ } };
+// ——— Phone down, phone up (recorded for the whole app by lib/phoneUse.ts) ——————————————————————
+const PHONE_ON = "arise-fit-sleep-phone";
 export const phoneGuessOn = () => { try { return localStorage.getItem(PHONE_ON) !== "0"; } catch { return true; } };
 const setPhoneGuessOn = (on: boolean) => { try { localStorage.setItem(PHONE_ON, on ? "1" : "0"); } catch { /* not kept */ } };
-/** Notes when Cooked goes to the background and comes back; a long overnight gap becomes a guess. */
-function notePhone(state: "down" | "up") {
-  const p = readPhone(), now = Date.now();
-  if (state === "down") { writePhone({ ...p, down: now }); return; }
-  if (!p.down) return;
-  const g = phoneNight(p.down, now);
-  writePhone({ guess: g ?? p.guess });
-}
 
 /** Last night, worked out without asking: a candidate for the morning check-in (or saved straight
- *  away when Apple Health has it). Checked when the app opens and whenever it comes back. */
-export type SleepGuess = { bed: number; wake: number; src: "schedule" | "phone" };
+ *  away when an Apple Watch or sleep app measured it). Checked when the app opens and whenever it comes back.
+ *  "iphone" is the iPhone's own time in bed (Sleep Focus), which is only a guess, so it's confirmed too. */
+export type SleepGuess = { bed: number; wake: number; src: "schedule" | "phone" | "iphone" };
 export function useSleepAuto(data: FitData, update: Update, loaded: boolean, say: (m: string) => void): { guess: SleepGuess | null; skip: () => void } {
   const [guess, setGuess] = useState<SleepGuess | null>(null);
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    notePhone("up");
-    const vis = () => { if (document.visibilityState === "hidden") notePhone("down"); else { notePhone("up"); setTick((t) => t + 1); } };
+    const vis = () => { if (document.visibilityState === "visible") setTick((t) => t + 1); };
     document.addEventListener("visibilitychange", vis);
-    window.addEventListener("pagehide", () => notePhone("down"));
     return () => document.removeEventListener("visibilitychange", vis);
   }, []);
+  // The bedtime and morning reminders are put on this phone again from the saved schedule (they were only set
+  // on the phone where the schedule was saved, and an update or a new phone lost them).
+  const sc = data.sleep?.schedule, rm = data.sleep?.remind;
+  useEffect(() => {
+    if (!loaded || !isNativeApp() || !sc || !rm) return;
+    void applySleepReminders(sc, rm).catch(() => {});
+  }, [loaded, sc?.bed, sc?.wake, rm?.windDown, rm?.morning, rm?.bedtime]); // eslint-disable-line react-hooks/exhaustive-deps
   const today = dayKey();
   const has = !!data.sleep?.nights.some((n) => n.date === today);
   const skipped = !!data.sleep?.skipped?.includes(today);
@@ -74,24 +72,27 @@ export function useSleepAuto(data: FitData, update: Update, loaded: boolean, say
     if (has || skipped || data.sleep?.asleepAt || h < 4 || h >= 15) { setGuess(null); return; }
     let live = true;
     (async () => {
-      // 1. Apple Health: saved without asking.
+      let inBed: { bed: number; wake: number } | null = null;
+      // 1. Apple Health: sleep that was measured is saved without asking; the iPhone's time in bed is confirmed.
       if (healthConnected() && isNativeApp()) {
         try {
           const n = healthNight(await readSleepHealth(2));
           if (n && live && dayKey(new Date(n.wake)) === today) {
-            update((d) => ({ ...d, sleep: addNight(d.sleep, n.bed, n.wake, undefined, { src: "health", ...(n.stages.deep + n.stages.rem > 0 ? { stages: n.stages } : {}), asleepMin: n.asleepMin }) }));
-            say(`Last night's sleep came in from Apple Health: ${hm(n.asleepMin / 60)}.`);
-            setGuess(null); return;
+            if (!n.inBedOnly) {
+              update((d) => ({ ...d, sleep: addNight(d.sleep, n.bed, n.wake, undefined, { src: "health", ...(n.stages.deep + n.stages.rem > 0 ? { stages: n.stages } : {}), asleepMin: n.asleepMin }) }));
+              say(`Last night's sleep came in from Apple Health: ${hm(n.asleepMin / 60)}.`);
+              setGuess(null); return;
+            }
+            inBed = n;
           }
         } catch { /* fall back to a guess */ }
       }
       if (!live) return;
-      // 2. Phone down and up. 3. The schedule.
-      const p = readPhone().guess;
-      if (phoneGuessOn() && p && dayKey(new Date(p.wake)) === today) { setGuess({ ...p, src: "phone" }); return; }
-      const sc = data.sleep?.schedule;
-      if (sc) { const n = scheduleNight(sc); if (n.wake <= Date.now() + 60 * 60_000) { setGuess({ ...n, src: "schedule" }); return; } }
-      setGuess(null);
+      // 2. The iPhone's time in bed. 3. Phone down and up. 4. The schedule. The first use this morning caps the wake time.
+      const up = firstUpToday();
+      if (inBed) { setGuess({ bed: inBed.bed, wake: up && up < inBed.wake && up - inBed.bed > 30 * 60_000 ? up : inBed.wake, src: "iphone" }); return; }
+      const g = morningGuess({ schedule: data.sleep?.schedule, phone: phoneGuessOn() ? readPhone().guess : null, firstUp: up });
+      setGuess(g);
     })();
     return () => { live = false; };
   }, [loaded, has, skipped, tick, today]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -99,36 +100,48 @@ export function useSleepAuto(data: FitData, update: Update, loaded: boolean, say
   return { guess, skip };
 }
 
-/** Today's morning check-in: last night as the app worked it out, to confirm, adjust or dismiss. */
+const GUESS_FROM: Record<SleepGuess["src"], string> = {
+  phone: "A guess from the last time you used the app last night and the first time this morning.",
+  schedule: "A guess from your bedtime schedule.",
+  iphone: "From your iPhone's time in bed (Sleep Focus), which is a guess too.",
+};
+
+/** Today's morning check-in: last night as the app worked it out, with the times right there to fix
+ *  before saving (a guess is never saved as if it were measured), or dismissed. */
 export function SleepCheckIn({ guess, data, update, say, onSkip }: { guess: SleepGuess; data: FitData; update: Update; say: (m: string) => void; onSkip: () => void }) {
-  const [edit, setEdit] = useState(false);
   const [bed, setBed] = useState(toInput(guess.bed)), [wake, setWake] = useState(toInput(guess.wake));
   const [q, setQ] = useState(0);
-  const t = edit ? nightFrom(dayKey(), bed, wake) : guess;
+  const changed = bed !== toInput(guess.bed) || wake !== toInput(guess.wake);
+  const t = changed ? nightFrom(dayKey(), bed, wake) : guess;
+  const ok = okNight(t.bed, t.wake);
+  const nudge = (v: string, set: (x: string) => void, by: number) => { const [h, m] = v.split(":").map(Number); const x = ((h * 60 + m + by) % 1440 + 1440) % 1440; haptic("light"); set(`${pad(Math.floor(x / 60))}:${pad(x % 60)}`); };
   const save = () => {
-    if (!okNight(t.bed, t.wake)) { say("Those times don't look right. Sleep is between 30 minutes and 20 hours."); return; }
+    if (!ok) { say("Those times don't look right. Sleep is between 30 minutes and 20 hours."); return; }
     haptic("success");
-    update((d) => ({ ...d, sleep: addNight(d.sleep, t.bed, t.wake, q || undefined, { src: edit ? "manual" : guess.src }) }));
+    update((d) => ({ ...d, sleep: addNight(d.sleep, t.bed, t.wake, q || undefined, { src: changed ? "manual" : guess.src === "iphone" ? "health" : guess.src }) }));
     say(`Saved ${hm((t.wake - t.bed) / 3_600_000)} of sleep.`);
   };
+  const time = (label: string, v: string, set: (x: string) => void, testId: string) => <div>
+    <p className="text-[12px] font-semibold" style={{ color: C.dim }}>{label}</p>
+    <input type="time" value={v} onChange={(e) => e.target.value && set(e.target.value)} className={`${inputCls} mt-1`} style={inputStyle} data-testid={testId} />
+    <div className="mt-1.5 grid grid-cols-2 gap-1.5">{[-15, 15].map((by) => <button key={by} type="button" onClick={() => nudge(v, set, by)} className="h-9 rounded-[10px] text-[13px] font-semibold" style={{ background: C.card2, color: C.text }}>{by < 0 ? "−" : "+"}15 min</button>)}</div>
+  </div>;
   return <Card className="mt-3 !p-4" testId="fit-sleep-checkin" style={{ background: `linear-gradient(150deg, rgba(99,102,241,.16), ${C.card} 70%)` }}>
     <div className="flex items-start gap-3">
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px]" style={{ background: "linear-gradient(145deg,#818cf8,#3730a3)", color: "#fff" }}><Sunrise className="h-6 w-6" /></span>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.dim }}>Good morning · how did you sleep?</p>
-        <p className="mt-0.5 text-[24px] leading-none tabular-nums" style={display}>{hm((t.wake - t.bed) / 3_600_000)}</p>
-        <p className="mt-1 text-[13px]" style={{ color: C.steel }}>{clock(t.bed)} to {clock(t.wake)} · {guess.src === "phone" ? "from when you put your phone down" : "from your bedtime schedule"}</p>
+        <p className="text-[12px] tracking-[.14em]" style={{ ...display, color: C.dim }}>Good morning · when did you sleep?</p>
+        <p className="mt-0.5 text-[24px] leading-none tabular-nums" style={display}>{ok ? hm((t.wake - t.bed) / 3_600_000) : "—"}</p>
+        <p className="mt-1 text-[12.5px] leading-snug" style={{ color: C.steel }}>{GUESS_FROM[guess.src]} Fix the times if they're off.</p>
       </div>
-      <button type="button" onClick={onSkip} aria-label="Not right, don't save" className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.card2, color: C.dim }}><X className="h-4 w-4" /></button>
+      <button type="button" onClick={onSkip} aria-label="Don't save last night" className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: C.card2, color: C.dim }}><X className="h-4 w-4" /></button>
     </div>
-    {edit && <div className="mt-3 grid grid-cols-2 gap-2">
-      <Field label="Went to sleep"><input type="time" value={bed} onChange={(e) => setBed(e.target.value)} className={inputCls} style={inputStyle} data-testid="fit-checkin-bed" /></Field>
-      <Field label="Woke up"><input type="time" value={wake} onChange={(e) => setWake(e.target.value)} className={inputCls} style={inputStyle} /></Field></div>}
+    <div className="mt-3 grid grid-cols-2 gap-3">
+      {time("Fell asleep", bed, setBed, "fit-checkin-bed")}
+      {time("Woke up", wake, setWake, "fit-checkin-wake")}
+    </div>
     <Rested q={q} setQ={setQ} className="mt-3" />
-    <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-      <Btn onClick={save} testId="fit-checkin-save"><Check className="h-5 w-5" />{edit ? "Save" : "That's right"}</Btn>
-      {!edit && <Btn kind="soft" onClick={() => setEdit(true)}><Pencil className="h-4 w-4" />Adjust</Btn>}
-    </div>
+    <Btn className="mt-3 w-full" onClick={save} testId="fit-checkin-save"><Check className="h-5 w-5" />Save last night</Btn>
   </Card>;
 }
 
@@ -170,23 +183,24 @@ async function syncHealthSleep(update: Update): Promise<number> {
   const samples = await readSleepHealth(15);
   if (!samples.length) return 0;
   let added = 0;
-  const found: { bed: number; wake: number; stages: any; asleepMin: number }[] = [];
+  const found: { bed: number; wake: number; stages: any; asleepMin: number; inBedOnly: boolean }[] = [];
   for (let i = 0; i < 15; i++) { const d = new Date(); d.setDate(d.getDate() - i); const n = healthNight(samples, d); if (n && dayKey(new Date(n.wake)) === dayKey(d)) found.push(n); }
   update((d) => {
     let s = d.sleep;
     for (const n of found) {
       const old = s?.nights.find((x) => x.date === dayKey(new Date(n.wake)));
-      if (old && (old.src === "manual" || (old.src === "health" && old.stages))) continue;
+      // Only measured sleep fills nights in, and never over a night you logged yourself.
+      if (!healthWins(old, n.inBedOnly)) continue;
       s = addNight(s, n.bed, n.wake, old?.q, { src: "health", ...(n.stages.deep + n.stages.rem > 0 ? { stages: n.stages } : {}), asleepMin: n.asleepMin });
       added++;
     }
     return s ? { ...d, sleep: s } : d;
   });
-  return added || found.length;
+  return added;
 }
 
 /** The Sleep app (a tab or a sheet). */
-export function SleepSheet({ data, update, onClose, say, inline, onBreathe }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void; inline?: boolean; onBreathe?: () => void }) {
+export function SleepSheet({ data, update, onClose, say, inline, onBreathe, checkin }: { data: FitData; update: Update; onClose: () => void; say: (m: string) => void; inline?: boolean; onBreathe?: () => void; checkin?: ReactNode }) {
   const sleep = data.sleep ?? emptySleep();
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (!sleep.asleepAt) return; const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, [sleep.asleepAt]);
@@ -221,6 +235,14 @@ export function SleepSheet({ data, update, onClose, say, inline, onBreathe }: { 
 
   return <Sheet title="Sleep" onClose={onClose} testId="fit-sleep" inline={inline}
     right={<button type="button" onClick={() => setSheet("ways")} className="flex h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold" style={{ background: C.card, color: C.text }} data-testid="fit-sleep-ways-open"><Watch className="h-4 w-4" style={{ color: "#818cf8" }} />Tracking</button>}>
+    {/* This morning's check-in, when last night isn't saved yet. */}
+    {!sleep.asleepAt && checkin}
+    {/* No reminders yet: nothing tells you to start tracking at night or to save the night in the morning. */}
+    {!sleep.asleepAt && (!sleep.schedule || !sleep.remind) && <Card onClick={() => setSheet("schedule")} className="mb-3 flex items-center gap-3 !p-3.5" testId="fit-sleep-remind-setup" style={{ background: "linear-gradient(150deg, rgba(99,102,241,.18), transparent 75%)" }}>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]" style={{ background: "rgba(129,140,248,.2)" }}><Clock className="h-5 w-5" style={{ color: "#818cf8" }} /></span>
+      <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Get a bedtime and wake-up reminder</span>
+        <span className="block text-[12.5px] leading-snug" style={{ color: C.dim }}>Tap it when you get into bed and when you get up, and your sleep is tracked to the minute.</span></span>
+      <ChevronRight className="h-5 w-5 shrink-0" style={{ color: C.dim }} /></Card>}
     {/* Tonight or last night. */}
     {sleep.asleepAt
       ? <Card className="!p-6 text-center" style={{ background: "linear-gradient(170deg,#1e1b4b,#312e81)", color: "#eef" }} testId="fit-sleep-now">
@@ -337,13 +359,13 @@ function Ways({ data, update, say, compact, onOpen, onSchedule }: { data: FitDat
   const toggle = (on: boolean, flip: () => void, label: string) => <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={flip} className="relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors" style={{ background: on ? C.lime : C.card2 }}><span className="absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-all" style={{ left: on ? 23 : 3 }} /></button>;
   return <div className="mt-1 space-y-2">
     <p className="px-1 text-[14px]" style={{ color: C.steel }}>Cooked uses whichever of these it has, best first, so you never have to remember to tap.</p>
-    <Row icon={HeartPulse} title="1. Apple Health" testId="fit-sleep-way-health" sub={native ? (health ? "Connected. Nights from your Apple Watch, the iPhone's Sleep schedule or any sleep app come in by themselves, with deep and REM sleep." : "Wear an Apple Watch to bed or use the iPhone's Sleep schedule, and nights come in by themselves.") : "In the Cooked iPhone app."}
+    <Row icon={HeartPulse} title="1. Apple Health" testId="fit-sleep-way-health" sub={native ? (health ? "Connected. Nights an Apple Watch or a sleep app measured come in by themselves, with deep and REM sleep. The iPhone's own time in bed is only a guess, so you check it each morning." : "Wear an Apple Watch to bed and nights come in by themselves, to the minute.") : "In the iPhone app."}
       right={native ? (health ? <Btn kind="soft" className="!min-h-9 !px-3 !text-[13px]" onClick={() => void syncNow()} disabled={busy}>{busy ? "…" : "Sync"}</Btn> : <Btn className="!min-h-9 !px-3 !text-[13px]" onClick={() => void connect()} disabled={busy}>Connect</Btn>) : undefined} />
     <Row icon={Clock} title="2. Bedtime schedule" testId="fit-sleep-way-schedule" sub={sc ? `${clockOf(Number(sc.bed.slice(0, 2)) * 60 + Number(sc.bed.slice(3)))} to ${clockOf(Number(sc.wake.slice(0, 2)) * 60 + Number(sc.wake.slice(3)))}. Each morning Cooked asks if you slept to it: one tap to save.` : "Set your usual bedtime and wake time. Each morning, confirm last night in one tap."}
       right={<Btn kind={sc ? "soft" : "primary"} className="!min-h-9 !px-3 !text-[13px]" onClick={onSchedule}>{sc ? "Edit" : "Set"}</Btn>} />
-    <Row icon={Smartphone} title="3. Phone down" testId="fit-sleep-way-phone" sub="A guess from when you last closed Cooked at night and opened it in the morning. Confirm it in the morning. Stays on this phone."
+    <Row icon={Smartphone} title="3. Phone down" testId="fit-sleep-way-phone" sub="A guess from the last time you used the app at night and the first time in the morning. You check the times each morning. Stays on this phone."
       right={toggle(phone, () => { setPhoneGuessOn(!phone); setPhone(!phone); }, "Phone down guess")} />
-    <Row icon={Moon} title="4. Sleep button or Siri" sub={'Tap "Going to sleep" at night and "I\'m awake" in the morning, or say "Hey Siri, going to sleep" (Settings → Siri & Shortcuts).'} />
+    <Row icon={Moon} title="4. Bedtime reminder, button or Siri" sub={'Tap the bedtime reminder (or "Going to sleep") when you get into bed and the morning reminder (or "I\'m awake") when you get up. Siri works too: "Hey Siri, going to sleep" (Settings → Siri & Shortcuts).'} />
     <Row icon={Pencil} title="5. By hand" sub="Add or fix any night, and log naps." />
   </div>;
 }
@@ -402,9 +424,12 @@ function NapEditor({ update, say, onClose }: { update: Update; say: (m: string) 
 
 function ScheduleSheet({ data, update, say, onClose }: { data: FitData; update: Update; say: (m: string) => void; onClose: () => void }) {
   const sc = data.sleep?.schedule;
-  const [bed, setBed] = useState(sc?.bed ?? "22:30"), [wake, setWake] = useState(sc?.wake ?? "06:30");
+  // A new schedule starts from your usual times when there are nights to go on.
+  const usual = sleepStats(data.sleep, 14);
+  const asInput = (m: number | null, d: string) => (m == null ? d : `${pad(Math.floor((Math.round(m / 15) * 15 % 1440) / 60))}:${pad((Math.round(m / 15) * 15) % 60)}`);
+  const [bed, setBed] = useState(sc?.bed ?? asInput(usual.avgBed, "22:30")), [wake, setWake] = useState(sc?.wake ?? asInput(usual.avgWake, "06:30"));
   const [windDown, setWind] = useState(data.sleep?.remind?.windDown ?? true), [morning, setMorning] = useState(data.sleep?.remind?.morning ?? true);
-  const [bedtime, setBedtime] = useState(data.sleep?.remind?.bedtime ?? false);
+  const [bedtime, setBedtime] = useState(data.sleep?.remind?.bedtime ?? true);
   const hours = useMemo(() => { const t = nightFrom(dayKey(), bed, wake); return (t.wake - t.bed) / 3_600_000; }, [bed, wake]);
   const goal = data.sleep?.goalH ?? 8;
   const save = async () => {
@@ -424,8 +449,8 @@ function ScheduleSheet({ data, update, say, onClose }: { data: FitData; update: 
     <Title>Reminders</Title>
     <div className="space-y-2">
       {toggleRow("Wind down", "30 minutes before bedtime", windDown, () => setWind(!windDown))}
-      {toggleRow("Bedtime", "Right at bedtime, to start tracking tonight", bedtime, () => setBedtime(!bedtime))}
-      {toggleRow("Morning check-in", "15 minutes after you wake, to save last night", morning, () => setMorning(!morning))}
+      {toggleRow("Bedtime", "Tap it when you get into bed: that's when tonight's sleep starts", bedtime, () => setBedtime(!bedtime))}
+      {toggleRow("Morning", "Tap it when you're up: last night is saved with the time you got up", morning, () => setMorning(!morning))}
     </div>
     {!isNativeApp() && <p className="mt-2 px-1 text-[12px]" style={{ color: C.dim }}>Reminders come from the Cooked iPhone app.</p>}
     <Btn className="mt-4 w-full" onClick={() => void save()} testId="fit-schedule-save"><Check className="h-5 w-5" />Save schedule</Btn>
