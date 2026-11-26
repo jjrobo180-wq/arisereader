@@ -205,3 +205,10 @@ test("Adding Google opens it right away in LifeHub and WorkHub, and Connections 
   const { MINI_SHELVES } = await import("../shared/pluginStore");
   assert.ok(MINI_SHELVES.life.indexOf("Connections") <= 2, "Google is easy to find in LifeHub");
 });
+
+test("A page left open across an update reloads itself instead of showing Something went wrong (Nov 26, 2026)", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("client/src/components/ErrorBoundary.tsx", "utf8");
+  assert.match(src, /failed to fetch dynamically imported module/);
+  assert.match(src, /stale-chunk-reload/);
+});

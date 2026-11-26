@@ -54,6 +54,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: any) {
     console.error("App error:", error, info);
+    // After an update, a page left open asks for files the new version renamed. Reload once (at most every
+    // two minutes) to pick up the new version, instead of showing "Something went wrong".
+    if (/failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk/i.test(String(error?.message || ""))) {
+      try {
+        const last = Number(sessionStorage.getItem("stale-chunk-reload") || 0);
+        if (Date.now() - last > 120_000) { sessionStorage.setItem("stale-chunk-reload", String(Date.now())); window.location.reload(); return; }
+      } catch { /* storage off: show the message */ }
+    }
     const where = String(info?.componentStack || "").split("\n").map((x: string) => x.trim()).filter(Boolean).slice(0, 3).join(" < ");
     this.setState({ detail: `${error?.name || "Error"}: ${error?.message || "unknown"}${where ? ` @ ${where}` : ""} · ${location.hash || "/"}`.slice(0, 400) });
     reportCrash(error, info);
