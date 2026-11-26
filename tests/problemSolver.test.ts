@@ -71,3 +71,38 @@ test("Problem Solver is a WorkHub plugin with its own menu item", async () => {
   assert.ok(WORK_ADD_ON_TABS.includes("solver" as any));
   assert.ok(HUB_GROUPS.some((g) => (g.tabs as string[]).includes("solver")));
 });
+
+test("Wolfram|Alpha's own answer confirms a number answer, or sends it back to be solved again", async () => {
+  const { engineNumber, engineAgrees } = await import("../shared/problemSolver");
+  assert.equal(engineNumber("14 inches"), 14);
+  assert.ok(Math.abs(engineNumber("0.3240740740740741%") - 0.003240740740740741) < 1e-15);
+  assert.equal(engineNumber("x = -3"), -3);
+  assert.equal(engineNumber("7/8"), 0.875);
+  assert.equal(engineNumber("$1,250.50"), 1250.5);
+  assert.ok(Number.isNaN(engineNumber("x = -3 or x = 3")));
+  assert.ok(Number.isNaN(engineNumber("Wolfram|Alpha did not understand your input")));
+  assert.ok(engineAgrees("0.32", engineNumber("0.3240740740740741%")), "0.32% shown, engine says 0.324%");
+  assert.ok(engineAgrees("7/8", 0.875));
+  assert.ok(!engineAgrees("3/4", 0.875));
+
+  const { solveChecked } = await import("../server/problemSolver");
+  const reply = (o: any) => JSON.stringify({ subject: "Math", question: "q", steps: ["s"], answer: "x", value: "", choice: "", checks: [], ...o });
+  const asked: string[] = [];
+  const engine = async (q: string) => { asked.push(q); return "18"; };
+  // Both AI solves agree on 16 (both wrong): the engine says 18, so it's solved again and fixed.
+  let r = await solveChecked(async (system) => (/final checker/.test(system) ? reply({ answer: "18", value: "18", engineQuery: "24*0.75" }) : reply({ answer: "16", value: "16", engineQuery: "24*0.75" })), "25% off $24", "", engine);
+  assert.equal(asked[0], "24*0.75");
+  assert.equal(r.verdict, "settled");
+  assert.equal(r.solution.value, "18");
+  assert.equal(r.engine?.result, "agrees");
+  // The re-solve still disagrees with the engine: never shown as checked.
+  r = await solveChecked(async () => reply({ answer: "16", value: "16", engineQuery: "24*0.75" }), "25% off $24", "", engine);
+  assert.equal(r.verdict, "unsure");
+  assert.equal(r.engine?.result, "disagrees");
+  // Agreement adds the engine's confirmation; no engine, or a word answer, works as before.
+  r = await solveChecked(async () => reply({ answer: "18", value: "18", engineQuery: "24*0.75", checks: [{ expr: "24*0.75", equals: "18" }] }), "25% off $24", "", engine);
+  assert.equal(r.verdict, "checked");
+  assert.match(r.note, /Wolfram\|Alpha computed the same answer \(18\)/);
+  r = await solveChecked(async () => reply({ answer: "18", value: "18", engineQuery: "24*0.75" }), "q", "", null);
+  assert.equal(r.engine, undefined);
+});

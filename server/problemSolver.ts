@@ -5,9 +5,27 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { LessonAiError, askOpenAI, seePhotoAnyAi, type LessonAsk } from "./lessonPlanner";
-import { cleanSolution, sameAnswer, wrongChecks, type Solution, type SolveResult } from "../shared/problemSolver";
+import { cleanSolution, engineAgrees, engineNumber, sameAnswer, wrongChecks, type EngineCheck, type Solution, type SolveResult } from "../shared/problemSolver";
 
-export type ProblemSolverDeps = { gate(req: any, res: any): Promise<unknown | null>; ask?: LessonAsk; seePhoto?: (dataUrl: string) => Promise<string> };
+/** Asks a math engine for one short answer; "" when it has none. */
+export type MathEngine = (query: string) => Promise<string>;
+
+/**
+ * Wolfram|Alpha's Short Answers API, when WOLFRAM_APP_ID is set (developer.wolframalpha.com). It computes;
+ * it doesn't predict. "" for no answer, no key, or no reply within 12 seconds.
+ */
+export function wolframEngine(appId = process.env.WOLFRAM_APP_ID?.trim()): MathEngine | undefined {
+  if (!appId) return undefined;
+  return async (query) => {
+    try {
+      const r = await fetch(`https://api.wolframalpha.com/v1/result?appid=${encodeURIComponent(appId)}&units=nonmetric&i=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(12_000) });
+      if (!r.ok) { if (r.status !== 501) console.error("[problem-solver] Wolfram|Alpha answered", r.status); return ""; }
+      return (await r.text()).trim().slice(0, 300);
+    } catch { return ""; }
+  };
+}
+
+export type ProblemSolverDeps = { gate(req: any, res: any): Promise<unknown | null>; ask?: LessonAsk; seePhoto?: (dataUrl: string) => Promise<string>; engine?: MathEngine | null };
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\u0000/g, "").trim().slice(0, max) : "");
 const limits = createAttemptLimiter({ max: 90, windowMs: 10 * 60_000 });
@@ -19,7 +37,8 @@ const SHAPE = `Return JSON only:
  "answer": string (the final answer exactly as a student should write it),
  "value": string (ONLY when the answer is a number: plain arithmetic for it, like "7/8", "0.32", "-3", "14". Else ""),
  "choice": string (ONLY for multiple choice: the letter of the right choice. Else ""),
- "checks": [{"expr": string, "equals": string}] (EVERY arithmetic calculation in your steps, as plain arithmetic: {"expr": "120*3*12", "equals": "4320"}. Use only numbers, + - * / ^, parentheses, sqrt(). Empty for no arithmetic)}`;
+ "checks": [{"expr": string, "equals": string}] (EVERY arithmetic calculation in your steps, as plain arithmetic: {"expr": "120*3*12", "equals": "4320"}. Use only numbers, + - * / ^, parentheses, sqrt(). Empty for no arithmetic),
+ "engineQuery": string (ONLY when "value" is filled: ONE Wolfram|Alpha input that computes the final answer straight from the problem's own numbers and units, without using your work, e.g. "(360 ft - (358 ft + 10 in)) / 360 ft as a percent", "solve 3x + 5 = 20 for x", "3/4 + 1/8". Else "")}`;
 
 const RULES = `Rules:
 - Read the problem exactly as written. Never change a number, word or answer choice. If something is unreadable or missing, say so in "question" and answer only what can be answered.
@@ -42,8 +61,33 @@ function json(text: string): any {
 const describe = (x: Solution) => JSON.stringify({ steps: x.steps.map((st) => st.text), answer: x.answer, value: x.value, choice: x.choice });
 const wrongWords = (w: ReturnType<typeof wrongChecks>) => w.map((c) => `- ${c.expr} is ${+c.actual.toPrecision(10)}, not ${c.equals}`).join("\n");
 
-/** Solves twice, checks the arithmetic and the agreement, and settles any difference with a third pass. */
-export async function solveChecked(ask: LessonAsk, problem: string, extra: string): Promise<Omit<SolveResult, "read">> {
+/**
+ * Solves twice, checks the arithmetic and the agreement, settles any difference with a third pass, and,
+ * for a number answer with a math engine on hand, has the engine compute it on its own: an answer the engine
+ * disagrees with is solved again with the engine's result in hand, and never shown as checked unless they agree.
+ */
+export async function solveChecked(ask: LessonAsk, problem: string, extra: string, engine?: MathEngine | null): Promise<Omit<SolveResult, "read">> {
+  const r = await solveByAi(ask, problem, extra);
+  const q = r.solution.value && (r.solution.engineQuery || "");
+  if (!engine || !q) return r;
+  const said = await engine(q);
+  const n = engineNumber(said);
+  if (Number.isNaN(n)) return { ...r, engine: { result: "none" } };
+  if (engineAgrees(r.solution.value, n)) {
+    const check: EngineCheck = { result: "agrees", said };
+    return r.verdict === "unsure"
+      ? { solution: r.solution, verdict: "settled", note: `Wolfram|Alpha computed the same answer (${said}), so this one is confirmed.`, engine: check }
+      : { ...r, note: `${r.note} Wolfram|Alpha computed the same answer (${said}).`, engine: check };
+  }
+  // The engine disagrees: solve again knowing what it computed (its input could have misread the problem too).
+  const user = `${extra}PROBLEM:\n${problem}\n\nA solution gave ${r.solution.value}. The math engine Wolfram|Alpha, asked "${q}", computed: ${said}. Work the problem again from the start. If the engine's input matches the problem, its number is exact. If the engine's input misread the problem, explain that in a step and give the right answer.`;
+  const j = cleanSolution(json(await ask(JUDGE, user, 3500).catch(() => "")));
+  if (j && !wrongChecks(j.checks).length && engineAgrees(j.value, n))
+    return { solution: j, verdict: "settled", note: `The first answer didn't match Wolfram|Alpha (${said}), so it was solved again; the new answer matches it, and every calculation was rechecked.`, engine: { result: "agrees", said } };
+  return { solution: j || r.solution, verdict: "unsure", note: `Wolfram|Alpha computed ${said} for "${q}", which doesn't match this answer. Check which is right before using it.`, engine: { result: "disagrees", said } };
+}
+
+async function solveByAi(ask: LessonAsk, problem: string, extra: string): Promise<Omit<SolveResult, "read">> {
   const user = `${extra}PROBLEM:\n${problem}`;
   const [ra, rb] = await Promise.allSettled([ask(SOLVER_A, user, 3500), ask(SOLVER_B, user, 3500)]);
   const a = ra.status === "fulfilled" ? cleanSolution(json(ra.value)) : null;
@@ -76,6 +120,7 @@ export async function solveChecked(ask: LessonAsk, problem: string, extra: strin
 export function registerProblemSolverRoutes(app: Express, authMiddleware: RequestHandler, deps: ProblemSolverDeps) {
   const ask = deps.ask ?? askOpenAI;
   const see = deps.seePhoto ?? seePhotoAnyAi;
+  const engine = deps.engine === undefined ? wolframEngine() : deps.engine;
   const limited = (req: any, res: any) => {
     const who = `u${req.user?.id}`;
     const wait = limits.retryAfter(who);
@@ -111,7 +156,7 @@ export function registerProblemSolverRoutes(app: Express, authMiddleware: Reques
     const grade = s(req.body?.grade, 20), subject = s(req.body?.subject, 40);
     const extra = [subject && `Subject: ${subject}.`, grade && `Explain it for a grade ${grade} student.`].filter(Boolean).join(" ");
     try {
-      const out = await solveChecked(ask, problem, extra ? `${extra}\n\n` : "");
+      const out = await solveChecked(ask, problem, extra ? `${extra}\n\n` : "", engine);
       return res.json({ read: problem, ...out });
     } catch (e: any) { return failed(res, e); }
   });

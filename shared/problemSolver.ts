@@ -22,9 +22,13 @@ export type Solution = {
   /** For multiple choice: the letter. Else "". */
   choice: string;
   checks: MathCheck[];
+  /** For a number answer: one Wolfram|Alpha input that computes it straight from the problem's numbers. */
+  engineQuery?: string;
 };
 export type Verdict = "checked" | "settled" | "unsure";
-export type SolveResult = { read: string; solution: Solution; verdict: Verdict; note: string };
+/** What the math engine said: it computed the same answer, a different one, or wasn't asked. */
+export type EngineCheck = { result: "agrees" | "disagrees" | "none"; said?: string };
+export type SolveResult = { read: string; solution: Solution; verdict: Verdict; note: string; engine?: EngineCheck };
 
 /** One solved problem kept in the teacher's history (no photo is kept, only what was read). */
 export type SolvedProblem = SolveResult & { id: string; at: string };
@@ -158,6 +162,7 @@ export function cleanSolution(raw: any): Solution | null {
     value: str(raw?.value, 80),
     choice: /^[A-Ja-j]$/.test(str(raw?.choice, 2)) ? str(raw?.choice, 2).toUpperCase() : "",
     checks: (Array.isArray(raw?.checks) ? raw.checks : []).slice(0, 30).map((c: any) => ({ expr: str(c?.expr, 200), equals: str(c?.equals, 80) })).filter((c: MathCheck) => c.expr && c.equals),
+    ...(str(raw?.engineQuery ?? raw?.check_query, 300) ? { engineQuery: str(raw?.engineQuery ?? raw?.check_query, 300) } : {}),
   };
 }
 
@@ -169,7 +174,9 @@ export function cleanSolved(raw: unknown): SolvedProblem[] {
     const id = str((r as any)?.id, 60);
     if (!solution || !id) continue;
     const v = (r as any).verdict;
-    out.push({ id, at: str((r as any).at, 40), read: str((r as any).read, 6000), solution, verdict: v === "checked" || v === "settled" ? v : "unsure", note: str((r as any).note, 400) });
+    const e = (r as any).engine;
+    out.push({ id, at: str((r as any).at, 40), read: str((r as any).read, 6000), solution, verdict: v === "checked" || v === "settled" ? v : "unsure", note: str((r as any).note, 400),
+      ...(e && (e.result === "agrees" || e.result === "disagrees") ? { engine: { result: e.result, said: str(e.said, 200) } } : {}) });
   }
   return out;
 }
@@ -182,4 +189,27 @@ export function solutionText(r: Pick<SolveResult, "solution">): string {
     .replace(/\\pi/g, "π").replace(/\\[a-z]+/g, "").replace(/[{}]/g, ""));
   const s = r.solution;
   return [s.question && `Problem: ${plain(s.question)}`, ...s.steps.map((x, i) => `${i + 1}. ${plain(x.text)}`), `Answer: ${plain(s.answer)}`].filter(Boolean).join("\n");
+}
+
+// ── The math engine's check (Wolfram|Alpha) ────────────────────────────────
+
+/**
+ * The single number in a math engine's short answer ("14 inches", "0.324074%", "x = -3", "7/8", "$18.00"),
+ * or NaN when there isn't exactly one (no number, or several like "x = -3 or x = 3").
+ */
+export function engineNumber(text: string): number {
+  const t = String(text || "").replace(/(\d),(?=\d{3}\b)/g, "$1").replace(/−/g, "-");
+  const found = t.match(/-?\d+(?:\.\d+)?(?:\s*\/\s*\d+)?\s*%?/g) || [];
+  if (found.length !== 1 || /\b(or|and)\b/i.test(t)) return NaN;
+  return evaluate(found[0].replace(/\s+/g, ""));
+}
+
+/**
+ * Whether the engine's number backs the solution's value. Allows rounding to the places the solution shows,
+ * and a percent given either way ("0.32" for 0.32% from an engine that says 0.0032).
+ */
+export function engineAgrees(solutionValue: string, engineValue: number): boolean {
+  const v = evaluate(solutionValue);
+  if (Number.isNaN(v) || Number.isNaN(engineValue)) return false;
+  return sameNumber(engineValue, v, solutionValue) || sameNumber(engineValue * 100, v, solutionValue) || sameNumber(engineValue / 100, v, solutionValue);
 }
