@@ -2,7 +2,7 @@
 // everyone else, written to client/public/for/<slug>/index.html, plus the /for/ list. The tools on each page come
 // from the job's bundle in shared/pluginStore.ts, so a page never names a tool the app doesn't have.
 // Run with: npx tsx script/industryPages.ts   (tests/industry-pages.test.ts checks the pages match.)
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { HUB_TEMPLATES, pluginsFor } from "../shared/pluginStore";
 
 export const UPDATED = "2026-11-26";
@@ -11,6 +11,586 @@ const SITE = "https://arisetodo.com";
 export type Audience = {
   slug: string; bundle?: string; nav: string; kicker: string; title: string; h1: [string, string]; lead: string;
   pains: [string, string][]; sample: string[]; faq: [string, string][];
+};
+/** What the homepage-style layout needs on top: the person in the mock-ups, their spaces, and the short lines. */
+export type Look = { noun: string; greet: string; workspace: string; spaces: string[]; tags: string[]; strip: string[]; micro: string[]; floats: [string, string]; cta: [string, string] };
+export const LOOKS: Record<string, Look> = {
+ "teachers": {
+  "noun": "teacher",
+  "greet": "Hello, Ms. Rivera",
+  "workspace": "My classroom",
+  "spaces": [
+   "Lessons",
+   "Gradebook",
+   "Families"
+  ],
+  "tags": [
+   "Grading",
+   "Families",
+   "Prep",
+   "Sub plans",
+   "IEP"
+  ],
+  "strip": [
+   "Lessons & gradebook",
+   "Attendance & behavior",
+   "Parents & email",
+   "Sub plans, ready"
+  ],
+  "micro": [
+   "Free for teachers",
+   "Lessons to IEPs",
+   "Works on any device"
+  ],
+  "floats": [
+   "Your class, in one place",
+   "Planning period, saved"
+  ],
+  "cta": [
+   "Your classroom.",
+   "Your command center."
+  ]
+ },
+ "business-owners": {
+  "noun": "business owner",
+  "greet": "Morning, Dana",
+  "workspace": "My shop",
+  "spaces": [
+   "Clients",
+   "Sales",
+   "Team"
+  ],
+  "tags": [
+   "Leads",
+   "Stock",
+   "Invoices",
+   "Taxes",
+   "Books"
+  ],
+  "strip": [
+   "Clients & leads",
+   "Sales & expenses",
+   "Stock & vendors",
+   "Tax dates"
+  ],
+  "micro": [
+   "Free to start",
+   "Clients to taxes",
+   "Works on any device"
+  ],
+  "floats": [
+   "The whole business, one place",
+   "Follow-up done"
+  ],
+  "cta": [
+   "Your business.",
+   "Your command center."
+  ]
+ },
+ "accountants": {
+  "noun": "accountant",
+  "greet": "Hello, Priya",
+  "workspace": "My practice",
+  "spaces": [
+   "Clients",
+   "Returns",
+   "Billing"
+  ],
+  "tags": [
+   "Docs",
+   "Filing",
+   "Billing",
+   "Mileage",
+   "Close"
+  ],
+  "strip": [
+   "Clients & returns",
+   "Missing documents",
+   "Billable hours",
+   "Deadlines & close"
+  ],
+  "micro": [
+   "Free to start",
+   "Built for tax season",
+   "Works on any device"
+  ],
+  "floats": [
+   "Every return, tracked",
+   "Docs requested"
+  ],
+  "cta": [
+   "Tax season.",
+   "Under control."
+  ]
+ },
+ "creators": {
+  "noun": "creator",
+  "greet": "Hey, Jordan",
+  "workspace": "My channel",
+  "spaces": [
+   "Content",
+   "Brand deals",
+   "Ideas"
+  ],
+  "tags": [
+   "Filming",
+   "Deals",
+   "Editing",
+   "Invoices",
+   "DMs"
+  ],
+  "strip": [
+   "Content calendar",
+   "Brand deals",
+   "Hooks & ideas",
+   "Growth tracking"
+  ],
+  "micro": [
+   "Free to start",
+   "Plan, post, get paid",
+   "Works on any device"
+  ],
+  "floats": [
+   "Posting streak: 12 days",
+   "Deal signed"
+  ],
+  "cta": [
+   "Your content.",
+   "Your command center."
+  ]
+ },
+ "personal-trainers": {
+  "noun": "trainer",
+  "greet": "Morning, Coach Mike",
+  "workspace": "My clients",
+  "spaces": [
+   "Clients",
+   "Sessions",
+   "Classes"
+  ],
+  "tags": [
+   "Programs",
+   "Intake",
+   "Class",
+   "Billing",
+   "Content"
+  ],
+  "strip": [
+   "Clients & sessions",
+   "Class schedule",
+   "New client intake",
+   "Sales & invoices"
+  ],
+  "micro": [
+   "Free to start",
+   "Clients to invoices",
+   "Works on any device"
+  ],
+  "floats": [
+   "8 sessions this week",
+   "Intake done"
+  ],
+  "cta": [
+   "Your clients.",
+   "Your command center."
+  ]
+ },
+ "real-estate-agents": {
+  "noun": "real estate agent",
+  "greet": "Hello, Alicia",
+  "workspace": "My listings",
+  "spaces": [
+   "Listings",
+   "Buyers",
+   "Closings"
+  ],
+  "tags": [
+   "Showing",
+   "Leads",
+   "Open house",
+   "Closing",
+   "Mileage"
+  ],
+  "strip": [
+   "Listings & buyers",
+   "Showings",
+   "Contract to close",
+   "Leads & mileage"
+  ],
+  "micro": [
+   "Free to start",
+   "Listing to keys",
+   "Works on any device"
+  ],
+  "floats": [
+   "3 showings today",
+   "Under contract"
+  ],
+  "cta": [
+   "Every deal.",
+   "Closed on time."
+  ]
+ },
+ "health-care": {
+  "noun": "health care worker",
+  "greet": "Hi, Nurse Tasha",
+  "workspace": "My shifts",
+  "spaces": [
+   "Shifts",
+   "CE credits",
+   "Licenses"
+  ],
+  "tags": [
+   "License",
+   "Shift",
+   "CE",
+   "Schedule",
+   "Self-care"
+  ],
+  "strip": [
+   "Shift log",
+   "CE credits",
+   "License renewals",
+   "Care for the carer"
+  ],
+  "micro": [
+   "Free to start",
+   "No patient data",
+   "Works on any device"
+  ],
+  "floats": [
+   "BLS renewal in 30 days",
+   "Shift logged"
+  ],
+  "cta": [
+   "Your shifts.",
+   "Your credits. Handled."
+  ]
+ },
+ "contractors": {
+  "noun": "contractor",
+  "greet": "Morning, Luis",
+  "workspace": "My jobs",
+  "spaces": [
+   "Jobs",
+   "Estimates",
+   "Materials"
+  ],
+  "tags": [
+   "Estimate",
+   "Materials",
+   "Safety",
+   "Invoice",
+   "Tools"
+  ],
+  "strip": [
+   "Jobs & estimates",
+   "Materials & tools",
+   "Site safety",
+   "Invoices"
+  ],
+  "micro": [
+   "Free to start",
+   "Bid to paid",
+   "Works on any device"
+  ],
+  "floats": [
+   "4 jobs this week",
+   "Estimate sent"
+  ],
+  "cta": [
+   "Every job.",
+   "In your pocket."
+  ]
+ },
+ "salons-and-barbers": {
+  "noun": "stylist",
+  "greet": "Hey, Keisha",
+  "workspace": "My chair",
+  "spaces": [
+   "Clients",
+   "Services",
+   "Stock"
+  ],
+  "tags": [
+   "Stock",
+   "Social",
+   "Client",
+   "Tips",
+   "Stock"
+  ],
+  "strip": [
+   "Client formulas",
+   "Service menu",
+   "Tips & sales",
+   "Product stock"
+  ],
+  "micro": [
+   "Free to start",
+   "Chair to checkout",
+   "Works on any device"
+  ],
+  "floats": [
+   "6 clients today",
+   "Formula saved"
+  ],
+  "cta": [
+   "Your chair.",
+   "Your clients, your way."
+  ]
+ },
+ "restaurants": {
+  "noun": "restaurant owner",
+  "greet": "Morning, Chef Ana",
+  "workspace": "My kitchen",
+  "spaces": [
+   "Opening",
+   "Orders",
+   "Team"
+  ],
+  "tags": [
+   "Temps",
+   "Orders",
+   "Closing",
+   "Schedule",
+   "Sales"
+  ],
+  "strip": [
+   "Opening & closing",
+   "Temperature log",
+   "Orders & stock",
+   "Team & sales"
+  ],
+  "micro": [
+   "Free to start",
+   "Open to close",
+   "Works on any device"
+  ],
+  "floats": [
+   "Opening checklist done",
+   "Walk-in at 36°"
+  ],
+  "cta": [
+   "Open, close,",
+   "and everything between."
+  ]
+ },
+ "sales": {
+  "noun": "sales rep",
+  "greet": "Morning, Marcus",
+  "workspace": "My pipeline",
+  "spaces": [
+   "Pipeline",
+   "Calls",
+   "Clients"
+  ],
+  "tags": [
+   "Calls",
+   "Follow-up",
+   "Pricing",
+   "Mileage",
+   "QBR"
+  ],
+  "strip": [
+   "Pipeline",
+   "Calls & objections",
+   "Better follow-ups",
+   "Book the meeting"
+  ],
+  "micro": [
+   "Free to start",
+   "Lead to closed",
+   "Works on any device"
+  ],
+  "floats": [
+   "12 calls today",
+   "Demo booked"
+  ],
+  "cta": [
+   "Every lead.",
+   "Followed up."
+  ]
+ },
+ "freelancers": {
+  "noun": "freelancer",
+  "greet": "Hey, Sam",
+  "workspace": "My studio",
+  "spaces": [
+   "Projects",
+   "Pitches",
+   "Invoices"
+  ],
+  "tags": [
+   "Client work",
+   "Pitch",
+   "Invoice",
+   "Portfolio",
+   "Taxes"
+  ],
+  "strip": [
+   "Projects & pitches",
+   "Billable hours",
+   "Invoices",
+   "Expenses & taxes"
+  ],
+  "micro": [
+   "Free to start",
+   "Pitch to paid",
+   "Works on any device"
+  ],
+  "floats": [
+   "6 billable hours today",
+   "Invoice paid"
+  ],
+  "cta": [
+   "Do the work.",
+   "Get paid for it."
+  ]
+ },
+ "nonprofits": {
+  "noun": "for your nonprofit",
+  "greet": "Hello, Pastor James",
+  "workspace": "Our mission",
+  "spaces": [
+   "Donors",
+   "Events",
+   "Grants"
+  ],
+  "tags": [
+   "Donors",
+   "Grants",
+   "Volunteers",
+   "Newsletter",
+   "Board"
+  ],
+  "strip": [
+   "Donors",
+   "Events & fundraisers",
+   "Grants",
+   "Newsletters & notes"
+  ],
+  "micro": [
+   "Free to start",
+   "Donor to thank-you",
+   "Works on any device"
+  ],
+  "floats": [
+   "Gala: 42 thank-yous sent",
+   "Grant submitted"
+  ],
+  "cta": [
+   "More mission.",
+   "Less mess."
+  ]
+ },
+ "legal": {
+  "noun": "lawyer",
+  "greet": "Good morning, Ms. Harper",
+  "workspace": "My matters",
+  "spaces": [
+   "Matters",
+   "Billing",
+   "Clients"
+  ],
+  "tags": [
+   "Filing",
+   "Billing",
+   "Discovery",
+   "Client",
+   "Drafting"
+  ],
+  "strip": [
+   "Matters & deadlines",
+   "Billable hours",
+   "Drafts & notes",
+   "Clients"
+  ],
+  "micro": [
+   "Free to start",
+   "Every deadline kept",
+   "Works on any device"
+  ],
+  "floats": [
+   "Next deadline: Friday",
+   "2.2 hrs billed"
+  ],
+  "cta": [
+   "Every matter.",
+   "Every deadline."
+  ]
+ },
+ "job-seekers": {
+  "noun": "job seeker",
+  "greet": "You've got this, Alex",
+  "workspace": "My job search",
+  "spaces": [
+   "Applications",
+   "Interviews",
+   "Resume"
+  ],
+  "tags": [
+   "Apply",
+   "Follow-up",
+   "Practice",
+   "Resume",
+   "Interview"
+  ],
+  "strip": [
+   "Application tracker",
+   "Interview practice",
+   "Resume & cover letters",
+   "Book the interview"
+  ],
+  "micro": [
+   "Free to start",
+   "Apply to offer",
+   "Works on any device"
+  ],
+  "floats": [
+   "8 applications out",
+   "Interview booked"
+  ],
+  "cta": [
+   "The next job.",
+   "One step at a time."
+  ]
+ },
+ "everyone": {
+  "noun": "",
+  "greet": "Good morning, Taylor",
+  "workspace": "My day",
+  "spaces": [
+   "Home",
+   "Family",
+   "Money"
+  ],
+  "tags": [
+   "Groceries",
+   "Bills",
+   "Family",
+   "Personal",
+   "Health"
+  ],
+  "strip": [
+   "To-dos & reminders",
+   "Groceries & chores",
+   "Bills & budget",
+   "Family calendar"
+  ],
+  "micro": [
+   "Free to start",
+   "For the whole family",
+   "Works on any device"
+  ],
+  "floats": [
+   "Your day, in one place",
+   "Little wins, big difference"
+  ],
+  "cta": [
+   "Your whole life.",
+   "One simple list."
+  ]
+ }
 };
 
 export const AUDIENCES: Audience[] = [
@@ -122,70 +702,68 @@ export function bundleTools(bundleId: string): { name: string; tagline: string }
   return pack.plugins.map((id: string) => all.get(id)).filter(Boolean).map((p: any) => ({ name: p.name, tagline: p.tagline || "" }));
 }
 
-const STYLE = `:root{--ink:#1c2238;--muted:#5d6782;--line:#e6eaf3;--bg:#f9fafc;--card:#fff;--accent:#6e5ae0;--dark:#292446;--grad:linear-gradient(115deg,#10b9af 0%,#5279ed 53%,#9363e7 100%)}
-*{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
-a{color:#4b5fd6}a:focus-visible{outline:3px solid #8b78f0;outline-offset:3px}
-.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
-header.top{position:sticky;top:0;z-index:20;background:rgba(249,250,252,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
-header.top .wrap{display:flex;align-items:center;gap:18px;min-height:64px}
-.logo{display:inline-flex;align-items:center;gap:10px;font:800 19px/1 Manrope,system-ui,sans-serif;letter-spacing:-.6px;color:var(--ink);text-decoration:none;margin-right:auto}
-.logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.logo i{width:30px;height:30px;border-radius:9px;background:var(--grad);display:inline-block}
-nav.links{display:flex;gap:16px;font-size:14px;font-weight:700}nav.links a{color:var(--muted);text-decoration:none}nav.links a:hover{color:var(--ink)}
-.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:13px;font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap}
-.btn.primary{color:#fff;background:linear-gradient(110deg,#16b4bb,#5478e9 61%,#8665e8);box-shadow:0 10px 23px rgba(76,106,223,.2)}
-.btn.ghost{color:var(--ink);background:#fff;border:1px solid var(--line)}
-.crumbs{font-size:13px;color:var(--muted);padding-top:22px}.crumbs a{color:var(--muted)}
-.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:34px;align-items:center;padding:30px 0 46px}
-.kicker{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:800;color:var(--tone)}
-h1{font:800 clamp(34px,5.2vw,54px)/1.06 Manrope,system-ui,sans-serif;letter-spacing:-1.6px;margin:10px 0 16px}
-h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lead{font-size:clamp(17px,2vw,20px);color:var(--muted);margin:0 0 24px}
-.cta{display:flex;flex-wrap:wrap;gap:10px}
-.note{font-size:13px;color:var(--muted);margin-top:10px}
-.phone{background:#14122a;border-radius:34px;padding:12px;max-width:270px;margin:0 auto;box-shadow:0 24px 60px rgba(30,30,70,.22)}
-.phone>div{background:#fff;border-radius:24px;padding:18px 14px}
-.phone h4{margin:0 0 2px;font:800 15px/1.3 Manrope,system-ui,sans-serif}.phone small{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
-.phone ul{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:7px}
-.phone li{display:flex;gap:9px;align-items:center;font-size:13px;font-weight:700;border:1px solid #ecebf5;border-radius:11px;padding:9px 10px}
-.phone li::before{content:"";flex:none;width:15px;height:15px;border-radius:50%;border:2px solid var(--tone)}
-.phone li:first-child::before{background:var(--tone)}
-section{padding:40px 0;border-top:1px solid var(--line)}
-h2{font:800 clamp(26px,3.4vw,36px)/1.15 Manrope,system-ui,sans-serif;letter-spacing:-.8px;margin:0 0 14px}
-h3{font:800 18px/1.3 Manrope,system-ui,sans-serif;margin:0 0 6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;border-top:4px solid var(--tone)}
-.card p{margin:0;color:var(--muted);font-size:15px}
-.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:18px;padding:0;list-style:none}
-.tools li{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-weight:800}
-.tools li small{display:block;font-weight:500;color:var(--muted)}
-ol.steps{counter-reset:s;list-style:none;padding:0;margin:18px 0 0;display:grid;gap:12px}
-ol.steps li{counter-increment:s;position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px 16px 62px}
-ol.steps b{display:block}
-ol.steps li::before{content:counter(s);position:absolute;left:18px;top:16px;width:30px;height:30px;border-radius:10px;background:var(--dark);color:#fff;display:grid;place-items:center;font-weight:800}
-.check{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
-.check li{padding-left:30px;position:relative}.check li::before{content:"✓";position:absolute;left:4px;font-weight:900;color:#10a99f}
-details{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 18px;margin-top:10px}
-summary{cursor:pointer;font-weight:800;padding:12px 0;list-style:none}summary::-webkit-details-marker{display:none}
-summary::after{content:"+";float:right;font-weight:800;color:var(--accent)}details[open] summary::after{content:"–"}
-details p{color:var(--muted);margin-top:0}
-.band{background:var(--dark);color:#fff;border-radius:26px;padding:34px 28px;margin:10px 0 40px}
-.band h2{color:#fff}.band p{color:#d8d4f3}
-.more{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:14px}
-.more a{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;text-decoration:none;color:var(--ink);font-weight:800}
-.more a small{display:block;font-weight:500;color:var(--muted)}
-.more a[aria-current]{border-color:var(--tone)}
-footer{border-top:1px solid var(--line);padding:26px 0 40px;font-size:13px;color:var(--muted)}
-footer .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:space-between}footer a{color:var(--muted)}
-@media(max-width:820px){.hero{grid-template-columns:1fr}.phone{max-width:240px}}
-@media(max-width:720px){nav.links{display:none}}`;
+// ——— The homepage's own design ———
+// The stylesheet is the homepage's (client/public/educator.html), copied into /for/site.css each time this runs,
+// so these pages always look like the homepage. The few rules below are only for parts the homepage doesn't have.
+const HOME = () => readFileSync(new URL("../client/public/educator.html", import.meta.url), "utf8");
+export function siteCss(): string {
+  const blocks = [...HOME().matchAll(/<style(?: id="[^"]*")?>([\s\S]*?)<\/style>/g)].map((m) => m[1].trim());
+  return `/* Made by script/industryPages.ts from the homepage's styles (client/public/educator.html). Don't edit by hand. */\n${blocks.join("\n")}\n${EXTRA_CSS}`;
+}
+const EXTRA_CSS = `
+/* Who it's for pages */
+.for-hero .hero-copy h1{max-width:620px}
+.toolkit-section{padding:96px 0;background:linear-gradient(180deg,#fbfbff,#f4f6fc)}
+.toolkit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:30px}
+.toolkit-grid .showcase-card{cursor:default}
+.toolkit-grid .showcase-card:hover{transform:none}
+.toolkit-foot{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin-top:26px;color:#69738c;font-size:14px}
+.toolkit-foot a{color:#506fe0;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;gap:6px}.toolkit-foot a svg{width:16px;height:16px}
+.preview-task .tag{margin-left:auto}
+.preview-task.done .task-name{text-decoration:line-through;color:#a7aec0}
+.mini-checkbox:checked{background:#5b53df;border-color:#5b53df}
+.mini-checkbox:checked::after{content:"";width:6px;height:3px;border:solid #fff;border-width:0 0 2px 2px;transform:rotate(-45deg) translate(1px,-1px)}
+.jobs-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:30px}
+.job-card{display:flex;gap:13px;align-items:center;padding:16px;background:#fff;border:1px solid #e6ebf3;border-radius:19px;text-decoration:none;color:#1f2440;box-shadow:0 5px 14px #26365805;transition:transform .18s,border-color .18s,box-shadow .18s}
+.job-card:hover{transform:translateY(-2px);border-color:#c9c0f7;box-shadow:0 14px 28px #26365812}
+.job-card .showcase-icon{flex:none}
+.job-card strong{display:block;font-size:15px}.job-card small{display:block;color:#69738c;font-size:12.5px;line-height:1.45;margin-top:2px}
+.job-card.current{border-color:#b9adf5;background:#faf9ff}
+@media(max-width:980px){.toolkit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.jobs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.toolkit-grid,.jobs-grid{grid-template-columns:1fr}.toolkit-section{padding:70px 0}}
+`;
+
+const LOGO = () => (/<img class="logo-symbol" src="([^"]+)"/.exec(HOME()) || [, ""])[1];
+const SPRITE = () => (/<svg aria-hidden="true" xmlns="http:\/\/www\.w3\.org\/2000\/svg" style="position:absolute;width:0;height:0;overflow:hidden">[\s\S]*?<\/svg>/.exec(HOME()) || [""])[0];
+const PRICING = (withSchools: boolean) => {
+  let html = (/<section class="pricing-section" id="pricing"[\s\S]*?<\/section>/.exec(HOME()) || [""])[0];
+  if (!withSchools) html = html.replace(/\s*<div class="pricing-grid" style="margin-top:22px" data-testid="pricing-schools">[\s\S]*?<\/article>\s*<\/div>/, "").replace(/\s*<p class="pricing-note">Arise Reader learning programs[\s\S]*?<\/p>/, "");
+  return html;
+};
+
+const TAG_CLASS = ["work", "", "family", "personal", "work"];
+const DOTS = ["#a38cfa", "#f59e0b", "#10b981", "#3b82f6", "#ec4899"];
+const ACCENTS = ["#5b53df", "#e99b5f", "#16a39a", "#4f7be8", "#d9577e", "#8a63e6", "#23a26d", "#e0a23a"];
+/** An icon from the homepage's set that fits a tool's name. */
+export function iconFor(name: string): string {
+  const n = name.toLowerCase();
+  if (/client|donor|buyer|team|roster|collab|parent|famil|student/.test(n)) return "i-users";
+  if (/calendar|schedule|class|time|find a|deadline|date|showing|shift|session|event|interview/.test(n)) return "i-calendar";
+  if (/invoice|sale|expense|revenue|billable|tip|mileage|money|price|follower|calls|hours|grade/.test(n)) return "i-chart";
+  if (/checklist|close|closing|opening|safety|onboard|intake|prep|routine|start/.test(n)) return "i-check";
+  if (/idea|hook|brainstorm|helper|writer|rewrite|bullet|cover letter|newsletter|summar|objection|finisher/.test(n)) return "i-spark";
+  if (/doc|note|sheet|letter|resume|pitch|portfolio|lesson|sub plan|plan/.test(n)) return "i-notes";
+  if (/care|heart|behavior|wall/.test(n)) return "i-heart";
+  if (/focus|goal|lead|pipeline|matter|grant|fundrais|target|application/.test(n)) return "i-target";
+  if (/repeat|month|weekly/.test(n)) return "i-repeat";
+  return "i-list";
+}
 
 const head = (title: string, desc: string, path: string, ld: object) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -196,101 +774,198 @@ const head = (title: string, desc: string, path: string, ld: object) => `<!docty
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(desc)}" />
 <meta property="og:image" content="${SITE}/todo-og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="theme-color" content="#F8FAFD" />
+<meta name="twitter:title" content="${esc(title)}" />
+<meta name="twitter:description" content="${esc(desc)}" />
+<meta name="twitter:image" content="${SITE}/todo-og.png" />
+<meta name="theme-color" content="#f9faff" />
 <link rel="icon" type="image/svg+xml" href="/todo-favicon.svg?v=20261012" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/todo.webmanifest" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/for/site.css?v=${UPDATED}" />
 <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\\u003c")}</script>
-<style>
-${STYLE}
-</style>
 </head>`;
 
-const topBar = `<header class="top"><div class="wrap">
- <a class="logo" href="/" aria-label="Arise To Do home"><i aria-hidden="true"></i><span>Arise <b>To Do</b></span></a>
- <nav class="links" aria-label="Main"><a href="/for/">Who it's for</a><a href="/for/teachers/">Teachers</a><a href="/for/business-owners/">Business</a><a href="/for/everyone/">Everyone</a><a href="/#pricing">Pricing</a><a href="/app#/signin">Sign in</a></nav>
- <a class="btn primary" href="/app#/signin?create">Get it free</a>
-</div></header>`;
+const logo = (href: string, label: string) => `<a class="logo" href="${href}" aria-label="${label}"><img class="logo-symbol" src="${LOGO()}" alt="" /><span>Arise <span class="todo">To Do</span></span></a>`;
 
-const footer = `<footer><div class="wrap"><span>Arise To Do · To-dos, calendar and the tools for your work and your life · Updated November 26, 2026</span><span><a href="/">Home</a> · <a href="/for/">Who it's for</a> · <a href="/#pricing">Pricing</a> · <a href="/privacy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/app#/signin">Sign in</a></span></div></footer>`;
+const header = (links: [string, string][]) => `<header class="site-header">
+ <div class="container nav-inner">
+  ${logo("/", "Arise To Do home")}
+  <nav class="nav-links" id="navLinks" aria-label="Main navigation">${links.map(([h, t]) => `<a href="${h}">${t}</a>`).join("")}<a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin?create">Create account</a></nav>
+  <div class="nav-auth"><a class="header-signin" href="#pricing">Pricing</a><a class="header-signin" href="/app#/signin">Sign in</a><a class="button button-primary" href="/app#/signin?create">Get started <svg><use href="#i-arrow"/></svg></a></div>
+  <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg><use href="#i-menu"/></svg></button>
+ </div>
+</header>`;
 
-const who = (a: Audience) => (a.bundle ? a.kicker.replace(/^For (\w)/, (_, c: string) => c.toUpperCase()) : "To-dos, home, family and money");
-const allLinks = (current: string) => `<div class="more">${AUDIENCES.map((a) => `<a href="/for/${a.slug}/"${a.slug === current ? ' aria-current="page"' : ""}>${esc(a.nav)}<small>${esc(who(a))}</small></a>`).join("")}</div>`;
+const footer = () => `<footer class="site-footer"><div class="container footer-inner">${logo("#top", "Back to top")}<span class="footer-text">Arise To Do · To-dos, calendar and the tools for your work and your life · 2026</span><span class="footer-actions"><a class="footer-link" href="/">Home</a><a class="footer-link" href="/for/">Who it's for</a><a class="footer-link" href="/for/everyone/">For everyone</a><a class="footer-link" href="/#pricing">Pricing</a><a class="footer-link" href="/privacy/">Privacy</a><a class="footer-link" href="/terms/">Terms</a><a class="footer-link" href="/app#/signin">Sign in</a><a class="footer-link" href="/app#/signin?create">Create account</a><a class="footer-link" href="#top">Back to top ↑</a></span></div></footer>`;
+
+// The menu button and the hero's checkboxes, the same way the homepage does them.
+const SCRIPT = `<script>
+(function(){var m=document.getElementById('menuToggle'),n=document.getElementById('navLinks');if(m&&n){m.addEventListener('click',function(){var o=n.classList.toggle('show');m.setAttribute('aria-expanded',String(o));m.setAttribute('aria-label',o?'Close menu':'Open menu')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('show');m.setAttribute('aria-expanded','false')})})}
+var boxes=[].slice.call(document.querySelectorAll('#previewList .mini-checkbox'));function count(){var d=boxes.filter(function(b){return b.checked}).length,t=boxes.length,p=Math.round(d/t*100);document.getElementById('heroCompleted').textContent=d;document.getElementById('heroPercent').textContent=p+'%';document.getElementById('heroRing').style.setProperty('--progress',p+'%')}
+boxes.forEach(function(b){b.addEventListener('change',function(){b.closest('.preview-task').classList.toggle('done',b.checked);count()})});
+var d=document.getElementById('mockDate');if(d){try{d.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}).toUpperCase()}catch(e){}}})();
+</script>`;
+
+function jobCards(current: string): string {
+  return `<div class="jobs-grid">${AUDIENCES.map((a, i) => {
+    const pack = a.bundle ? HUB_TEMPLATES.find((t) => t.id === a.bundle) : undefined;
+    const color = (pack as any)?.color || "#5b53df";
+    const sub = a.bundle ? (pack as any).tagline : "To-dos, home, family and money";
+    return `<a class="job-card${a.slug === current ? " current" : ""}" href="/for/${a.slug}/"${a.slug === current ? ' aria-current="page"' : ""} style="--app-accent:${color}"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#${a.bundle ? iconFor(a.nav + " " + sub) : "i-heart"}"></use></svg></span><span><strong>${esc(a.nav)}</strong><small>${esc(sub)}</small></span></a>`;
+  }).join("")}</div>`;
+}
 
 export function audiencePage(a: Audience): string {
+  const L = LOOKS[a.slug];
   const path = `/for/${a.slug}/`;
   const pack = a.bundle ? HUB_TEMPLATES.find((t) => t.id === a.bundle) : undefined;
-  const tone = (pack as any)?.color || "#6e5ae0";
   const tools = a.bundle ? bundleTools(a.bundle) : [];
   const hub = a.bundle ? "WorkHub" : "LifeHub";
+  const who = a.kicker.replace(/^For /, "");
+  const start = !a.bundle ? "Start free" : L.noun.startsWith("for ") ? `Start free ${L.noun}` : `Start free as ${/^[aeiou]/i.test(L.noun) ? "an" : "a"} ${L.noun}`;
   const title = `${a.title} | Arise To Do`;
   const ld = { "@context": "https://schema.org", "@graph": [
-    { "@type": "WebPage", "@id": `${SITE}${path}`, url: `${SITE}${path}`, name: title, description: a.lead, dateModified: UPDATED, isPartOf: { "@type": "WebSite", name: "Arise To Do", url: `${SITE}/` } },
-    { "@type": "FAQPage", mainEntity: a.faq.map(([q, ans]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: ans } })) },
+    { "@type": "WebPage", "@id": `${SITE}${path}`, url: `${SITE}${path}`, name: title, description: a.lead, dateModified: UPDATED, isPartOf: { "@type": "WebSite", name: "Arise To Do", url: `${SITE}/` },
+      breadcrumb: { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Arise To Do", item: `${SITE}/` }, { "@type": "ListItem", position: 2, name: "Who it's for", item: `${SITE}/for/` }, { "@type": "ListItem", position: 3, name: a.nav, item: `${SITE}${path}` }] } },
+    { "@type": "SoftwareApplication", name: "Arise To Do", applicationCategory: "ProductivityApplication", operatingSystem: "iOS, Web", offers: { "@type": "Offer", price: "0", priceCurrency: "USD" } },
+    { "@type": "FAQPage", mainEntity: faqs(a).map(([q, ans]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: ans } })) },
   ] };
-  const setup = a.bundle
-    ? [["Make your free account", "It takes a minute, and it's free."], [`Open WorkHub's Plugin Gallery`, `Under <b>Bundles by job</b>, tap <b>${esc(pack!.name)}</b>, then <b>Add all</b>.`], ["Make it yours", "Hide what you don't use, add your to-dos, and connect Google Calendar from the Calendar page."]]
-    : [["Make your free account", "It takes a minute, and it's free."], ["Start in LifeHub", "Add your to-dos, groceries and bills. Due dates and reminders come back on their own."], ["Bring in your family and calendar", "Invite your family to FamilyHub and connect Google Calendar or your iPhone calendar."]];
+  const hero4 = a.sample.slice(0, 4);
+  const features: [string, string, string, string][] = a.bundle ? [
+    ["blue", "i-list", "To-dos that fit your day", "Due dates, repeats and reminders, and a daily brief that shows what matters this morning."],
+    ["teal", "i-calendar", "Your calendar, right there", "Connect Google Calendar from the Calendar page, or add your iPhone calendar or any calendar link."],
+    ["purple", "i-cloud", "Email to to-do", "Forward an email to WorkHub and it lands on your list, with the email attached."],
+    ["orange", "i-users", "Work and home, one tap apart", "WorkHub for the job and LifeHub for everything else, with one sign-in."],
+    ["pink", "i-target", "Hide what you don't use", "Turn on the tools you need, hide the rest, and add more from 575+ plugins any time."],
+    ["indigo", "i-repeat", "On every device", "Saved to your account, on your phone, tablet and computer, with Home Screen widgets on iPhone."],
+  ] : [
+    ["blue", "i-list", "To-dos that remind you", "Due dates, repeats and reminders, so the little things get done without living in your head."],
+    ["teal", "i-users", "The whole family", "FamilyHub gives everyone a shared calendar, chores, lists and who's driving."],
+    ["purple", "i-chart", "Money and bills", "Bills with due dates, a budget and savings goals, all next to your to-dos."],
+    ["orange", "i-heart", "Health and habits", "Water, sleep, workouts, meals and habits, checked off as you go."],
+    ["pink", "i-calendar", "Your calendar, right there", "Connect Google Calendar or your iPhone calendar, or add any calendar link."],
+    ["indigo", "i-notes", "Notes and lists", "Notes, grocery lists and checklists that sit next to the to-dos they go with."],
+  ];
+  const steps: [string, string][] = a.bundle ? [
+    ["Make your free account", "It takes a minute, and WorkHub and LifeHub are free to start."],
+    [`Add the ${pack!.name} bundle`, `Open WorkHub's Plugin Gallery, find Bundles by job, tap ${pack!.name}, then Add all.`],
+    ["Make it yours", "Hide what you don't use, add your first to-dos, and connect Google Calendar from the Calendar page."],
+  ] : [
+    ["Make your free account", "It takes a minute, and LifeHub is free to start."],
+    ["Get it out of your head", "Add your to-dos, groceries and bills. Due dates and reminders come back on their own."],
+    ["Bring everyone in", "Invite your family to FamilyHub and connect Google Calendar or your iPhone calendar."],
+  ];
   return `${head(title, a.lead, path, ld)}
-<body style="--tone:${tone}">
-${topBar}
-<main class="wrap">
-<nav class="crumbs" aria-label="Breadcrumb"><a href="/">Arise To Do</a> › <a href="/for/">Who it's for</a> › <span aria-current="page">${esc(a.nav)}</span></nav>
-<div class="hero">
-<div>
-<div class="kicker">${esc(a.kicker)}</div>
-<h1>${esc(a.h1[0])}<span>${esc(a.h1[1])}</span></h1>
-<p class="lead">${esc(a.lead)}</p>
-<div class="cta"><a class="btn primary" href="/app#/signin?create">Get it free</a><a class="btn ghost" href="#inside">See what's inside</a></div>
-<p class="note">Free to start · Any phone, tablet or computer · No credit card</p>
-</div>
-<div class="phone" aria-label="Example: a ${esc(hub)} to-do list"><div><small>${esc(hub)} · Today</small><h4>${esc(a.nav === "Everyone" ? "My day" : `${a.nav} to-dos`)}</h4><ul>${a.sample.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>
-</div>
+<body>
+${SPRITE()}
+<div class="educator-ribbon"><b>${esc(a.bundle ? `Arise To Do for ${who}` : "Arise To Do for everyone")}</b> · ${esc(L.strip.join(" · "))} · Free to start</div>
+${header(a.bundle ? [["/for/", "Who it's for"], ["#day", "Your day"], ["#toolkit", "Toolkit"], ["#features", "Features"], ["#how", "How it works"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] : [["/for/", "Who it's for"], ["#day", "Your day"], ["#features", "Features"], ["#how", "How it works"], ["#pricing", "Pricing"], ["#faq", "FAQ"]])}
+<main id="top">
+<section class="hero for-hero">
+ <div class="container hero-grid">
+ <div class="hero-copy">
+  <div class="eyebrow"><i class="dot"></i> ${esc(a.kicker)}</div>
+  <h1>${esc(a.h1[0])}<span class="gradient-text">${esc(a.h1[1])}.</span></h1>
+  <p class="lede">${esc(a.lead)}</p>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin?create">${esc(start)} <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="${a.bundle ? "#toolkit" : "#day"}">${a.bundle ? "See the toolkit" : "See how it works"}</a><a class="hero-demo-link" href="/for/">Not your job? See who it's for →</a></div>
+  <div class="hero-micro">${L.micro.map((m, i) => `${i ? '<span class="mini-line"></span>' : ""}<span class="mini-mark"><svg><use href="#i-check"/></svg> ${esc(m)}</span>`).join("")}</div>
+ </div>
+ <div class="hero-art" aria-label="${esc(hub)} preview for ${esc(who)}"><div class="halo"></div>
+  <div class="float-tag top"><span class="bubble"><svg><use href="#i-spark"/></svg></span> ${esc(L.floats[0])}</div>
+  <div class="app-window">
+    <div class="window-top"><span class="traffic"><i></i><i></i><i></i></span><span class="window-address">Arise To Do / ${esc(hub)}</span><svg class="icon-small"><use href="#i-lock"/></svg></div>
+    <div class="window-content">
+     <div class="window-sidebar"><div class="tiny-profile"><div class="tiny-logo"><svg><use href="#i-check"/></svg></div> ${esc(L.workspace)}</div><div class="mock-menu"><div class="menu-row active"><svg><use href="#i-calendar"/></svg><span>Today</span></div><div class="menu-row"><svg><use href="#i-list"/></svg><span>My tasks</span></div><div class="menu-row"><svg><use href="#i-repeat"/></svg><span>Routines</span></div><div class="menu-row"><svg><use href="#i-notes"/></svg><span>Notes</span></div></div><div class="mock-group-title">MY SPACES</div><div class="mock-menu">${L.spaces.map((sp, i) => `<div class="menu-row"><i class="little-circle${["", " purple", " coral"][i]}"></i><span>${esc(sp)}</span></div>`).join("")}</div></div>
+     <div class="mock-main"><div class="mock-top"><div><div class="mock-overline" id="mockDate">YOUR DAILY DASHBOARD</div><h3>${esc(L.greet)} <span aria-hidden="true">☀️</span></h3><div class="mock-sub">A fresh day to make things happen.</div></div><div class="avatar">${esc(L.greet.replace(/^[^,]*,\s*/, "").replace(/^(Ms\.|Mr\.|Nurse|Coach|Chef|Pastor)\s+/, "").charAt(0))}</div></div>
+      <div class="mock-metrics"><div class="metric-card"><div><div class="metric-title">Today's progress</div><div class="metric-value"><span id="heroCompleted">1</span> of ${hero4.length} done</div></div><div class="progress-ring" id="heroRing" style="--progress:25%"><span id="heroPercent">25%</span></div></div><div class="metric-card light"><div><div class="metric-title">Make it count</div><div class="metric-value">Keep going!</div></div><span class="spark"><svg><use href="#i-chart"/></svg></span></div></div>
+      <div class="preview-title"><span>Up next</span><span>Your top priorities</span></div><div class="preview-list" id="previewList">${hero4.map((t, i) => `<label class="preview-task${i === 0 ? " done" : ""}"><input type="checkbox" class="mini-checkbox"${i === 0 ? " checked" : ""} aria-label="Mark ${esc(t)} done" /><span class="task-name">${esc(t)}</span><span class="tag ${TAG_CLASS[i]}">${esc(L.tags[i])}</span></label>`).join("")}</div><div class="mock-footer"><span class="v">+</span> Every small step adds up.</div>
+     </div>
+    </div>
+  </div>
+  <div class="float-tag bottom"><span class="bubble"><svg><use href="#i-check"/></svg></span> ${esc(L.floats[1])}</div><div class="preview-label">LIVE PREVIEW · TRY THE CHECKBOXES</div>
+ </div>
+ </div>
+</section>
+<div class="intro-strip"><div class="container intro-strip-inner"><span class="intro-strip-title">${esc(a.bundle ? `Built for ${who}` : "Built for real life")}</span>${L.strip.map((x) => `<span class="strip-item"><svg><use href="#i-check"/></svg> ${esc(x)}</span>`).join("")}</div></div>
 
-<section aria-labelledby="inside">
-<h2 id="inside">Built around your day</h2>
-<div class="grid">${a.pains.map(([h, p]) => `<div class="card"><h3>${esc(h)}</h3><p>${esc(p)}</p></div>`).join("")}</div>
+<section class="duo-section" id="day" aria-labelledby="day-title">
+<div class="container duo-grid">
+ <div>
+  <div class="section-kicker">${esc(a.kicker)}</div>
+  <h2 class="section-heading" id="day-title">${esc(a.bundle ? "Your whole workday." : "Your whole day.")}<br /><span class="gradient-text">${esc(`One ${a.bundle ? "free" : "simple"} ${hub}.`)}</span></h2>
+  <p class="section-desc">${esc(a.bundle ? `Arise WorkHub puts your to-dos next to everything else ${who} keep track of, so nothing lives on sticky notes.` : "Arise LifeHub keeps the house running and your head clear: to-dos, groceries, bills, the family calendar and your habits in one place.")}</p>
+  <div class="duo-cards">
+${a.pains.map(([h, p], i) => `   <div class="duo-card"><span class="n">${i + 1}</span><div><h3>${esc(h)}</h3><p>${esc(p)}</p></div></div>`).join("\n")}
+  </div>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin?create">${esc(start)} <svg><use href="#i-arrow"/></svg></a></div>
+ </div>
+ <div class="duo-phone" role="img" aria-label="Arise ${esc(hub)}: ${esc(who)}'s spaces on the left, today's to-dos on the right">
+  <div class="duo-screen">
+   <div class="duo-pane left">
+    <div class="duo-pane-title">Arise ${esc(hub)}</div>
+    <div class="duo-chip on"><i style="background:${DOTS[0]}"></i>Today</div>
+${L.spaces.map((sp, i) => `    <div class="duo-chip"><i style="background:${DOTS[i + 1]}"></i>${esc(sp)}</div>`).join("\n")}
+    <div class="duo-chip"><i style="background:${DOTS[4]}"></i>Calendar</div>
+   </div>
+   <div class="duo-pane">
+    <div class="duo-pane-title">Today · ${a.sample.length} tasks</div>
+${a.sample.map((t, i) => `    <div class="duo-task${i === 0 ? " done" : ""}"><b></b>${esc(t)}</div>`).join("\n")}
+   </div>
+  </div>
+  <span class="duo-fold" aria-hidden="true"></span>
+ </div>
+</div>
 </section>
 ${tools.length ? `
-<section aria-labelledby="tools">
-<h2 id="tools">Your ${esc(pack!.name.toLowerCase())} toolkit, added in one tap</h2>
-<p class="muted">The <b>${esc(pack!.name)}</b> bundle adds all of these to WorkHub at once. Keep the ones you use and hide the rest.</p>
-<ul class="tools">${tools.map((t) => `<li>${esc(t.name)}${t.tagline ? `<small>${esc(t.tagline)}</small>` : ""}</li>`).join("")}</ul>
+<section class="toolkit-section" id="toolkit" aria-labelledby="toolkit-title">
+ <div class="container">
+  <div class="showcase-intro">
+   <div><div class="section-kicker">Bundles by job</div><h2 class="section-heading" id="toolkit-title">The ${esc(pack!.name)} toolkit. <span class="gradient-text">Added in one tap.</span></h2>
+   <p class="section-desc">${esc(pack!.description || "")}</p></div>
+   <span class="showcase-total"><span class="showcase-total-number">${tools.length}</span><span>tools in<br/>one bundle</span></span>
+  </div>
+  <div class="toolkit-grid">
+${tools.map((t, i) => `   <div class="showcase-card" style="--app-accent:${ACCENTS[i % ACCENTS.length]}"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#${iconFor(t.name + " " + t.tagline)}"></use></svg></span><span class="showcase-card-copy"><strong>${esc(t.name)}</strong><small>${esc(t.tagline)}</small></span></div>`).join("\n")}
+  </div>
+  <div class="toolkit-foot"><span>Keep the tools you use and hide the rest. 575+ more are in the Plugin Gallery.</span><a href="/app#/signin?create">Get the ${esc(pack!.name)} bundle free <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></a></div>
+ </div>
 </section>` : ""}
-<section aria-labelledby="also">
-<h2 id="also">Plus everything in Arise To Do</h2>
-<ul class="check">
-<li>To-dos with due dates, repeats and reminders</li>
-<li>A calendar that shows Google Calendar, your iPhone calendar or any calendar link</li>
-${a.bundle ? "<li>Forward an email to WorkHub and it becomes a to-do</li>\n<li>WorkHub for work and LifeHub for home, one tap apart</li>" : "<li>FamilyHub: a shared calendar, chores and lists for the whole family</li>\n<li>Notes, habits, water and sleep, budget and bills</li>"}
-<li>Home Screen widgets and split screen on iPhone</li>
-</ul>
+<section class="section" id="features"><div class="container"><div class="features-header center"><div class="section-kicker">Everything in its place</div><h2 class="section-heading">${a.bundle ? "Plus everything in" : "Everything you need,"}<br /><span class="gradient-text">${a.bundle ? "Arise To Do." : "nothing you don't."}</span></h2><p class="section-desc">${a.bundle ? "Your job's tools sit next to the everyday ones: reminders, your calendar, email to to-do, and a hub you shape yourself." : "Not a template, a hub you build. Turn on the sections you need, hide the rest, and add more from the Plugin Gallery."}</p></div>
+<div class="features-grid">
+${features.map(([c, ic, h, p]) => ` <article class="feature-card"><div class="feature-icon ${c}"><svg><use href="#${ic}"/></svg></div><h3>${esc(h)}</h3><p>${esc(p)}</p></article>`).join("\n")}
+</div></div></section>
+<section class="how" id="how"><div class="container"><div class="center"><div class="section-kicker">Simple by design</div><h2 class="section-heading">Up and running, in <span class="gradient-text">three steps.</span></h2></div><div class="steps">${steps.map(([h, p], i) => `<div class="step"><div class="number">0${i + 1}</div><div><h3>${esc(h)}</h3><p>${esc(p)}</p></div></div>`).join("")}</div></div></section>
+${PRICING(a.slug === "teachers")}
+<section class="faq-section" id="faq" aria-labelledby="faq-title">
+<div class="container faq-wrap">
+<div class="section-kicker">Questions</div>
+<h2 class="section-heading" id="faq-title">Questions from ${esc(a.bundle ? who.replace(/^anyone /, "people ") : "people like you")}, <span class="gradient-text">answered.</span></h2>
+${faqs(a).map(([q, ans]) => `<details class="faq-item"><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join("\n")}
+</div>
 </section>
-
-<section aria-labelledby="start">
-<h2 id="start">Get started in three steps</h2>
-<ol class="steps">${setup.map(([b, t]) => `<li><b>${b}</b>${t}</li>`).join("")}</ol>
-</section>
-
-<section aria-labelledby="faq">
-<h2 id="faq">Questions people ask</h2>
-${a.faq.map(([q, ans]) => `<details><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join("\n")}
-</section>
-
-<div class="band"><h2>Ready when you are</h2><p>Make your free account and set up ${esc(hub)} for ${esc(a.kicker.replace(/^For /, ""))} in a few minutes.</p><div class="cta"><a class="btn primary" href="/app#/signin?create">Get it free</a></div></div>
-
-<section aria-labelledby="others">
-<h2 id="others">Arise To Do for other work</h2>
-${allLinks(a.slug)}
-</section>
+<section class="section" id="who" aria-labelledby="who-title"><div class="container"><div class="features-header center"><div class="section-kicker">Who it's for</div><h2 class="section-heading" id="who-title">Arise To Do, <span class="gradient-text">for every kind of work.</span></h2></div>
+${jobCards(a.slug)}
+</div></section>
+<section class="bottom-cta"><div class="container"><div class="cta-card"><div class="section-kicker">Make space for what matters</div><h2>${esc(L.cta[0])}<br />${esc(L.cta[1])}</h2><p>Free to start, and yours to shape. <a href="#pricing" style="color:#fff;text-decoration:underline">See pricing</a>.</p><a href="/app#/signin?create" class="button">${esc(start)} <svg><use href="#i-arrow"/></svg></a><div class="cta-small"><a href="/app#/signin">Already have an account? Sign in</a> · <a href="/for/">See who it's for</a></div></div></div></section>
 </main>
-${footer}
+${footer()}
+${SCRIPT}
 </body>
 </html>
 `;
+}
+
+/** A page's questions: its own, then two every page answers the same way. */
+function faqs(a: Audience): [string, string][] {
+  return [...a.faq,
+    ["Does it sync across my devices?", "Yes. Everything is saved to your account, so the same lists are on your phone, tablet and computer."],
+    ["Can I hide the tools I don't need?", "Yes. Turn on the tools you use, hide the rest, and add more from the Plugin Gallery any time."]];
 }
 
 export function audienceIndex(): string {
@@ -300,24 +975,34 @@ export function audienceIndex(): string {
   const ld = { "@context": "https://schema.org", "@type": "CollectionPage", "@id": `${SITE}${path}`, url: `${SITE}${path}`, name: title, description: desc, dateModified: UPDATED,
     hasPart: AUDIENCES.map((a) => ({ "@type": "WebPage", name: a.title, url: `${SITE}/for/${a.slug}/` })) };
   return `${head(title, desc, path, ld)}
-<body style="--tone:#6e5ae0">
-${topBar}
-<main class="wrap">
-<nav class="crumbs" aria-label="Breadcrumb"><a href="/">Arise To Do</a> › <span aria-current="page">Who it's for</span></nav>
-<div class="hero" style="grid-template-columns:1fr">
-<div>
-<div class="kicker">Who it's for</div>
-<h1>A to-do app <span>made for your work</span></h1>
-<p class="lead">Pick your job and Arise To Do sets up WorkHub with the tools you need in one tap. Not here for work? LifeHub keeps the rest of your life on one simple list.</p>
-<div class="cta"><a class="btn primary" href="/app#/signin?create">Get it free</a><a class="btn ghost" href="/for/everyone/">For everyone</a></div>
-</div>
-</div>
-<section aria-labelledby="jobs">
-<h2 id="jobs">Choose yours</h2>
-${allLinks("")}
+<body>
+${SPRITE()}
+<div class="educator-ribbon"><b>Bundles by job</b> · Everything your work needs, added in one tap · 575+ plugins in the Plugin Gallery · Free to start</div>
+${header([["/", "Home"], ["#jobs", "Choose your job"], ["/for/everyone/", "For everyone"], ["#how", "How it works"], ["#pricing", "Pricing"]])}
+<main id="top">
+<section class="hero for-hero">
+ <div class="container hero-grid">
+ <div class="hero-copy">
+  <div class="eyebrow"><i class="dot"></i> Who it's for</div>
+  <h1>A to-do app <span class="gradient-text">made for your work.</span></h1>
+  <p class="lede">Pick your job and Arise To Do sets up WorkHub with the tools you need in one tap. Not here for work? LifeHub keeps the rest of your life on one simple list.</p>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin?create">Get started free <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/for/everyone/">For everyone</a></div>
+  <div class="hero-micro"><span class="mini-mark"><svg><use href="#i-check"/></svg> ${AUDIENCES.filter((x) => x.bundle).length} jobs</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> One-tap bundles</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Free to start</span></div>
+ </div>
+ <div class="hero-art" aria-hidden="true"><div class="halo"></div>
+  <div class="duo-phone"><div class="duo-screen"><div class="duo-pane left"><div class="duo-pane-title">Bundles by job</div>${AUDIENCES.filter((x) => x.bundle).slice(0, 6).map((x, i) => `<div class="duo-chip${i === 0 ? " on" : ""}"><i style="background:${(HUB_TEMPLATES.find((t) => t.id === x.bundle) as any).color}"></i>${esc(x.nav)}</div>`).join("")}</div><div class="duo-pane"><div class="duo-pane-title">Teaching · added</div>${bundleTools("work-job-teaching").slice(0, 6).map((t, i) => `<div class="duo-task${i < 2 ? " done" : ""}"><b></b>${esc(t.name)}</div>`).join("")}</div></div><span class="duo-fold"></span></div>
+ </div>
+ </div>
 </section>
+<section class="section" id="jobs" aria-labelledby="jobs-title"><div class="container"><div class="features-header center"><div class="section-kicker">Choose yours</div><h2 class="section-heading" id="jobs-title">Every kind of work. <span class="gradient-text">One app.</span></h2><p class="section-desc">Each page shows the tools that job's bundle adds, and how people in that work use Arise To Do.</p></div>
+${jobCards("")}
+</div></section>
+<section class="how" id="how"><div class="container"><div class="center"><div class="section-kicker">Simple by design</div><h2 class="section-heading">Up and running, in <span class="gradient-text">three steps.</span></h2></div><div class="steps"><div class="step"><div class="number">01</div><div><h3>Make your free account</h3><p>It takes a minute, and WorkHub and LifeHub are free to start.</p></div></div><div class="step"><div class="number">02</div><div><h3>Pick your job's bundle</h3><p>In WorkHub's Plugin Gallery, open Bundles by job and tap Add all.</p></div></div><div class="step"><div class="number">03</div><div><h3>Make it yours</h3><p>Hide what you don't use, add your to-dos, and connect your calendar.</p></div></div></div></div></section>
+${PRICING(false)}
+<section class="bottom-cta"><div class="container"><div class="cta-card"><div class="section-kicker">Make space for what matters</div><h2>Your work.<br />Your command center.</h2><p>Free to start, and yours to shape. <a href="#pricing" style="color:#fff;text-decoration:underline">See pricing</a>.</p><a href="/app#/signin?create" class="button">Get started free <svg><use href="#i-arrow"/></svg></a><div class="cta-small"><a href="/app#/signin">Already have an account? Sign in</a> · <a href="/">Arise To Do home</a></div></div></div></section>
 </main>
-${footer}
+${footer()}
+${SCRIPT.replace(/var boxes[\s\S]*?count\(\)\}\)\}\);/, "")}
 </body>
 </html>
 `;
@@ -326,11 +1011,12 @@ ${footer}
 if (process.argv[1] && /industryPages\.ts$/.test(process.argv[1])) {
   const root = new URL("../client/public/for/", import.meta.url);
   mkdirSync(root, { recursive: true });
+  writeFileSync(new URL("site.css", root), siteCss());
   writeFileSync(new URL("index.html", root), audienceIndex());
   for (const a of AUDIENCES) {
     const dir = new URL(`${a.slug}/`, root);
     mkdirSync(dir, { recursive: true });
     writeFileSync(new URL("index.html", dir), audiencePage(a));
   }
-  console.log(`Wrote /for/ and ${AUDIENCES.length} pages.`);
+  console.log(`Wrote /for/site.css, /for/ and ${AUDIENCES.length} pages.`);
 }

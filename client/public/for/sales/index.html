@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>To-Do App for Sales Reps | Arise To Do</title>
 <meta name="description" content="A pipeline, calls made, objection notes and clients, with help writing the follow-up email." />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -13,134 +13,209 @@
 <meta property="og:title" content="To-Do App for Sales Reps | Arise To Do" />
 <meta property="og:description" content="A pipeline, calls made, objection notes and clients, with help writing the follow-up email." />
 <meta property="og:image" content="https://arisetodo.com/todo-og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="theme-color" content="#F8FAFD" />
+<meta name="twitter:title" content="To-Do App for Sales Reps | Arise To Do" />
+<meta name="twitter:description" content="A pipeline, calls made, objection notes and clients, with help writing the follow-up email." />
+<meta name="twitter:image" content="https://arisetodo.com/todo-og.png" />
+<meta name="theme-color" content="#f9faff" />
 <link rel="icon" type="image/svg+xml" href="/todo-favicon.svg?v=20261012" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/todo.webmanifest" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://arisetodo.com/for/sales/","url":"https://arisetodo.com/for/sales/","name":"To-Do App for Sales Reps | Arise To Do","description":"A pipeline, calls made, objection notes and clients, with help writing the follow-up email.","dateModified":"2026-11-26","isPartOf":{"@type":"WebSite","name":"Arise To Do","url":"https://arisetodo.com/"}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does it connect to my CRM?","acceptedAnswer":{"@type":"Answer","text":"Not directly. It's your own pipeline and to-do list, quick to keep up on your phone."}},{"@type":"Question","name":"Can it write emails?","acceptedAnswer":{"@type":"Answer","text":"The email rewriter and meeting summaries are AI tools in Arise All Access."}},{"@type":"Question","name":"What does it cost?","acceptedAnswer":{"@type":"Answer","text":"WorkHub is free to start. Arise All Access ($10 a month) adds every plugin and the AI features."}}]}]}</script>
-<style>
-:root{--ink:#1c2238;--muted:#5d6782;--line:#e6eaf3;--bg:#f9fafc;--card:#fff;--accent:#6e5ae0;--dark:#292446;--grad:linear-gradient(115deg,#10b9af 0%,#5279ed 53%,#9363e7 100%)}
-*{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
-a{color:#4b5fd6}a:focus-visible{outline:3px solid #8b78f0;outline-offset:3px}
-.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
-header.top{position:sticky;top:0;z-index:20;background:rgba(249,250,252,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
-header.top .wrap{display:flex;align-items:center;gap:18px;min-height:64px}
-.logo{display:inline-flex;align-items:center;gap:10px;font:800 19px/1 Manrope,system-ui,sans-serif;letter-spacing:-.6px;color:var(--ink);text-decoration:none;margin-right:auto}
-.logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.logo i{width:30px;height:30px;border-radius:9px;background:var(--grad);display:inline-block}
-nav.links{display:flex;gap:16px;font-size:14px;font-weight:700}nav.links a{color:var(--muted);text-decoration:none}nav.links a:hover{color:var(--ink)}
-.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:13px;font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap}
-.btn.primary{color:#fff;background:linear-gradient(110deg,#16b4bb,#5478e9 61%,#8665e8);box-shadow:0 10px 23px rgba(76,106,223,.2)}
-.btn.ghost{color:var(--ink);background:#fff;border:1px solid var(--line)}
-.crumbs{font-size:13px;color:var(--muted);padding-top:22px}.crumbs a{color:var(--muted)}
-.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:34px;align-items:center;padding:30px 0 46px}
-.kicker{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:800;color:var(--tone)}
-h1{font:800 clamp(34px,5.2vw,54px)/1.06 Manrope,system-ui,sans-serif;letter-spacing:-1.6px;margin:10px 0 16px}
-h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lead{font-size:clamp(17px,2vw,20px);color:var(--muted);margin:0 0 24px}
-.cta{display:flex;flex-wrap:wrap;gap:10px}
-.note{font-size:13px;color:var(--muted);margin-top:10px}
-.phone{background:#14122a;border-radius:34px;padding:12px;max-width:270px;margin:0 auto;box-shadow:0 24px 60px rgba(30,30,70,.22)}
-.phone>div{background:#fff;border-radius:24px;padding:18px 14px}
-.phone h4{margin:0 0 2px;font:800 15px/1.3 Manrope,system-ui,sans-serif}.phone small{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
-.phone ul{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:7px}
-.phone li{display:flex;gap:9px;align-items:center;font-size:13px;font-weight:700;border:1px solid #ecebf5;border-radius:11px;padding:9px 10px}
-.phone li::before{content:"";flex:none;width:15px;height:15px;border-radius:50%;border:2px solid var(--tone)}
-.phone li:first-child::before{background:var(--tone)}
-section{padding:40px 0;border-top:1px solid var(--line)}
-h2{font:800 clamp(26px,3.4vw,36px)/1.15 Manrope,system-ui,sans-serif;letter-spacing:-.8px;margin:0 0 14px}
-h3{font:800 18px/1.3 Manrope,system-ui,sans-serif;margin:0 0 6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;border-top:4px solid var(--tone)}
-.card p{margin:0;color:var(--muted);font-size:15px}
-.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:18px;padding:0;list-style:none}
-.tools li{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-weight:800}
-.tools li small{display:block;font-weight:500;color:var(--muted)}
-ol.steps{counter-reset:s;list-style:none;padding:0;margin:18px 0 0;display:grid;gap:12px}
-ol.steps li{counter-increment:s;position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px 16px 62px}
-ol.steps b{display:block}
-ol.steps li::before{content:counter(s);position:absolute;left:18px;top:16px;width:30px;height:30px;border-radius:10px;background:var(--dark);color:#fff;display:grid;place-items:center;font-weight:800}
-.check{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
-.check li{padding-left:30px;position:relative}.check li::before{content:"✓";position:absolute;left:4px;font-weight:900;color:#10a99f}
-details{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 18px;margin-top:10px}
-summary{cursor:pointer;font-weight:800;padding:12px 0;list-style:none}summary::-webkit-details-marker{display:none}
-summary::after{content:"+";float:right;font-weight:800;color:var(--accent)}details[open] summary::after{content:"–"}
-details p{color:var(--muted);margin-top:0}
-.band{background:var(--dark);color:#fff;border-radius:26px;padding:34px 28px;margin:10px 0 40px}
-.band h2{color:#fff}.band p{color:#d8d4f3}
-.more{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:14px}
-.more a{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;text-decoration:none;color:var(--ink);font-weight:800}
-.more a small{display:block;font-weight:500;color:var(--muted)}
-.more a[aria-current]{border-color:var(--tone)}
-footer{border-top:1px solid var(--line);padding:26px 0 40px;font-size:13px;color:var(--muted)}
-footer .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:space-between}footer a{color:var(--muted)}
-@media(max-width:820px){.hero{grid-template-columns:1fr}.phone{max-width:240px}}
-@media(max-width:720px){nav.links{display:none}}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/for/site.css?v=2026-11-26" />
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://arisetodo.com/for/sales/","url":"https://arisetodo.com/for/sales/","name":"To-Do App for Sales Reps | Arise To Do","description":"A pipeline, calls made, objection notes and clients, with help writing the follow-up email.","dateModified":"2026-11-26","isPartOf":{"@type":"WebSite","name":"Arise To Do","url":"https://arisetodo.com/"},"breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Arise To Do","item":"https://arisetodo.com/"},{"@type":"ListItem","position":2,"name":"Who it's for","item":"https://arisetodo.com/for/"},{"@type":"ListItem","position":3,"name":"Sales","item":"https://arisetodo.com/for/sales/"}]}},{"@type":"SoftwareApplication","name":"Arise To Do","applicationCategory":"ProductivityApplication","operatingSystem":"iOS, Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does it connect to my CRM?","acceptedAnswer":{"@type":"Answer","text":"Not directly. It's your own pipeline and to-do list, quick to keep up on your phone."}},{"@type":"Question","name":"Can it write emails?","acceptedAnswer":{"@type":"Answer","text":"The email rewriter and meeting summaries are AI tools in Arise All Access."}},{"@type":"Question","name":"What does it cost?","acceptedAnswer":{"@type":"Answer","text":"WorkHub is free to start. Arise All Access ($10 a month) adds every plugin and the AI features."}},{"@type":"Question","name":"Does it sync across my devices?","acceptedAnswer":{"@type":"Answer","text":"Yes. Everything is saved to your account, so the same lists are on your phone, tablet and computer."}},{"@type":"Question","name":"Can I hide the tools I don't need?","acceptedAnswer":{"@type":"Answer","text":"Yes. Turn on the tools you use, hide the rest, and add more from the Plugin Gallery any time."}}]}]}</script>
 </head>
-<body style="--tone:#16a34a">
-<header class="top"><div class="wrap">
- <a class="logo" href="/" aria-label="Arise To Do home"><i aria-hidden="true"></i><span>Arise <b>To Do</b></span></a>
- <nav class="links" aria-label="Main"><a href="/for/">Who it's for</a><a href="/for/teachers/">Teachers</a><a href="/for/business-owners/">Business</a><a href="/for/everyone/">Everyone</a><a href="/#pricing">Pricing</a><a href="/app#/signin">Sign in</a></nav>
- <a class="btn primary" href="/app#/signin?create">Get it free</a>
-</div></header>
-<main class="wrap">
-<nav class="crumbs" aria-label="Breadcrumb"><a href="/">Arise To Do</a> › <a href="/for/">Who it's for</a> › <span aria-current="page">Sales</span></nav>
-<div class="hero">
-<div>
-<div class="kicker">For sales reps and account managers</div>
-<h1>Follow up <span>on every lead</span></h1>
-<p class="lead">A pipeline, calls made, objection notes and clients, with help writing the follow-up email.</p>
-<div class="cta"><a class="btn primary" href="/app#/signin?create">Get it free</a><a class="btn ghost" href="#inside">See what's inside</a></div>
-<p class="note">Free to start · Any phone, tablet or computer · No credit card</p>
+<body>
+<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.4 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M3.5 6h.1M3.5 12h.1M3.5 18h.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v5m8-5v5M3 10h18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.5 5.8a5.1 5.1 0 0 0-7.2 0L12 7.1l-1.3-1.3a5.1 5.1 0 0 0-7.2 7.2L12 21l8.5-8a5.1 5.1 0 0 0 0-7.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.3 20v-2a5.7 5.7 0 0 1 11.4 0v2M16 5.2a3 3 0 0 1 0 5.8M18 13.6a4.8 4.8 0 0 1 2.8 4.4v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 19H6a4 4 0 0 1-.6-8A6.6 6.6 0 0 1 18 9a5 5 0 0 1 0 10H7Zm2-5 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm9 0v5h4M8 13h8M8 17h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V12m5 8V7m5 13v-9m5 9V4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+<symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+<div class="educator-ribbon"><b>Arise To Do for sales reps and account managers</b> · Pipeline · Calls &amp; objections · Better follow-ups · Book the meeting · Free to start</div>
+<header class="site-header">
+ <div class="container nav-inner">
+  <a class="logo" href="/" aria-label="Arise To Do home"><img class="logo-symbol" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2310C8B3%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23527BED%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23955FE5%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2262%22%20height%3D%2262%22%20rx%3D%2218%22%20fill%3D%22url%28%23g%29%22%2F%3E%0A%20%3Crect%20x%3D%2213%22%20y%3D%2215%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20opacity%3D%22.95%22%2F%3E%0A%20%3Cpath%20d%3D%22M17%2022.3l4%203.8%208-10%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M36%2023h14M17%2043h12M36%2043h14%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.96%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" /><span>Arise <span class="todo">To Do</span></span></a>
+  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="/for/">Who it's for</a><a href="#day">Your day</a><a href="#toolkit">Toolkit</a><a href="#features">Features</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin?create">Create account</a></nav>
+  <div class="nav-auth"><a class="header-signin" href="#pricing">Pricing</a><a class="header-signin" href="/app#/signin">Sign in</a><a class="button button-primary" href="/app#/signin?create">Get started <svg><use href="#i-arrow"/></svg></a></div>
+  <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg><use href="#i-menu"/></svg></button>
+ </div>
+</header>
+<main id="top">
+<section class="hero for-hero">
+ <div class="container hero-grid">
+ <div class="hero-copy">
+  <div class="eyebrow"><i class="dot"></i> For sales reps and account managers</div>
+  <h1>Follow up <span class="gradient-text">on every lead.</span></h1>
+  <p class="lede">A pipeline, calls made, objection notes and clients, with help writing the follow-up email.</p>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin?create">Start free as a sales rep <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="#toolkit">See the toolkit</a><a class="hero-demo-link" href="/for/">Not your job? See who it's for →</a></div>
+  <div class="hero-micro"><span class="mini-mark"><svg><use href="#i-check"/></svg> Free to start</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Lead to closed</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Works on any device</span></div>
+ </div>
+ <div class="hero-art" aria-label="WorkHub preview for sales reps and account managers"><div class="halo"></div>
+  <div class="float-tag top"><span class="bubble"><svg><use href="#i-spark"/></svg></span> 12 calls today</div>
+  <div class="app-window">
+    <div class="window-top"><span class="traffic"><i></i><i></i><i></i></span><span class="window-address">Arise To Do / WorkHub</span><svg class="icon-small"><use href="#i-lock"/></svg></div>
+    <div class="window-content">
+     <div class="window-sidebar"><div class="tiny-profile"><div class="tiny-logo"><svg><use href="#i-check"/></svg></div> My pipeline</div><div class="mock-menu"><div class="menu-row active"><svg><use href="#i-calendar"/></svg><span>Today</span></div><div class="menu-row"><svg><use href="#i-list"/></svg><span>My tasks</span></div><div class="menu-row"><svg><use href="#i-repeat"/></svg><span>Routines</span></div><div class="menu-row"><svg><use href="#i-notes"/></svg><span>Notes</span></div></div><div class="mock-group-title">MY SPACES</div><div class="mock-menu"><div class="menu-row"><i class="little-circle"></i><span>Pipeline</span></div><div class="menu-row"><i class="little-circle purple"></i><span>Calls</span></div><div class="menu-row"><i class="little-circle coral"></i><span>Clients</span></div></div></div>
+     <div class="mock-main"><div class="mock-top"><div><div class="mock-overline" id="mockDate">YOUR DAILY DASHBOARD</div><h3>Morning, Marcus <span aria-hidden="true">☀️</span></h3><div class="mock-sub">A fresh day to make things happen.</div></div><div class="avatar">M</div></div>
+      <div class="mock-metrics"><div class="metric-card"><div><div class="metric-title">Today's progress</div><div class="metric-value"><span id="heroCompleted">1</span> of 4 done</div></div><div class="progress-ring" id="heroRing" style="--progress:25%"><span id="heroPercent">25%</span></div></div><div class="metric-card light"><div><div class="metric-title">Make it count</div><div class="metric-value">Keep going!</div></div><span class="spark"><svg><use href="#i-chart"/></svg></span></div></div>
+      <div class="preview-title"><span>Up next</span><span>Your top priorities</span></div><div class="preview-list" id="previewList"><label class="preview-task done"><input type="checkbox" class="mini-checkbox" checked aria-label="Mark Call 12 leads done" /><span class="task-name">Call 12 leads</span><span class="tag work">Calls</span></label><label class="preview-task"><input type="checkbox" class="mini-checkbox" aria-label="Mark Follow up: Acme demo done" /><span class="task-name">Follow up: Acme demo</span><span class="tag ">Follow-up</span></label><label class="preview-task"><input type="checkbox" class="mini-checkbox" aria-label="Mark Send pricing to Rios done" /><span class="task-name">Send pricing to Rios</span><span class="tag family">Pricing</span></label><label class="preview-task"><input type="checkbox" class="mini-checkbox" aria-label="Mark Log 48 miles done" /><span class="task-name">Log 48 miles</span><span class="tag personal">Mileage</span></label></div><div class="mock-footer"><span class="v">+</span> Every small step adds up.</div>
+     </div>
+    </div>
+  </div>
+  <div class="float-tag bottom"><span class="bubble"><svg><use href="#i-check"/></svg></span> Demo booked</div><div class="preview-label">LIVE PREVIEW · TRY THE CHECKBOXES</div>
+ </div>
+ </div>
+</section>
+<div class="intro-strip"><div class="container intro-strip-inner"><span class="intro-strip-title">Built for sales reps and account managers</span><span class="strip-item"><svg><use href="#i-check"/></svg> Pipeline</span><span class="strip-item"><svg><use href="#i-check"/></svg> Calls &amp; objections</span><span class="strip-item"><svg><use href="#i-check"/></svg> Better follow-ups</span><span class="strip-item"><svg><use href="#i-check"/></svg> Book the meeting</span></div></div>
+
+<section class="duo-section" id="day" aria-labelledby="day-title">
+<div class="container duo-grid">
+ <div>
+  <div class="section-kicker">For sales reps and account managers</div>
+  <h2 class="section-heading" id="day-title">Your whole workday.<br /><span class="gradient-text">One free WorkHub.</span></h2>
+  <p class="section-desc">Arise WorkHub puts your to-dos next to everything else sales reps and account managers keep track of, so nothing lives on sticky notes.</p>
+  <div class="duo-cards">
+   <div class="duo-card"><span class="n">1</span><div><h3>A pipeline you'll keep up</h3><p>Every lead and where it stands, with the next call on your to-do list.</p></div></div>
+   <div class="duo-card"><span class="n">2</span><div><h3>Calls and objections</h3><p>Log calls made and keep your best answers to common objections.</p></div></div>
+   <div class="duo-card"><span class="n">3</span><div><h3>Better follow-ups</h3><p>Rewrite an email in a tap, and get a summary of the meeting you just had.</p></div></div>
+   <div class="duo-card"><span class="n">4</span><div><h3>Book the meeting</h3><p>Find a Time sends a link so prospects pick a time that works.</p></div></div>
+  </div>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin?create">Start free as a sales rep <svg><use href="#i-arrow"/></svg></a></div>
+ </div>
+ <div class="duo-phone" role="img" aria-label="Arise WorkHub: sales reps and account managers's spaces on the left, today's to-dos on the right">
+  <div class="duo-screen">
+   <div class="duo-pane left">
+    <div class="duo-pane-title">Arise WorkHub</div>
+    <div class="duo-chip on"><i style="background:#a38cfa"></i>Today</div>
+    <div class="duo-chip"><i style="background:#f59e0b"></i>Pipeline</div>
+    <div class="duo-chip"><i style="background:#10b981"></i>Calls</div>
+    <div class="duo-chip"><i style="background:#3b82f6"></i>Clients</div>
+    <div class="duo-chip"><i style="background:#ec4899"></i>Calendar</div>
+   </div>
+   <div class="duo-pane">
+    <div class="duo-pane-title">Today · 5 tasks</div>
+    <div class="duo-task done"><b></b>Call 12 leads</div>
+    <div class="duo-task"><b></b>Follow up: Acme demo</div>
+    <div class="duo-task"><b></b>Send pricing to Rios</div>
+    <div class="duo-task"><b></b>Log 48 miles</div>
+    <div class="duo-task"><b></b>Prep QBR deck</div>
+   </div>
+  </div>
+  <span class="duo-fold" aria-hidden="true"></span>
+ </div>
 </div>
-<div class="phone" aria-label="Example: a WorkHub to-do list"><div><small>WorkHub · Today</small><h4>Sales to-dos</h4><ul><li>Call 12 leads</li><li>Follow up: Acme demo</li><li>Send pricing to Rios</li><li>Log 48 miles</li><li>Prep QBR deck</li></ul></div></div>
+</section>
+
+<section class="toolkit-section" id="toolkit" aria-labelledby="toolkit-title">
+ <div class="container">
+  <div class="showcase-intro">
+   <div><div class="section-kicker">Bundles by job</div><h2 class="section-heading" id="toolkit-title">The Sales toolkit. <span class="gradient-text">Added in one tap.</span></h2>
+   <p class="section-desc">For sales roles, added together: a leads pipeline, calls made, objection handling, clients, mileage, an email rewriter, meeting summaries and Find a Time.</p></div>
+   <span class="showcase-total"><span class="showcase-total-number">8</span><span>tools in<br/>one bundle</span></span>
+  </div>
+  <div class="toolkit-grid">
+   <div class="showcase-card" style="--app-accent:#5b53df"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-target"></use></svg></span><span class="showcase-card-copy"><strong>Leads pipeline</strong><small>From first hello to signed</small></span></div>
+   <div class="showcase-card" style="--app-accent:#e99b5f"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-chart"></use></svg></span><span class="showcase-card-copy"><strong>Calls made</strong><small>Activity drives results</small></span></div>
+   <div class="showcase-card" style="--app-accent:#16a39a"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-spark"></use></svg></span><span class="showcase-card-copy"><strong>Objection handling</strong><small>Answers to the usual pushback</small></span></div>
+   <div class="showcase-card" style="--app-accent:#4f7be8"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span class="showcase-card-copy"><strong>Clients</strong><small>Who you work for and what they need</small></span></div>
+   <div class="showcase-card" style="--app-accent:#d9577e"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span class="showcase-card-copy"><strong>Mileage log</strong><small>Every work trip, for tax time</small></span></div>
+   <div class="showcase-card" style="--app-accent:#8a63e6"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-spark"></use></svg></span><span class="showcase-card-copy"><strong>Email Helper</strong><small>Polish a message in your voice</small></span></div>
+   <div class="showcase-card" style="--app-accent:#23a26d"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-notes"></use></svg></span><span class="showcase-card-copy"><strong>Meeting Minutes</strong><small>Notes, decisions and action items</small></span></div>
+   <div class="showcase-card" style="--app-accent:#e0a23a"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span class="showcase-card-copy"><strong>Find a Time</strong><small>Everyone's availability on one grid</small></span></div>
+  </div>
+  <div class="toolkit-foot"><span>Keep the tools you use and hide the rest. 575+ more are in the Plugin Gallery.</span><a href="/app#/signin?create">Get the Sales bundle free <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></a></div>
+ </div>
+</section>
+<section class="section" id="features"><div class="container"><div class="features-header center"><div class="section-kicker">Everything in its place</div><h2 class="section-heading">Plus everything in<br /><span class="gradient-text">Arise To Do.</span></h2><p class="section-desc">Your job's tools sit next to the everyday ones: reminders, your calendar, email to to-do, and a hub you shape yourself.</p></div>
+<div class="features-grid">
+ <article class="feature-card"><div class="feature-icon blue"><svg><use href="#i-list"/></svg></div><h3>To-dos that fit your day</h3><p>Due dates, repeats and reminders, and a daily brief that shows what matters this morning.</p></article>
+ <article class="feature-card"><div class="feature-icon teal"><svg><use href="#i-calendar"/></svg></div><h3>Your calendar, right there</h3><p>Connect Google Calendar from the Calendar page, or add your iPhone calendar or any calendar link.</p></article>
+ <article class="feature-card"><div class="feature-icon purple"><svg><use href="#i-cloud"/></svg></div><h3>Email to to-do</h3><p>Forward an email to WorkHub and it lands on your list, with the email attached.</p></article>
+ <article class="feature-card"><div class="feature-icon orange"><svg><use href="#i-users"/></svg></div><h3>Work and home, one tap apart</h3><p>WorkHub for the job and LifeHub for everything else, with one sign-in.</p></article>
+ <article class="feature-card"><div class="feature-icon pink"><svg><use href="#i-target"/></svg></div><h3>Hide what you don't use</h3><p>Turn on the tools you need, hide the rest, and add more from 575+ plugins any time.</p></article>
+ <article class="feature-card"><div class="feature-icon indigo"><svg><use href="#i-repeat"/></svg></div><h3>On every device</h3><p>Saved to your account, on your phone, tablet and computer, with Home Screen widgets on iPhone.</p></article>
+</div></div></section>
+<section class="how" id="how"><div class="container"><div class="center"><div class="section-kicker">Simple by design</div><h2 class="section-heading">Up and running, in <span class="gradient-text">three steps.</span></h2></div><div class="steps"><div class="step"><div class="number">01</div><div><h3>Make your free account</h3><p>It takes a minute, and WorkHub and LifeHub are free to start.</p></div></div><div class="step"><div class="number">02</div><div><h3>Add the Sales bundle</h3><p>Open WorkHub's Plugin Gallery, find Bundles by job, tap Sales, then Add all.</p></div></div><div class="step"><div class="number">03</div><div><h3>Make it yours</h3><p>Hide what you don't use, add your first to-dos, and connect Google Calendar from the Calendar page.</p></div></div></div></div></section>
+<section class="pricing-section" id="pricing" aria-labelledby="pricing-title">
+ <div class="container">
+  <div class="pricing-heading">
+   <div class="section-kicker">Simple pricing</div>
+   <h2 class="section-heading" id="pricing-title">Start free. <span class="gradient-text">One subscription, $10.</span></h2>
+   <p>Arise To Do is free to start, with both hubs and 3 plugins from the Plugin Gallery. One subscription, Arise All Access, unlocks every plugin and AI, plus the paid tier of the Cooked, Arise Notes and Podster plugins. Subscribing in the iPhone app? Your first 3 days are free.</p>
+  </div>
+  <div class="pricing-grid">
+   <article class="pricing-card">
+    <div class="plan-label">For everyone</div>
+    <h3>Arise To Do · Free</h3>
+    <div class="price">$0 <span>/ month</span></div>
+    <p>Work and Life hubs with everything you need to get organized.</p>
+    <ul>
+     <li>Both hubs: Work and Life</li>
+     <li>Tasks, calendars, notes, chores and trackers</li>
+     <li>Up to 3 plugins from the Plugin Gallery</li>
+     <li>Your own Home screen, folders and menu</li>
+     <li>Upgrade anytime for every app and AI</li>
+    </ul>
+    <a class="button button-primary" href="/app#/signin">Get started free</a>
+   </article>
+   <article class="pricing-card">
+    <div class="plan-label">The one Arise To Do subscription</div>
+    <h3>Arise All Access</h3>
+    <div class="price">$10 <span>/ month</span></div>
+    <p class="trial-note" data-testid="pricing-trial"><strong>3-day free trial</strong> when you subscribe in the Arise To Do iPhone app.</p>
+    <p>Everything in Free, plus every plugin and AI, and the paid tier of each app below, all as plugins inside Arise To Do.</p>
+    <ul>
+     <li><strong>Arise To Do</strong><small class="perk-detail">Unlimited: all 575+ plugins, Add with AI, the AI assistant and meal estimates</small></li>
+     <li><strong>Arise Notes</strong><small class="perk-detail">Plus: 1,500 minutes a month, speaker labels, IEP mode</small></li>
+     <li><strong>Cooked Fitness by Arise</strong><small class="perk-detail">Premium All in one Health &amp; Fitness App, with a free guest pass for a friend</small></li>
+     <li><strong>Podster</strong><small class="perk-detail">Ad-free listening</small></li>
+     <li>Cancel anytime. Nothing is deleted if you go back to Free</li>
+    </ul>
+    <a class="button button-primary" href="/app#/all-access">Get All Access</a>
+   </article>
+  </div>
+  <p class="pricing-note" style="margin-top:14px">All Access is for normal personal, family and classroom use (fair use). If an account goes far beyond normal use, we'll contact you first.</p>
+ </div>
+</section>
+<section class="faq-section" id="faq" aria-labelledby="faq-title">
+<div class="container faq-wrap">
+<div class="section-kicker">Questions</div>
+<h2 class="section-heading" id="faq-title">Questions from sales reps and account managers, <span class="gradient-text">answered.</span></h2>
+<details class="faq-item"><summary>Does it connect to my CRM?</summary><p>Not directly. It's your own pipeline and to-do list, quick to keep up on your phone.</p></details>
+<details class="faq-item"><summary>Can it write emails?</summary><p>The email rewriter and meeting summaries are AI tools in Arise All Access.</p></details>
+<details class="faq-item"><summary>What does it cost?</summary><p>WorkHub is free to start. Arise All Access ($10 a month) adds every plugin and the AI features.</p></details>
+<details class="faq-item"><summary>Does it sync across my devices?</summary><p>Yes. Everything is saved to your account, so the same lists are on your phone, tablet and computer.</p></details>
+<details class="faq-item"><summary>Can I hide the tools I don't need?</summary><p>Yes. Turn on the tools you use, hide the rest, and add more from the Plugin Gallery any time.</p></details>
 </div>
-
-<section aria-labelledby="inside">
-<h2 id="inside">Built around your day</h2>
-<div class="grid"><div class="card"><h3>A pipeline you'll keep up</h3><p>Every lead and where it stands, with the next call on your to-do list.</p></div><div class="card"><h3>Calls and objections</h3><p>Log calls made and keep your best answers to common objections.</p></div><div class="card"><h3>Better follow-ups</h3><p>Rewrite an email in a tap, and get a summary of the meeting you just had.</p></div><div class="card"><h3>Book the meeting</h3><p>Find a Time sends a link so prospects pick a time that works.</p></div></div>
 </section>
-
-<section aria-labelledby="tools">
-<h2 id="tools">Your sales toolkit, added in one tap</h2>
-<p class="muted">The <b>Sales</b> bundle adds all of these to WorkHub at once. Keep the ones you use and hide the rest.</p>
-<ul class="tools"><li>Leads pipeline<small>From first hello to signed</small></li><li>Calls made<small>Activity drives results</small></li><li>Objection handling<small>Answers to the usual pushback</small></li><li>Clients<small>Who you work for and what they need</small></li><li>Mileage log<small>Every work trip, for tax time</small></li><li>Email Helper<small>Polish a message in your voice</small></li><li>Meeting Minutes<small>Notes, decisions and action items</small></li><li>Find a Time<small>Everyone's availability on one grid</small></li></ul>
-</section>
-<section aria-labelledby="also">
-<h2 id="also">Plus everything in Arise To Do</h2>
-<ul class="check">
-<li>To-dos with due dates, repeats and reminders</li>
-<li>A calendar that shows Google Calendar, your iPhone calendar or any calendar link</li>
-<li>Forward an email to WorkHub and it becomes a to-do</li>
-<li>WorkHub for work and LifeHub for home, one tap apart</li>
-<li>Home Screen widgets and split screen on iPhone</li>
-</ul>
-</section>
-
-<section aria-labelledby="start">
-<h2 id="start">Get started in three steps</h2>
-<ol class="steps"><li><b>Make your free account</b>It takes a minute, and it's free.</li><li><b>Open WorkHub's Plugin Gallery</b>Under <b>Bundles by job</b>, tap <b>Sales</b>, then <b>Add all</b>.</li><li><b>Make it yours</b>Hide what you don't use, add your to-dos, and connect Google Calendar from the Calendar page.</li></ol>
-</section>
-
-<section aria-labelledby="faq">
-<h2 id="faq">Questions people ask</h2>
-<details><summary>Does it connect to my CRM?</summary><p>Not directly. It's your own pipeline and to-do list, quick to keep up on your phone.</p></details>
-<details><summary>Can it write emails?</summary><p>The email rewriter and meeting summaries are AI tools in Arise All Access.</p></details>
-<details><summary>What does it cost?</summary><p>WorkHub is free to start. Arise All Access ($10 a month) adds every plugin and the AI features.</p></details>
-</section>
-
-<div class="band"><h2>Ready when you are</h2><p>Make your free account and set up WorkHub for sales reps and account managers in a few minutes.</p><div class="cta"><a class="btn primary" href="/app#/signin?create">Get it free</a></div></div>
-
-<section aria-labelledby="others">
-<h2 id="others">Arise To Do for other work</h2>
-<div class="more"><a href="/for/teachers/">Teachers<small>Teachers and special educators</small></a><a href="/for/business-owners/">Business owners<small>Small business owners</small></a><a href="/for/accountants/">Accountants<small>Accountants and bookkeepers</small></a><a href="/for/creators/">Creators<small>Social media creators and influencers</small></a><a href="/for/personal-trainers/">Trainers &amp; coaches<small>Personal trainers and fitness coaches</small></a><a href="/for/real-estate-agents/">Real estate<small>Real estate agents</small></a><a href="/for/health-care/">Health care<small>Nurses and health care workers</small></a><a href="/for/contractors/">Trades<small>Contractors and the trades</small></a><a href="/for/salons-and-barbers/">Salons &amp; barbers<small>Stylists and barbers</small></a><a href="/for/restaurants/">Restaurants<small>Restaurants, cafés and food trucks</small></a><a href="/for/sales/" aria-current="page">Sales<small>Sales reps and account managers</small></a><a href="/for/freelancers/">Freelancers<small>Freelancers, designers, writers and photographers</small></a><a href="/for/nonprofits/">Nonprofits<small>Nonprofits and ministries</small></a><a href="/for/legal/">Legal<small>Lawyers and paralegals</small></a><a href="/for/job-seekers/">Job seekers<small>Anyone looking for their next job</small></a><a href="/for/everyone/">Everyone<small>To-dos, home, family and money</small></a></div>
-</section>
+<section class="section" id="who" aria-labelledby="who-title"><div class="container"><div class="features-header center"><div class="section-kicker">Who it's for</div><h2 class="section-heading" id="who-title">Arise To Do, <span class="gradient-text">for every kind of work.</span></h2></div>
+<div class="jobs-grid"><a class="job-card" href="/for/teachers/" style="--app-accent:#6e5ae0"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Teachers</strong><small>Lessons, grades, attendance and families</small></span></a><a class="job-card" href="/for/business-owners/" style="--app-accent:#2563eb"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Business owners</strong><small>Customers, sales, money and your team</small></span></a><a class="job-card" href="/for/accountants/" style="--app-accent:#0369a1"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Accountants</strong><small>Clients, returns, hours and deadlines</small></span></a><a class="job-card" href="/for/creators/" style="--app-accent:#db2777"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span><strong>Creators</strong><small>Content calendar, brand deals and growth</small></span></a><a class="job-card" href="/for/personal-trainers/" style="--app-accent:#ea580c"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Trainers &amp; coaches</strong><small>Clients, sessions, classes and intake</small></span></a><a class="job-card" href="/for/real-estate-agents/" style="--app-accent:#0d9488"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Real estate</strong><small>Listings, buyers, showings and closings</small></span></a><a class="job-card" href="/for/health-care/" style="--app-accent:#0284c7"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span><strong>Health care</strong><small>Shifts, CE credits and licenses</small></span></a><a class="job-card" href="/for/contractors/" style="--app-accent:#b45309"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-check"></use></svg></span><span><strong>Trades</strong><small>Jobs, estimates, materials and safety</small></span></a><a class="job-card" href="/for/salons-and-barbers/" style="--app-accent:#c026d3"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Salons &amp; barbers</strong><small>Clients, services, tips and stock</small></span></a><a class="job-card" href="/for/restaurants/" style="--app-accent:#ea580c"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-check"></use></svg></span><span><strong>Restaurants</strong><small>Opening, closing, temps and orders</small></span></a><a class="job-card current" href="/for/sales/" aria-current="page" style="--app-accent:#16a34a"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-chart"></use></svg></span><span><strong>Sales</strong><small>Pipeline, calls, follow-ups and objections</small></span></a><a class="job-card" href="/for/freelancers/" style="--app-accent:#6d28d9"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-chart"></use></svg></span><span><strong>Freelancers</strong><small>Projects, pitches, hours and invoices</small></span></a><a class="job-card" href="/for/nonprofits/" style="--app-accent:#e11d48"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-users"></use></svg></span><span><strong>Nonprofits</strong><small>Donors, events, grants and fundraisers</small></span></a><a class="job-card" href="/for/legal/" style="--app-accent:#334155"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span><strong>Legal</strong><small>Matters, deadlines and billable hours</small></span></a><a class="job-card" href="/for/job-seekers/" style="--app-accent:#0ea5e9"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span><strong>Job seekers</strong><small>Applications, interviews and your resume</small></span></a><a class="job-card" href="/for/everyone/" style="--app-accent:#5b53df"><span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-heart"></use></svg></span><span><strong>Everyone</strong><small>To-dos, home, family and money</small></span></a></div>
+</div></section>
+<section class="bottom-cta"><div class="container"><div class="cta-card"><div class="section-kicker">Make space for what matters</div><h2>Every lead.<br />Followed up.</h2><p>Free to start, and yours to shape. <a href="#pricing" style="color:#fff;text-decoration:underline">See pricing</a>.</p><a href="/app#/signin?create" class="button">Start free as a sales rep <svg><use href="#i-arrow"/></svg></a><div class="cta-small"><a href="/app#/signin">Already have an account? Sign in</a> · <a href="/for/">See who it's for</a></div></div></div></section>
 </main>
-<footer><div class="wrap"><span>Arise To Do · To-dos, calendar and the tools for your work and your life · Updated November 26, 2026</span><span><a href="/">Home</a> · <a href="/for/">Who it's for</a> · <a href="/#pricing">Pricing</a> · <a href="/privacy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/app#/signin">Sign in</a></span></div></footer>
+<footer class="site-footer"><div class="container footer-inner"><a class="logo" href="#top" aria-label="Back to top"><img class="logo-symbol" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2310C8B3%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23527BED%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23955FE5%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2262%22%20height%3D%2262%22%20rx%3D%2218%22%20fill%3D%22url%28%23g%29%22%2F%3E%0A%20%3Crect%20x%3D%2213%22%20y%3D%2215%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20opacity%3D%22.95%22%2F%3E%0A%20%3Cpath%20d%3D%22M17%2022.3l4%203.8%208-10%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M36%2023h14M17%2043h12M36%2043h14%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.96%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" /><span>Arise <span class="todo">To Do</span></span></a><span class="footer-text">Arise To Do · To-dos, calendar and the tools for your work and your life · 2026</span><span class="footer-actions"><a class="footer-link" href="/">Home</a><a class="footer-link" href="/for/">Who it's for</a><a class="footer-link" href="/for/everyone/">For everyone</a><a class="footer-link" href="/#pricing">Pricing</a><a class="footer-link" href="/privacy/">Privacy</a><a class="footer-link" href="/terms/">Terms</a><a class="footer-link" href="/app#/signin">Sign in</a><a class="footer-link" href="/app#/signin?create">Create account</a><a class="footer-link" href="#top">Back to top ↑</a></span></div></footer>
+<script>
+(function(){var m=document.getElementById('menuToggle'),n=document.getElementById('navLinks');if(m&&n){m.addEventListener('click',function(){var o=n.classList.toggle('show');m.setAttribute('aria-expanded',String(o));m.setAttribute('aria-label',o?'Close menu':'Open menu')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('show');m.setAttribute('aria-expanded','false')})})}
+var boxes=[].slice.call(document.querySelectorAll('#previewList .mini-checkbox'));function count(){var d=boxes.filter(function(b){return b.checked}).length,t=boxes.length,p=Math.round(d/t*100);document.getElementById('heroCompleted').textContent=d;document.getElementById('heroPercent').textContent=p+'%';document.getElementById('heroRing').style.setProperty('--progress',p+'%')}
+boxes.forEach(function(b){b.addEventListener('change',function(){b.closest('.preview-task').classList.toggle('done',b.checked);count()})});
+var d=document.getElementById('mockDate');if(d){try{d.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}).toUpperCase()}catch(e){}}})();
+</script>
 </body>
 </html>
