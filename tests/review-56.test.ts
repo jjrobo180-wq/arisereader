@@ -65,7 +65,7 @@ test("App Review: one paid plan, no ad stripping or trainer online-coaching paym
   assert.match(work, /\{user\.isAdmin && !isNativeApp\(\) && <a href="#\/todo-admin"/);
   const rules = readFileSync("CLAUDE.md", "utf8");
   assert.match(rules, /\*\*No live updates\.\*\*/);
-  assert.match(rules, /\*\*To Do alone in the To Do app\.\*\*/);
+  assert.match(rules, /\*\*To Duo alone in the To Duo app\.\*\*/);
 });
 
 test("no Browser plugin: not in the Plugin Gallery, the hubs, split screen or the team apps, and its screen is gone", async () => {
