@@ -51,6 +51,6 @@ test("sorts, views and lists are remembered, and the phone app drawer has every 
   assert.ok(readFileSync("client/src/components/teacher-hub/HubBehavior.tsx", "utf8").includes('"hub-behavior-sort"'));
   assert.ok(readFileSync("client/src/pages/Library.tsx", "utf8").includes('"library-sort"'));
   assert.ok(readFileSync("client/src/pages/AriseTodo.tsx", "utf8").includes('"life-todo-view"'));
-  const drawer = page.slice(page.indexOf('aria-label="All sections"'), page.indexOf("hubEntries.map((entry)"));
-  for (const part of ["mySheetsApps.map", "drivePlugin ?", "dropPlugin ?", "myKits.filter", "myNotesApps.filter"]) assert.ok(drawer.includes(part), part);
+  const drawer = page.slice(page.indexOf('aria-label="All sections"'), page.indexOf("<AppDrawerGrid items={drawerItems}"));
+  for (const part of ["mySheetsApps.map", "drivePlugin ?", "dropPlugin ?", "myKits.map", "myNotesApps.map", "myOfficeApps.map"]) assert.ok(drawer.includes(part), part);
 });

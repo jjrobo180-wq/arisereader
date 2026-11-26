@@ -71,6 +71,43 @@ export function cleanFolders(raw: unknown): MenuFolder[] {
   return out;
 }
 
+/** A saved list of app ids made safe: strings, no repeats, not too many. */
+export function cleanIds(raw: unknown, max: number): string[] {
+  const out: string[] = [];
+  for (const x of Array.isArray(raw) ? raw : []) if (typeof x === "string" && x && x.length <= 80 && !out.includes(x)) { out.push(x); if (out.length >= max) break; }
+  return out;
+}
+
+/** The app drawer as the person arranged it: removed apps left out, the rest in their saved order. An app
+ *  that isn't in the saved order (just installed) goes at the end, like a new app on an iPhone. */
+export function arrangeDrawer<T extends { id: string }>(items: T[], order: readonly string[] = [], hidden: readonly string[] = []): T[] {
+  return items
+    .filter((i) => !hidden.includes(i.id))
+    .map((item, n) => ({ item, at: order.includes(item.id) ? order.indexOf(item.id) : order.length + n }))
+    .sort((a, b) => a.at - b.at)
+    .map((x) => x.item);
+}
+
+/** A drawer key ("folder:<id>" for a folder, else the app's id) moved onto another's place. */
+export function moveKey(keys: readonly string[], from: string, onto: string): string[] {
+  const i = keys.indexOf(from), j = keys.indexOf(onto);
+  if (i < 0 || j < 0 || i === j) return [...keys];
+  const next = keys.filter((k) => k !== from);
+  next.splice(j, 0, from);
+  return next;
+}
+
+/** The saved drawer order after a drag: the tiles' new order (a folder brings its apps along), then the rest as they were. */
+export function orderFromKeys(keys: readonly string[], folders: readonly MenuFolder[], previous: readonly string[] = []): string[] {
+  const out: string[] = [];
+  for (const k of keys) {
+    const ids = k.startsWith("folder:") ? folders.find((f) => `folder:${f.id}` === k)?.items ?? [] : [k];
+    for (const id of ids) if (!out.includes(id)) out.push(id);
+  }
+  for (const id of previous) if (!out.includes(id)) out.push(id);
+  return out.slice(0, 200);
+}
+
 export type MenuEntry<T> = { kind: "item"; item: T } | { kind: "folder"; folder: MenuFolder; items: T[] };
 /** The menu with folders: each folder sits where its first section was, holding its sections.
  *  A folder with nothing in it yet (just made in Customize) has no section to sit next to, so it
@@ -99,6 +136,10 @@ export type AnyLayout = {
   deskSide: DeskSide;
   /** Folders the person made in the menu. */
   folders: MenuFolder[];
+  /** The app drawer's order, set by holding an app and dragging it (ids; an app not listed goes at the end). */
+  drawerOrder?: string[];
+  /** Apps taken off the app drawer with its ✕ (they can be put back while arranging). */
+  drawerHidden?: string[];
   menuClose: MenuClose;
   /** Every part of Home, in the person's order. Besides the hub's built-in parts, this can hold a
    *  pinned app's id (see pinId/unpinId below) for an installed app pinned to Home. */
@@ -169,7 +210,8 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   const theme: HubThemeId = isHubThemeId(r.theme) ? r.theme : DEFAULT_HUB_THEME;
   const shortcut = cleanShortcut(r.shortcut);
   const lookAt = typeof r.lookAt === "string" && r.lookAt.length <= 40 && !Number.isNaN(Date.parse(r.lookAt)) ? r.lookAt : "";
-  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}), menuV: 2 as const,
+  const drawerOrder = cleanIds(r.drawerOrder, 200), drawerHidden = cleanIds(r.drawerHidden, 200);
+  return { menuSide, deskSide, folders: cleanFolders(r.folders), ...(drawerOrder.length ? { drawerOrder } : {}), ...(drawerHidden.length ? { drawerHidden } : {}), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}), menuV: 2 as const,
     ...(lookAt ? { lookAt } : {}), ...(typeof r.night === "boolean" ? { night: r.night } : {}) };
 }
 

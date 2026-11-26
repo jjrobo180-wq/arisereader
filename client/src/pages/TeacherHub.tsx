@@ -172,6 +172,7 @@ import { onAskFinished, openAsk, startTaskAsk, useAriseAsks } from "@/lib/ariseA
 import { isAskId, parseTaskAsk } from "@shared/ariseAsks";
 import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
 import { OPEN_APPS_EVENT, PhoneTabBar } from "@/components/family-hub/PhoneTabBar";
+import { AppDrawerGrid, type DrawerItem } from "@/components/family-hub/AppDrawerGrid";
 import { HubMoreMenu, hubMoreGroups, openNotificationBell } from "@/components/HubMoreMenu";
 import SameBothHubs from "@/components/SameBothHubs";
 import AppWalkthrough, { walkthroughDone } from "@/components/AppWalkthrough";
@@ -1415,14 +1416,6 @@ function TeacherHubPage() {
               {(() => {
                 const hubSearching = appsQuery.trim().length > 0;
                 const hubOpenFolder: MenuFolder | null = !hubSearching && hubGridFolder ? layout.folders.find((f) => f.id === hubGridFolder) ?? null : null;
-                // Searching looks across every group, folders included (flattened), so nothing tucked away becomes unfindable.
-                // Not searching, at the top level: a folder collapses to one tile, via foldMenu, until tapped open.
-                // Inside a folder: just its own groups.
-                const hubEntries: MenuEntry<(typeof menu)[number]>[] = hubSearching
-                  ? menu.filter((item) => groupLabel(item.id, visible).toLowerCase().includes(appsQuery.trim().toLowerCase())).map((item) => ({ kind: "item" as const, item }))
-                  : hubOpenFolder
-                  ? hubOpenFolder.items.map((id) => menu.find((m) => m.id === id)).filter((m): m is (typeof menu)[number] => !!m).map((item) => ({ kind: "item" as const, item }))
-                  : foldMenu(menu, layout.folders);
                 return (<>
                   <div className="flex items-center gap-2 px-4 pb-3 pt-3">
                     {hubOpenFolder && <button type="button" onClick={() => setHubGridFolder(null)} aria-label="Back to all sections" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" data-testid="hub-apps-back"><ArrowLeft className="h-5 w-5" /></button>}
@@ -1432,74 +1425,27 @@ function TeacherHubPage() {
                     </label>
                     <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
                   </div>
-                  {hubOpenFolder && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{hubOpenFolder.name}</p>}
-                  <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
-                    {!hubOpenFolder && (user.role === "teacher" || !!user.isAdmin) && LEARNING_APPS.filter((a) => a.label.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => { const Icon = a.icon; const has = learningAccess[a.id]; return (
-                      <li key={`learn-${a.id}`}>
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); openLearning(a.id, has); }} data-testid={`hub-app-learning-${a.id}`}
-                          className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className="relative inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ background: `linear-gradient(135deg, ${a.color}, ${a.color}cc)` }}><Icon className="h-7 w-7" />{!has && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 text-[9px] font-bold shadow" style={{ color: a.color }}>Add</span>}</span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{a.label}</span>
-                        </button>
-                      </li>
-                    ); })}
-                    {!hubOpenFolder && "app store".includes(appsQuery.trim().toLowerCase()) && (
-                      <li>
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
-                          className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-7 w-7" /></span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">Plugin Gallery</span>
-                        </button>
-                      </li>
-                    )}
-                    {!hubOpenFolder && myKits.filter((d) => d.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((d) => { const Icon = kitIcon(d.icon); return (
-                      <li key={`kit-${d.id}`} className="order-last">
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openKit(d.id); setApps(false); }} data-testid={`hub-app-kit-${d.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: d.color }}><Icon className="h-7 w-7" /></span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{d.name}</span>
-                        </button>
-                      </li>
-                    ); })}
-                    {!hubOpenFolder && myNotesApps.filter((p) => p.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((p) => (
-                      <li key={`notes-app-${p.id}`} className="order-last">
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openNotesApp(p.id); setApps(false); }} data-testid={`hub-app-notes-app-${p.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: p.color }}><StickyNote className="h-7 w-7" /></span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{p.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                    {!hubOpenFolder && [
-                      ...mySheetsApps.map((a) => ({ key: `sheets-app-${a.id}`, name: a.name, color: a.color, icon: <Table className="h-7 w-7" />, open: () => setSheetsAppOpen(a.id) })),
-                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <OfficeAppIcon icon={a.icon} className="h-7 w-7" />, open: () => { if (a.target.kind !== "officeApp") return; const inHub = inHubOf(a.target.href); if (inHub) { closeApps(); setKitOpen(inHub); } else window.location.hash = a.target.href; } })),
-                      ...(drivePlugin ? [{ key: "drive-app", name: drivePlugin.name, color: drivePlugin.color, icon: <FolderOpen className="h-7 w-7" />, open: () => setDriveOpen(true) }] : []),
-                      ...(dropPlugin ? [{ key: "drop-app", name: dropPlugin.name, color: dropPlugin.color, icon: <QrCode className="h-7 w-7" />, open: () => setDropOpen(true) }] : []),
-                    ].filter((a) => a.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => (
-                      // Every app added from the App Store shows here too, not only in the sidebar.
-                      <li key={a.key} className="order-last">
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { closeApps(); a.open(); setApps(false); }} data-testid={`hub-app-${a.key}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: a.color }}>{a.icon}</span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{a.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                    {hubEntries.map((entry) => entry.kind === "item" ? (
-                      <li key={entry.item.id}>
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { goGroup(entry.item.id); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
-                          className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className={`relative inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === entry.item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[entry.item.id]}{entry.item.id === "arise" && readerNeedsPremium && <span className="absolute -right-2 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold text-violet-800 shadow">Add-on</span>}</span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(entry.item.id, visible)}</span>
-                        </button>
-                      </li>
-                    ) : (
-                      <li key={`folder-${entry.folder.id}`}>
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => setHubGridFolder(entry.folder.id)} data-testid={`hub-app-folder-${entry.folder.id}`} aria-label={`Open folder ${entry.folder.name}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className="grid h-14 w-14 grid-cols-2 gap-0.5 rounded-[1.1rem] bg-slate-200 p-2 shadow-sm">{Array.from({ length: 4 }, (_, i) => <span key={i} className="flex items-center justify-center rounded-[5px] bg-white text-slate-400 [&_svg]:h-3 [&_svg]:w-3">{entry.items[i] ? GROUP_ICON[entry.items[i].id] : null}</span>)}</span>
-                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800"><FolderIcon className="mr-0.5 -mt-0.5 inline h-2.5 w-2.5 text-slate-400" />{entry.folder.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                    {!hubEntries.length && hubOpenFolder && <li className="col-span-full py-10 text-center text-sm text-slate-400">This folder is empty.</li>}
-                  </ul>
+                  {(() => {
+                    // Every app in the drawer, in one list, so they can all be arranged: the learning apps, the Plugin Gallery,
+                    // the hub's sections, then every app added from the App Store (components/family-hub/AppDrawerGrid.tsx).
+                    const drawerItems: DrawerItem[] = [
+                      ...((user.role === "teacher" || !!user.isAdmin) ? LEARNING_APPS.map((a) => { const Icon = a.icon; const has = learningAccess[a.id]; return { id: `learning-${a.id}`, label: a.label, icon: <Icon />, background: `linear-gradient(135deg, ${a.color}, ${a.color}cc)`,
+                        corner: !has ? <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 text-[9px] font-bold shadow" style={{ color: a.color }}>Add</span> : undefined, onClick: () => openLearning(a.id, has) }; }) : []),
+                      { id: "store", label: "Plugin Gallery", icon: <ShoppingBag />, background: "var(--hub-accent, #5b3be0)", fixed: true, onClick: () => setStore(true) },
+                      ...menu.map((m) => ({ id: m.id, label: groupLabel(m.id, visible), icon: GROUP_ICON[m.id], active: group.id === m.id, fixed: m.id === "home",
+                        corner: m.id === "arise" && readerNeedsPremium ? <span className="absolute -right-2 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold text-violet-800 shadow">Add-on</span> : undefined, onClick: () => goGroup(m.id) })),
+                      ...myKits.map((d) => { const Icon = kitIcon(d.icon); return { id: `kit-${d.id}`, label: d.name, icon: <Icon />, background: d.color, onClick: () => openKit(d.id) }; }),
+                      ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, background: p.color, onClick: () => openNotesApp(p.id) })),
+                      ...mySheetsApps.map((a) => ({ id: `sheets-app-${a.id}`, label: a.name, icon: <Table />, background: a.color, onClick: () => { closeApps(); setSheetsAppOpen(a.id); } })),
+                      ...myOfficeApps.map((a) => ({ id: `office-app-${a.id}`, label: a.name, icon: <OfficeAppIcon icon={a.icon} />, background: a.color, onClick: () => { closeApps(); if (a.target.kind !== "officeApp") return; const inHub = inHubOf(a.target.href); if (inHub) setKitOpen(inHub); else window.location.hash = a.target.href; } })),
+                      ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, background: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
+                      ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, background: dropPlugin.color, onClick: () => { closeApps(); setDropOpen(true); } }] : []),
+                    ];
+                    return <AppDrawerGrid items={drawerItems} folders={layout.folders} onFolders={(next) => setLayout({ ...layout, folders: next })}
+                      order={layout.drawerOrder} hidden={layout.drawerHidden} onArrange={(drawerOrder, drawerHidden) => setLayout({ ...layout, drawerOrder, drawerHidden })}
+                      open={apps} onClose={() => setApps(false)} query={appsQuery} gridFolder={hubGridFolder} setGridFolder={setHubGridFolder}
+                      prefix="hub" base="#020617" activeBg="#0f766e" listId="hub-apps-list" />;
+                  })()}
                 </>);
               })()}
             </div>
