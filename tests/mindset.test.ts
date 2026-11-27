@@ -74,3 +74,12 @@ test("mindset is kept on the family and cleaned", () => {
   assert.equal(f.mindset?.dreams[0].steps[0].done, true);
   assert.equal(cleanFamily(emptyFamily()).mindset, undefined);
 });
+
+test("Mindset and Chores are offered in the LifeHub plugin store", async () => {
+  const { pluginsFor } = await import("../shared/pluginStore");
+  for (const teacher of [false, true]) {
+    const ids = pluginsFor("life", { teacher }).map((p) => p.id);
+    assert.ok(ids.includes("life-mindset"), "Mindset missing");
+    assert.ok(ids.includes("life-chores"), "Chores missing");
+  }
+});
