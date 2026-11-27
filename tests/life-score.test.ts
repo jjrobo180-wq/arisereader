@@ -62,9 +62,17 @@ test("other LifeHub apps feed it: Mood, Sleep log, Meditate, Gratitude, Goals, B
 
 test("screenings by age and sex (USPSTF), and Prevention scores habits", () => {
   const s = { screenings: { colorectal: { date: "2020-01-01", years: 10 } }, off: [], birthYear: 1976, sex: "female" as const };
-  const st = screeningStatus(s, today);
+  const st = screeningStatus(s, today, "cancer");
   assert.deepEqual(st.map((x) => [x.id, x.due]), [["breast", true], ["cervical", true], ["colorectal", false]]);
-  assert.deepEqual(screeningStatus({ screenings: {}, off: [], birthYear: 2000, sex: "male" }, today), []);
+  assert.deepEqual(screeningStatus({ screenings: {}, off: [], birthYear: 2000, sex: "male" }, today, "cancer"), []);
+  // Checkups and vaccines: a woman of 50 gets these, not the men's or the 65+ ones.
+  const more = screeningStatus(s, today).filter((x) => x.kind !== "cancer").map((x) => x.id);
+  assert.deepEqual(more, ["physical", "bp", "cholesterol", "diabetes", "dental", "eyes", "skin", "flu", "covid", "tetanus", "shingles", "pneumonia"]);
+  // "Once" vaccines stay done; a dental cleaning is due again after 6 months.
+  const done = screeningStatus({ ...s, screenings: { shingles: { date: "2020-01-01", years: 10 }, dental: { date: "2026-03-01", years: 0.5 } } }, today);
+  assert.equal(done.find((x) => x.id === "shingles")!.due, false);
+  assert.equal(done.find((x) => x.id === "dental")!.due, true);
+  assert.equal(done.find((x) => x.id === "dental")!.next, "2026-09-01");
 });
 
 test("saved data is cleaned: bad values dropped, numbers kept in range", () => {

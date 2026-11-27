@@ -16,14 +16,16 @@ import { API_BASE } from "@/lib/queryClient";
 import { lastDays, TODO_MAX, TODO_POINTS, type LifeInput } from "@shared/lifeScore";
 import { lifeStats, type AnyTask } from "@shared/lifeStats";
 import { lifeInsights, type LifeInsights } from "@shared/lifeInsights";
+import { HealthHome, PreventionView, SymptomDetail, SymptomForm, SymptomsView, VitalsView, type HealthView } from "./LifeHealthViews";
 import { SCALES, scoreScale, type Labs, type ScaleId } from "@shared/lifeScales";
 import { ChartView, Explorer, Records, SectionPage, StatsHome } from "./LifeStatsViews";
 
 type View = { kind: "overview" } | { kind: "checkin" } | { kind: "trends" } | { kind: "settings" } | { kind: "metric"; id: MetricId } | { kind: "area"; id: AreaId }
-  | { kind: "stats" } | { kind: "section"; id: string } | { kind: "explore" } | { kind: "records" } | { kind: "measures" } | { kind: "scale"; id: ScaleId } | { kind: "labs" };
-type Tab = "overview" | "stats" | "explore" | "records" | "checkin";
-const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Score" }, { id: "stats", label: "Stats" }, { id: "explore", label: "Explore" }, { id: "records", label: "Records" }, { id: "checkin", label: "Check in" }];
-const tabOf = (v: View): Tab => (v.kind === "stats" || v.kind === "section" ? "stats" : v.kind === "explore" ? "explore" : v.kind === "records" ? "records" : v.kind === "checkin" || v.kind === "measures" || v.kind === "scale" || v.kind === "labs" ? "checkin" : "overview");
+  | { kind: "stats" } | { kind: "section"; id: string } | { kind: "explore" } | { kind: "records" } | { kind: "measures" } | { kind: "scale"; id: ScaleId } | { kind: "labs" } | HealthView;
+type Tab = "overview" | "health" | "stats" | "explore" | "records" | "checkin";
+const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Score" }, { id: "health", label: "Health" }, { id: "stats", label: "Stats" }, { id: "explore", label: "Explore" }, { id: "records", label: "Records" }, { id: "checkin", label: "Check in" }];
+const HEALTH_VIEWS = new Set(["health", "symptoms", "symptom", "log-symptom", "vitals", "prevention"]);
+const tabOf = (v: View): Tab => (HEALTH_VIEWS.has(v.kind) ? "health" : v.kind === "stats" || v.kind === "section" ? "stats" : v.kind === "explore" ? "explore" : v.kind === "records" ? "records" : v.kind === "checkin" || v.kind === "measures" || v.kind === "scale" || v.kind === "labs" ? "checkin" : "overview");
 
 /** Other hubs' to-dos and records, and the Health & Fitness diary, read when Life Score opens (read only). */
 type Extra = { fit?: any; work?: any; otherTasks?: any[]; otherLists?: any[] };
@@ -237,6 +239,12 @@ export default function LifeScoreApp({ family, setFamily, today, say, token, lif
       {view.kind === "measures" && <Measures data={data} today={today} back={() => go({ kind: "checkin" })} open={(id) => go({ kind: "scale", id })} />}
       {view.kind === "scale" && <ScaleForm id={view.id} data={data} today={today} update={update} back={() => go({ kind: "measures" })} />}
       {view.kind === "labs" && <LabsView data={data} today={today} update={update} back={() => go({ kind: "checkin" })} />}
+      {view.kind === "health" && <HealthHome data={data} today={today} go={go} />}
+      {view.kind === "symptoms" && <SymptomsView data={data} today={today} go={go} back={() => go({ kind: "health" })} />}
+      {view.kind === "log-symptom" && <SymptomForm data={data} update={update} initial={view.id} done={(id) => { say("Symptom saved."); go({ kind: "symptom", id }); }} back={() => go({ kind: "symptoms" })} />}
+      {view.kind === "symptom" && <SymptomDetail id={view.id} input={input} today={today} update={update} back={() => go({ kind: "symptoms" })} logAgain={() => go({ kind: "log-symptom", id: view.id })} />}
+      {view.kind === "vitals" && <VitalsView data={data} today={today} update={update} start={view.vital} back={() => go({ kind: "health" })} />}
+      {view.kind === "prevention" && <PreventionView data={data} today={today} update={update} back={() => go({ kind: "health" })} />}
       {view.kind === "overview" && <Overview data={data} result={result} insights={insights} today={today} go={go} syncing={syncing} sync={() => void sync()} connect={() => void connect()} addTodo={addTodo} />}
       {view.kind === "checkin" && <CheckIn data={data} today={today} update={update} back={() => go({ kind: "overview" })} openMeasures={() => go({ kind: "measures" })} openLabs={() => go({ kind: "labs" })} />}
       {view.kind === "trends" && <Trends result={result} back={() => go({ kind: "overview" })} go={go} />}
@@ -502,6 +510,25 @@ function InDepth({ ins, score, go }: { ins: LifeInsights; score: number | null; 
     </Card>
 
     <Card>
+      <Eyebrow>Last 30 days</Eyebrow>
+      <div className="mt-3 grid grid-cols-7 gap-1.5" data-testid="life-score-calendar">
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <span key={i} className="text-center text-[11px] font-bold text-slate-400">{d}</span>)}
+        {Array.from({ length: new Date(`${ins.calendar[0]?.date ?? "2026-01-01"}T12:00:00`).getDay() }, (_, i) => <span key={`b${i}`} />)}
+        {ins.calendar.map((c) => (
+          <span key={c.date} title={`${c.date}: ${c.score ?? "no score"}`} className="grid aspect-square place-items-center rounded-lg text-[12px] font-bold tabular-nums"
+            style={{ background: c.score === null ? "#f1f5f9" : c.score >= 85 ? "#10b981" : c.score >= 70 ? "#84cc16" : c.score >= 50 ? "#f59e0b" : "#f43f5e", color: c.score === null ? "#94a3b8" : "#fff" }}>{c.score ?? "·"}</span>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-slate-500"><span className="text-emerald-600">■</span> Excellent · <span className="text-lime-500">■</span> Good · <span className="text-amber-500">■</span> Fair · <span className="text-rose-500">■</span> Needs care</p>
+      <div className="mt-4">
+        <Eyebrow>Your score by weekday</Eyebrow>
+        <div className="mt-2 grid grid-cols-7 items-end gap-1.5" role="img" aria-label={`Average Life Score by weekday: ${ins.weekdays.map((v, i) => `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i]} ${v ?? "none"}`).join(", ")}`}>
+          {ins.weekdays.map((v, i) => <div key={i} className="flex flex-col items-center gap-1"><span className="text-[11px] font-bold tabular-nums text-slate-600">{v ?? "—"}</span><div className="w-full rounded-t-md bg-slate-900" style={{ height: `${v ? Math.max(6, v * 0.8) : 4}px`, opacity: v ? 1 : 0.15 }} /><span className="text-[11px] font-bold text-slate-400">{["S", "M", "T", "W", "T", "F", "S"][i]}</span></div>)}
+        </div>
+      </div>
+    </Card>
+
+    <Card>
       <Eyebrow>In depth</Eyebrow>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full min-w-[440px] text-left text-sm" data-testid="life-score-depth">
@@ -717,9 +744,14 @@ function CheckIn({ data, today, update, back, openMeasures, openLabs }: { data: 
         <Scale label="Happiness" value={c.happy} onChange={(v) => set("happy", v)} low="Awful" high="Wonderful" />
         <Scale label="Stress" value={c.stress} onChange={(v) => set("stress", v)} low="Calm" high="Overwhelmed" />
         <Scale label="Energy" value={c.energy} onChange={(v) => set("energy", v)} low="Drained" high="Full of energy" />
+        <Scale label="Anxiety" value={c.anxiety} onChange={(v) => set("anxiety", v)} low="None" high="Severe" />
+        <Scale label="Mental clarity" hint="How clear and focused your mind felt" value={c.clarity} onChange={(v) => set("clarity", v)} low="Foggy" high="Sharp" />
+        <Scale label="Motivation" value={c.motivation} onChange={(v) => set("motivation", v)} low="None" high="Driven" />
+        <Scale label="Body pain" value={c.pain} onChange={(v) => set("pain", v)} low="None" high="Worst" />
       </Group>
       <Group title="People and faith">
         <Scale label="Connection" hint="How close you felt to the people in your life" value={c.connect} onChange={(v) => set("connect", v)} low="Alone" high="Deeply connected" />
+        <Scale label="Loneliness" value={c.lonely} onChange={(v) => set("lonely", v)} low="Not at all" high="Very lonely" />
         <YesNo label="Real time with someone" hint="Undistracted, no phones" value={c.together} onChange={(v) => set("together", v)} />
         <YesNo label="Prayer, scripture or worship" value={c.faith} onChange={(v) => set("faith", v)} />
         <Scale label="Close to God" hint="Or to something greater than yourself" value={c.faithFelt} onChange={(v) => set("faithFelt", v)} low="Far" high="Very close" />
@@ -728,6 +760,9 @@ function CheckIn({ data, today, update, back, openMeasures, openLabs }: { data: 
         <Stepper label="Exercise" hint="Brisk walking counts" value={c.exercise} onChange={(v) => set("exercise", v)} step={5} unit="min" max={600} />
         <YesNo label="Strength training" value={c.strength} onChange={(v) => set("strength", v)} />
         <Stepper label="Fruit and vegetables" hint="A serving is a fruit, or a cup of greens" value={c.produce} onChange={(v) => set("produce", v)} step={1} unit="servings" max={20} />
+        <Stepper label="Water" hint="8-ounce cups" value={c.water} onChange={(v) => set("water", v)} step={1} unit="cups" max={40} />
+        <Stepper label="Coffee, tea or energy drinks" value={c.caffeine} onChange={(v) => set("caffeine", v)} step={1} unit="cups" max={20} />
+        <YesNo label="Brushed twice and flossed" value={c.flossed} onChange={(v) => set("flossed", v)} />
         {h.sleep === undefined && <Stepper label="Sleep" hint="Apple Health fills this in when connected" value={c.sleep} onChange={(v) => set("sleep", v)} step={0.5} unit="h" max={16} />}
         {h.mindful === undefined && <Stepper label="Meditation or prayer time" value={c.mindful} onChange={(v) => set("mindful", v)} step={5} unit="min" max={600} />}
       </Group>

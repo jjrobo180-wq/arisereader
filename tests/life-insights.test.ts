@@ -24,7 +24,7 @@ test("what's left today: unfinished check-in parts, sleep, steps, exercise, food
   input.data.days[today] = { happy: 7, exercise: 10 };
   const ins = lifeInsights(input, lifeScore(input, today), today);
   const by = Object.fromEntries(ins.left.map((l) => [l.id, l]));
-  assert.match(by.checkin.what, /^Add stress, energy, how connected, screen time and time outside$|^Add stress, energy, how connected and 2 more$/);
+  assert.match(by.checkin.what, /^Add stress, energy, how connected and \d+ more$/);
   assert.equal(by.sleep.what, "Log last night's sleep");
   assert.equal(by.steps.what, "2,400 more steps");
   assert.equal(by.exercise.what, "20 more minutes of exercise");
@@ -93,4 +93,19 @@ test("the widgets get today, the week by day, the year by month and what's left"
   assert.ok(w.leftCount >= 1);
   assert.ok(w.left.length >= 1 && w.left.length <= 4);
   assert.ok(w.categories.length >= 1);
+});
+
+test("once you're measuring blood pressure, today's reading is on the list; weekdays and the calendar", () => {
+  const input = base();
+  input.data.vitals = [{ id: "a", at: `${plusDays(today, -3)}T08:00`, kind: "bp", value: 125, dia: 80 }];
+  for (let i = 0; i < 30; i++) input.data.days[plusDays(today, -i)] = { ...full, happy: new Date(`${plusDays(today, -i)}T12:00:00`).getDay() === 6 ? 10 : 3 };
+  const r = lifeScore(input, today);
+  const ins = lifeInsights(input, r, today);
+  assert.ok(ins.left.some((l) => l.id === "bp" && /blood pressure/.test(l.what)));
+  assert.equal(ins.weekdays.length, 7);
+  assert.ok(ins.weekdays.every((v) => v !== null && v > 0));
+  assert.equal(ins.calendar.length, 30);
+  assert.equal(ins.calendar[29].date, today);
+  input.data.vitals.push({ id: "b", at: `${today}T08:00`, kind: "bp", value: 120, dia: 78 });
+  assert.ok(!lifeInsights(input, lifeScore(input, today), today).left.some((l) => l.id === "bp"));
 });

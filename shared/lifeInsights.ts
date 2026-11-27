@@ -31,6 +31,10 @@ export type LifeInsights = {
   areas: LifeAreaRow[];
   /** The measures that moved most in the last 7 days, up and down. */
   risers: LifeMover[]; fallers: LifeMover[];
+  /** The average Life Score on each weekday over 30 days (Sunday first; null: none). */
+  weekdays: (number | null)[];
+  /** The last 30 days, for a calendar: date and score. */
+  calendar: { date: string; score: number | null }[];
 };
 
 export const RATINGS: [string, number][] = [["Excellent", 85], ["Good", 70], ["Fair", 50]];
@@ -65,13 +69,17 @@ export function lifeInsights(input: LifeInput, r: LifeScoreResult, today: string
     const gain = Math.max(1, Math.round([metric, ...extra].filter(on).reduce((a, m) => a + lift(m), 0)));
     left.push({ id, name, color: color(byId.get(metric)!.area), what, count, gain, metric });
   };
-  const CHECKIN: [keyof NonNullable<typeof checkIn>, string, MetricId][] = [["happy", "how happy", "happy"], ["stress", "stress", "calm"], ["energy", "energy", "energy"], ["connect", "how connected", "connect"], ["screen", "screen time", "screen"], ["outdoors", "time outside", "outdoors"]];
+  const CHECKIN: [keyof NonNullable<typeof checkIn>, string, MetricId][] = [["happy", "how happy", "happy"], ["stress", "stress", "calm"], ["energy", "energy", "energy"], ["connect", "how connected", "connect"], ["screen", "screen time", "screen"], ["outdoors", "time outside", "outdoors"],
+    ["anxiety", "anxiety", "anxiety"], ["clarity", "clarity", "clarity"], ["lonely", "loneliness", "lonely"], ["motivation", "motivation", "motivation"], ["pain", "pain", "pain"], ["water", "water", "hydration"], ["caffeine", "caffeine", "caffeine"], ["flossed", "teeth", "oral"]];
   if (!checkIn) add("happy", "checkin", "Daily check-in", "How you feel, people, faith, screens and food (one minute)", 1, ["calm", "energy", "connect", "faith", "screen", "outdoors"]);
   else {
     const missing = CHECKIN.filter(([k, , m]) => on(m) && checkIn[k] === undefined);
     if (missing.length) add(missing[0][2], "checkin", "Finish your check-in", `Add ${listOf(missing.map(([, w]) => w))}`, 1, missing.slice(1).map(([, , m]) => m));
   }
   if (f.sleep === undefined) add("sleep", "sleep", "Sleep", "Log last night's sleep");
+  // Blood pressure: once someone's measuring (a reading in the last 2 weeks), today's reading is on the list.
+  const bpLately = (input.data.vitals ?? []).some((v) => v.kind === "bp" && v.at.slice(0, 10) >= plusDays(today, -13));
+  if (bpLately && f.sys === undefined) add("bp", "bp", "Blood pressure", "Measure your blood pressure (sit 5 minutes first)");
   const goal = input.data.settings.stepGoal || 8000;
   if (f.steps !== undefined && f.steps < goal) add("steps", "steps", "Steps", `${n(goal - f.steps)} more steps`);
   if ((f.exercise ?? 0) < 30) add("exercise", "exercise", "Exercise", f.exercise ? `${30 - f.exercise} more minutes of exercise` : "Log some exercise (30 minutes is a full day)");
@@ -131,7 +139,7 @@ export function lifeInsights(input: LifeInput, r: LifeScoreResult, today: string
   const days30 = r.dates.map((d, i) => [d, r.series[i]] as const).filter(([, v]) => v !== null) as [string, number][];
   const bestDay = [...days30].sort((a, b) => b[1] - a[1])[0];
   const firstWeek = meanOf(r.series.slice(0, 7)), lastWk = meanOf(r.series.slice(-7));
-  const summary = {
+  const summary: { today: string; week: string; month: string } = {
     today: now === null ? "No Life Score yet today. Check in or sync your health data to start."
       : `${now} (${labelFor(now)})${yesterday !== null ? `, ${now === yesterday ? "the same as" : now > yesterday ? `up ${now - yesterday} from` : `down ${yesterday - now} from`} yesterday` : ""}. ${leftCount ? `${leftCount} thing${leftCount === 1 ? "" : "s"} left to track.` : "Everything's tracked for today."}`,
     week: week === null ? "Nothing scored this week yet."
@@ -145,7 +153,13 @@ export function lifeInsights(input: LifeInput, r: LifeScoreResult, today: string
          r.streak ? `${r.streak}-day check-in streak.` : ""].filter(Boolean).join(" "),
   };
 
-  return { left, leftCount, ladder, improve: improve.slice(0, 5), summary, areas, risers, fallers };
+  const weekdays = [0, 1, 2, 3, 4, 5, 6].map((w) => meanOf(r.dates.map((d, i) => (new Date(`${d}T12:00:00`).getDay() === w ? r.series[i] : null))));
+  const wk = weekdays.map((v, i) => [v, i] as const).filter(([v]) => v !== null) as [number, number][];
+  if (wk.length >= 5) {
+    const hi = [...wk].sort((a, b) => b[0] - a[0])[0], lo = [...wk].sort((a, b) => a[0] - b[0])[0];
+    if (hi[0] - lo[0] >= 5) summary.month += ` ${WEEKDAYS[hi[1]]}s are your best days (${hi[0]}), ${WEEKDAYS[lo[1]]}s your toughest (${lo[0]}).`;
+  }
+  return { left, leftCount, ladder, improve: improve.slice(0, 5), summary, areas, risers, fallers, weekdays, calendar: r.dates.map((date, i) => ({ date, score: r.series[i] })) };
 }
 
 /** Life Score for the home-screen widgets (native/widget-extension/DuoScores.swift reads the "duo.scores" slot):

@@ -26,6 +26,9 @@ export type LifeCheckIn = {
   smoked?: boolean;
   /** Sunscreen or shade when outside. */ sunscreen?: boolean;
   /** Hours slept (when Apple Health has none). */ sleep?: number;
+  /** 0 to 10: anxiety, mental clarity, loneliness, motivation, body pain. */ anxiety?: number; clarity?: number; lonely?: number; motivation?: number; pain?: number;
+  /** Cups of coffee, tea or energy drinks; cups (8 oz) of water. */ caffeine?: number; water?: number;
+  /** Brushed twice and cleaned between teeth today. */ flossed?: boolean;
   /** One line about the day. */ note?: string;
 };
 export type LifeHealthDay = {
@@ -41,7 +44,10 @@ export type LifeHealthDay = {
   /** Weight in lb, body fat %, blood pressure, blood glucose mg/dL. */ weight?: number; fat?: number; sys?: number; dia?: number; glucose?: number;
   /** Workouts recorded in Health: how many, minutes, calories, and their kinds. */ wo?: number; woMin?: number; woCal?: number; woKinds?: string[];
 };
-export type ScreeningId = "breast" | "cervical" | "colorectal" | "lung";
+export type ScreeningId = "breast" | "cervical" | "colorectal" | "lung"
+  | "physical" | "bp" | "cholesterol" | "diabetes" | "dental" | "eyes" | "skin" | "bone" | "aaa" | "prostate"
+  | "flu" | "covid" | "tetanus" | "shingles" | "pneumonia";
+export type ScreeningKind = "cancer" | "checkup" | "vaccine";
 export type LifeScoreSettings = {
   birthYear?: number; sex?: "female" | "male";
   /** Height in inches (for BMI when Health has none). */ heightIn?: number;
@@ -59,11 +65,13 @@ export type LifeScoreData = {
   days: Record<string, LifeCheckIn>; health: Record<string, LifeHealthDay>; settings: LifeScoreSettings; healthAt?: string;
   /** Questionnaire answers over time (shared/lifeScales.ts). */ scales?: Partial<Record<ScaleId, Assessment[]>>;
   /** Labs and vitals typed in (blood pressure, cholesterol, A1c…). */ labs?: Labs[];
+  /** The symptom and vitals logs (shared/lifeHealthLog.ts). */ symptoms?: SymptomEntry[]; vitals?: VitalEntry[];
 };
 
 export const emptyLifeScore = (): LifeScoreData => ({ days: {}, health: {}, settings: { screenings: {}, off: [] } });
 
 import { SCALES, type Assessment, type Labs, type ScaleId } from "./lifeScales";
+import { cleanSymptoms, cleanVitals, symptomDay, vitalsDay, type SymptomEntry, type VitalEntry } from "./lifeHealthLog";
 
 // ——— Cleaning (saved in the LifeHub, shared/familyHub.ts) ————————————————————————————————————————————————————
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -84,6 +92,8 @@ export function cleanCheckIn(r: any): LifeCheckIn {
     outdoors: num(r.outdoors, 0, 1440, 5), exercise: num(r.exercise, 0, 1440, 5), mindful: num(r.mindful, 0, 1440), strength: bool(r.strength),
     produce: num(r.produce, 0, 30), alcohol: num(r.alcohol, 0, 40), processed: num(r.processed, 0, 20), red: num(r.red, 0, 20), sugary: num(r.sugary, 0, 30),
     smoked: bool(r.smoked), sunscreen: bool(r.sunscreen), sleep: num(r.sleep, 0, 16, 0.25),
+    anxiety: num(r.anxiety, 0, 10), clarity: num(r.clarity, 0, 10), lonely: num(r.lonely, 0, 10), motivation: num(r.motivation, 0, 10), pain: num(r.pain, 0, 10),
+    caffeine: num(r.caffeine, 0, 20, 0.5), water: num(r.water, 0, 40), flossed: bool(r.flossed),
     note: typeof r.note === "string" && r.note.trim() ? r.note.trim().slice(0, 280) : undefined,
   });
 }
@@ -114,7 +124,7 @@ export function cleanLifeScore(raw: unknown): LifeScoreData | undefined {
   const screenings: LifeScoreSettings["screenings"] = {};
   for (const id of Object.keys(SCREENINGS) as ScreeningId[]) {
     const x = s.screenings?.[id];
-    if (x && DAY.test(String(x.date))) screenings[id] = { date: String(x.date), years: num(x.years, 1, 10) ?? SCREENINGS[id].years };
+    if (x && DAY.test(String(x.date))) screenings[id] = { date: String(x.date), years: num(x.years, 0.5, 10, 0.5) ?? SCREENINGS[id].years };
   }
   const ids = new Set(METRICS.map((m) => m.id));
   return {
@@ -147,24 +157,45 @@ export function cleanLifeScore(raw: unknown): LifeScoreData | undefined {
       }));
       return labs.length ? { labs } : {};
     })(),
+    ...(() => { const symptoms = cleanSymptoms(r.symptoms), vitals = cleanVitals(r.vitals); return { ...(symptoms.length ? { symptoms } : {}), ...(vitals.length ? { vitals } : {}) }; })(),
   };
 }
 
 // ——— Screenings (USPSTF, people at average risk) —————————————————————————————————————————————————————————————
-export const SCREENINGS: Record<ScreeningId, { name: string; who: string; years: number; options: { years: number; label: string }[]; applies: (age: number, s: LifeScoreSettings) => boolean }> = {
+export const SCREENINGS: Record<ScreeningId, { name: string; who: string; years: number; kind?: ScreeningKind; options: { years: number; label: string }[]; applies: (age: number, s: LifeScoreSettings) => boolean }> = {
   breast: { name: "Mammogram", who: "Women 40 to 74, every 2 years", years: 2, options: [{ years: 2, label: "Every 2 years" }, { years: 1, label: "Every year" }], applies: (a, s) => s.sex === "female" && a >= 40 && a <= 74 },
   cervical: { name: "Cervical screening", who: "Women 21 to 65: Pap test every 3 years, or HPV test every 5 years from 30", years: 3, options: [{ years: 3, label: "Pap test (3 years)" }, { years: 5, label: "HPV test (5 years)" }], applies: (a, s) => s.sex === "female" && a >= 21 && a <= 65 },
   colorectal: { name: "Colorectal screening", who: "Everyone 45 to 75: colonoscopy every 10 years, or a stool test every year", years: 10, options: [{ years: 10, label: "Colonoscopy (10 years)" }, { years: 1, label: "Stool test (every year)" }, { years: 3, label: "Stool DNA test (3 years)" }], applies: (a) => a >= 45 && a <= 75 },
   lung: { name: "Lung CT scan", who: "50 to 80 with a 20 pack-year smoking history who smoke or quit within 15 years, every year", years: 1, options: [{ years: 1, label: "Every year" }], applies: (a, s) => !!s.heavySmoker && a >= 50 && a <= 80 },
+  // Checkups (USPSTF and the professional groups named; people at average risk: your doctor may say otherwise).
+  physical: { name: "Checkup with your doctor", who: "Adults: a yearly visit is a good time for the checks below", years: 1, kind: "checkup", options: [{ years: 1, label: "Every year" }, { years: 2, label: "Every 2 years" }], applies: (a) => a >= 18 },
+  bp: { name: "Blood pressure check", who: "Adults 40+ every year; 18 to 39 every 3 to 5 years if normal (USPSTF)", years: 1, kind: "checkup", options: [{ years: 1, label: "Every year" }, { years: 3, label: "Every 3 years" }], applies: (a) => a >= 18 },
+  cholesterol: { name: "Cholesterol test", who: "Adults 20+, about every 4 to 6 years if normal (CDC)", years: 5, kind: "checkup", options: [{ years: 5, label: "Every 5 years" }, { years: 1, label: "Every year" }], applies: (a) => a >= 20 },
+  diabetes: { name: "Diabetes test (A1c or fasting sugar)", who: "Adults 35 to 70 who are overweight, every 3 years (USPSTF)", years: 3, kind: "checkup", options: [{ years: 3, label: "Every 3 years" }, { years: 1, label: "Every year" }], applies: (a) => a >= 35 && a <= 70 },
+  dental: { name: "Dental cleaning", who: "Everyone, about every 6 months (or as your dentist advises)", years: 0.5, kind: "checkup", options: [{ years: 0.5, label: "Every 6 months" }, { years: 1, label: "Every year" }], applies: () => true },
+  eyes: { name: "Eye exam", who: "Adults every 1 to 2 years from 40; every year from 65 (American Academy of Ophthalmology)", years: 2, kind: "checkup", options: [{ years: 2, label: "Every 2 years" }, { years: 1, label: "Every year" }], applies: (a) => a >= 40 },
+  skin: { name: "Skin check", who: "Check your own skin monthly; see a dermatologist for any spot that changes", years: 1, kind: "checkup", options: [{ years: 1, label: "Every year" }], applies: (a) => a >= 18 },
+  bone: { name: "Bone density scan", who: "Women 65+ (USPSTF)", years: 2, kind: "checkup", options: [{ years: 2, label: "Every 2 years" }, { years: 5, label: "Every 5 years" }], applies: (a, s) => s.sex === "female" && a >= 65 },
+  aaa: { name: "Aorta ultrasound (AAA)", who: "Men 65 to 75 who ever smoked, once (USPSTF)", years: 10, kind: "checkup", options: [{ years: 10, label: "Once" }], applies: (a, s) => s.sex === "male" && a >= 65 && a <= 75 && !!s.nicotine && s.nicotine !== "never" },
+  prostate: { name: "Talk about prostate screening", who: "Men 55 to 69: decide with your doctor whether to have a PSA test (USPSTF)", years: 2, kind: "checkup", options: [{ years: 2, label: "Every 2 years" }], applies: (a, s) => s.sex === "male" && a >= 55 && a <= 69 },
+  // Vaccines (CDC adult schedule).
+  flu: { name: "Flu shot", who: "Everyone, every fall (CDC)", years: 1, kind: "vaccine", options: [{ years: 1, label: "Every year" }], applies: () => true },
+  covid: { name: "COVID-19 vaccine", who: "As the current CDC advice is for your age and health", years: 1, kind: "vaccine", options: [{ years: 1, label: "Every year" }], applies: () => true },
+  tetanus: { name: "Tetanus booster (Td or Tdap)", who: "Adults every 10 years (CDC)", years: 10, kind: "vaccine", options: [{ years: 10, label: "Every 10 years" }], applies: (a) => a >= 18 },
+  shingles: { name: "Shingles vaccine (2 doses)", who: "Adults 50+, once (CDC)", years: 10, kind: "vaccine", options: [{ years: 10, label: "Done (once)" }], applies: (a) => a >= 50 },
+  pneumonia: { name: "Pneumonia vaccine", who: "Adults 50+, once (CDC)", years: 10, kind: "vaccine", options: [{ years: 10, label: "Done (once)" }], applies: (a) => a >= 50 },
 };
-const addYears = (d: string, y: number) => `${Number(d.slice(0, 4)) + y}${d.slice(4)}`;
-export function screeningStatus(settings: LifeScoreSettings, today: string): { id: ScreeningId; name: string; who: string; due: boolean; next: string }[] {
+const addYears = (d: string, y: number) => { const x = new Date(`${d}T12:00:00`); x.setMonth(x.getMonth() + Math.round(y * 12)); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+/** Every screening, checkup and vaccine that applies at this age and sex (all kinds, or only one). Each "once"
+ *  item (shingles, pneumonia, AAA) is done for good once it's marked done. */
+export function screeningStatus(settings: LifeScoreSettings, today: string, kind?: ScreeningKind): { id: ScreeningId; name: string; who: string; kind: ScreeningKind; due: boolean; next: string; done: string }[] {
   const age = settings.birthYear ? Number(today.slice(0, 4)) - settings.birthYear : 0;
   if (!age) return [];
-  return (Object.keys(SCREENINGS) as ScreeningId[]).filter((id) => SCREENINGS[id].applies(age, settings)).map((id) => {
+  return (Object.keys(SCREENINGS) as ScreeningId[]).filter((id) => SCREENINGS[id].applies(age, settings) && (!kind || (SCREENINGS[id].kind ?? "cancer") === kind)).map((id) => {
     const done = settings.screenings[id];
-    const next = done ? addYears(done.date, done.years) : "";
-    return { id, name: SCREENINGS[id].name, who: SCREENINGS[id].who, due: !done || next <= today, next };
+    const once = SCREENINGS[id].options.length === 1 && /once/i.test(SCREENINGS[id].options[0].label);
+    const next = done ? (once ? "" : addYears(done.date, done.years)) : "";
+    return { id, name: SCREENINGS[id].name, who: SCREENINGS[id].who, kind: SCREENINGS[id].kind ?? "cancer", due: !done || (!once && next <= today), next, done: done?.date ?? "" };
   });
 }
 
@@ -234,6 +265,10 @@ export type DayFacts = {
   screen?: number; social?: number; outdoors?: number; produce?: number; alcohol?: number; processed?: number; red?: number; sugary?: number;
   smoked?: boolean; sunscreen?: boolean; strength?: boolean; grateful?: boolean; focus?: number; habits?: number; checklist?: number;
   /** Calories and protein logged (Health & Fitness diary, Food & fitness diary, or Apple Health). */ kcal?: number; protein?: number;
+  anxiety?: number; clarity?: number; lonely?: number; motivation?: number; pain?: number; caffeine?: number; flossed?: boolean;
+  /** Cups of water (the check-in, else Apple Health). */ water?: number;
+  /** Blood pressure (the vitals log, else Apple Health); blood sugar. */ sys?: number; dia?: number; glucose?: number;
+  /** The worst symptom of the day (1 to 10) and how many were logged; 0 once any symptom has been logged before. */ symptomWorst?: number; symptoms?: number;
 };
 export function factsFor(input: LifeInput, d: string): DayFacts {
   const c = input.data.days[d] ?? {}, h = input.data.health[d] ?? {};
@@ -256,9 +291,16 @@ export function factsFor(input: LifeInput, d: string): DayFacts {
   for (const e of Array.isArray(input.fit?.foods) ? input.fit.foods : []) if (e?.date === d) { const m = Number(e.servings) || 1; kcal += (Number(e.kcal) || 0) * m; protein += (Number(e.p) || 0) * m; logged2 = true; }
   if (!logged2 && h.eaten) { kcal = h.eaten; logged2 = true; }
   const due = input.tasks.filter((t) => t.due === d);
+  const vit = vitalsDay(input.data.vitals ?? [], d);
+  const sym = symptomDay(input.data.symptoms ?? [], d);
+  const symStarted = (input.data.symptoms ?? []).some((e) => e.at.slice(0, 10) <= d);
   const habitsOn = input.habits.length && input.habits.some((x) => x.days.some((y) => y <= d)) ? input.habits.filter((x) => x.days.includes(d)).length / input.habits.length : undefined;
   return compact({
-    steps: h.steps, active: h.active, sleep: h.sleep ?? c.sleep ?? logSleep, bed: h.bed ?? logBed, rhr: h.rhr, hrv: h.hrv, mindful, exercise,
+    steps: h.steps, active: h.active, sleep: h.sleep ?? c.sleep ?? logSleep, bed: h.bed ?? logBed, rhr: h.rhr ?? vit.hr, hrv: h.hrv, mindful, exercise,
+    anxiety: c.anxiety, clarity: c.clarity, lonely: c.lonely, motivation: c.motivation, pain: c.pain, caffeine: c.caffeine, flossed: c.flossed,
+    water: c.water ?? (h.water ? Math.round((h.water / 237) * 2) / 2 : undefined),
+    sys: vit.sys ?? h.sys, dia: vit.dia ?? h.dia, glucose: vit.glucose ?? h.glucose,
+    symptomWorst: sym ? sym.worst : symStarted ? 0 : undefined, symptoms: sym ? sym.count : symStarted ? 0 : undefined,
     happy: c.happy ?? (mood.length ? Math.round(((mean(mood)! - 1) / 4) * 100) / 10 : undefined),
     stress: c.stress, energy: c.energy, connect: c.connect, together: c.together, faith: c.faith, faithFelt: c.faithFelt,
     screen: c.screen, social: c.social, outdoors: c.outdoors, produce: c.produce, alcohol: c.alcohol, processed: c.processed, red: c.red, sugary: c.sugary,
@@ -277,15 +319,16 @@ export type MetricId =
   | "connect" | "faith" | "gratitude"
   | "goals" | "habits" | "checklist" | "focus"
   | "budget" | "cushion"
-  | "prevention";
+  | "prevention"
+  | "bp" | "symptoms" | "pain" | "hydration" | "caffeine" | "anxiety" | "clarity" | "lonely" | "motivation" | "oral" | "checkups";
 
 export const AREAS: { id: AreaId; name: string; color: string; blurb: string }[] = [
-  { id: "body", name: "Body", color: "#ff5a5f", blurb: "Movement, sleep, heart and food" },
-  { id: "mind", name: "Mind", color: "#7c6cf0", blurb: "Happiness, stress, energy and attention" },
+  { id: "body", name: "Body", color: "#ff5a5f", blurb: "Movement, sleep, heart, blood pressure, food, water, pain and symptoms" },
+  { id: "mind", name: "Mind", color: "#7c6cf0", blurb: "Happiness, stress, anxiety, energy, clarity and attention" },
   { id: "connection", name: "Connection", color: "#f59e0b", blurb: "People, faith and gratitude" },
   { id: "growth", name: "Growth", color: "#10b981", blurb: "Goals, habits and focus" },
   { id: "money", name: "Money", color: "#0ea5e9", blurb: "Spending and savings" },
-  { id: "prevention", name: "Prevention", color: "#ec4899", blurb: "Cancer-prevention habits and screenings" },
+  { id: "prevention", name: "Prevention", color: "#ec4899", blurb: "Screenings, checkups, vaccines, teeth and prevention habits" },
 ];
 
 export type Ctx = { input: LifeInput; facts: (d: string) => DayFacts; today: string };
@@ -491,6 +534,85 @@ export const METRICS: MetricDef[] = [
     todos: ["Book my next screening", "Swap soda for water this week", "Meatless day this week"],
     score: (d, x) => { const p = preventionParts(d, x); const m = mean(p.map((q) => q.score)); return m === null ? null : clamp(m); },
     value: (d, x) => { const p = preventionParts(d, x).filter((q) => q.score !== null); return p.length ? `${p.filter((q) => (q.score ?? 0) >= 80).length} of ${p.length} on track` : "Add a check-in and your age"; } },
+
+  // ——— More: vitals, symptoms, pain, water, caffeine, the mind, people, teeth, checkups (Nov 2026)
+  { id: "bp", area: "body", name: "Blood pressure", measures: "Your average blood pressure over 7 days: normal (under 120/80) scores 100, elevated 85, stage 1 65, stage 2 40, a crisis reading 15.", from: "Your vitals log (Health tab), or Apple Health.",
+    why: "High blood pressure usually has no symptoms, yet it's the biggest single cause of strokes and heart attacks. The 2017 American Heart Association guideline sets normal below 120/80 and high from 130/80. Across 123 trials, every 10 mmHg lower top number cut major heart and stroke events by about a fifth. Home readings averaged over a week tell you more than one reading at the doctor's.",
+    sources: [{ title: "Whelton et al., Hypertension, 2018 (ACC/AHA guideline)", finding: "Normal under 120/80; elevated 120 to 129; stage 1 from 130/80; stage 2 from 140/90." }, { title: "Ettehad et al., The Lancet, 2016", finding: "Each 10 mmHg lower systolic pressure: about 20% fewer major cardiovascular events." }],
+    improve: ["Cut salt: most comes from bread, deli meat, soups and restaurant food. Under 1,500 mg a day lowers the top number by about 5 to 6 points.", "Move: 150 minutes a week of brisk walking lowers it about as much as one medicine.", "Eat the DASH way: vegetables, fruit, beans, nuts and low-fat dairy.", "Limit alcohol to 1 drink a day or none.", "Measure right: sit 5 minutes, feet flat, arm at heart level, twice in the morning and twice in the evening for a week.", "If it's high, see your doctor: medicine is safe, and the sooner it's controlled the better."],
+    todos: ["Measure my blood pressure morning and evening this week", "Low-salt day", "Book a blood pressure check"],
+    score: (d, x) => { const w = win(x, d).filter((f) => f.sys !== undefined && f.dia !== undefined); if (!w.length) return null; const sys = mean(w.map((f) => f.sys))!, dia = mean(w.map((f) => f.dia))!; return sys > 180 || dia > 120 ? 15 : sys >= 140 || dia >= 90 ? 40 : sys >= 130 || dia >= 80 ? 65 : sys >= 120 ? 85 : 100; },
+    value: (d, x) => { const w = win(x, d).filter((f) => f.sys !== undefined && f.dia !== undefined); return w.length ? `${Math.round(mean(w.map((f) => f.sys))!)}/${Math.round(mean(w.map((f) => f.dia))!)} average over ${w.length} day${w.length === 1 ? "" : "s"}` : "Log a blood pressure reading"; } },
+  { id: "symptoms", area: "body", name: "Symptom-free", measures: "How free of symptoms your last 7 days were: no symptoms scores 100; each day's worst symptom takes off 10 points per point of severity.", from: "Your symptom log (Health tab).",
+    why: "Logging symptoms as they happen, with when, how bad and what came before, is how you and your doctor spot patterns (a headache after short sleep, heartburn after late meals) that memory misses. A dated log makes a short appointment far more useful.",
+    sources: [{ title: "Mayo Clinic, Migraine: diagnosis and treatment", finding: "Keeping a headache diary can help you and your doctor find what triggers your headaches." }],
+    improve: ["Log each symptom when it starts, with a likely trigger.", "Open the symptom's page: it shows when it comes, what helps and how its days differ.", "Bring the log to your doctor for anything frequent, worsening or strong.", "Warning signs (chest pain, trouble breathing, signs of stroke, fainting) need emergency care, not tracking."],
+    todos: ["Show my symptom log to my doctor"],
+    score: (d, x) => { const w = win(x, d).filter((f) => f.symptomWorst !== undefined); return w.length ? clamp(mean(w.map((f) => 100 - (f.symptomWorst ?? 0) * 10))!) : null; },
+    value: (d, x) => { const w = win(x, d).filter((f) => f.symptomWorst !== undefined); if (!w.length) return "Log a symptom when you have one"; const n = w.filter((f) => (f.symptomWorst ?? 0) > 0).length; return n ? `Symptoms on ${n} of the last ${w.length} days` : "Symptom-free this week"; } },
+  { id: "pain", area: "body", name: "Pain", measures: "How free of body pain you felt (pain 0 scores 100).", from: "Your check-ins.",
+    why: "About 1 in 5 US adults lives with chronic pain, and it pulls down sleep, mood and activity. Pain that's tracked can be managed: seeing it fall with movement, sleep or treatment is motivating, and seeing it rise is a reason to get help early.",
+    sources: [{ title: "Dahlhamer et al., MMWR (CDC), 2018", finding: "20.4% of US adults had chronic pain." }],
+    improve: ["Keep moving gently: walking, swimming and stretching ease most back and joint pain better than rest.", "Sleep 7+ hours: short sleep makes pain feel worse the next day.", "Heat for stiff muscles, ice for fresh injuries (15 minutes).", "Ask about physical therapy for pain that lasts more than a few weeks.", "See a doctor for pain that's severe, getting worse, or comes with numbness, fever or weight loss."],
+    todos: ["10 minutes of stretching", "Book a physical therapy visit"],
+    score: (d, x) => { const v = avgOf(x, d, "pain"); return v === null ? null : clamp(100 - v * 10); },
+    value: (d, x) => { const v = avgOf(x, d, "pain"); return v === null ? "Rate any pain in a check-in" : `Pain ${Math.round(v * 10) / 10} out of 10`; } },
+  { id: "hydration", area: "body", name: "Water", measures: "Cups (8 oz) of water a day: 8 scores 100.", from: "Your check-ins, or Apple Health.",
+    why: "The National Academies set adequate total water at about 3.7 liters a day for men and 2.7 for women, about 80% of it from drinks. Even mild dehydration can bring headaches, tiredness and poorer focus. 8 cups of water is a simple daily target; more in heat or with exercise.",
+    sources: [{ title: "National Academies, Dietary Reference Intakes for Water, 2004", finding: "Adequate total water: about 3.7 L a day for men, 2.7 L for women." }],
+    improve: ["Keep a bottle in sight: you drink what you can see.", "A glass with every meal and every snack.", "Drink more on hot days and when you exercise.", "Pale yellow urine means you're drinking enough."],
+    todos: ["Fill a water bottle each morning"],
+    score: (d, x) => { const v = avgOf(x, d, "water"); return v === null ? null : clamp((v / 8) * 100); },
+    value: (d, x) => { const v = avgOf(x, d, "water"); return v === null ? "Count your cups in a check-in" : `${Math.round(v * 10) / 10} cups a day`; } },
+  { id: "caffeine", area: "body", name: "Caffeine", measures: "Cups of coffee, tea or energy drinks a day: 3 or fewer scores 100, 4 scores 85, 5 scores 65, 6+ scores 40.", from: "Your check-ins.",
+    why: "For healthy adults, up to about 400 mg of caffeine a day (4 to 5 cups of coffee) isn't generally linked to harm, says the FDA. More raises the chance of jitters, a racing heart and poor sleep, and caffeine as long as 6 hours before bed can cut sleep by over an hour.",
+    sources: [{ title: "US Food and Drug Administration, 2018", finding: "Up to 400 mg a day isn't generally linked to dangerous effects in healthy adults." }, { title: "Drake et al., Journal of Clinical Sleep Medicine, 2013", finding: "Caffeine 6 hours before bed reduced total sleep by more than 1 hour." }],
+    improve: ["No caffeine after about 2 PM.", "Swap the afternoon cup for water or decaf.", "Cut back slowly (a cup every few days) to avoid headaches.", "Energy drinks can hold 2 to 3 coffees' worth: check the label."],
+    todos: ["No caffeine after 2 PM this week"],
+    score: (d, x) => { const v = avgOf(x, d, "caffeine"); return v === null ? null : v <= 3 ? 100 : v <= 4 ? 85 : v <= 5 ? 65 : 40; },
+    value: (d, x) => { const v = avgOf(x, d, "caffeine"); return v === null ? "Count your cups in a check-in" : `${Math.round(v * 10) / 10} cups a day`; } },
+  { id: "anxiety", area: "mind", name: "Anxiety", measures: "How free of anxiety you felt (anxiety 0 scores 100).", from: "Your check-ins.",
+    why: "Anxiety is the most common mental health condition. Regular exercise reduces anxiety symptoms in trials, and so do slow breathing, sleep, less caffeine and therapy (CBT is the best-studied). Tracking it shows what moves it for you.",
+    sources: [{ title: "Aylett, Small & Bower, BMC Health Services Research, 2018", finding: "Exercise reduced anxiety symptoms compared with no exercise (meta-analysis)." }],
+    improve: ["Breathe slowly: in for 4, out for 6, for 5 minutes.", "Move every day: even 10 minutes helps.", "Less caffeine and alcohol: both worsen anxiety.", "Write the worry down with one next step.", "If anxiety gets in the way of daily life, talk with a doctor or therapist: CBT works for most people. In a crisis, call or text 988."],
+    todos: ["5 minutes of slow breathing", "Book a therapy appointment"],
+    score: (d, x) => { const v = avgOf(x, d, "anxiety"); return v === null ? null : clamp(100 - v * 10); },
+    value: (d, x) => { const v = avgOf(x, d, "anxiety"); return v === null ? "Rate your anxiety in a check-in" : `Anxiety ${Math.round(v * 10) / 10} out of 10`; } },
+  { id: "clarity", area: "mind", name: "Mental clarity", measures: "How clear and focused your mind felt (0 to 10).", from: "Your check-ins.",
+    why: "Clear thinking rides on sleep: losing sleep impairs attention more than almost anything else measured. Movement, water, fewer interruptions and breaks every hour or so also sharpen focus.",
+    sources: [{ title: "Lim & Dinges, Psychological Bulletin, 2010", finding: "Short-term sleep loss impaired attention and working memory across 70 studies." }],
+    improve: ["Sleep 7 to 9 hours.", "Do the hardest thinking first, before email and messages.", "Work in 25 to 50 minute blocks with short breaks.", "Silence notifications while you focus.", "Drink water: mild dehydration dulls focus."],
+    todos: ["One focus block with my phone in another room"],
+    score: (d, x) => { const v = avgOf(x, d, "clarity"); return v === null ? null : clamp(v * 10); },
+    value: (d, x) => { const v = avgOf(x, d, "clarity"); return v === null ? "Rate your clarity in a check-in" : `Clarity ${Math.round(v * 10) / 10} out of 10`; } },
+  { id: "lonely", area: "connection", name: "Not lonely", measures: "How connected rather than lonely you felt (loneliness 0 scores 100).", from: "Your check-ins.",
+    why: "Loneliness is common and it matters for health: across 70 studies it came with about a 26% higher risk of early death, and the US Surgeon General called it an epidemic in 2023. Small, regular contact (a call, a walk, a shared meal) is the best-supported remedy.",
+    sources: [{ title: "Holt-Lunstad et al., Perspectives on Psychological Science, 2015", finding: "Loneliness: about 26% higher risk of mortality." }, { title: "US Surgeon General's Advisory, 2023", finding: "Social connection is a priority for health on a par with exercise and nutrition." }],
+    improve: ["Reach out to one person today, even a short text.", "Put a standing call or walk on the calendar each week.", "Join something that meets regularly: a class, team, church group or volunteering.", "Say yes to invitations, even small ones."],
+    todos: ["Call someone I miss", "Plan a weekly walk with a friend"],
+    score: (d, x) => { const v = avgOf(x, d, "lonely"); return v === null ? null : clamp(100 - v * 10); },
+    value: (d, x) => { const v = avgOf(x, d, "lonely"); return v === null ? "Rate loneliness in a check-in" : `Loneliness ${Math.round(v * 10) / 10} out of 10`; } },
+  { id: "motivation", area: "growth", name: "Motivation", measures: "How motivated you felt (0 to 10).", from: "Your check-ins.",
+    why: "In a study of nearly 12,000 diary entries, making progress on meaningful work was the biggest lift to motivation and mood, even when the progress was small. Breaking goals into small steps and seeing them done keeps motivation up.",
+    sources: [{ title: "Amabile & Kramer, Harvard Business Review, 2011", finding: "Small wins on meaningful work were the strongest everyday boost to motivation." }],
+    improve: ["Pick one small, clear win for today and do it first.", "Break big goals into steps you can finish in under an hour.", "Track progress where you'll see it.", "Low motivation for weeks can be a sign of depression: talk with someone."],
+    todos: ["Write down one small win for tomorrow"],
+    score: (d, x) => { const v = avgOf(x, d, "motivation"); return v === null ? null : clamp(v * 10); },
+    value: (d, x) => { const v = avgOf(x, d, "motivation"); return v === null ? "Rate your motivation in a check-in" : `Motivation ${Math.round(v * 10) / 10} out of 10`; } },
+  { id: "oral", area: "prevention", name: "Teeth and gums", measures: "Days in the last 7 you brushed twice and cleaned between your teeth.", from: "Your check-ins.",
+    why: "The American Dental Association recommends brushing twice a day and cleaning between teeth once a day. Gum disease is common in adults, and studies link it with heart disease and diabetes (a link, not proven cause). Daily care and regular cleanings prevent most of it.",
+    sources: [{ title: "American Dental Association", finding: "Brush twice a day for 2 minutes; clean between teeth once a day." }, { title: "Lockhart et al., Circulation, 2012 (AHA statement)", finding: "Gum disease is associated with heart disease; cause isn't proven." }],
+    improve: ["Floss or use picks right after brushing at night: tie it to a habit you already have.", "Brush 2 minutes, twice a day, with fluoride toothpaste.", "Book a cleaning every 6 months."],
+    todos: ["Floss every night this week", "Book a dental cleaning"],
+    score: (d, x) => { const w = win(x, d).filter((f) => f.flossed !== undefined); return w.length ? clamp((w.filter((f) => f.flossed).length / w.length) * 100) : null; },
+    value: (d, x) => { const w = win(x, d).filter((f) => f.flossed !== undefined); return w.length ? `${w.filter((f) => f.flossed).length} of ${w.length} days` : "Answer in a check-in"; } },
+  { id: "checkups", area: "prevention", name: "Checkups and vaccines", measures: "The share of the checkups and vaccines recommended for your age and sex that are up to date.", from: "Your Prevention list (Health tab): your age, sex and the dates you mark done.",
+    why: "Many serious conditions (high blood pressure, high cholesterol, diabetes, osteoporosis) have no symptoms until late, and checkups find them early when they're easiest to treat. Vaccines like the yearly flu shot prevent hospital stays, especially as we age.",
+    sources: [{ title: "US Preventive Services Task Force recommendations", finding: "Blood pressure, cholesterol, diabetes, bone density and aorta checks for people at average risk." }, { title: "CDC Adult Immunization Schedule", finding: "Flu every year; tetanus every 10 years; shingles and pneumonia from 50." }],
+    improve: ["Set your birth year and sex in Life Score settings so the right checks show up.", "Mark each one done with its date in the Prevention list.", "Book the overdue ones together at one yearly checkup.", "Ask your doctor which ones apply to you: your history may change the timing."],
+    todos: ["Book my yearly checkup", "Get my flu shot"],
+    score: (d, x) => { const st = screeningStatus(x.input.data.settings, d).filter((q) => q.kind !== "cancer"); return st.length ? clamp((st.filter((q) => !q.due).length / st.length) * 100) : null; },
+    value: (d, x) => { const st = screeningStatus(x.input.data.settings, d).filter((q) => q.kind !== "cancer"); return st.length ? `${st.filter((q) => !q.due).length} of ${st.length} up to date` : "Set your birth year in settings"; } },
 ];
 
 /** The pieces of the Prevention score, each 0 to 100 (null without data). */
@@ -499,7 +621,7 @@ export function preventionParts(d: string, x: Ctx): { id: string; name: string; 
   const has = (k: keyof DayFacts) => w.some((f) => f[k] !== undefined);
   const sum = (k: keyof DayFacts) => w.reduce((a, f) => a + ((f[k] as number) ?? 0), 0);
   const sunDays = w.filter((f) => (f.outdoors ?? 0) >= 30 && f.sunscreen !== undefined);
-  const screen = d === x.today ? screeningStatus(x.input.data.settings, d) : [];
+  const screen = d === x.today ? screeningStatus(x.input.data.settings, d, "cancer") : [];
   const ex = METRICS.find((m) => m.id === "exercise")!.score(d, x);
   const produce = avgOf(x, d, "produce");
   return [
@@ -511,7 +633,7 @@ export function preventionParts(d: string, x: Ctx): { id: string; name: string; 
     { id: "red", name: "Red meat ≤ 3 a week", score: has("red") ? (sum("red") <= 3 ? 100 : sum("red") <= 5 ? 70 : 40) : null, note: `${sum("red")} servings this week` },
     { id: "sugary", name: "Few sugary drinks", score: has("sugary") ? (sum("sugary") <= 0 ? 100 : sum("sugary") <= 2 ? 80 : sum("sugary") <= 5 ? 50 : 20) : null, note: `${sum("sugary")} this week` },
     { id: "sun", name: "Sun protection", score: sunDays.length ? clamp((sunDays.filter((f) => f.sunscreen).length / sunDays.length) * 100) : null, note: sunDays.length ? `Protected ${sunDays.filter((f) => f.sunscreen).length} of ${sunDays.length} days outside` : "" },
-    { id: "screenings", name: "Screenings up to date", score: screen.length ? clamp((screen.filter((s) => !s.due).length / screen.length) * 100) : null, note: screen.length ? screen.map((s) => `${s.name}: ${s.due ? "due" : "up to date"}`).join(" · ") : "" },
+    { id: "screenings", name: "Cancer screenings up to date", score: screen.length ? clamp((screen.filter((s) => !s.due).length / screen.length) * 100) : null, note: screen.length ? screen.map((s) => `${s.name}: ${s.due ? "due" : "up to date"}`).join(" · ") : "" },
   ];
 }
 
