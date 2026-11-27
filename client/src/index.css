@@ -1139,3 +1139,8 @@ html.duo-focus main[data-tour="life-content"] { padding-top: max(3.25rem, calc(e
 /* Chores: the "+XP" that floats up off a ticked chore. */
 @keyframes xpPop { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.8); } 20% { opacity: 1; transform: translate(-50%, -4px) scale(1.08); } 100% { opacity: 0; transform: translate(-50%, -26px) scale(1); } }
 @media (prefers-reduced-motion: reduce) { [class*="animate-[xpPop"] { animation: none !important; opacity: 0; } }
+
+/* Mindset: questions slide in, and the breathing circle grows for 4 seconds and shrinks for 6. */
+@keyframes mindIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes mindBreathe { 0% { transform: scale(.55); } 40% { transform: scale(1); } 100% { transform: scale(.55); } }
+@media (prefers-reduced-motion: reduce) { [class*="animate-[mindBreathe"], [class*="animate-[mindIn"] { animation: none !important; } }

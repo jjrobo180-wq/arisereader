@@ -8,6 +8,7 @@ import { cleanMoney, cleanParts, emptyMoney, type MoneyPlan } from "./moneyPlan"
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
 import { cleanLifeScore, type LifeScoreData } from "./lifeScore";
+import { cleanMindset, type MindsetData } from "./mindset";
 import { cleanDaily, type DailySettings } from "./dailySettings";
 import { cleanHubOpen, type HubOpenRule } from "./hubAutoOpen";
 import { cleanRecaps } from "./recaps";
@@ -28,10 +29,10 @@ import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 /** Cleaned as you type: the start is trimmed but a space (or new line) just typed at the end stays, or the next word could never be typed. */
 const typedEnd = (s: string) => s.replace(/^\s+/, "").replace(/ {2,}$/, "");
 
-export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family", "lifescore"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family", "lifescore", "mindset"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "lifescore"];
+export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "lifescore", "mindset"];
 /** Sections added from the Plugin Gallery: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
@@ -39,7 +40,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores",
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "lifescore"];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "accountability", "healthlite", "inspire", "kitchen", "moneyhub", "homehub", "datehub", "dailyhub", "listhub", "focushub", "cooked", "cookedpt", "arisenotes", "podster", ...KIT_LIFE_IDS, "lifescore", "mindset", "mindset"];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -290,6 +291,8 @@ export type Family = {
   lifePlan?: LifePlan;
   /** Life Score: daily check-ins, Apple Health by day and its settings (shared/lifeScore.ts). Not set until used. */
   lifeScore?: LifeScoreData;
+  /** Mindset, the self-help feed: answers, dream board, wins, reflections, time by day (shared/mindset.ts). Not set until set up. */
+  mindset?: MindsetData;
   /** Daily check-ins in the task list (shared/dailyCheckins.ts): what's hidden, times, reminders. Not set until changed. */
   daily?: DailySettings;
   /** Open a chosen hub by time or place when To Do opens (shared/hubAutoOpen.ts). */
@@ -700,6 +703,7 @@ export function cleanFamily(input: unknown): Family {
     }),
     ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
     ...(() => { const ls = cleanLifeScore(raw.lifeScore); return ls ? { lifeScore: ls } : {}; })(),
+    ...(() => { const ms = cleanMindset(raw.mindset); return ms ? { mindset: ms } : {}; })(),
     ...(() => { const daily = cleanDaily(raw.daily); return daily ? { daily } : {}; })(),
     ...(() => { const hubOpen = cleanHubOpen(raw.hubOpen); return hubOpen ? { hubOpen } : {}; })(),
     linkPage: cleanLinkPage(raw.linkPage),

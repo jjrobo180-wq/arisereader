@@ -64,7 +64,7 @@ import SleepApp from "@/components/family-hub/sleep/SleepApp";
 import Warranties from "@/components/family-hub/Warranties";
 import WorkoutLog from "@/components/family-hub/WorkoutLog";
 import WorldClock from "@/components/family-hub/WorldClock";
-import { BadgeCheck as BadgeCheckNav4 } from "lucide-react";
+import { BadgeCheck as BadgeCheckNav4, Sunrise as SunriseNav } from "lucide-react";
 import { Coins as CoinsNav2, CreditCard as CreditCardNav2, Dumbbell as DumbbellNav2, Gauge as GaugeNav2, Globe as GlobeNav2, GraduationCap as GraduationCapNav2, Hammer as HammerNav2, HandCoins as HandCoinsNav2, Handshake as HandshakeNav2, Heart as HeartNav2, HeartPulse as HeartPulseNav2, Landmark as LandmarkNav2, ListChecks as ListChecksNav2, Moon as MoonNav2, ShieldCheck as ShieldCheckNav2, Sparkles as SparklesNav2, Star as StarNav2, Stethoscope as StethoscopeNav2, Timer as TimerNav2, Utensils as UtensilsNav2 } from "lucide-react";
 import Birthdays from "@/components/family-hub/Birthdays";
 import CareTracker from "@/components/family-hub/CareTracker";
@@ -328,7 +328,7 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, lifescore: GaugeNav2, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
+  home: Home, lifescore: GaugeNav2, mindset: SunriseNav, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
