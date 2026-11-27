@@ -971,7 +971,7 @@ function faqs(a: Audience): [string, string][] {
 export function audienceIndex(): string {
   const path = "/for/";
   const title = "Who Arise To Do Is For: Every Job, and Everyone | Arise To Do";
-  const desc = "Arise To Do has a version for your work: teachers, business owners, accountants, creators, trainers, agents, nurses, contractors and more, plus LifeHub for everyone.";
+  const desc = "Arise To Do has a version for your work: teachers, business owners, accountants, creators, trainers, agents, nurses, contractors, plus LifeHub for all.";
   const ld = { "@context": "https://schema.org", "@type": "CollectionPage", "@id": `${SITE}${path}`, url: `${SITE}${path}`, name: title, description: desc, dateModified: UPDATED,
     hasPart: AUDIENCES.map((a) => ({ "@type": "WebPage", name: a.title, url: `${SITE}/for/${a.slug}/` })) };
   return `${head(title, desc, path, ld)}
