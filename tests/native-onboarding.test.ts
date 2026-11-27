@@ -20,11 +20,17 @@ test("the iPhone app signs in on its own screen; the website keeps its page", ()
   for (const m of s.matchAll(/<input[^>]*className="([^"]*)"/g)) assert.match(m[1], /text-\[(1[6-9]|[2-9]\d)px\]/, m[1]);
 });
 
-test("the app's first run asks for notifications, then shows the full-screen tour", () => {
+test("the app's first run shows the full-screen tour; iPhone connections open only when asked for", () => {
   const w = read("client/src/components/AppWalkthrough.tsx");
   assert.match(w, /if \(isNativeApp\(\)\) return <NativeTour/);
   assert.match(w, /data-testid=\{`setup-\$\{r\.id\}-go`\}/, "each row has its own button");
   assert.match(w, /await turnOnNativeReminders\(hub\)/, "the notifications button raises iOS's permission prompt");
-  assert.match(w, /data-testid="native-notify-later"/, "Not now is always there");
+  assert.match(w, /data-testid="native-notify-later"/);
+  // App Review 5.1.1(iv): no "Not now" before a permission prompt, and the setup page isn't shown unasked.
+  assert.doesNotMatch(w, /"Not now"/);
+  assert.match(w, /const \[asking, setAsking\] = useState\(setupOnly\);/);
+  const fit = read("client/src/pages/fit/FitOnboard.tsx");
+  assert.doesNotMatch(fit, />Not now</);
+  assert.doesNotMatch(fit.match(/const ORDER: StepId\[\] = \[[^\]]*\]/)![0], /"access"/);
   assert.match(w, /steps\.filter\(\(s\) => s\.id !== "notify"\)/, "no second reminders page");
 });

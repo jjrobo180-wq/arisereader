@@ -80,7 +80,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
       body: <>Hold anything on Home to move it. <b>Customize</b> changes themes and the menu.</>,
       action: { label: "Open Customize", run: () => { close(); onCustomize("layout"); } } },
     { id: "connect", icon: <CalendarDays />, tint: "#0284c7", title: "Bring in your iPhone",
-      body: <>Your iPhone Calendar and Apple Reminders show up right here.</> },
+      body: <>Your iPhone Calendar and Apple Reminders can show up right here: turn them on any time in <b>⋯ → iPhone connections</b>.</> },
     { id: "notify", icon: <Bell />, tint: "#e11d48", title: "Reminders on your phone",
       body: <>A morning summary and a heads-up before anything's due.</>,
       action: isNativeApp() && nativeRemindersAvailable()
@@ -128,8 +128,11 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
 function NativeTour({ steps, hub, onClose, setupOnly, onConnectCalendar }: { steps: Step[]; hub: "life" | "work"; onClose: () => void; setupOnly: boolean; onConnectCalendar?: () => Promise<number> }) {
   // The setup page (notifications, iPhone Calendar, Apple Reminders) comes first; it replaces the
   // tour's own reminders step. From ⋯ → iPhone connections it's shown on its own.
+  // App Review 5.1.1(iv), Nov 27, 2026: a page shown before iOS's permission prompts must always lead to
+  // the prompt, never offer a way to put it off. So the first-run tour doesn't show the setup page at all: it opens
+  // only when someone picks ⋯ → iPhone connections, and each row's button goes straight to iOS's prompt.
   const pages = steps.filter((s) => s.id !== "notify");
-  const [asking, setAsking] = useState(true);
+  const [asking, setAsking] = useState(setupOnly);
   const [i, setI] = useState(0);
   const touch = useRef<number | null>(null);
   const last = i >= pages.length - 1;
@@ -254,7 +257,7 @@ function IphoneSetup({ hub, font, shell, primary, onConnectCalendar, onDone, don
         </ul>
       </div>
       <div className="shrink-0 space-y-2 pt-3">
-        <button type="button" onClick={onDone} className={`${primary} bg-[#111018]`} data-testid="native-notify-later">{doneLabel === "Continue" && !shown.some((r) => on[r.id]) ? "Not now" : doneLabel}</button>
+        <button type="button" onClick={onDone} className={`${primary} bg-[#111018]`} data-testid="native-notify-later">{doneLabel}</button>
       </div>
     </div>
   </div>;

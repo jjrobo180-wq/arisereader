@@ -15,7 +15,9 @@ import { mergeWeights } from "./FitHealth";
 import { keepPlace, locate } from "./FitRun";
 
 type StepId = "welcome" | "goal" | "features" | "body" | "target" | "activity" | "diet" | "gym" | "track" | "plan" | "access" | "tour";
-const ORDER: StepId[] = ["welcome", "goal", "features", "body", "target", "activity", "diet", "gym", "track", "plan", "access", "tour"];
+// No "access" page in setup (App Review 5.1.1(iv), Nov 27, 2026: a page before iOS's permission prompts must always lead
+// to them). Apple Health, reminders and location are asked for where they're used, when someone taps to turn them on.
+const ORDER: StepId[] = ["welcome", "goal", "features", "body", "target", "activity", "diet", "gym", "track", "plan", "tour"];
 
 /** A number that climbs to its value, for the plan reveal. */
 function useCount(to: number, ms = 900) {
@@ -225,7 +227,6 @@ export function Onboarding({ data, update, onDone, edit = false }: { data: FitDa
       </div>
       <div className="shrink-0 px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-2">
         <Btn className="w-full !min-h-[56px] !text-[20px]" onClick={next} disabled={!canNext} testId="fit-setup-next">{step === "welcome" ? "Let's go" : step === "plan" ? "Looks good" : step === "access" ? "Continue" : last ? "Finish" : "Continue"}<ChevronRight className="h-5 w-5" /></Btn>
-        {step === "access" && <button type="button" onClick={() => setI((n) => n + 1)} className="mt-2 h-10 w-full text-[14px] font-semibold" style={{ color: C.dim }}>Not now</button>}
       </div>
     </div></Layer>;
 }
