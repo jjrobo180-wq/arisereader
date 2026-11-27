@@ -61,7 +61,7 @@ export function duoWidgetSlots(family: Family, tasks: DuoTask[], today: string, 
   slots.push({ id: "duo.weather", title: forecast ? forecast.place.split(",")[0] : "Weather", value: forecast ? `${forecast.current.temp}°${forecast.unit}` : "Set a town", detail: wx ? `${wx.icon} ${wx.text} · feels ${forecast!.current.feels}°` : "Weather add-on", tint: "#0ea5e9",
     lines: forecast ? forecast.days.slice(0, 7).map((d, i) => `${i === 0 ? "Today" : new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}  ${d.high}° / ${d.low}°  ${weatherCode(d.code).icon}`) : [] });
 
-  const chores = on("chores") ? family.chores.filter((c) => choreDueOn(c, today)) : [], left = chores.filter((c) => !choreDoneOn(family, c.id, today));
+  const chores = on("chores") ? family.chores.filter((c) => choreDueOn(c, today, family.choreDone)) : [], left = chores.filter((c) => !choreDoneOn(family, c.id, today));
   slots.push({ id: "duo.chores", title: "Chores today", value: chores.length ? `${left.length} left` : "None", detail: chores.length ? `${chores.length - left.length} of ${chores.length} done` : "No chores today", tint: "#22c55e", progress: chores.length ? (chores.length - left.length) / chores.length : 0,
     lines: left.slice(0, 8).map((c) => c.title), items: left.slice(0, 12).map((c) => ({ id: c.id, text: c.title })) });
 
@@ -83,7 +83,7 @@ export function applyDuoWidgetTaps(taps: WidgetTap[], tasks: DuoTask[], family: 
       if (task && !task.done && !done.includes(task.id)) done.push(task.id);
     } else if (t.id === "duo.chores") {
       const chore = next.chores.find((c) => c.id === t.item);
-      if (chore && choreDueOn(chore, today) && !choreDoneOn(next, chore.id, today)) next = toggleChore(next, chore, today, makeId);
+      if (chore && choreDueOn(chore, today, next.choreDone) && !choreDoneOn(next, chore.id, today)) next = toggleChore(next, chore, today, makeId);
     }
   }
   return { done, family: next };

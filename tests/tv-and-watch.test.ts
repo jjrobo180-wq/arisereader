@@ -94,7 +94,7 @@ test("the Duo watch gets today's events and chores, and a chore checked off ther
   assert.match(app, /setFamily\(\(f\) => applyLifeWatch\(f, rest, today\(\), makeId\)\)/);
   const shared = read("shared/watchDuo.ts");
   assert.match(shared, /a\.type === "chore" && id/);
-  assert.match(shared, /if \(c && choreDueOn\(c, today\)\) next = toggleChore\(next, c, today, makeId\);/);
+  assert.match(shared, /if \(c && choreDueOn\(c, today, next\.choreDone\)\) next = toggleChore\(next, c, today, makeId\);/);
   assert.match(read("native/duo-watch/DuoWatchApp.swift"), /h\.flip\("chores", id: c\.id, type: "chore"\)/);
 });
 

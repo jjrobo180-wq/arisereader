@@ -42,7 +42,7 @@ export function lifeAlerts(family: Family, tasks: LifeTask[], today: string, now
   }
 
   if (on("chores")) {
-    const left = family.chores.filter((c) => choreDueOn(c, today) && !choreDoneOn(family, c.id, today));
+    const left = family.chores.filter((c) => choreDueOn(c, today, family.choreDone) && !choreDoneOn(family, c.id, today));
     if (left.length) out.push({ key: `life:chores:${today}`, kind: "action", category: "club", title: `${left.length} ${plural(left.length, "chore")} left today`, body: left.slice(0, 3).map((c) => c.title).join(", "), createdAt: nowIso, target: go("chores") });
   }
 

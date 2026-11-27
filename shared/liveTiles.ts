@@ -49,7 +49,7 @@ export function liveFaces(family: Family, tasks: LiveTask[], today: string, nowM
   }
 
   if (on("chores")) {
-    const chores = family.chores.filter((c) => choreDueOn(c, today));
+    const chores = family.chores.filter((c) => choreDueOn(c, today, family.choreDone));
     const left = chores.filter((c) => !choreDoneOn(family, c.id, today));
     if (chores.length) out.chores = [left.length ? { big: String(left.length), text: `${plural(left.length, "chore")} left today` } : { big: "✓", text: "All chores done" }];
   }

@@ -116,7 +116,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
     if (prefs.morning.on && !sent[key]) {
       const due = tasks.filter((t) => typeof t.due === "string" && t.due && t.due <= date);
       const overdue = due.filter((t) => t.due < date).length;
-      const chores = isOn("chores", family) ? family.chores.filter((c) => choreDueOn(c, date) && !choreDoneOn(family, c.id, date)).length : 0;
+      const chores = isOn("chores", family) ? family.chores.filter((c) => choreDueOn(c, date, family.choreDone) && !choreDoneOn(family, c.id, date)).length : 0;
       const month = date.slice(0, 7);
       const bills = isOn("money", family) ? family.bills.filter((b) => !b.paid.includes(month) && billDue(b, month) === date) : [];
       const trips = isOn("trips", family) ? family.trips.filter((t) => t.start === date) : [];

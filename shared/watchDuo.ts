@@ -44,7 +44,7 @@ export function lifeWatchPart(f: Family, tasks: LifeTask[], lists: { id: string;
   if (isOn("chores", f)) {
     features.push("chores");
     const member = new Map(f.members.map((m) => [m.id, m]));
-    out.chores = f.chores.filter((c) => choreDueOn(c, today)).slice(0, 30).map((c) => { const who = member.get(choreOwner(c, today)); return { id: c.id, title: cut(c.title, 80), who: cut(who?.name, 30), emoji: who?.emoji || "", points: c.points, done: !!choreDoneOn(f, c.id, today) }; });
+    out.chores = f.chores.filter((c) => choreDueOn(c, today, f.choreDone)).slice(0, 30).map((c) => { const who = member.get(choreOwner(c, today)); return { id: c.id, title: cut(c.title, 80), who: cut(who?.name, 30), emoji: who?.emoji || "", points: c.points, done: !!choreDoneOn(f, c.id, today) }; });
   }
   if (isOn("grocery", f)) {
     features.push("grocery");
@@ -135,7 +135,7 @@ export function applyLifeWatch(f: Family, actions: WatchAct[], today: string, ma
     const id = typeof a.id === "string" ? a.id : "";
     if (a.type === "chore" && id) {
       const c = next.chores.find((x) => x.id === id);
-      if (c && choreDueOn(c, today)) next = toggleChore(next, c, today, makeId);
+      if (c && choreDueOn(c, today, next.choreDone)) next = toggleChore(next, c, today, makeId);
     } else if (a.type === "grocery" && id) {
       next = { ...next, groceries: next.groceries.map((g) => (g.id === id ? { ...g, checked: !g.checked } : g)) };
     } else if (a.type === "grocery-add" && typeof a.name === "string" && a.name.trim()) {

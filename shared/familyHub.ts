@@ -76,7 +76,18 @@ export const RETIRED_SECTIONS: readonly FamilySection[] = ["earshot", "healthlit
 export const orderedToggleable = (f: Pick<Family, "sectionOrder">): FamilySection[] => cleanSectionOrder(f.sectionOrder).filter((s) => !RETIRED_SECTIONS.includes(s));
 
 export type Member = { id: string; name: string; emoji: string; color: string; kind: "adult" | "kid" };
-export type Chore = { id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number };
+export type ChoreUnit = "day" | "week" | "month";
+/**
+ * A chore. `days` (0 Sun–6 Sat) and the rest are the original chart; the optional fields came with the full
+ * Chores plugin (Nov 27, 2026). How often: `unit` and `every` (every 3 days, every 2 weeks, every 6 months),
+ * counted from `start`. Weekly chores use `days` for set days; `flex` makes it "any day in the window": it stays
+ * on the list each day until it's done once in that window. `cat`, `icon` and `mins` come from the chore catalog
+ * (shared/choreCatalog.ts). With none of them a chore is the old daily or set-days chore.
+ */
+export type Chore = {
+  id: string; title: string; memberId: string; rotation: string[]; days: number[]; points: number;
+  unit?: ChoreUnit; every?: number; start?: string; flex?: boolean; cat?: string; icon?: string; mins?: number;
+};
 export type ChoreDone = { id: string; choreId: string; date: string; memberId: string; points: number };
 export type BehaviorEntry = { id: string; memberId: string; date: string; points: number; note: string };
 export type Reward = { id: string; title: string; cost: number };
@@ -504,7 +515,18 @@ export function cleanFamily(input: unknown): Family {
     chores: rows(raw.chores, LIMITS.chores, (r) => {
       const title = typedEnd(str(r.title, 120));
       const days = Array.isArray(r.days) ? [...new Set(r.days.filter((d: unknown) => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6))].sort() as number[] : [];
-      return title ? { id: id(r.id), title, memberId: id(r.memberId), rotation: ids(r.rotation, LIMITS.members), days, points: int(r.points, 0, 100, 1) } : null;
+      if (!title) return null;
+      const chore: Chore = { id: id(r.id), title, memberId: id(r.memberId), rotation: ids(r.rotation, LIMITS.members), days, points: int(r.points, 0, 100, 1) };
+      if (r.unit === "day" || r.unit === "week" || r.unit === "month") chore.unit = r.unit;
+      const every = int(r.every, 1, 365, 1);
+      if (every > 1) chore.every = every;
+      if (day(r.start)) chore.start = r.start;
+      if (r.flex === true) chore.flex = true;
+      const cat = str(r.cat, 40), icon = str(r.icon, 16), mins = int(r.mins, 0, 600, 0);
+      if (cat) chore.cat = cat;
+      if (icon) chore.icon = icon;
+      if (mins) chore.mins = mins;
+      return chore;
     }),
     choreDone: rows(raw.choreDone, LIMITS.choreDone, (r) => {
       const date = day(r.date);
@@ -917,7 +939,50 @@ export function choreOwner(c: Chore, date: string): string {
   const weeks = Math.floor(daysBetween("2024-01-07", weekStart(date)) / 7);
   return c.rotation[((weeks % c.rotation.length) + c.rotation.length) % c.rotation.length];
 }
-export const choreDueOn = (c: Chore, date: string) => !c.days.length || c.days.includes(fromDay(date).getDay());
+const monthIndex = (s: string) => Number(s.slice(0, 4)) * 12 + Number(s.slice(5, 7)) - 1;
+const monthStart = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-01`;
+const monthLength = (i: number) => new Date(Math.floor(i / 12), (i % 12) + 1, 0).getDate();
+/**
+ * The window a chore's date falls in, for "any day in the window" chores: the first and last day of the
+ * every-N days, weeks or months block that holds `date`. Null for a chore with a set day.
+ */
+export function choreWindow(c: Chore, date: string): { from: string; to: string } | null {
+  const unit = c.unit || "week", every = Math.max(1, c.every || 1), start = c.start || "2024-01-07";
+  if (!c.flex || (unit === "day" && every === 1)) return null;
+  if (unit === "day") {
+    const n = daysBetween(start, date), from = addDays(start, n - (((n % every) + every) % every));
+    return { from, to: addDays(from, every - 1) };
+  }
+  if (unit === "week") {
+    const w = Math.floor(daysBetween(weekStart(start), weekStart(date)) / 7), from = addDays(weekStart(start), (w - (((w % every) + every) % every)) * 7);
+    return { from, to: addDays(from, every * 7 - 1) };
+  }
+  const m = monthIndex(date) - monthIndex(start), first = monthIndex(start) + m - (((m % every) + every) % every);
+  return { from: monthStart(first), to: addDays(monthStart(first + every), -1) };
+}
+/**
+ * Whether a chore is on the list for a date. Pass the done list (family.choreDone) so an "any day in the window"
+ * chore drops off once it's done in that window (it stays, ticked, on the day it was done). Without the done
+ * list such a chore shows every day of its window.
+ */
+export function choreDueOn(c: Chore, date: string, done?: readonly Pick<ChoreDone, "choreId" | "date">[]): boolean {
+  if (c.start && date < c.start) return false;
+  const unit = c.unit || "week", every = Math.max(1, c.every || 1), start = c.start || "2024-01-07";
+  const win = choreWindow(c, date);
+  if (win) {
+    if (!done) return true;
+    const inWindow = done.filter((d) => d.choreId === c.id && d.date >= win.from && d.date <= win.to);
+    return !inWindow.length || inWindow.some((d) => d.date === date);
+  }
+  if (unit === "day") return (((daysBetween(start, date) % every) + every) % every) === 0;
+  if (unit === "month") {
+    const m = monthIndex(date) - monthIndex(start);
+    if (((m % every) + every) % every) return false;
+    return Number(date.slice(8)) === Math.min(Number(start.slice(8)), monthLength(monthIndex(date)));
+  }
+  if (every > 1 && ((Math.floor(daysBetween(weekStart(start), weekStart(date)) / 7) % every) + every) % every) return false;
+  return !c.days.length || c.days.includes(fromDay(date).getDay());
+}
 export const choreDoneOn = (f: Family, choreId: string, date: string) => f.choreDone.find((d) => d.choreId === choreId && d.date === date);
 export function toggleChore(f: Family, c: Chore, date: string, makeId: () => string): Family {
   const done = choreDoneOn(f, c.id, date);

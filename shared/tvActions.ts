@@ -66,7 +66,7 @@ export function applyLifeTv(ws: Record<string, any>, a: TvAction, today: string,
   if (!ws.family) return { error: "Chores aren't set up yet." };
   const family = cleanFamily(ws.family);
   const c = family.chores.find((x) => x.id === a.id);
-  if (!c || !choreDueOn(c, today)) return { error: "That chore isn't on today's chart." };
+  if (!c || !choreDueOn(c, today, family.choreDone)) return { error: "That chore isn't on today's chart." };
   return { workspace: { ...ws, family: toggleChore(family, c, today, makeId) }, message: `Chore: ${c.title}` };
 }
 

@@ -11,6 +11,7 @@
 import type { FitData, FoodEntry, Meal as FitMeal } from "./fit";
 import { dosesOn as medDosesOn, markDose as markMedDose } from "./fitMeds";
 import { choreDueOn, choreOwner, toggleChore, type Family } from "./familyHub";
+import { freqLabel } from "./choreCatalog";
 import { dosesOn as pillDosesOn, markDose as markPillDose } from "./pills";
 import type { AcctTask, Checkin as AcctCheckin } from "./accountability";
 import { checkinFor, dueOn, isDone } from "./accountability";
@@ -201,12 +202,12 @@ export function buildCheckins(input: CheckinInput): Checkin[] {
   if (fam && input.on?.chores && fam.chores) {
     const nameOf = (id: string) => fam.members.find((m) => m.id === id)?.name || "";
     for (const ch of fam.chores) {
-      if (!choreDueOn(ch, date)) continue;
+      if (!choreDueOn(ch, date, fam.choreDone ?? [])) continue;
       const id = `chore:${ch.id}`;
       const doneRow = (fam.choreDone ?? []).find((x) => x.choreId === ch.id && x.date === date);
       const owner = nameOf(doneRow?.memberId || choreOwner(ch, date));
       push({ id, kind: "chore", source: "chores", title: ch.title, ref: ch.id, time: s.times[id] || "",
-        detail: doneRow ? `Done${owner ? ` by ${owner}` : ""}${ch.points ? ` · +${ch.points}` : ""}` : [owner ? `${owner}'s turn` : "", ch.points ? `${ch.points} points` : ""].filter(Boolean).join(" · ") || "Chore",
+        detail: doneRow ? `Done${owner ? ` by ${owner}` : ""}${ch.points ? ` · +${ch.points}` : ""}` : [owner ? `${owner}'s turn` : "", ch.icon ? `${ch.icon} ${freqLabel(ch)}` : ch.unit || ch.flex ? freqLabel(ch) : "", ch.mins ? `${ch.mins} min` : "", ch.points ? `${ch.points} points` : ""].filter(Boolean).join(" · ") || "Chore",
         done: !!doneRow, byHand: false, by: doneRow ? owner : undefined, open: { section: "chores" } });
     }
   }
@@ -395,7 +396,7 @@ export function dailyReminderPlan(input: { settings?: DailySettings; cooked: boo
   // Every check-in reminds (Nov 24, 2026): one without a time comes once in the early evening if it's not done yet.
   for (const c of s.custom) if (c.days.includes(dow(date)) && s.log[date]?.[c.id] === undefined) add({ id: `custom:${c.id}`, title: c.time ? c.title : `Still to do today: ${c.title}`, body: "Tick it off in your list when it's done.", time: s.times[`custom:${c.id}`] || c.time || ANYTIME_REMIND, section: "tasks" });
   if (input.chores) for (const ch of input.chores.chores ?? []) {
-    if (!choreDueOn(ch, date) || (input.chores.choreDone ?? []).some((x) => x.choreId === ch.id && x.date === date)) continue;
+    if (!choreDueOn(ch, date, input.chores.choreDone ?? []) || (input.chores.choreDone ?? []).some((x) => x.choreId === ch.id && x.date === date)) continue;
     const id = `chore:${ch.id}`;
     add({ id, title: s.times[id] ? `Chore: ${ch.title}` : `Chore still to do: ${ch.title}`, body: "Tick it off when it's done.", time: s.times[id] || ANYTIME_REMIND, section: "tasks" });
   }

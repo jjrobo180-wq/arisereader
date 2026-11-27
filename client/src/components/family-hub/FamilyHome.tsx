@@ -48,7 +48,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const events = on("calendar") ? eventsOn(family, today, true) : [];
   const dueTasks = tasks.filter((t) => !t.done && t.due && t.due <= today).sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time));
-  const chores = on("chores") ? family.chores.filter((c) => choreDueOn(c, today)) : [];
+  const chores = on("chores") ? family.chores.filter((c) => choreDueOn(c, today, family.choreDone)) : [];
   const choresLeft = chores.filter((c) => !choreDoneOn(family, c.id, today));
   const month = today.slice(0, 7);
   const nextMonth = addDays(`${month}-28`, 7).slice(0, 7);

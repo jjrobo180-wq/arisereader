@@ -16,7 +16,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   lifescore: { label: "Life Score", detail: "Every part of your life scored, with the science and how to raise it", icon: <GaugeIcon2 size={17} /> },
   tasks: { label: "Tasks", detail: "Your to-do lists", icon: null },
   start: { label: "Getting started", detail: "A guide to everything in LifeHub", icon: <Rocket size={17} /> },
-  chores: { label: "Chores", detail: "Chore chart, rotations and stars", icon: <Sparkles size={17} /> },
+  chores: { label: "Chores", detail: "300 chores by room, any schedule, streaks and levels", icon: <Sparkles size={17} /> },
   calendar: { label: "Calendar", detail: "Shared family calendars", icon: <CalendarDays size={17} /> },
   behavior: { label: "Behavior", detail: "Kid behavior tracker and rewards", icon: <Smile size={17} /> },
   goals: { label: "Goals", detail: "Personal and family goals with progress", icon: <Target size={17} /> },

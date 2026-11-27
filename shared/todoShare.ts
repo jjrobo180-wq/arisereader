@@ -163,7 +163,7 @@ export function sharedView(workspace: unknown, target: ShareTarget, today: strin
       kind: "chores", title: "Chore chart", week, people: members.map(person),
       chores: family.chores.map((c) => ({
         title: c.title, points: c.points,
-        days: week.map((date) => ({ date, person: nameOf(members, choreOwner(c, date)), due: choreDueOn(c, date), done: !!choreDoneOn(family, c.id, date) })),
+        days: week.map((date) => ({ date, person: nameOf(members, choreOwner(c, date)), due: choreDueOn(c, date, family.choreDone), done: !!choreDoneOn(family, c.id, date) })),
       })),
     };
   }

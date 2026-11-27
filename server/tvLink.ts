@@ -157,7 +157,7 @@ export function tvSummary(workspace: any, day: string, name = "") {
     who: e.memberIds.map((id) => member.get(id)?.name).filter(Boolean),
     color: calColor.get(e.calendarId) || "#94a3b8", people: e.memberIds.map(person).filter(Boolean).slice(0, 4),
   }))).slice(0, 60);
-  const chores = (on("chores") ? family.chores.filter((c) => choreDueOn(c, day)) : []).map((c) => {
+  const chores = (on("chores") ? family.chores.filter((c) => choreDueOn(c, day, family.choreDone)) : []).map((c) => {
     const who = member.get(choreOwner(c, day));
     return { id: c.id, title: c.title.slice(0, 80), who: who?.name || "", emoji: who?.emoji || "", color: who?.color || "", points: c.points, done: !!choreDoneOn(family, c.id, day) };
   });

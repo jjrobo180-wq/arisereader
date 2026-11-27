@@ -1135,3 +1135,7 @@ html.duo-focus main[data-tour="life-content"] { padding-top: max(3.25rem, calc(e
 
 /* TTS Buddy inside To Duo (components/super-apps/BuddyInDuo.tsx): its full-screen pages fit the hub's page. */
 .buddy-in-duo .min-h-\[100dvh\] { min-height: 68vh; }
+
+/* Chores: the "+XP" that floats up off a ticked chore. */
+@keyframes xpPop { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.8); } 20% { opacity: 1; transform: translate(-50%, -4px) scale(1.08); } 100% { opacity: 0; transform: translate(-50%, -26px) scale(1); } }
+@media (prefers-reduced-motion: reduce) { [class*="animate-[xpPop"] { animation: none !important; opacity: 0; } }
