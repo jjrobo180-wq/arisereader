@@ -34,3 +34,11 @@ test("the app's first run shows the full-screen tour; iPhone connections open on
   assert.doesNotMatch(fit.match(/const ORDER: StepId\[\] = \[[^\]]*\]/)![0], /"access"/);
   assert.match(w, /steps\.filter\(\(s\) => s\.id !== "notify"\)/, "no second reminders page");
 });
+
+test("the Apple Health write explanation matches what Health & Fitness saves (App Review 5.1.1)", () => {
+  const cfg = read("arisetodo/ios-app/configure-ios.py");
+  assert.doesNotMatch(cfg, /does not write to Apple Health/);
+  const writes = read("client/src/pages/fit/fitNative.ts").match(/const WRITE = \[([^\]]*)\]/)![1];
+  assert.match(writes, /"weight"/);
+  assert.match(cfg, /"NSHealthUpdateUsageDescription": f"\{NAME\} saves your weigh-ins/);
+});

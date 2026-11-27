@@ -19,7 +19,7 @@ NAME = "Arise To Do"
 KEYS = {
     "CFBundleDisplayName": NAME,
     "NSHealthShareUsageDescription": f"{NAME} reads your activity (steps, distance, floors, exercise and stand time, calories burned), sleep and sleep stages, heart (heart rate, resting heart rate, heart rate variability, VO2 max, blood pressure), breathing rate, blood oxygen, temperature, weight, body fat, blood glucose, calories and water you log, mindful minutes and workouts to fill in your Food & fitness diary and your Life Score.",
-    "NSHealthUpdateUsageDescription": f"{NAME} does not write to Apple Health.",
+    "NSHealthUpdateUsageDescription": f"{NAME} saves your weigh-ins, active calories, workout distance and mindful minutes to Apple Health when you log them in Health & Fitness and allow it.",
     "NSCalendarsFullAccessUsageDescription": f"{NAME} shows the events from your iPhone's calendars on your WorkHub and LifeHub calendar.",
     "NSCalendarsUsageDescription": f"{NAME} shows the events from your iPhone's calendars on your WorkHub and LifeHub calendar.",
     "NSRemindersFullAccessUsageDescription": f"{NAME} brings your reminders from the Reminders app into your LifeHub tasks, and keeps their check-offs in step.",
