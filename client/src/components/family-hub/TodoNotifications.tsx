@@ -113,7 +113,7 @@ function WebTodoNotifications() {
         </ol>
         <p className="text-xs text-slate-500">Needs iOS 16.4 or newer.</p>
       </>}
-      {phase === "unsupported" && <p>This browser can't show notifications. On an iPhone use Safari; on Android or a computer use Chrome, Edge or Firefox.</p>}
+      {phase === "unsupported" && <p>This browser can't show notifications. On an iPhone, use Safari or the Arise To Do app; on a computer, use another browser.</p>}
       {phase === "unavailable" && <p>Notifications aren't switched on for the site yet. Please try again later.</p>}
       {phase === "blocked" && <p>Notifications are blocked. Open your phone's <b>Settings</b>, find <b>A.R.I.S.E.</b> (or your browser), allow notifications, then come back here.</p>}
       {phase === "off" && <>

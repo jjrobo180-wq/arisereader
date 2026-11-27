@@ -117,7 +117,7 @@ function WebHubNotifications({ token, collapseKey = "home-notifications" }: { to
           </>
         )}
 
-        {phase === "unsupported" && <p>This browser can't show notifications. On an iPhone use Safari; on Android or a computer use Chrome, Edge or Firefox.</p>}
+        {phase === "unsupported" && <p>This browser can't show notifications. On an iPhone, use Safari or the Arise To Do app; on a computer, use another browser.</p>}
         {phase === "unavailable" && <p>Notifications aren't switched on for the site yet. Please try again later.</p>}
         {phase === "blocked" && <p>Notifications are blocked for this app. Open your phone's <b>Settings</b>, find <b>A.R.I.S.E.</b> (or your browser), and allow notifications. Then come back here.</p>}
 

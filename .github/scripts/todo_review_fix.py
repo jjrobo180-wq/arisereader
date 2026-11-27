@@ -27,15 +27,30 @@ BUNDLE = "com.arisereader.arisetodo"
 PARTS = set((os.environ.get("PARTS") or "status").split())
 
 IAP_NAME = "Arise To Do Unlimited"
-IAP_DESCRIPTION = "Every plugin, unlimited AI, Notes Plus and Cooked Premium."  # 55 characters at most
+IAP_DESCRIPTION = "Every plugin, unlimited AI, Notes and Fitness extras."  # 55 characters at most
 IAP_REVIEW_NOTE = ("Arise To Do Unlimited is the app's one monthly subscription. Inside Arise To Do it unlocks every plugin in the "
-                   "Plugin Gallery, unlimited AI, Notes Plus (1,500 recording minutes a month) and Cooked Premium. To buy it, sign in "
+                   "Plugin Gallery, unlimited AI, 1,500 Arise Notes recording minutes a month and the premium Arise Health & Fitness features. To buy it, sign in "
                    "with the free review account, then add a fourth plugin in the Plugin Gallery, or open ... > Customize > Plan & more, "
                    "and tap Subscribe.")
 
+# What the app does with Apple Health, as configure-ios.py's NSHealthUpdateUsageDescription says (it does write).
+HEALTH_LINE = ("Arise Health & Fitness reads your steps, active calories, weight, heart rate, sleep and mindful minutes from "
+               "Apple Health, with your permission, to fill in your food and fitness diary. If you allow it, it saves your "
+               "weigh-ins, active calories, workout distance and mindful minutes to Apple Health.")
+# Lines in the description that were wrong, and what they say now (App Review 2.3.1: the listing matches the app).
+DESC_FIXES = [
+    ("Health & Fitness reads your steps, active calories and weight from Apple Health, with your permission, to fill in your food and fitness diary. It never writes to Apple Health.", HEALTH_LINE),
+    ("Cooked reads your steps, active calories and weight from Apple Health, with your permission, to fill in your food and fitness diary. It never writes to Apple Health.", HEALTH_LINE),
+    ("Bills, budget, calendar, meals, habits, health, notes, journal and Rise Score.", "Bills, budget, calendar, meals, habits, health, notes, journal and Life Score."),
+    ("Daily brief and StandBy support keep your day in front of you.", "A daily brief and a bedside clock display keep your day in front of you."),
+    ("Arise is free with 3 plugins. Arise Unlimited (monthly subscription) unlocks every plugin and the AI features.",
+     "Arise To Do is free with 3 plugins. Arise To Do Unlimited, an auto-renewing monthly subscription, unlocks every plugin and the AI features."),
+    ("- Health & Fitness: food, workouts, water and sleep", "- Arise Health & Fitness: food, workouts, water and sleep"),
+    ("- Podcasts: podcasts and audiobooks.", "- Arise Podcasts: podcasts and public-domain audiobooks."),
+]
 # (What the description must mention, the line added when it doesn't.)
 DESC_LINES = [
-    ("Apple Health", "APPLE HEALTH\nCooked reads your steps, active calories and weight from Apple Health, with your permission, to fill in your food and fitness diary. It never writes to Apple Health."),
+    ("Apple Health", "APPLE HEALTH\n" + HEALTH_LINE),
     ("arisetodo.com/terms", "Terms of Use: https://arisetodo.com/terms/"),
     ("arisetodo.com/privacy", "Privacy Policy: https://arisetodo.com/privacy/"),
 ]
@@ -47,7 +62,8 @@ Demo accounts
 {subscribed}
 What is in the app
 - LifeHub (your own tasks, calendar, notes), FamilyHub (shared with family members you invite by code) and WorkHub (work tasks), switched at the top.
-- Plugins from the Plugin Gallery: Notes (record, transcribe, and an "Ask AI" chat), Cooked (fitness diary; reads steps, active calories and weight from Apple Health), Cooked PT (coaching), Podster (podcasts, public-domain audiobooks and music, radio), Rise Score and more. There is no web browser in the app.
+- Plugins from the Plugin Gallery: Arise Notes (record, transcribe, and an "Ask AI" chat), Arise Health & Fitness (food and fitness diary; reads from Apple Health and, if allowed, saves weigh-ins, active calories, distance and mindful minutes to it), Cooked PT (coaching), Arise Podcasts (podcasts, public-domain audiobooks and music, radio), Life Score and more. There is no web browser in the app.
+- Permissions: the app never shows its own screen before an iOS permission prompt. Calendar and Reminders are asked for only when you tap to connect them (... > iPhone connections); notifications, Apple Health, location, camera and microphone only when you tap a feature that needs them.
 - WorkHub's extra teacher tools (classes and students) are for teachers whose school has an Arise license, sold to schools outside the app (3.1.3(c)); nothing in the app sells them. Both accounts above show everything else.
 - Arise To Do Unlimited: auto-renewing monthly subscription through Apple in-app purchase. It unlocks every plugin and unlimited AI. On the US storefront only, the app also shows a link to buy on our website, as 3.1.1(a) allows.
 
@@ -222,16 +238,19 @@ def iap():
 
 def desc():
     for loc in every(f"appStoreVersions/{VID}/appStoreVersionLocalizations"):
-        text = loc["attributes"].get("description") or ""
+        old = loc["attributes"].get("description") or ""
+        text = old
+        for was, now in DESC_FIXES:
+            text = text.replace(was, now)
         add = [line for key, line in DESC_LINES if key.lower() not in text.lower()]
-        if not add:
+        if not add and text == old:
             print(f"     [{loc['attributes']['locale']}] already says it all")
             continue
-        new = text.rstrip() + "\n\n" + "\n".join(add)
+        new = text.rstrip() + ("\n\n" + "\n".join(add) if add else "")
         if len(new) > 4000:
             raise RuntimeError("the description would be over 4,000 characters")
         api(f"appStoreVersionLocalizations/{loc['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {"description": new}}}, method="PATCH")
-        print(f"     [{loc['attributes']['locale']}] added: " + " | ".join(add))
+        print(f"     [{loc['attributes']['locale']}] corrected and added: " + " | ".join(add))
 
 
 def notes():
