@@ -5,7 +5,9 @@
 //   takeActions() -> { actions: [{ id, action, amount, at, item? }] }   (taps on widget buttons and checklists)
 //   startFocus({ id, title, minutes, tint? }) -> { startedAt, endsAt }    (the focus timer's Live Activity)
 //   stopFocus() -> {}     focusState() -> { id?, title?, startedAt?, endsAt? }
+//   setBadge({ count }) -> {}   (the number on the app icon: the Rise Score's things left to track today; 0 clears it)
 import Foundation
+import UserNotifications
 import Capacitor
 import UIKit
 import WidgetKit
@@ -36,8 +38,22 @@ public class AriseWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setBackdrop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "startFocus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopFocus", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "focusState", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "focusState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise)
     ]
+
+    /// The red number on the app icon. iOS shows it only if notifications are allowed with badges.
+    @objc func setBadge(_ call: CAPPluginCall) {
+        let count = max(0, call.getInt("count") ?? 0)
+        if #available(iOS 16.0, *) {
+            UNUserNotificationCenter.current().setBadgeCount(count) { _ in call.resolve() }
+        } else {
+            DispatchQueue.main.async {
+                UIApplication.shared.applicationIconBadgeNumber = count
+                call.resolve()
+            }
+        }
+    }
 
     override public func load() { AriseZoomLock.install(on: bridge?.webView) }
 

@@ -97,3 +97,12 @@ export function watchWidgetActions(handle: (taps: WidgetTap[]) => void): () => v
   document.addEventListener("visibilitychange", visible);
   return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", visible); };
 }
+
+let badgeSent = -1;
+/** The number on the app's icon (the Rise Score's things left today); 0 clears it. Only on the iPhone app. */
+export async function setAppBadge(count: number): Promise<void> {
+  const n = Math.max(0, Math.min(999, Math.round(Number(count) || 0)));
+  if (n === badgeSent || !isNativeApp() || !hasNativePlugin(PLUGIN)) return;
+  badgeSent = n;
+  try { await nativeCall(PLUGIN, "AriseWidgets", "setBadge", { count: n }); } catch { badgeSent = -1; }
+}

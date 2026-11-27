@@ -894,7 +894,11 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   };
   // Red dots (shared/pluginDots.ts): a plugin with something still to track today.
   const pluginDots = usePluginDots();
-  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue || (pluginDots.pills ?? 0) : id === "linked" ? linkInvites.length : (pluginDots[id] ?? 0);
+  // The Rise Score (shared/riseScore.ts): the score card on the pages and the Rise Score widgets.
+  const [riseOff] = useRiseOff();
+  const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done })), riseOff), currentDay), [family, data.tasks, currentDay, riseOff]);
+  // The Rise Score shows what's left to track today as a red count until it's all done (and on the app icon).
+  const badge = (id: FamilySection) => id === "risescore" ? riseNow.leftCount : id === "tasks" ? dueToday.length : id === "pills" ? pillsDue || (pluginDots.pills ?? 0) : id === "linked" ? linkInvites.length : (pluginDots[id] ?? 0);
   const dotted = (id: FamilySection) => id !== "tasks" && id !== "linked" && (pluginDots[id] ?? 0) > 0;
   // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
   // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
@@ -1238,9 +1242,6 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   // this app with you, their copy (to use together, or look at) in place of yours if you choose it.
   const sharedApp = useSharedApp(shown, common);
   const appProps = sharedApp.props ?? common;
-  // The Rise Score (shared/riseScore.ts): the score card on the pages and the Rise Score widgets.
-  const [riseOff] = useRiseOff();
-  const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done })), riseOff), currentDay), [family, data.tasks, currentDay, riseOff]);
   // Widgets (Home Screen and Lock Screen): agenda, to-dos, bills, goals, notes, countdowns, email and weather.
   const weatherFeed = useLifeFeed<Forecast>(family.weather.place ? `/api/lifehub/weather?place=${encodeURIComponent(family.weather.place)}&unit=${family.weather.unit}` : null, 0);
   // Worked out once typing or tapping pauses (not on every keystroke), so the page never waits on it.
@@ -1519,7 +1520,9 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${!kitOpen && !notesAppOpen && !sheetsAppOpen && shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
                   <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{dotted(id) ? <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff3b30] ring-2 ring-white/70" aria-label={`${badge(id)} to track`} data-testid={`life-dot-${id}`} />
-                    : badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                    : badge(id) > 0 && (id === "risescore"
+                      ? <span className="ml-auto rounded-full bg-rose-600 px-1.5 text-xs font-bold text-white" aria-label={`${badge(id)} left to track today`}>{badge(id)}</span>
+                      : <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>)}
                 </button>
                 {movable && dsk !== "compact" && (
                   <button type="button" onClick={() => removeFromMenu(id)} aria-label={`Remove ${SECTION_INFO[id].label} from the menu`} title="Remove from the menu"

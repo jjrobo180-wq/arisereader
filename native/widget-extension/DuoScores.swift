@@ -13,6 +13,13 @@ struct RiseCategory: Codable, Hashable {
     var color: String = "#ffb347"
 }
 
+struct RiseLeftItem: Codable, Hashable {
+    var name: String = ""
+    var what: String = ""
+    var color: String = "#ffb347"
+    var gain: Int = 0
+}
+
 struct RiseScores: Codable {
     var today: Int = 0
     var week: Int = 0
@@ -29,9 +36,12 @@ struct RiseScores: Codable {
     var next: String = ""
     var tip: String = ""
     var date: String = ""
+    /// Things left to track today (shown in red until it's 0), and what they are.
+    var leftCount: Int = 0
+    var left: [RiseLeftItem] = []
 
     enum CodingKeys: String, CodingKey {
-        case today, week, year, overall, categories, weekDays, todayIndex, months, monthIndex, streak, next, tip, date
+        case today, week, year, overall, categories, weekDays, todayIndex, months, monthIndex, streak, next, tip, date, leftCount, left
     }
 
     init() {}
@@ -43,6 +53,7 @@ struct RiseScores: Codable {
         weekDays = v(.weekDays, [Int]()); todayIndex = v(.todayIndex, 0)
         months = v(.months, [Int]()); monthIndex = v(.monthIndex, 0)
         streak = v(.streak, 0); next = v(.next, ""); tip = v(.tip, ""); date = v(.date, "")
+        leftCount = v(.leftCount, 0); left = v(.left, [RiseLeftItem]())
     }
 
     /// What the widget gallery shows before the app has sent anything.
@@ -58,6 +69,8 @@ struct RiseScores: Codable {
         s.weekDays = [92, 80, 96, 68, 88, 78, 88]; s.todayIndex = 6
         s.months = [71, 70, 66, 74, 78, 72, 80, 78, 83, 86, 85, -1]; s.monthIndex = 10
         s.streak = 7; s.next = "Call the dentist"; s.tip = "Finish Move to reach an A today"; s.date = "Sun, Nov 22"
+        s.leftCount = 3
+        s.left = [RiseLeftItem(name: "Move", what: "6 more active minutes", color: "#ff7a6b", gain: 5), RiseLeftItem(name: "Checklist", what: "Call the dentist", color: "#ffb347", gain: 4)]
         return s
     }
 }
@@ -135,6 +148,20 @@ struct RiseRing<Center: View>: View {
         .padding(line / 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(percent) percent, grade \(RiseGrade.letter(percent))")
+    }
+}
+
+/// "3 left" in red until everything today is tracked.
+struct RiseLeftBadge: View {
+    let count: Int
+    var body: some View {
+        if count > 0 {
+            Text("\(count) left").font(riseFont(11, .black)).foregroundStyle(.white)
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(Color(red: 0.88, green: 0.11, blue: 0.28), in: Capsule())
+                .lineLimit(1)
+                .accessibilityLabel("\(count) left to track today")
+        }
     }
 }
 
@@ -239,6 +266,7 @@ struct RiseTrioView: View {
                 Image(systemName: "sunrise.fill").font(riseFont(12)).foregroundStyle(RiseTheme.amber)
                 RiseLabel(text: "Your standing")
                 Spacer(minLength: 4)
+                RiseLeftBadge(count: s.leftCount)
                 Text("Overall \(RiseGrade.letter(s.overall))").font(riseFont(11)).foregroundStyle(RiseTheme.text)
                     .padding(.horizontal, 9).padding(.vertical, 2).background(RiseTheme.track, in: Capsule())
             }
@@ -271,7 +299,7 @@ struct RiseBreakdownView: View {
             HStack {
                 RiseLabel(text: "Today's breakdown")
                 Spacer(minLength: 4)
-                RiseLabel(text: "Rise score", color: RiseTheme.amber)
+                if s.leftCount > 0 { RiseLeftBadge(count: s.leftCount) } else { RiseLabel(text: "Rise score", color: RiseTheme.amber) }
             }
             HStack(spacing: 14) {
                 RiseRing(percent: s.today, color: RiseTheme.amber, line: 9) {
@@ -303,7 +331,7 @@ struct RiseWeekView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                RiseLabel(text: "This week")
+                HStack(spacing: 4) { RiseLabel(text: "This week"); RiseLeftBadge(count: s.leftCount) }
                 RiseBigPercent(percent: s.week)
                 RiseChip(text: "Grade \(RiseGrade.letter(s.week))", color: RiseTheme.teal)
                 if s.streak > 0 {
@@ -328,7 +356,7 @@ struct RiseYearView: View {
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
-                RiseLabel(text: "This year")
+                HStack(spacing: 4) { RiseLabel(text: "This year"); RiseLeftBadge(count: s.leftCount) }
                 RiseBigPercent(percent: s.year)
                 RiseChip(text: "Grade \(RiseGrade.letter(s.year))", color: RiseTheme.lavender)
                 Label(climb > 0 ? "Up \(climb) pts" : "Keep climbing", systemImage: "chart.line.uptrend.xyaxis")
@@ -379,7 +407,20 @@ struct RiseFullView: View {
             VStack(spacing: 5) {
                 ForEach(s.categories.prefix(4), id: \.self) { RiseCategoryRow(c: $0) }
             }
-            if !s.next.isEmpty || !s.tip.isEmpty {
+            if s.leftCount > 0, let top = s.left.first {
+                HStack(spacing: 10) {
+                    Text("\(s.leftCount)").font(riseFont(14, .black)).foregroundStyle(.white)
+                        .frame(minWidth: 26, minHeight: 26).background(Circle().fill(Color(red: 0.88, green: 0.11, blue: 0.28)))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(s.leftCount) left today · \(top.name): \(top.what)").font(riseFont(12)).foregroundStyle(RiseTheme.text)
+                        Text("+\(top.gain) pts when it's done").font(riseFont(11, .bold)).foregroundStyle(RiseTheme.muted)
+                    }
+                    .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(RiseTheme.tipBack, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else if !s.next.isEmpty || !s.tip.isEmpty {
                 HStack(spacing: 10) {
                     Image(systemName: "circle").font(riseFont(18, .bold)).foregroundStyle(RiseTheme.amber)
                     VStack(alignment: .leading, spacing: 1) {
