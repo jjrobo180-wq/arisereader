@@ -15,6 +15,7 @@ import { inputClass, type SectionProps } from "./ui";
 import { API_BASE } from "@/lib/queryClient";
 import { lastDays, TODO_MAX, TODO_POINTS, type LifeInput } from "@shared/lifeScore";
 import { lifeStats, type AnyTask } from "@shared/lifeStats";
+import { lifeInsights, type LifeInsights } from "@shared/lifeInsights";
 import { SCALES, scoreScale, type Labs, type ScaleId } from "@shared/lifeScales";
 import { ChartView, Explorer, Records, SectionPage, StatsHome } from "./LifeStatsViews";
 
@@ -196,6 +197,8 @@ export default function LifeScoreApp({ family, setFamily, today, say, token, lif
     result.metrics.find((m) => m.id === metric)?.todosDone.some((t) => t.toLowerCase() === title.toLowerCase()) ? "done"
       : allTasks.some((t) => !t.done && t.title.trim().toLowerCase() === title.trim().toLowerCase()) ? "open" : "add";
   const result = useMemo(() => lifeScore(input, today), [input, today]);
+  // In depth: what's left today (red until done), what each rating needs, how to improve, summaries.
+  const insights = useMemo(() => lifeInsights(input, result, today), [input, result, today]);
   // Stats are worked out only once one of their screens is open (they read everything).
   const tab = tabOf(view);
   const stats = useMemo(() => (tab === "stats" || tab === "explore" || tab === "records" ? lifeStats({ today, family, tasks: allTasks, work: extra.work, fit: extra.fit, ls: data, score: result }) : null), [tab, today, family, allTasks, extra, data, result]);
@@ -234,7 +237,7 @@ export default function LifeScoreApp({ family, setFamily, today, say, token, lif
       {view.kind === "measures" && <Measures data={data} today={today} back={() => go({ kind: "checkin" })} open={(id) => go({ kind: "scale", id })} />}
       {view.kind === "scale" && <ScaleForm id={view.id} data={data} today={today} update={update} back={() => go({ kind: "measures" })} />}
       {view.kind === "labs" && <LabsView data={data} today={today} update={update} back={() => go({ kind: "checkin" })} />}
-      {view.kind === "overview" && <Overview data={data} result={result} today={today} go={go} syncing={syncing} sync={() => void sync()} connect={() => void connect()} addTodo={addTodo} />}
+      {view.kind === "overview" && <Overview data={data} result={result} insights={insights} today={today} go={go} syncing={syncing} sync={() => void sync()} connect={() => void connect()} addTodo={addTodo} />}
       {view.kind === "checkin" && <CheckIn data={data} today={today} update={update} back={() => go({ kind: "overview" })} openMeasures={() => go({ kind: "measures" })} openLabs={() => go({ kind: "labs" })} />}
       {view.kind === "trends" && <Trends result={result} back={() => go({ kind: "overview" })} go={go} />}
       {view.kind === "settings" && <SettingsView data={data} today={today} update={update} back={() => go({ kind: "overview" })} syncing={syncing} sync={() => void sync()} connect={() => void connect()} />}
@@ -249,7 +252,7 @@ function Back({ onClick, label = "Life Score" }: { onClick: () => void; label?: 
 }
 
 type R = ReturnType<typeof lifeScore>;
-function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: { data: LifeScoreData; result: R; today: string; go: (v: View) => void; syncing: boolean; sync: () => void; connect: () => void; addTodo: (t: string) => void }) {
+function Overview({ data, result, insights, today, go, syncing, sync, connect, addTodo }: { data: LifeScoreData; result: R; insights: LifeInsights; today: string; go: (v: View) => void; syncing: boolean; sync: () => void; connect: () => void; addTodo: (t: string) => void }) {
   const checked = !!data.days[today];
   const focus = result.focus ? metricDef(result.focus.id) : null;
   const t = result.today;
@@ -326,6 +329,9 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
         </div>
       </Card>
 
+      {/* What's left to track today: red until it's all done. */}
+      <LeftToday ins={insights} go={go} />
+
       {/* The check-in */}
       {!checked ? (
         <Card onClick={() => go({ kind: "checkin" })} className="!border-slate-900 !bg-slate-900 text-white">
@@ -367,6 +373,9 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
           </div>
         </Card>
       )}
+
+      {/* In depth: what each rating needs, how to improve, summaries, the areas side by side. */}
+      <InDepth ins={insights} score={result.score} go={go} />
 
       {/* Apple Health today */}
       <Card>
@@ -428,6 +437,105 @@ function Overview({ data, result, today, go, syncing, sync, connect, addTodo }: 
       <p className="px-2 text-center text-xs leading-5 text-slate-400">Life Score is for motivation and habits. It isn't medical advice and doesn't diagnose anything; talk to your doctor about your health and screenings.</p>
     </div>
   );
+}
+
+/** What's still left to track today, biggest lift first, in red until it's all done. */
+function LeftToday({ ins, go }: { ins: LifeInsights; go: (v: View) => void }) {
+  if (!ins.leftCount) return <div className="flex items-center gap-2 rounded-2xl border-2 border-emerald-300 bg-emerald-50 px-4 py-3 text-[15px] font-bold text-emerald-900" role="status" data-testid="life-score-left"><Check className="h-5 w-5" />All tracked for today. Nice work!</div>;
+  return (
+    <div className="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4" role="status" data-testid="life-score-left">
+      <div className="flex items-center gap-2">
+        <span className="grid h-7 min-w-7 place-items-center rounded-full bg-rose-600 px-2 text-sm font-extrabold text-white" aria-hidden="true">{ins.leftCount}</span>
+        <p className="text-[16px] font-extrabold text-rose-900">{ins.leftCount} thing{ins.leftCount === 1 ? "" : "s"} left to track today</p>
+      </div>
+      <ul className="mt-2.5 space-y-2">
+        {ins.left.map((l) => (
+          <li key={l.id}>
+            <button type="button" onClick={() => go(l.id === "checkin" ? { kind: "checkin" } : { kind: "metric", id: l.metric })} className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-left ring-1 ring-rose-100 hover:ring-rose-300">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.color }} aria-hidden="true" />
+              <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{l.name}</span><span className="block text-sm text-slate-600">{l.what}</span></span>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-extrabold text-emerald-800">about +{l.gain}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const change = (now: number | null, before: number | null) => {
+  if (now === null || before === null) return <span className="text-slate-300">—</span>;
+  const d = now - before;
+  if (Math.abs(d) < 2) return <span className="text-slate-500">same</span>;
+  return d > 0 ? <span className="font-bold text-emerald-700">▲ {d}</span> : <span className="font-bold text-rose-700">▼ {-d}</span>;
+};
+
+/** What each rating needs, how to improve, the summaries and each area side by side. */
+function InDepth({ ins, score, go }: { ins: LifeInsights; score: number | null; go: (v: View) => void }) {
+  return <>
+    <Card>
+      <Eyebrow>What each rating needs today</Eyebrow>
+      <p className="mt-1 text-xs text-slate-500">Excellent is 85+, Good is 70+, Fair is 50+.{score !== null ? ` You're at ${score}.` : ""}</p>
+      <ul className="mt-2 divide-y divide-slate-100" data-testid="life-score-ladder">
+        {ins.ladder.map((r) => (
+          <li key={r.label} className="flex items-start gap-3 py-2.5">
+            <span className={`mt-0.5 grid h-8 min-w-8 shrink-0 place-items-center rounded-full px-2 text-xs font-extrabold ${r.reached ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700"}`}>{r.min}</span>
+            <span className="min-w-0 flex-1 text-sm"><span className="block font-bold text-slate-900">{r.reached ? `${r.label}: reached` : `${r.label}: ${r.need} more point${r.need === 1 ? "" : "s"}`}</span>{!r.reached && <span className="block text-slate-600">{r.how}</span>}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+
+    {ins.improve.length > 0 && <Card>
+      <Eyebrow>How to improve</Eyebrow>
+      <ol className="mt-2 list-decimal space-y-2 pl-5 text-[15px] leading-6 text-slate-700" data-testid="life-score-improve">{ins.improve.map((t, i) => <li key={i}>{t}</li>)}</ol>
+    </Card>}
+
+    <Card>
+      <Eyebrow>Summary</Eyebrow>
+      <dl className="mt-2 space-y-2.5 text-[15px] leading-6" data-testid="life-score-summary">
+        {([["Today", ins.summary.today], ["This week", ins.summary.week], ["Last 30 days", ins.summary.month]] as const).map(([k, v]) => (
+          <div key={k}><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{k}</dt><dd className="text-slate-700">{v}</dd></div>
+        ))}
+      </dl>
+    </Card>
+
+    <Card>
+      <Eyebrow>In depth</Eyebrow>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[440px] text-left text-sm" data-testid="life-score-depth">
+          <thead><tr className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            <th className="py-1.5 pr-2 font-bold">Area</th><th className="px-2 font-bold">Today</th><th className="px-2 font-bold">7 days</th><th className="px-2 font-bold">vs week before</th><th className="px-2 font-bold">30 days</th><th className="pl-2 font-bold">Best</th>
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {ins.areas.map((a) => (
+              <tr key={a.id} className="cursor-pointer hover:bg-slate-50" onClick={() => go({ kind: "area", id: a.id })}>
+                <td className="py-2 pr-2 font-bold text-slate-900"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: a.color }} aria-hidden="true" />{a.name}</td>
+                <td className="px-2 tabular-nums text-slate-700">{a.today ?? "—"}</td>
+                <td className="px-2 tabular-nums text-slate-700">{a.week ?? "—"}</td>
+                <td className="px-2 tabular-nums">{change(a.week, a.lastWeek)}</td>
+                <td className="px-2 tabular-nums text-slate-700">{a.month ?? "—"}</td>
+                <td className="pl-2 tabular-nums text-slate-700">{a.best ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {(ins.risers.length > 0 || ins.fallers.length > 0) && <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {([["Rising this week", ins.risers], ["Slipping this week", ins.fallers]] as const).map(([title, list]) => list.length > 0 && (
+          <div key={title}>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{title}</p>
+            <ul className="mt-1 space-y-1">
+              {list.map((m) => <li key={m.id}><button type="button" onClick={() => go({ kind: "metric", id: m.id })} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-1 text-left text-sm hover:bg-slate-50">
+                <span className="h-2 w-2 rounded-full" style={{ background: m.color }} aria-hidden="true" /><span className="flex-1 font-semibold text-slate-800">{m.name}</span>
+                <span className="tabular-nums text-slate-500">{m.score}</span>{change(m.score, m.score - m.change)}</button></li>)}
+            </ul>
+          </div>
+        ))}
+      </div>}
+    </Card>
+  </>;
 }
 
 function MetricRow({ m, color, onClick }: { m: MetricResult; color: string; onClick: () => void }) {

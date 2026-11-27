@@ -1,9 +1,9 @@
 
-// MARK: - Arise To Duo: Rise Score widgets (day, week and year standing)
+// MARK: - Arise To Duo: Life Score widgets (day, week and year standing)
 // Added to AriseWidgets.swift by .github/scripts/add_widget.rb next to DuoDesigns.swift (the app's widget list has
 // an id ending in ".designs"). Five widgets: Your Standing, Today's Breakdown, Week Grade (medium), Year Standing
 // (medium) and Full Standing (large). They all read one slot the app sends, "duo.scores"
-// (client/src/lib/riseScoreWidgets.ts, worked out by shared/riseScore.ts): a percent and letter grade for today,
+// (client/src/lib/duoBoard.ts publishLifeScores, worked out by shared/lifeInsights.ts lifeWidgetData): Life Score and its rating for today,
 // this week and this year, one per category (Checklist, Food, Move, Money), each day of this week and each month
 // of this year, plus a line on what lifts the grade next.
 
@@ -61,16 +61,16 @@ struct RiseScores: Codable {
         var s = RiseScores()
         s.today = 88; s.week = 84; s.year = 77; s.overall = 83
         s.categories = [
-            RiseCategory(name: "Checklist", percent: 86, color: "#ffb347"),
-            RiseCategory(name: "Food", percent: 92, color: "#4fd1c5"),
-            RiseCategory(name: "Move", percent: 80, color: "#ff7a6b"),
-            RiseCategory(name: "Money", percent: 94, color: "#a99bff"),
+            RiseCategory(name: "Body", percent: 86, color: "#ff5a5f"),
+            RiseCategory(name: "Mind", percent: 72, color: "#7c6cf0"),
+            RiseCategory(name: "Connection", percent: 80, color: "#f59e0b"),
+            RiseCategory(name: "Growth", percent: 94, color: "#10b981"),
         ]
         s.weekDays = [92, 80, 96, 68, 88, 78, 88]; s.todayIndex = 6
         s.months = [71, 70, 66, 74, 78, 72, 80, 78, 83, 86, 85, -1]; s.monthIndex = 10
-        s.streak = 7; s.next = "Call the dentist"; s.tip = "Finish Move to reach an A today"; s.date = "Sun, Nov 22"
+        s.streak = 7; s.next = "Call the dentist"; s.tip = "Raise Sleep for Excellent"; s.date = "Sun, Nov 22"
         s.leftCount = 3
-        s.left = [RiseLeftItem(name: "Move", what: "6 more active minutes", color: "#ff7a6b", gain: 5), RiseLeftItem(name: "Checklist", what: "Call the dentist", color: "#ffb347", gain: 4)]
+        s.left = [RiseLeftItem(name: "Sleep", what: "Log last night's sleep", color: "#ff5a5f", gain: 5), RiseLeftItem(name: "Daily check-in", what: "How you feel today", color: "#7c6cf0", gain: 4)]
         return s
     }
 }
@@ -84,17 +84,13 @@ func loadRiseScores() -> RiseScores? {
 }
 
 enum RiseGrade {
-    /// A 90+, B+ 87, B 83, B- 80, C+ 77, C 73, C- 70, D below 70 (the same scale as shared/riseScore.ts).
+    /// Life Score's ratings: Excellent 85+, Good 70+, Fair 50+, Needs care below (shared/lifeScore.ts labelFor).
     static func letter(_ p: Int) -> String {
         switch p {
-        case 90...: return "A"
-        case 87..<90: return "B+"
-        case 83..<87: return "B"
-        case 80..<83: return "B-"
-        case 77..<80: return "C+"
-        case 73..<77: return "C"
-        case 70..<73: return "C-"
-        default: return "D"
+        case 85...: return "Excellent"
+        case 70..<85: return "Good"
+        case 50..<70: return "Fair"
+        default: return "Needs care"
         }
     }
 }
@@ -147,7 +143,7 @@ struct RiseRing<Center: View>: View {
         }
         .padding(line / 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(percent) percent, grade \(RiseGrade.letter(percent))")
+        .accessibilityLabel("\(percent), \(RiseGrade.letter(percent))")
     }
 }
 
@@ -195,9 +191,9 @@ struct RiseCategoryRow: View {
     let c: RiseCategory
     var body: some View {
         HStack(spacing: 8) {
-            Text(c.name).font(riseFont(12, .bold)).frame(width: 62, alignment: .leading).lineLimit(1)
+            Text(c.name).font(riseFont(12, .bold)).lineLimit(1).minimumScaleFactor(0.75).frame(width: 70, alignment: .leading)
             RiseBar(percent: c.percent, color: RiseTheme.parse(c.color))
-            Text("\(c.percent)%").font(riseFont(12)).frame(width: 36, alignment: .trailing)
+            Text("\(c.percent)").font(riseFont(12)).frame(width: 36, alignment: .trailing)
         }
         .foregroundStyle(RiseTheme.text)
         .accessibilityElement(children: .combine)
@@ -209,7 +205,6 @@ struct RiseBigPercent: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
             Text("\(percent)").font(riseFont(38, .black)).foregroundStyle(RiseTheme.text)
-            Text("%").font(riseFont(20)).foregroundStyle(RiseTheme.muted)
         }
         .lineLimit(1)
     }
@@ -267,7 +262,7 @@ struct RiseTrioView: View {
                 RiseLabel(text: "Your standing")
                 Spacer(minLength: 4)
                 RiseLeftBadge(count: s.leftCount)
-                Text("Overall \(RiseGrade.letter(s.overall))").font(riseFont(11)).foregroundStyle(RiseTheme.text)
+                Text("Overall \(s.overall)").font(riseFont(11)).foregroundStyle(RiseTheme.text)
                     .padding(.horizontal, 9).padding(.vertical, 2).background(RiseTheme.track, in: Capsule())
             }
             HStack(alignment: .top) {
@@ -283,10 +278,10 @@ struct RiseTrioView: View {
     private func column(_ label: String, _ p: Int, _ color: Color) -> some View {
         VStack(spacing: 6) {
             RiseRing(percent: p, color: color, line: 8) {
-                Text("\(p)%").font(riseFont(18, .black)).foregroundStyle(RiseTheme.text).minimumScaleFactor(0.7)
+                Text("\(p)").font(riseFont(22, .black)).foregroundStyle(RiseTheme.text).minimumScaleFactor(0.7)
             }
             .frame(width: 70, height: 70)
-            Text("\(label) · \(RiseGrade.letter(p))").font(riseFont(12)).foregroundStyle(color).lineLimit(1)
+            Text("\(label) · \(RiseGrade.letter(p))").font(riseFont(12)).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 }
@@ -299,13 +294,13 @@ struct RiseBreakdownView: View {
             HStack {
                 RiseLabel(text: "Today's breakdown")
                 Spacer(minLength: 4)
-                if s.leftCount > 0 { RiseLeftBadge(count: s.leftCount) } else { RiseLabel(text: "Rise score", color: RiseTheme.amber) }
+                if s.leftCount > 0 { RiseLeftBadge(count: s.leftCount) } else { RiseLabel(text: "Life Score", color: RiseTheme.amber) }
             }
             HStack(spacing: 14) {
                 RiseRing(percent: s.today, color: RiseTheme.amber, line: 9) {
                     VStack(spacing: 2) {
-                        Text(RiseGrade.letter(s.today)).font(riseFont(28, .black))
-                        Text("\(s.today)%").font(riseFont(12)).foregroundStyle(RiseTheme.muted)
+                        Text("\(s.today)").font(riseFont(28, .black))
+                        Text(RiseGrade.letter(s.today)).font(riseFont(11)).foregroundStyle(RiseTheme.muted).lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .foregroundStyle(RiseTheme.text)
                 }
@@ -333,7 +328,7 @@ struct RiseWeekView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 4) { RiseLabel(text: "This week"); RiseLeftBadge(count: s.leftCount) }
                 RiseBigPercent(percent: s.week)
-                RiseChip(text: "Grade \(RiseGrade.letter(s.week))", color: RiseTheme.teal)
+                RiseChip(text: RiseGrade.letter(s.week), color: RiseTheme.teal)
                 if s.streak > 0 {
                     Label("\(s.streak)-day streak", systemImage: "flame.fill").font(riseFont(12)).foregroundStyle(RiseTheme.amber).lineLimit(1)
                 }
@@ -358,7 +353,7 @@ struct RiseYearView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 4) { RiseLabel(text: "This year"); RiseLeftBadge(count: s.leftCount) }
                 RiseBigPercent(percent: s.year)
-                RiseChip(text: "Grade \(RiseGrade.letter(s.year))", color: RiseTheme.lavender)
+                RiseChip(text: RiseGrade.letter(s.year), color: RiseTheme.lavender)
                 Label(climb > 0 ? "Up \(climb) pts" : "Keep climbing", systemImage: "chart.line.uptrend.xyaxis")
                     .font(riseFont(12)).foregroundStyle(RiseTheme.amber).lineLimit(1)
                 if climb > 0 { Text("since January").font(riseFont(11, .bold)).foregroundStyle(RiseTheme.muted) }
@@ -387,16 +382,16 @@ struct RiseFullView: View {
             HStack(spacing: 14) {
                 RiseRing(percent: s.overall, color: RiseTheme.amber, line: 11) {
                     VStack(spacing: 3) {
-                        Text(RiseGrade.letter(s.overall)).font(riseFont(38, .black))
-                        Text("\(s.overall)%").font(riseFont(12)).foregroundStyle(RiseTheme.muted)
+                        Text("\(s.overall)").font(riseFont(38, .black))
+                        Text(RiseGrade.letter(s.overall)).font(riseFont(12)).foregroundStyle(RiseTheme.muted).lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .foregroundStyle(RiseTheme.text)
                 }
                 .frame(width: 100, height: 100)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Overall standing").font(riseFont(17, .black)).foregroundStyle(RiseTheme.text)
+                    Text("Life Score").font(riseFont(17, .black)).foregroundStyle(RiseTheme.text)
                     Text("Today, week and year combined").font(riseFont(12, .bold)).foregroundStyle(RiseTheme.muted)
-                    RiseChip(text: s.overall >= 90 ? "You're at an A!" : "\(90 - s.overall) pts from an A", color: RiseTheme.amber).padding(.top, 2)
+                    RiseChip(text: s.overall >= 85 ? "Excellent!" : "\((s.overall >= 70 ? 85 : 70) - s.overall) pts to \(s.overall >= 70 ? "Excellent" : "Good")", color: RiseTheme.amber).padding(.top, 2)
                 }
             }
             HStack(spacing: 12) {
@@ -439,8 +434,8 @@ struct RiseFullView: View {
         VStack(alignment: .leading, spacing: 4) {
             RiseLabel(text: label)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text("\(p)%").font(riseFont(20, .black)).foregroundStyle(RiseTheme.text)
-                Text(RiseGrade.letter(p)).font(riseFont(12)).foregroundStyle(color)
+                Text("\(p)").font(riseFont(20, .black)).foregroundStyle(RiseTheme.text)
+                Text(RiseGrade.letter(p)).font(riseFont(11)).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.6)
             }
             RiseBar(percent: p, color: color, height: 5)
         }
@@ -476,7 +471,7 @@ struct RiseTrioWidget: Widget {
         StaticConfiguration(kind: "Arise.duo.score.trio", provider: RiseScoreProvider()) { e in
             RiseTrioView(s: e.scores).containerBackground(for: .widget) { RiseTheme.card }.widgetURL(riseOpen)
         }
-        .configurationDisplayName("Your Standing").description("Today, this week and this year side by side.").supportedFamilies([.systemMedium])
+        .configurationDisplayName("Your Standing").description("Your Life Score today, this week and this year side by side.").supportedFamilies([.systemMedium])
     }
 }
 
@@ -485,7 +480,7 @@ struct RiseBreakdownWidget: Widget {
         StaticConfiguration(kind: "Arise.duo.score.breakdown", provider: RiseScoreProvider()) { e in
             RiseBreakdownView(s: e.scores).containerBackground(for: .widget) { RiseTheme.card }.widgetURL(riseOpen)
         }
-        .configurationDisplayName("Today's Breakdown").description("Checklist, food, move and money, and what lifts your grade.").supportedFamilies([.systemMedium])
+        .configurationDisplayName("Today's Breakdown").description("Today's Life Score by area: body, mind, connection, growth and money.").supportedFamilies([.systemMedium])
     }
 }
 
@@ -494,7 +489,7 @@ struct RiseWeekWidget: Widget {
         StaticConfiguration(kind: "Arise.duo.score.week", provider: RiseScoreProvider()) { e in
             RiseWeekView(s: e.scores).containerBackground(for: .widget) { RiseTheme.card }.widgetURL(riseOpen)
         }
-        .configurationDisplayName("Week Grade").description("This week's grade, each day and your streak.").supportedFamilies([.systemMedium])
+        .configurationDisplayName("Life Score Week").description("This week's Life Score, each day and your streak.").supportedFamilies([.systemMedium])
     }
 }
 
@@ -503,7 +498,7 @@ struct RiseYearWidget: Widget {
         StaticConfiguration(kind: "Arise.duo.score.year", provider: RiseScoreProvider()) { e in
             RiseYearView(s: e.scores).containerBackground(for: .widget) { RiseTheme.card }.widgetURL(riseOpen)
         }
-        .configurationDisplayName("Year Standing").description("This year's grade and how far you've climbed.").supportedFamilies([.systemMedium])
+        .configurationDisplayName("Year Standing").description("This year's Life Score by month and how far you've climbed.").supportedFamilies([.systemMedium])
     }
 }
 
@@ -512,11 +507,11 @@ struct RiseFullWidget: Widget {
         StaticConfiguration(kind: "Arise.duo.score.full", provider: RiseScoreProvider()) { e in
             RiseFullView(s: e.scores).containerBackground(for: .widget) { RiseTheme.card }.widgetURL(riseOpen)
         }
-        .configurationDisplayName("Full Standing").description("Your overall grade, day, week, year and every category.").supportedFamilies([.systemLarge])
+        .configurationDisplayName("Full Standing").description("Your Life Score, today, week and year, every area, and what's left to track.").supportedFamilies([.systemLarge])
     }
 }
 
-/// The five Rise Score widgets (added to the bundle by add_widget.rb).
+/// The five Life Score widgets (added to the bundle by add_widget.rb).
 struct RiseScoreWidgets: WidgetBundle {
     var body: some Widget {
         RiseTrioWidget()

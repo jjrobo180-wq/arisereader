@@ -26,7 +26,7 @@ export type OsProps = {
   /** The hub's name and its Work/Life switch, always at the top. */ hubName: string; hubSwitch: ReactNode;
   /** The notification bell, in the top bar beside the switch (in the bar's own row, so it can never cover "Work"). */ bell?: ReactNode;
   /** Shown at the bottom of Home: invitations and the hub's standing banner. */ banner?: ReactNode;
-  /** The Rise Score card (client/src/components/RiseScoreCard.tsx), shown at the top of Home and Tasks. */ scoreCard?: { home?: ReactNode; tasks?: ReactNode };
+  /** A card shown at the top of Home and Tasks. */ scoreCard?: { home?: ReactNode; tasks?: ReactNode };
   /** Main apps turned off in the Plugin Gallery, which leave the dock. */ off?: OsScreen[];
   /** Apps behind the passcode, whose details stay off Home until it is entered. */ lockedApps?: string[];
   /** Problems to show on any screen, such as a save that failed. */

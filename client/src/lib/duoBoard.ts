@@ -120,15 +120,13 @@ export function publishDuoLinks(hub: "life" | "work", links: { id: string; title
   publishRaw({ id: hub === "work" ? "duo.links.work" : "duo.links", title: "Links", value: String(list.length), links: list });
 }
 
-/** The Rise Score widgets (native/widget-extension/DuoScores.swift) read this one "duo.scores" slot. */
-export function publishRiseScores(scores: import("@shared/riseScore").RiseScores): void {
-  const { today, week, year, overall, categories, weekDays, todayIndex, months, monthIndex, streak, next, tip, date, left, leftCount } = scores;
-  publishRaw({ id: "duo.scores", title: "Rise Score", value: `${overall}%`, scores: {
-    today, week, year, overall, weekDays, todayIndex, months, monthIndex, streak, tip, date, leftCount, next: cut(next, 60),
-    categories: categories.map(({ name, percent, color }) => ({ name, percent, color })),
-    // What's left today: the widgets show the count in red until it's 0.
-    left: left.slice(0, 4).map(({ name, what, color, gain }) => ({ name, what: cut(what, 70), color, gain })),
+/** The Life Score widgets (native/widget-extension/DuoScores.swift) read this one "duo.scores" slot (made by
+ *  shared/lifeInsights.ts lifeWidgetData). */
+export function publishLifeScores(scores: ReturnType<typeof import("@shared/lifeInsights").lifeWidgetData>): void {
+  publishRaw({ id: "duo.scores", title: "Life Score", value: `${scores.today}`, scores: {
+    ...scores, next: cut(scores.next, 70), tip: cut(scores.tip, 80),
+    left: scores.left.map((l) => ({ ...l, what: cut(l.what, 70) })),
   } });
   // And on the app icon, the way Messages shows unread ones (native/arise-widgets: setBadge).
-  void setAppBadge(leftCount);
+  void setAppBadge(scores.leftCount);
 }

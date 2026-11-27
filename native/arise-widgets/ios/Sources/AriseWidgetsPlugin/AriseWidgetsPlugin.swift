@@ -5,7 +5,7 @@
 //   takeActions() -> { actions: [{ id, action, amount, at, item? }] }   (taps on widget buttons and checklists)
 //   startFocus({ id, title, minutes, tint? }) -> { startedAt, endsAt }    (the focus timer's Live Activity)
 //   stopFocus() -> {}     focusState() -> { id?, title?, startedAt?, endsAt? }
-//   setBadge({ count }) -> {}   (the number on the app icon: the Rise Score's things left to track today; 0 clears it)
+//   setBadge({ count }) -> {}   (the number on the app icon: Life Score's things left to track today; 0 clears it)
 import Foundation
 import UserNotifications
 import Capacitor

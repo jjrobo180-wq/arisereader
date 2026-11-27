@@ -99,7 +99,7 @@ export function watchWidgetActions(handle: (taps: WidgetTap[]) => void): () => v
 }
 
 let badgeSent = -1;
-/** The number on the app's icon (the Rise Score's things left today); 0 clears it. Only on the iPhone app. */
+/** The number on the app's icon (Life Score's things left to track today); 0 clears it. Only on the iPhone app. */
 export async function setAppBadge(count: number): Promise<void> {
   const n = Math.max(0, Math.min(999, Math.round(Number(count) || 0)));
   if (n === badgeSent || !isNativeApp() || !hasNativePlugin(PLUGIN)) return;

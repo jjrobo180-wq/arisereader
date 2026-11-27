@@ -131,10 +131,9 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
-import { duoBoard, publishDuoBoard, publishDuoLinks, publishRiseScores, watchHubWidgetTaps } from "@/lib/duoBoard";
-import { RiseScorePlugin, useRiseOff, type RiseHubs } from "@/components/RiseScoreCard";
-import { riseHubTasks } from "@/lib/riseHubTasks";
-import { riseInputFrom, riseScores } from "@shared/riseScore";
+import { duoBoard, publishDuoBoard, publishDuoLinks, publishLifeScores, watchHubWidgetTaps } from "@/lib/duoBoard";
+import { lifeInputFrom, lifeScore } from "@shared/lifeScore";
+import { lifeInsights, lifeWidgetData } from "@shared/lifeInsights";
 import { publishWatchPart, watchActions } from "@/lib/watch";
 import { applyLifeWatch, lifeWatchPart } from "@shared/watchDuo";
 import { applyDuoWidgetTaps, duoWidgetSlots } from "@/lib/duoWidgets";
@@ -329,7 +328,7 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, risescore: TrendingUp, lifescore: GaugeNav2, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
+  home: Home, lifescore: GaugeNav2, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
@@ -894,11 +893,14 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
   };
   // Red dots (shared/pluginDots.ts): a plugin with something still to track today.
   const pluginDots = usePluginDots();
-  // The Rise Score (shared/riseScore.ts): the score card on the pages and the Rise Score widgets.
-  const [riseOff] = useRiseOff();
-  const riseNow = useMemo(() => riseScores(riseInputFrom(family, data.tasks.filter(t => !t.archived).map(t => ({ title: t.title, due: t.due, time: t.time, done: t.done })), riseOff), currentDay), [family, data.tasks, currentDay, riseOff]);
-  // The Rise Score shows what's left to track today as a red count until it's all done (and on the app icon).
-  const badge = (id: FamilySection) => id === "risescore" ? riseNow.leftCount : id === "tasks" ? dueToday.length : id === "pills" ? pillsDue || (pluginDots.pills ?? 0) : id === "linked" ? linkInvites.length : (pluginDots[id] ?? 0);
+  // Life Score (shared/lifeScore.ts) and what's left to track today (shared/lifeInsights.ts): its red count on the
+  // menu, the app icon and the Life Score widgets until everything's tracked.
+  const lifeTodos = useMemo(() => data.tasks.filter(t => !t.archived).map(t => ({ due: t.due, done: t.done })), [data.tasks]);
+  const lifeIn = useMemo(() => lifeInputFrom(family, lifeTodos), [family, lifeTodos]);
+  const lifeNow = useMemo(() => lifeScore(lifeIn, currentDay), [lifeIn, currentDay]);
+  const lifeLeft = useMemo(() => lifeInsights(lifeIn, lifeNow, currentDay), [lifeIn, lifeNow, currentDay]);
+  // Life Score shows what's left to track today as a red count until it's all done (and on the app icon).
+  const badge = (id: FamilySection) => id === "lifescore" ? lifeLeft.leftCount : id === "tasks" ? dueToday.length : id === "pills" ? pillsDue || (pluginDots.pills ?? 0) : id === "linked" ? linkInvites.length : (pluginDots[id] ?? 0);
   const dotted = (id: FamilySection) => id !== "tasks" && id !== "linked" && (pluginDots[id] ?? 0) > 0;
   // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
   // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
@@ -1255,11 +1257,12 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
         data.lists.map(l => ({ name: l.name, color: l.color, count: live.filter(t => !t.done && t.listId === l.id).length })), currentDay));
       // The Links widget: your Link page's links, each opening in Safari.
       publishDuoLinks("life", family.linkPage?.links || []);
-      // The Rise Score widgets (native/widget-extension/DuoScores.swift).
-      publishRiseScores(riseNow);
+      // The Life Score widgets: today, the week, this year by month (worked out here, after the quiet second).
+      const dayOfYear = Math.round((Date.parse(`${currentDay}T12:00:00`) - Date.parse(`${currentDay.slice(0, 4)}-01-01T12:00:00`)) / 86_400_000) + 1;
+      publishLifeScores(lifeWidgetData(lifeNow, lifeScore(lifeIn, currentDay, dayOfYear), lifeLeft, currentDay));
     }, 1500);
     return () => window.clearTimeout(t);
-  }, [family, data.tasks, data.lists, currentDay, weatherFeed.data, riseNow]);
+  }, [family, data.tasks, data.lists, currentDay, weatherFeed.data, lifeNow, lifeIn, lifeLeft]);
   // Circles tapped on the To-do and Chore checklist widgets: saved as done when the app opens.
   useEffect(() => watchHubWidgetTaps((t) => t.id !== "duo.worktodos", (taps) => {
     const tasks = latest.current.data.tasks.filter((t) => !t.archived).map((t) => ({ id: t.id, title: t.title, due: t.due, time: t.time, done: t.done }));
@@ -1329,7 +1332,6 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     : shown === "podster" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="podster" name="Arise Podcasts"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     // Life Score reads everything: every hub's to-dos (with when they were made and done), WorkHub and the Health & Fitness diary.
     : shown === "lifescore" ? <LifeScoreApp {...appProps} token={token} lifeTasks={data.tasks} lists={data.lists} familySpace={familySpace} />
-    : shown === "risescore" ? <RiseScorePlugin scores={(extra) => riseScores(riseInputFrom(family, [...data.tasks.filter((t) => !t.archived).map((t) => ({ title: t.title, due: t.due, time: t.time, done: t.done })), ...extra], riseOff), currentDay)} extraTasks={(h: RiseHubs) => riseHubTasks(h, token, familySpace)} />
     // Family & settings ends with "Move between hubs" (LifeHub ⇄ FamilyHub).
     : shown === "family" ? <div className="space-y-6">{LIFE_VIEWS.family!(appProps)}{!familySpace && <HubAutoOpenSettings family={family} setFamily={setFamily} say={setMessage} />}<MoveBetweenHubs space={familySpace ? "family" : "life"} token={token} data={data as unknown as HubWorkspace} setData={setData as unknown as (fn: (d: HubWorkspace) => HubWorkspace) => void} say={setMessage} /></div>
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
@@ -1520,7 +1522,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${!kitOpen && !notesAppOpen && !sheetsAppOpen && shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
                   <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{groupLabel(id, sections, SECTION_INFO[id].label)}</span>{dotted(id) ? <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff3b30] ring-2 ring-white/70" aria-label={`${badge(id)} to track`} data-testid={`life-dot-${id}`} />
-                    : badge(id) > 0 && (id === "risescore"
+                    : badge(id) > 0 && (id === "lifescore"
                       ? <span className="ml-auto rounded-full bg-rose-600 px-1.5 text-xs font-bold text-white" aria-label={`${badge(id)} left to track today`}>{badge(id)}</span>
                       : <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>)}
                 </button>
