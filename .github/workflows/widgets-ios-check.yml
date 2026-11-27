@@ -41,8 +41,12 @@ jobs:
       - name: Install application dependencies
         run: npm ci
       - name: Bundle the app locally
+        # The whole site's bundle outgrew Node's default memory (out of memory on Nov 27, 2026); the To Duo app
+        # bundles its own pages with vite.todo.config.ts, like its signed build.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
-          if [[ "${{ matrix.flavor }}" == "fit" || "${{ matrix.flavor }}" == "notes" ]]; then VITE_NATIVE_APP=${{ matrix.flavor }} npx vite build; else npx vite build; fi
+          if [[ "${{ matrix.flavor }}" == "fit" || "${{ matrix.flavor }}" == "notes" ]]; then VITE_NATIVE_APP=${{ matrix.flavor }} npx vite build; elif [[ "${{ matrix.flavor }}" == "todo" ]]; then npx vite build --config vite.todo.config.ts; else npx vite build; fi
           rm -rf ${{ matrix.dir }}/ios-app/www
           mkdir -p ${{ matrix.dir }}/ios-app/www
           cp -R dist/public/. ${{ matrix.dir }}/ios-app/www/
