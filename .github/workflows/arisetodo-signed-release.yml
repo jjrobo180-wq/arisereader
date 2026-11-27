@@ -57,6 +57,8 @@ jobs:
             fi
           done
       - name: Build and bundle local frontend
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           npm ci
           # To Duo alone: no other product's pages, apps or files (vite.todo.config.ts; App Review 2.5.19).
