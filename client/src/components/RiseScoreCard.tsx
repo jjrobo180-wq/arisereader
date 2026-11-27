@@ -278,6 +278,97 @@ export default function RiseScoreCard({ page, scores }: { page: RiseScorePage; s
   );
 }
 
+const panel = "mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200";
+const h3 = "text-[15px] font-extrabold text-slate-800";
+const arrow = (now: number | null, before: number | null) => {
+  if (now === null || before === null) return null;
+  const d = now - before;
+  if (Math.abs(d) < 3) return <span className="text-slate-500">same</span>;
+  return d > 0 ? <span className="font-bold text-emerald-700">▲ {d}</span> : <span className="font-bold text-rose-700">▼ {-d}</span>;
+};
+const pct = (v: number | null) => (v === null ? "—" : `${v}%`);
+
+/** Everything under the score: what's left today (red until it's done), what each grade needs, how to improve,
+ *  a summary of today, the week and the year, and each category side by side. */
+export function RiseInsights({ s }: { s: RiseScores }) {
+  return <>
+    {/* Left today: red until everything's done. */}
+    {s.leftCount > 0 ? (
+      <div className="mt-4 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4" role="status" data-testid="rise-left">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 min-w-7 place-items-center rounded-full bg-rose-600 px-2 text-sm font-black text-white" aria-hidden="true">{s.leftCount}</span>
+          <h3 className="text-[15px] font-extrabold text-rose-900">{s.leftCount} thing{s.leftCount === 1 ? "" : "s"} left to track today</h3>
+        </div>
+        <ul className="mt-2 space-y-2">
+          {s.left.map((l) => (
+            <li key={l.id} className="flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-rose-100">
+              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.color }} aria-hidden="true" />
+              <span className="min-w-0 flex-1"><span className="block text-sm font-extrabold text-slate-800">{l.name}</span><span className="block text-sm text-slate-600">{l.what}</span></span>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-extrabold text-emerald-800">+{l.gain} pts</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : s.categories.length ? (
+      <div className="mt-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-4 text-[15px] font-extrabold text-emerald-900" role="status" data-testid="rise-left">All done today. Nothing left to track!</div>
+    ) : null}
+
+    {/* What each grade needs. */}
+    <div className={panel} data-testid="rise-ladder">
+      <h3 className={h3}>What each grade needs today</h3>
+      <p className="text-xs font-semibold text-slate-500">You're at {s.today}% ({riseGrade(s.today)}). A is 90%+, B is 83%+, C is 73%+.</p>
+      <ul className="mt-2 divide-y divide-slate-100">
+        {s.ladder.map((r) => (
+          <li key={r.grade} className="flex items-start gap-3 py-2">
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-base font-black ${r.reached ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700"}`}>{r.grade}</span>
+            <span className="min-w-0 flex-1 text-sm"><span className="block font-bold text-slate-800">{r.reached ? `${r.grade} reached` : `${r.need} more points for ${r.grade === "A" ? "an" : "a"} ${r.grade}`}</span><span className="block text-slate-600">{r.how}</span></span>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    {/* How to improve. */}
+    {s.improve.length > 0 && <div className={panel} data-testid="rise-improve">
+      <h3 className={h3}>How to improve</h3>
+      <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-slate-700">{s.improve.map((t, i) => <li key={i}>{t}</li>)}</ol>
+    </div>}
+
+    {/* Summaries. */}
+    <div className={panel} data-testid="rise-summary">
+      <h3 className={h3}>Summary</h3>
+      <dl className="mt-2 space-y-2 text-sm">
+        {([["Today", s.summary.today], ["This week", s.summary.week], ["This year", s.summary.year]] as const).map(([k, v]) => (
+          <div key={k}><dt className="text-xs font-extrabold uppercase tracking-wide text-slate-500">{k}</dt><dd className="text-slate-700">{v}</dd></div>
+        ))}
+      </dl>
+    </div>
+
+    {/* Each category, side by side. */}
+    {s.analysis.length > 0 && <div className={panel} data-testid="rise-analysis">
+      <h3 className={h3}>By category</h3>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[420px] text-left text-sm">
+          <thead><tr className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
+            <th className="py-1.5 pr-2 font-extrabold">Category</th><th className="px-2 font-extrabold">Today</th><th className="px-2 font-extrabold">Week</th><th className="px-2 font-extrabold">vs last week</th><th className="px-2 font-extrabold">Year</th><th className="pl-2 font-extrabold">90%+ days</th>
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {s.analysis.map((a) => (
+              <tr key={a.id}>
+                <td className="py-2 pr-2 font-bold text-slate-800"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: a.color }} aria-hidden="true" />{a.name}</td>
+                <td className="px-2 text-slate-700">{pct(a.today)}</td>
+                <td className="px-2 text-slate-700">{a.week === null ? "—" : `${a.week}% ${riseGrade(a.week)}`}</td>
+                <td className="px-2">{arrow(a.week, a.lastWeek) ?? <span className="text-slate-400">—</span>}</td>
+                <td className="px-2 text-slate-700">{pct(a.year)}</td>
+                <td className="pl-2 text-slate-700">{a.trackedDays ? `${a.goodDays} of ${a.trackedDays}` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>}
+  </>;
+}
+
 const HUBS_KEY = "rise-score-hubs";
 export type RiseHubs = { family: boolean; work: boolean };
 const readHubs = (): RiseHubs => { try { const v = JSON.parse(localStorage.getItem(HUBS_KEY) || "{}"); return { family: v.family === true, work: v.work === true }; } catch { return { family: false, work: false }; } };
@@ -297,6 +388,7 @@ export function RiseScorePlugin({ scores, extraTasks }: { scores: (extra: { titl
     <section aria-label="Rise Score" data-testid="rise-score-plugin">
       <div className="rounded-[22px] p-4" style={{ background: C.card, color: C.text, fontFamily: "Nunito, ui-rounded, system-ui, sans-serif" }}><Design s={s} /></div>
       <div className="mt-3 flex gap-1.5 overflow-x-auto [scrollbar-width:none]">{looks.map(([id, label]) => <button key={id} type="button" onClick={() => { setDesign(id); try { localStorage.setItem("rise-score-design", id); } catch { /* */ } }} aria-pressed={design === id} className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-bold ${design === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"}`} data-testid={`rise-design-${id}`}>{label}</button>)}</div>
+      <RiseInsights s={s} />
       <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200" data-testid="rise-hubs">
         <h3 className="text-[15px] font-extrabold text-slate-800">Hubs that count</h3>
         <p className="text-xs font-semibold text-slate-500">To-dos from these hubs count toward your checklist score.</p>

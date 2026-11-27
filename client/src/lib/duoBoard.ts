@@ -3,7 +3,7 @@
 // tasks that matter now, this week and this month. Sent as a slot named "duo.board" next to the other slots.
 // Pure (apart from publishDuoBoard), so it's tested.
 import { hasNativePlugin, isNativeApp, nativeCall } from "@/lib/nativeApp";
-import { watchWidgetActions, type WidgetTap } from "@/lib/widgets";
+import { setAppBadge, watchWidgetActions, type WidgetTap } from "@/lib/widgets";
 
 export type BoardTask = { id: string; title: string; due: string; time: string; done: boolean; listName?: string; completedAt?: string };
 export type BoardList = { name: string; color: string; count: number };
@@ -122,6 +122,13 @@ export function publishDuoLinks(hub: "life" | "work", links: { id: string; title
 
 /** The Rise Score widgets (native/widget-extension/DuoScores.swift) read this one "duo.scores" slot. */
 export function publishRiseScores(scores: import("@shared/riseScore").RiseScores): void {
-  const { started: _started, categories, ...rest } = scores;
-  publishRaw({ id: "duo.scores", title: "Rise Score", value: `${scores.overall}%`, scores: { ...rest, next: cut(rest.next, 60), categories: categories.map(({ name, percent, color }) => ({ name, percent, color })) } });
+  const { today, week, year, overall, categories, weekDays, todayIndex, months, monthIndex, streak, next, tip, date, left, leftCount } = scores;
+  publishRaw({ id: "duo.scores", title: "Rise Score", value: `${overall}%`, scores: {
+    today, week, year, overall, weekDays, todayIndex, months, monthIndex, streak, tip, date, leftCount, next: cut(next, 60),
+    categories: categories.map(({ name, percent, color }) => ({ name, percent, color })),
+    // What's left today: the widgets show the count in red until it's 0.
+    left: left.slice(0, 4).map(({ name, what, color, gain }) => ({ name, what: cut(what, 70), color, gain })),
+  } });
+  // And on the app icon, the way Messages shows unread ones (native/arise-widgets: setBadge).
+  void setAppBadge(leftCount);
 }

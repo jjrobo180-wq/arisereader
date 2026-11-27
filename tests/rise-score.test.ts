@@ -129,3 +129,66 @@ test("a category switched off counts nowhere", () => {
   assert.equal(s.today, 100);
   assert.deepEqual(s.categories.map((c) => c.id), ["checklist"]);
 });
+
+test("what's left today, biggest lift first, and the badge count", () => {
+  const s = riseScores({
+    ...empty,
+    tasks: [{ title: "Call the dentist", due: TODAY, time: "15:00", done: false }, { title: "Laundry", due: TODAY, done: false }, { title: "Bed", due: TODAY, done: true }],
+    food: [{ date: TODAY, meal: "breakfast" }],
+    exercise: [{ date: TODAY, minutes: 24 }],
+    habits: [{ name: "Read", days: [] }, { name: "Stretch", days: [TODAY] }],
+  }, TODAY);
+  assert.deepEqual(s.left.map((l) => [l.name, l.what, l.count]), [
+    ["Checklist", "Call the dentist and Laundry", 2],
+    ["Food", "Log lunch and dinner", 2],
+    ["Habits", "Read", 1],
+    ["Move", "6 more active minutes, or log a workout", 1],
+  ]);
+  assert.equal(s.leftCount, 6);
+  assert.equal(s.left[0].gain, 17); // Checklist at 33%: (100-33)/4
+});
+
+test("what each grade takes today", () => {
+  const s = riseScores({ ...empty, tasks: [{ title: "a", due: TODAY, done: true }], exercise: [{ date: TODAY, minutes: 15 }], food: [{ date: TODAY, meal: "lunch" }] }, TODAY);
+  // Checklist 100, Move 50, Food 33: today 61.
+  assert.equal(s.today, 61);
+  const [a, b, c] = s.ladder;
+  assert.equal(a.grade, "A");
+  assert.equal(a.how, "Finish Food and Move");
+  assert.equal(a.need, 29);
+  assert.equal(c.how, "Finish Food");
+  assert.equal(b.reached, false);
+  assert.match(s.summary.today, /^61% \(D\) with 3 things left\. Finish Food and Move for an A\.$/);
+});
+
+test("a perfect day leaves nothing, and every rung is reached", () => {
+  const s = riseScores({ ...empty, tasks: [{ title: "a", due: TODAY, done: true }] }, TODAY);
+  assert.equal(s.leftCount, 0);
+  assert.ok(s.ladder.every((r) => r.reached));
+  assert.equal(s.summary.today, "A perfect day: everything is done.");
+});
+
+test("week analysis, summary and how to improve", () => {
+  const food = [];
+  // Last week every meal; this week only breakfast.
+  for (let d = 9; d <= 15; d++) for (const meal of ["breakfast", "lunch", "dinner"]) food.push({ date: `2026-11-${String(d).padStart(2, "0")}`, meal });
+  for (let d = 16; d <= 22; d++) food.push({ date: `2026-11-${d}`, meal: "breakfast" });
+  const tasks = [];
+  for (let d = 16; d <= 22; d++) tasks.push({ title: `t${d}`, due: `2026-11-${d}`, done: true });
+  const s = riseScores({ ...empty, food, tasks }, TODAY);
+  const f = s.analysis.find((a) => a.id === "food")!;
+  assert.equal(f.week, 33);
+  assert.equal(f.lastWeek, 100);
+  assert.equal(f.goodDays, 0);
+  assert.equal(f.trackedDays, 7);
+  assert.match(s.improve.join(" "), /Food is your weakest this week at 33%/);
+  assert.match(s.summary.week, /down 33 from last week/);
+  assert.match(s.summary.week, /Strongest: Checklist 100%\. Needs work: Food 33%\./);
+  assert.match(s.summary.year, /^\d+% \([A-D][+-]?\) across 14 tracked days\./);
+});
+
+test("switched-off categories leave the analysis and what's left", () => {
+  const s = riseScores({ ...empty, tasks: [{ title: "a", due: TODAY, done: false }], food: [{ date: TODAY, meal: "lunch" }], off: ["food"] }, TODAY);
+  assert.deepEqual(s.left.map((l) => l.id), ["checklist"]);
+  assert.ok(!s.analysis.some((a) => a.id === "food"));
+});
