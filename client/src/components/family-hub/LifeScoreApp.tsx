@@ -28,9 +28,9 @@ const HEALTH_VIEWS = new Set(["health", "symptoms", "symptom", "log-symptom", "v
 const tabOf = (v: View): Tab => (HEALTH_VIEWS.has(v.kind) ? "health" : v.kind === "stats" || v.kind === "section" ? "stats" : v.kind === "explore" ? "explore" : v.kind === "records" ? "records" : v.kind === "checkin" || v.kind === "measures" || v.kind === "scale" || v.kind === "labs" ? "checkin" : "overview");
 
 /** Other hubs' to-dos and records, and the Health & Fitness diary, read when Life Score opens (read only). */
-type Extra = { fit?: any; work?: any; otherTasks?: any[]; otherLists?: any[] };
+export type Extra = { fit?: any; work?: any; otherTasks?: any[]; otherLists?: any[] };
 const FIT_KEY = "arise-fit-data";
-function useExtra(token: string | null | undefined, familySpace: boolean): Extra {
+export function useExtra(token: string | null | undefined, familySpace: boolean): Extra {
   const [extra, setExtra] = useState<Extra>(() => { try { const f = JSON.parse(localStorage.getItem(FIT_KEY) || "null"); return f ? { fit: f } : {}; } catch { return {}; } });
   useEffect(() => {
     if (!token) return;

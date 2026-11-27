@@ -64,7 +64,7 @@ import SleepApp from "@/components/family-hub/sleep/SleepApp";
 import Warranties from "@/components/family-hub/Warranties";
 import WorkoutLog from "@/components/family-hub/WorkoutLog";
 import WorldClock from "@/components/family-hub/WorldClock";
-import { BadgeCheck as BadgeCheckNav4, Sunrise as SunriseNav } from "lucide-react";
+import { BadgeCheck as BadgeCheckNav4, Sunrise as SunriseNav, Smartphone as SmartphoneFeedNav } from "lucide-react";
 import { Coins as CoinsNav2, CreditCard as CreditCardNav2, Dumbbell as DumbbellNav2, Gauge as GaugeNav2, Globe as GlobeNav2, GraduationCap as GraduationCapNav2, Hammer as HammerNav2, HandCoins as HandCoinsNav2, Handshake as HandshakeNav2, Heart as HeartNav2, HeartPulse as HeartPulseNav2, Landmark as LandmarkNav2, ListChecks as ListChecksNav2, Moon as MoonNav2, ShieldCheck as ShieldCheckNav2, Sparkles as SparklesNav2, Star as StarNav2, Stethoscope as StethoscopeNav2, Timer as TimerNav2, Utensils as UtensilsNav2 } from "lucide-react";
 import Birthdays from "@/components/family-hub/Birthdays";
 import CareTracker from "@/components/family-hub/CareTracker";
@@ -156,6 +156,7 @@ import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
 import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { isSuperApp, type SuperAppId } from "@shared/superApps";
 import LifeScoreApp from "@/components/family-hub/LifeScoreApp";
+import AriseFeed from "@/components/family-hub/AriseFeed";
 import { forgetDuoPodPush } from "@/components/super-apps/podsterLink";
 import { SuperBoundary } from "@/components/super-apps/SuperBoundary";
 import { SuperHeadExtra } from "@/components/super-apps/superHeadExtra";
@@ -328,7 +329,7 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, lifescore: GaugeNav2, mindset: SunriseNav, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
+  home: Home, lifescore: GaugeNav2, mindset: SunriseNav, feed: SmartphoneFeedNav, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
@@ -1332,6 +1333,11 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     : shown === "podster" ? <SuperHeadExtra.Provider value={moveButton}><SuperBoundary key="podster" name="Arise Podcasts"><Suspense fallback={superWaiting}><PodsterInDuo family={family} setFamily={setFamily} say={setMessage} night={night} start={startFor("podster")} /></Suspense></SuperBoundary></SuperHeadExtra.Provider>
     // Life Score reads everything: every hub's to-dos (with when they were made and done), WorkHub and the Health & Fitness diary.
     : shown === "lifescore" ? <LifeScoreApp {...appProps} token={token} lifeTasks={data.tasks} lists={data.lists} familySpace={familySpace} />
+    // Arise Feed: the week as a swipe feed; its cards check off to-dos and move them, and open the part they came from.
+    : shown === "feed" ? <AriseFeed {...appProps} token={token} lifeTasks={data.tasks as any} lists={data.lists} familySpace={familySpace} userName={(user?.displayName || "").split(" ")[0]}
+        onToggleTask={(id) => { const task = data.tasks.find((row) => row.id === id); if (task) toggleDone(task); }}
+        onMoveTask={(id, due) => setData((previous) => ({ ...previous, tasks: previous.tasks.map((row) => (row.id === id ? { ...row, due } : row)) }))}
+        go={(next) => setSection(next as FamilySection)} />
     // Family & settings ends with "Move between hubs" (LifeHub ⇄ FamilyHub).
     : shown === "family" ? <div className="space-y-6">{LIFE_VIEWS.family!(appProps)}{!familySpace && <HubAutoOpenSettings family={family} setFamily={setFamily} say={setMessage} />}<MoveBetweenHubs space={familySpace ? "family" : "life"} token={token} data={data as unknown as HubWorkspace} setData={setData as unknown as (fn: (d: HubWorkspace) => HubWorkspace) => void} say={setMessage} /></div>
     : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(appProps)
