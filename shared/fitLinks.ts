@@ -2,7 +2,8 @@
 //   arisefit://do/<action>   and   …/#/fit?do=<action>     do something (start a workout, log water…)
 //   arisefit://circle/<CODE> and   …/#/fit?circle=<CODE>   join a friend's workout circle
 //   arisefit://pass/<CODE>   and   …/#/fit?pass=<CODE>     use someone's Cooked+ guest pass
-export type SiriAction = "workout" | "water" | "fast-start" | "fast-end" | "run" | "meal" | "scan" | "gyms" | "recipes" | "circle" | "sleep-start" | "sleep-end" | "sleep" | "yoga" | "breathe" | "meds" | "period";
+export type SiriAction = "workout" | "water" | "fast-start" | "fast-end" | "run" | "meal" | "scan" | "gyms" | "recipes" | "circle" | "sleep-start" | "sleep-end" | "sleep" | "yoga" | "breathe" | "meds" | "period"
+  | "log-breakfast" | "log-lunch" | "log-dinner" | "log-snack" | "train" | "weigh-in" | "stretch" | "fast";
 export const SIRI_ACTIONS: { id: SiriAction; phrase: string; does: string }[] = [
   { id: "workout", phrase: "Start my workout", does: "Starts your next program day, or today's workout built for you" },
   { id: "water", phrase: "Log water", does: "Adds a glass of water (8 oz or 250 ml)" },
@@ -21,6 +22,15 @@ export const SIRI_ACTIONS: { id: SiriAction; phrase: string; does: string }[] = 
   { id: "breathe", phrase: "Help me breathe", does: "Opens Breathe for a quick calm-down" },
   { id: "meds", phrase: "My medicine", does: "Opens Medicine with today's doses to tick off" },
   { id: "period", phrase: "Log my period", does: "Opens the Period tracker on today" },
+  // Where reminders open (shared/notifyLinks.ts): straight to logging that meal, or the right app.
+  { id: "log-breakfast", phrase: "Log breakfast", does: "Opens the food log on breakfast, ready to add" },
+  { id: "log-lunch", phrase: "Log lunch", does: "Opens the food log on lunch, ready to add" },
+  { id: "log-dinner", phrase: "Log dinner", does: "Opens the food log on dinner, ready to add" },
+  { id: "log-snack", phrase: "Log a snack", does: "Opens the food log on snacks, ready to add" },
+  { id: "train", phrase: "Open my workouts", does: "Opens Train with today's workout" },
+  { id: "weigh-in", phrase: "Log my weight", does: "Opens Progress to log today's weight" },
+  { id: "stretch", phrase: "Time to stretch", does: "Opens Mobility with a stretch routine" },
+  { id: "fast", phrase: "Check my fast", does: "Opens Fasting" },
 ];
 const IDS = new Set<string>(SIRI_ACTIONS.map((a) => a.id));
 

@@ -1,5 +1,6 @@
 // Mood tracker: a daily check-in for anyone in the family, a 30-day picture, and what tends to go with good and hard days.
 import { useState } from "react";
+import { scrollToFocus, useIntent } from "@/lib/deepLink";
 import { HeartHandshake, Phone } from "lucide-react";
 import { addDays, type MoodEntry } from "@shared/familyHub";
 import { trackerPeople } from "@shared/familyHealth";
@@ -33,6 +34,8 @@ export default function Mood({ family, setFamily, today, say }: SectionProps) {
   const people = trackerPeople(family, (user?.displayName || "").split(" ")[0]);
   const [who, setWho] = useState(people[0]?.id || "me");
   const [date, setDate] = useState(today);
+  // The evening mood reminder (shared/notifyLinks.ts): today's mood, for this person, ready to pick.
+  useIntent("mood", (i) => { if (i.who && people.some((m) => m.id === i.who)) setWho(i.who); setDate(today); scrollToFocus("mood:today"); });
   const member = people.find((m) => m.id === who) || people[0];
   const memberId = member?.id || "me";
   const mine = family.moods.filter((m) => m.memberId === memberId);
@@ -62,7 +65,7 @@ export default function Mood({ family, setFamily, today, say }: SectionProps) {
 
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="space-y-5">
-        <Panel eyebrow={date === today ? "Today" : shortDate(date)} title={kid ? `How is ${member?.name} feeling?` : member?.id === "me" ? "How are you feeling?" : `How is ${member?.name} feeling?`}
+        <Panel focus="mood:today" eyebrow={date === today ? "Today" : shortDate(date)} title={kid ? `How is ${member?.name} feeling?` : member?.id === "me" ? "How are you feeling?" : `How is ${member?.name} feeling?`}
           right={<input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Day" className={inputClass + " min-h-10 w-auto"} />}>
           <div className="grid grid-cols-5 gap-2">{MOODS.map((m) => { const on = entry?.mood === m.value; return <button key={m.value} onClick={() => { save({ mood: m.value }); if (!entry) say(`Mood logged: ${m.label}`); }} aria-pressed={on}
             className={`flex flex-col items-center gap-1 rounded-2xl py-3 text-xs font-bold ring-2 transition ${on ? "" : "ring-transparent hover:bg-slate-50"}`} style={on ? { background: m.color + "22", boxShadow: `inset 0 0 0 2px ${m.color}` } : undefined}>

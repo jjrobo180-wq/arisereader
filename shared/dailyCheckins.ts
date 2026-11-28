@@ -411,6 +411,8 @@ export { addDays as dailyAddDays, keyOf as dailyDayKey };
 /** The check-in reminders due at this moment (and, for "Keep after me", their follow-ups every FOLLOW_UP_EVERY
  *  minutes until done). Used by LifeHub, FamilyHub and WorkHub alike, on the server and on the phone. */
 export function dueDailyReminders(plan: DailyReminder[], o: { date: string; minutes: number; sent: Record<string, unknown>; keyPrefix: string; url: string;
+  /** Where each check-in's reminder opens (shared/notifyLinks.ts checkinLink): straight to doing it. */
+  link?: (id: string) => string;
   followUps: number; every: number; window: number }): { key: string; title: string; body: string; url: string }[] {
   const out: { key: string; title: string; body: string; url: string }[] = [];
   const mins = (hm: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm); return m ? Number(m[1]) * 60 + Number(m[2]) : -1; };
@@ -422,7 +424,7 @@ export function dueDailyReminders(plan: DailyReminder[], o: { date: string; minu
     const due = times.find(([t, suffix]) => o.minutes >= t && o.minutes < t + o.window && !o.sent[`${o.keyPrefix}${r.id}:${o.date}${suffix}`]);
     if (!due) continue;
     const still = r.title.replace(/^Log your /, "log your ").replace(/^Still to do today: /, "").replace(/^Chore( still to do)?: /, "");
-    out.push({ key: `${o.keyPrefix}${r.id}:${o.date}${due[1]}`, title: due[1] ? `Still to do: ${still}` : r.title, body: r.body, url: o.url });
+    out.push({ key: `${o.keyPrefix}${r.id}:${o.date}${due[1]}`, title: due[1] ? `Still to do: ${still}` : r.title, body: r.body, url: o.link ? o.link(r.id) : o.url });
   }
   return out;
 }

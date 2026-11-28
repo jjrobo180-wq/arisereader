@@ -21,14 +21,15 @@ const soft = `${pill} bg-[#f2f2f7] text-slate-800 dark:bg-white/10 dark:text-whi
 const input = "min-h-11 w-full min-w-0 rounded-xl bg-[#f2f2f7] px-3 text-[16px] text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-[#6e5ae0]/40 dark:bg-white/10 dark:text-white";
 
 /** One check-in as a row of the list. `open` is which row is opened (only one at a time). */
-export function CheckinRow({ c, d, open, setOpen, dark = false }: { c: Checkin; d: DailyApi; open: string | null; setOpen: (id: string | null) => void; dark?: boolean }) {
+export function CheckinRow({ c, d, open, setOpen, dark = false, focus }: { c: Checkin; d: DailyApi; open: string | null; setOpen: (id: string | null) => void; dark?: boolean;
+  /** What a tapped reminder scrolls to (lib/deepLink.ts). */ focus?: string }) {
   const Icon = ICON[c.kind];
   const isOpen = open === c.id;
   const tap = () => setOpen(isOpen ? null : c.id);
   const tick = () => { if (d.toggle(c) === "open") setOpen(c.id); };
   const late = !c.done && !!c.time && c.time < nowHm();
   return (
-    <li className={`${dark ? "border-t border-white/10" : "border-t border-slate-100 dark:border-white/10"} first:border-t-0`} data-testid="checkin-row" data-checkin={c.id}>
+    <li className={`${dark ? "border-t border-white/10" : "border-t border-slate-100 dark:border-white/10"} first:border-t-0`} data-testid="checkin-row" data-checkin={c.id} data-focus={focus}>
       <div className="flex items-center gap-3 px-4 py-3">
         <label className="relative flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition"
           style={c.done ? { background: "#6e5ae0", borderColor: "#6e5ae0", color: "#fff" } : { borderColor: late ? "#e0a3a3" : dark ? "#5b587a" : "#c9c5dc", color: "transparent" }}>
@@ -320,7 +321,7 @@ export function DailySection({ d, dark = false, header }: { d: DailyApi; dark?: 
       <h3 className={`text-[13px] font-extrabold ${dark ? "text-white/60" : "text-slate-500"}`}>{header ?? (d.shared ? "The family's day" : "Your day")} <span className="tabular-nums">· {d.done} of {d.total}</span></h3>
       <DailySettingsButton d={d} open={settings} setOpen={setSettings} dark={dark} />
     </div>
-    {d.items.length ? <ul>{d.items.map((c) => <CheckinRow key={c.id} c={c} d={d} open={open} setOpen={setOpen} dark={dark} />)}</ul>
+    {d.items.length ? <ul>{d.items.map((c) => <CheckinRow key={c.id} c={c} d={d} open={open} setOpen={setOpen} dark={dark} focus={`checkin:${c.id}`} />)}</ul>
       : <p className={`px-4 pb-4 pt-2 text-[14px] ${dark ? "text-white/60" : "text-slate-500"}`}>{d.shared ? "Add the family's daily things (walk the dog, pack lunches) and anyone can tick them off." : "Nothing to check in today. Add one with Add."}</p>}
   </section>;
 }

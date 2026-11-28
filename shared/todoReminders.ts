@@ -8,6 +8,7 @@
 //  - Workout and weigh-in reminders on the chosen days, a mood check-in, and an evening recap.
 //  - News headlines, as many a day as chosen. These carry `news`; the server fills in the headline.
 // Nothing is sent during quiet hours.
+import { billLink, checkinLink, eventLink, healthLink, logLink, pillLink, taskLink } from "./notifyLinks";
 import { addDays, billDue, choreDueOn, choreDoneOn, cleanFamily, eventsOn, isOn, type Meal } from "./familyHub";
 import { localParts, MORNING_UNTIL_HOUR, type HubReminder } from "./hubReminders";
 import { pollOpen } from "./todoShare";
@@ -75,7 +76,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
       const key = `todo:pill:${dose.id}`;
       if (dose.status || sent[key] || minutes < at || minutes >= at + SEND_WINDOW_MINUTES) continue;
       const who = nameOf(dose.pill.memberId);
-      out.push({ key, title: `Time for ${dose.pill.name} 💊`, body: [dose.pill.dose, who ? `for ${who}` : "", `at ${clock12(dose.time)}`].filter(Boolean).join(" · ") + ". Tap to mark it taken.", url: goUrl("pills") });
+      out.push({ key, title: `Time for ${dose.pill.name} 💊`, body: [dose.pill.dose, who ? `for ${who}` : "", `at ${clock12(dose.time)}`].filter(Boolean).join(" · ") + ". Tap to mark it taken.", url: pillLink(TODO_REMINDER_URL, dose.pill.id) });
     }
   }
   if (quiet) return out;
@@ -93,20 +94,20 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
   // They come back (when "Keep after me" is on) until done; "done" comes from the phone, which sees Cooked too.
   const dailyPlan = dailyReminderPlan({ settings: family.daily, cooked: isOn("cooked", family), family, habits: isOn("habits", family), routines: isOn("routines", family) }, date);
   const dailyCovers = isOn("cooked", family) && family.daily?.on !== false;
-  out.push(...dueDailyReminders(dailyPlan, { date, minutes, sent, keyPrefix: "todo:daily:", url: goUrl("tasks", "view=today"), followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES }));
+  out.push(...dueDailyReminders(dailyPlan, { date, minutes, sent, keyPrefix: "todo:daily:", url: goUrl("tasks", "view=today"), link: (id) => checkinLink(TODO_REMINDER_URL, id), followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES }));
 
   const events = isOn("calendar", family) ? eventsFor(ws, family, date) : [];
   for (const e of events) {
     if (!e.time || !soon(e.time)) continue;
     const key = `todo:event:${e.id}:${date}:${e.time}`;
     if (sent[key]) continue;
-    out.push({ key, title: e.title || "Event", body: `Starts at ${clock12(e.time)}${e.location ? ` · ${e.location}` : ""}`, url: goUrl("calendar") });
+    out.push({ key, title: e.title || "Event", body: `Starts at ${clock12(e.time)}${e.location ? ` · ${e.location}` : ""}`, url: eventLink(TODO_REMINDER_URL, e.id, date) });
   }
   for (const t of tasks) {
     if (t.due !== date || !t.time || !soon(t.time)) continue;
     const key = `todo:task:${t.id}:${date}:${t.time}`;
     if (sent[key]) continue;
-    out.push({ key, title: String(t.title).slice(0, 120), body: `Due at ${clock12(t.time)}${t.assignee ? ` · ${t.assignee}` : ""}`, url: goUrl("tasks", "view=today") });
+    out.push({ key, title: String(t.title).slice(0, 120), body: `Due at ${clock12(t.time)}${t.assignee ? ` · ${t.assignee}` : ""}`, url: taskLink(TODO_REMINDER_URL, t.id) });
   }
 
   const morningFrom = clockMinutes(prefs.morning.time);
@@ -142,7 +143,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
         const key = `todo:refill:${p.id}:${date}`;
         if (!needsRefill(p) || sent[key]) continue;
         const who = nameOf(p.memberId);
-        out.push({ key, title: `Refill ${p.name} soon`, body: `${p.supply} left${who ? ` for ${who}` : ""}. Time to order more.`, url: goUrl("pills") });
+        out.push({ key, title: `Refill ${p.name} soon`, body: `${p.supply} left${who ? ` for ${who}` : ""}. Time to order more.`, url: pillLink(TODO_REMINDER_URL, p.id) });
       }
     }
     // A heads-up a few days before an expected period, for each person who tracks theirs.
@@ -153,7 +154,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
         const key = `todo:period:${memberId}:${s.nextStart}`;
         if (sent[key]) continue;
         const who = nameOf(memberId);
-        out.push({ key, title: who ? `${who}'s period may start in ${s.daysUntil} days` : `Your period may start in ${s.daysUntil} days`, body: "Pack supplies and plan for cramps. Tap to see the cycle tracker.", url: goUrl("cycle") });
+        out.push({ key, title: who ? `${who}'s period may start in ${s.daysUntil} days` : `Your period may start in ${s.daysUntil} days`, body: "Pack supplies and plan for cramps. Tap to see the cycle tracker.", url: logLink(TODO_REMINDER_URL, "cycle", "cycle", memberId) });
       }
     }
     // Tomorrow's unpaid bills, so there's a day to pay them (autopay ones look after themselves).
@@ -164,7 +165,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
         if (b.autopay || b.paid.includes(month) || billDue(b, month) !== tomorrow) continue;
         const billKey = `todo:bill:${b.id}:${tomorrow}`;
         if (sent[billKey]) continue;
-        out.push({ key: billKey, title: `${b.name} is due tomorrow`, body: b.amount ? `${money(b.amount)} · tap to mark it paid` : "Tap to mark it paid", url: goUrl("money") });
+        out.push({ key: billKey, title: `${b.name} is due tomorrow`, body: b.amount ? `${money(b.amount)} · tap to mark it paid` : "Tap to mark it paid", url: billLink(TODO_REMINDER_URL, b.id) });
       }
     }
   }
@@ -209,7 +210,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
         if (sent[taskKey]) continue;
         const overdue = t.due < date;
         out.push({ key: taskKey, title: `${String(t.title).slice(0, 120)}${overdue ? "" : " ✅"}`,
-          body: `${overdue ? `Overdue since ${shortDate(t.due)}` : "Due today"}${t.priority === "high" ? " · high priority" : ""}${t.assignee ? ` · ${t.assignee}` : ""}. Tap to check it off.`, url: goUrl("tasks", "view=today") });
+          body: `${overdue ? `Overdue since ${shortDate(t.due)}` : "Due today"}${t.priority === "high" ? " · high priority" : ""}${t.assignee ? ` · ${t.assignee}` : ""}. Tap to check it off.`, url: taskLink(TODO_REMINDER_URL, t.id) });
       }
       const rest = left.length - each.length;
       if (rest > 0 && !sent[key]) out.push({ key, title: `+ ${plural(rest, "more to-do")} still to do`, body: "Open LifeHub to see them all.", url: goUrl("tasks", "view=today") });
@@ -224,7 +225,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
       const key = `todo:nudge:food:${date}${suffix}`;
       if (sent[key] || !now(at)) continue;
       out.push({ key, title: foodToday.length ? `${missing.map((m) => MEAL_WORD[m][0].toUpperCase() + MEAL_WORD[m].slice(1)).join(" and ")} ${missing.length === 1 ? "isn't" : "aren't"} tracked yet 🍽️` : "You haven't tracked your food today 🍽️",
-        body: foodToday.length ? `Add ${missing.map((m) => MEAL_WORD[m]).join(" and ")} to the food diary${forWho} while you still remember.` : `Nothing in the food diary${forWho} yet. Tap to log what you've eaten.`, url: goUrl("health") });
+        body: foodToday.length ? `Add ${missing.map((m) => MEAL_WORD[m]).join(" and ")} to the food diary${forWho} while you still remember.` : `Nothing in the food diary${forWho} yet. Tap to log what you've eaten.`, url: healthLink(TODO_REMINDER_URL, (missing[0] ?? "breakfast"), member.id) });
       break;
     }
   }
@@ -237,7 +238,7 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
       const left = Math.max(0, goals.water - totals.water);
       out.push({ key, title: "Time for some water 💧", body: totals.water
         ? `${totals.water} of ${goals.water} cups so far${forWho}.${left ? ` ${left} to go.` : " Goal reached!"} Tap to log a cup.`
-        : `Nothing logged yet today${forWho}. Tap to log a cup.`, url: goUrl("health") });
+        : `Nothing logged yet today${forWho}. Tap to log a cup.`, url: healthLink(TODO_REMINDER_URL, "water", member.id) });
     });
   }
   if (healthOn && prefs.meals.on && !dailyCovers) {
@@ -247,26 +248,26 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
       if (!due) continue;
       const key = `todo:meal:${meal}:${date}${due[1]}`;
       if ((prefs.meals.skipIfLogged || due[1]) && loggedMeal(meal)) continue;
-      out.push({ key, title: due[1] ? `Still need to log ${MEAL_WORD[meal]}` : `Log your ${MEAL_WORD[meal]}`, body: kid ? `What did ${member.name} have for ${MEAL_WORD[meal]}?` : `Add ${MEAL_WORD[meal]} to the food diary${forWho} while it's fresh.`, url: goUrl("health") });
+      out.push({ key, title: due[1] ? `Still need to log ${MEAL_WORD[meal]}` : `Log your ${MEAL_WORD[meal]}`, body: kid ? `What did ${member.name} have for ${MEAL_WORD[meal]}?` : `Add ${MEAL_WORD[meal]} to the food diary${forWho} while it's fresh.`, url: healthLink(TODO_REMINDER_URL, meal, member.id) });
     }
   }
   if (healthOn && prefs.workout.on && prefs.workout.days.includes(weekday) && !dailyCovers) {
     const key = `todo:workout:${date}`;
     const moved = health.exercise.some((x) => x.memberId === member.id && x.date === date);
     if (!sent[key] && now(prefs.workout.time) && !(prefs.workout.skipIfLogged && moved)) {
-      out.push({ key, title: "Time to move 🏃", body: goals.activeMinutes ? `${totals.minutes} of ${goals.activeMinutes} active minutes today. A walk counts!` : "A walk, a ride or a workout. Log it when you're done.", url: goUrl("health") });
+      out.push({ key, title: "Time to move 🏃", body: goals.activeMinutes ? `${totals.minutes} of ${goals.activeMinutes} active minutes today. A walk counts!` : "A walk, a ride or a workout. Log it when you're done.", url: healthLink(TODO_REMINDER_URL, "exercise", member.id) });
     }
   }
   if (healthOn && !kid && prefs.weighIn.on && prefs.weighIn.days.includes(weekday)) {
     const key = `todo:weigh:${date}`;
     if (!sent[key] && now(prefs.weighIn.time) && !health.weights.some((w) => w.memberId === member.id && w.date === date)) {
-      out.push({ key, title: "Weigh-in day ⚖️", body: goals.goalWeight ? `Log today's weight to see your progress toward ${goals.goalWeight} lb.` : "Log today's weight to keep your chart up to date.", url: goUrl("health") });
+      out.push({ key, title: "Weigh-in day ⚖️", body: goals.goalWeight ? `Log today's weight to see your progress toward ${goals.goalWeight} lb.` : "Log today's weight to keep your chart up to date.", url: healthLink(TODO_REMINDER_URL, "weight", member.id) });
     }
   }
   if (isOn("mood", family) && prefs.mood.on) {
     const key = `todo:mood:${date}`;
     if (!sent[key] && now(prefs.mood.time) && !family.moods.some((m) => m.memberId === member.id && m.date === date)) {
-      out.push({ key, title: "How was today?", body: "Take five seconds to log your mood.", url: goUrl("mood") });
+      out.push({ key, title: "How was today?", body: "Take five seconds to log your mood.", url: logLink(TODO_REMINDER_URL, "mood", "mood", member.id) });
     }
   }
   if (prefs.news.on) {
@@ -303,5 +304,5 @@ export function dueFamilyReminders(workspace: unknown, nowMs: number, timeZone: 
   const { date, minutes } = localParts(nowMs, timeZone);
   if (inQuiet(prefs, minutes)) return [];
   const plan = dailyReminderPlan({ settings: family.daily, cooked: false, family, habits: isOn("habits", family), routines: isOn("routines", family), chores: isOn("chores", family) ? family : null }, date);
-  return dueDailyReminders(plan, { date, minutes, sent, keyPrefix: "todo:fam:", url: `${FAMILY_REMINDER_URL}?go=tasks&view=today`, followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES });
+  return dueDailyReminders(plan, { date, minutes, sent, keyPrefix: "todo:fam:", url: `${FAMILY_REMINDER_URL}?go=tasks&view=today`, link: (id) => checkinLink(FAMILY_REMINDER_URL, id), followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES });
 }

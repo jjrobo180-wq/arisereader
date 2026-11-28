@@ -198,14 +198,15 @@ export function PlanSheet({ data, update, onClose }: { data: FitData; update: Up
 /** One US fluid ounce in milliliters (water is kept in ml). */
 const OZ = 29.5735;
 
-export function FoodTab({ token, data, update, say, snap, onRecipes, onEatOut }: { token: string | null; data: FitData; update: Update; say: (m: string) => void; snap?: boolean; onRecipes?: () => void; onEatOut?: () => void }) {
+export function FoodTab({ token, data, update, say, snap, startMeal, onRecipes, onEatOut }: { token: string | null; data: FitData; update: Update; say: (m: string) => void; snap?: boolean;
+  /** Open on adding to this meal (a reminder's "log dinner"). */ startMeal?: Meal | null; onRecipes?: () => void; onEatOut?: () => void }) {
   const [date, setDate] = useState(dayKey());
   // snap: opened by Siri ("Log my meal"), straight to the camera.
   const [grading, setGrading] = useState(false);
   const [prepping, setPrepping] = useState(false);
   const [shopping, setShopping] = useState(false);
   const [noting, setNoting] = useState<string | null>(null);
-  const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(() => (snap ? { meal: (() => { const h = new Date().getHours(); return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 21 ? "dinner" : "snack"; })(), start: "ai" } : null));
+  const [adding, setAdding] = useState<{ meal: Meal; start?: AddTab } | null>(() => (startMeal ? { meal: startMeal } : snap ? { meal: (() => { const h = new Date().getHours(); return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 21 ? "dinner" : "snack"; })(), start: "ai" } : null));
   const [plan, setPlan] = useState(false);
   const [report, setReport] = useState(false);
   const [fasting, setFasting] = useState(false);

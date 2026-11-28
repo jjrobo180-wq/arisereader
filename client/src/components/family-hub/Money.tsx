@@ -6,6 +6,7 @@
 // banner), sentence-case labels, one accent color, green and red only where they mean money in or a problem, and
 // numbers in tabular figures so columns line up. Built from the class names the hub's looks and night mode recolor.
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { scrollToFocus, useIntent } from "@/lib/deepLink";
 import {
   AlertCircle, ArrowDownRight, ArrowUpRight, Wallet, Check, ChevronLeft, ChevronRight, CircleDollarSign, Download,
   CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Receipt, Repeat2, RotateCcw, Settings2, Target, Trash2, Undo2,
@@ -64,6 +65,8 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
   const editThisMonth = (edit: Parameters<typeof editMonth>[2], setUp?: boolean) => setFamily((f) => ({ ...f, ...editMonth({ money: f.money, bills: f.bills as PlanBill[], budget: f.budget }, month, edit, setUp) }));
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem("budget-tab") as Tab) || "overview"; } catch { return "overview"; } });
   const go = (t: Tab) => { setTab(t); try { sessionStorage.setItem("budget-tab", t); } catch { /* not kept */ } };
+  // A bill reminder (shared/notifyLinks.ts billLink): the Bills tab, on that bill.
+  useIntent("money", (i) => { if (i.focus?.startsWith("bill:")) { go("bills"); scrollToFocus(i.focus); } });
   const [setup, setSetup] = useState(false);
   /** What the budget was before the last setup, so it can be put back in one tap. */
   const [undo, setUndo] = useState<Pick<typeof family, "money" | "bills" | "budget" | "income"> | null>(null);
@@ -184,7 +187,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     ["bills", "Bills"], ["spending", "Spending"], ["income", "Income"], ["goals", "Goals"], ["insights", "Insights"]];
   const shown: Tab = tab === "paychecks" && plan.style !== "paycheck" ? "overview" : tab;
 
-  const billRow = ({ b, st }: (typeof billRows)[number], compact = false) => <li key={b.id} className="flex items-center gap-3 py-3" data-testid="budget-bill">
+  const billRow = ({ b, st }: (typeof billRows)[number], compact = false) => <li key={b.id} className="flex items-center gap-3 py-3" data-testid="budget-bill" data-focus={compact ? undefined : `bill:${b.id}`}>
     <button type="button" onClick={() => (st.state === "paid" ? unpay(b) : pay(b, st.nextAmount || st.left))} aria-label={st.state === "paid" ? `Mark ${b.name} unpaid` : `Pay ${money(st.nextAmount || st.left)} toward ${b.name}`} aria-pressed={st.state === "paid"}
       className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition ${st.state === "paid" ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 text-transparent hover:border-[#6e5ae0] hover:text-[#6e5ae0]"}`}><Check size={15} strokeWidth={3} /></button>
     <button type="button" onClick={() => setEditBill({ ...b })} className="min-w-0 flex-1 text-left">

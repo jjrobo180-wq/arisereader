@@ -2,6 +2,7 @@
 // and switchable layers for tasks, bills and trips. Teachers can also switch on their
 // Arise WorkHub calendar: its events are read live from the Hub and shown here, read-only.
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { scrollToFocus, useIntent } from "@/lib/deepLink";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, ExternalLink, GraduationCap, Link2, MapPin, Plane, Plus, Receipt, RefreshCw, Repeat, Repeat2, StickyNote, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -97,6 +98,11 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
   const teacher = !!user && (user.role === "teacher" || !!user.isAdmin);
   const [month, setMonth] = useState(() => today.slice(0, 7));
   const [picked, setPicked] = useState(today);
+  // A tapped event reminder (shared/notifyLinks.ts eventLink): its day picked, the event lit up.
+  useIntent("calendar", (i) => {
+    if (i.date && /^\d{4}-\d{2}-\d{2}$/.test(i.date)) { setPicked(i.date); setMonth(i.date.slice(0, 7)); }
+    if (i.focus) scrollToFocus(i.focus);
+  });
   const [who, setWho] = useState<string[]>([]);
   const [editing, setEditing] = useState<FamilyEvent | null>(null);
   const [newCal, setNewCal] = useState("");
@@ -288,7 +294,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
 
       <div className="space-y-5">
         <Panel eyebrow={picked === today ? "Today" : "Selected day"} title={shortDate(picked, { weekday: "long", month: "long", day: "numeric" })} right={<button onClick={() => add()} className={plain} aria-label="Add event on this day"><Plus size={16} /></button>}>
-          {dayItems.length ? <ul className="space-y-2">{dayItems.map((it) => <li key={it.key}>
+          {dayItems.length ? <ul className="space-y-2">{dayItems.map((it) => <li key={it.key} data-focus={it.kind === "event" ? `event:${it.key}` : undefined}>
             <button onClick={() => it.event ? setEditing({ ...it.event }) : it.kind === "task" ? onOpenTasks() : it.kind === "hub" ? window.location.assign("/#/workhub") : undefined} className="flex w-full items-start gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-violet-200">
               <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: it.color }} />
               <span className="min-w-0 flex-1">

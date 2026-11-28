@@ -37,11 +37,12 @@ export const danger = buttonClass + " border border-rose-100 bg-rose-50 text-ros
 
 /** A titled box, in the LifeHub's own look. With a `collapseKey` its heading folds the box
  *  shut and open, and it stays the way it was left until the person changes it again. */
-export function Panel({ title, eyebrow, right, children, className = "", collapseKey }: { title?: ReactNode; eyebrow?: string; right?: ReactNode; children: ReactNode; className?: string; collapseKey?: string }) {
+export function Panel({ title, eyebrow, right, children, className = "", collapseKey, focus }: { title?: ReactNode; eyebrow?: string; right?: ReactNode; children: ReactNode; className?: string; collapseKey?: string;
+  /** What a tapped notification can scroll to (lib/deepLink.ts scrollToFocus). */ focus?: string }) {
   const [closed, setClosed] = useState(() => !!collapseKey && readCollapsed().includes(collapseKey));
   const folds = !!collapseKey && !!title;
   const toggle = () => { saveCollapsed(collapseKey!, !closed); setClosed(!closed); };
-  return <section className={`min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5 ${className}`} data-collapsed={folds && closed ? "true" : undefined}>
+  return <section className={`min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5 ${className}`} data-collapsed={folds && closed ? "true" : undefined} data-focus={focus}>
     {(title || right) && <div className={`flex flex-wrap items-center justify-between gap-3 ${folds && closed ? "" : "mb-4"}`}>
       <div className="min-w-0">
         {eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p>}

@@ -36,7 +36,8 @@ test("to-dos still to do: one notification per to-do, only when something's due,
   const dentist = list.find((r) => r.title.startsWith("Call dentist"))!, laundry = list.find((r) => r.title.startsWith("Laundry"))!;
   assert.match(dentist.body, /^Due today/);
   assert.match(laundry.body, /^Overdue since Oct 18/);
-  assert.match(dentist.url, /\?go=tasks&view=today$/);
+  // It opens that to-do, lit up (shared/notifyLinks.ts taskLink).
+  assert.match(dentist.url, /\?go=tasks&view=today&task=[^&]+$/);
   assert.notEqual(dentist.key, laundry.key);
   // Once sent, the same time doesn't send them again.
   const sent = Object.fromEntries(list.map((r) => [r.key, 1]));

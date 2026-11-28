@@ -111,10 +111,16 @@ export default function Accountability({ say }: SectionProps) {
   }, []);
   useEffect(() => {
     if (!data) return;
-    const id = hashParam("task"); if (!id) return;
-    dropHashParam("task");
-    const t = data.tasks.find((x) => x.id === id);
-    if (t) { setSpaceId(t.spaceId); setSheet(t.assignee === data.me && !isDone(checkinFor(data.checkins, t.id, today)) ? { kind: "do", task: t } : { kind: "task", task: t }); }
+    // Also when a notification is tapped while Accountability is already open.
+    const pick = () => {
+      const id = hashParam("task"); if (!id) return;
+      dropHashParam("task");
+      const t = data.tasks.find((x) => x.id === id);
+      if (t) { setSpaceId(t.spaceId); setSheet(t.assignee === data.me && !isDone(checkinFor(data.checkins, t.id, today)) ? { kind: "do", task: t } : { kind: "task", task: t }); }
+    };
+    pick();
+    window.addEventListener("hashchange", pick);
+    return () => window.removeEventListener("hashchange", pick);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inviting happens on the one Sharing page (Settings), with "Add someone" open and Accountability on: once they

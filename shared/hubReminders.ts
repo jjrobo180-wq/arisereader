@@ -80,7 +80,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
       const key = `event:${event.id}:${event.date}:${event.start}`;
       if (sent[key]) continue;
       const where = event.location ? ` · ${event.location}` : "";
-      out.push({ key, title: event.title || "Event", body: `Starts at ${clock12(event.start)}${where}`, url: HUB_REMINDER_URL });
+      out.push({ key, title: event.title || "Event", body: `Starts at ${clock12(event.start)}${where}`, url: `${HUB_REMINDER_URL}?go=calendar&focus=${encodeURIComponent(`event:${event.id}`)}` });
     }
   }
 
@@ -90,7 +90,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
       const key = `meeting:${meeting.id}:${date}:${meeting.time}`;
       if (sent[key]) continue;
       const where = meeting.room ? ` · ${meeting.room}` : "";
-      out.push({ key, title: `${meeting.type || "Meeting"}${meeting.student ? `: ${meeting.student}` : ""}`, body: `Starts at ${clock12(meeting.time)}${where}`, url: HUB_REMINDER_URL });
+      out.push({ key, title: `${meeting.type || "Meeting"}${meeting.student ? `: ${meeting.student}` : ""}`, body: `Starts at ${clock12(meeting.time)}${where}`, url: `${HUB_REMINDER_URL}?go=calendar` });
     }
   }
 
@@ -99,7 +99,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
       if (task.done || (task.dueDate || "").slice(0, 10) !== date || !task.dueTime || !soon(toMinutes(task.dueTime))) continue;
       const key = `task:${task.id}:${date}:${task.dueTime}`;
       if (sent[key]) continue;
-      out.push({ key, title: task.title || "To-do", body: `Due at ${clock12(task.dueTime)}`, url: HUB_REMINDER_URL });
+      out.push({ key, title: task.title || "To-do", body: `Due at ${clock12(task.dueTime)}`, url: `${HUB_REMINDER_URL}?go=tasks&task=${encodeURIComponent(task.id)}` });
     }
   }
 
@@ -107,7 +107,7 @@ export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: s
   // Health & Fitness check-ins remind from LifeHub, so they aren't sent twice.
   if (workspace.daily) {
     const plan = dailyReminderPlan({ settings: workspace.daily, cooked: false, family: { habits: [], routines: [], notify: undefined as never }, habits: false, routines: false }, date);
-    out.push(...dueDailyReminders(plan, { date, minutes, sent, keyPrefix: "daily:", url: HUB_REMINDER_URL, followUps: 0, every: 60, window: SEND_WINDOW }));
+    out.push(...dueDailyReminders(plan, { date, minutes, sent, keyPrefix: "daily:", url: HUB_REMINDER_URL, link: (id) => `${HUB_REMINDER_URL}?go=tasks&focus=${encodeURIComponent(`checkin:${id}`)}`, followUps: 0, every: 60, window: SEND_WINDOW }));
   }
 
   const from = toMinutes(prefs.morning.time) ?? MORNING_FROM_HOUR * 60;

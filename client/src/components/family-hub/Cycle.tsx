@@ -2,6 +2,7 @@
 // see the next period and fertile window; get a daily insight, tips and foods for the phase you're in;
 // and read short guides (cycle vs. period, discharge, PMS, when to see a doctor).
 import { useState, type ReactNode } from "react";
+import { useIntent } from "@/lib/deepLink";
 import { Apple, BookOpen, CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Info, Lightbulb, Sparkles, Thermometer, XCircle } from "lucide-react";
 import { DISCHARGES, FLOWS, addDays, cycleLogUsed, daysBetween, fromDay, toDay, type CycleLog, type Discharge, type Energy, type Flow, type OvTest } from "@shared/familyHub";
 import { cycleSummary, predictedDays, type CycleSummary } from "@shared/familyCycle";
@@ -33,6 +34,8 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
   const [view, setView] = useState<View>("today");
   const [selected, setSelected] = useState(today);
   const [month, setMonth] = useState(today.slice(0, 7));
+  // The "period may start soon" reminder (shared/notifyLinks.ts): this person's tracker, on today.
+  useIntent("cycle", (i) => { if (i.who && people.some((m) => m.id === i.who)) setWho(i.who); setView("today"); setSelected(today); setMonth(today.slice(0, 7)); });
   const member = people.find((m) => m.id === who) || people[0];
   const memberId = member?.id || "me";
   const s = cycleSummary(family.cycleLogs, memberId, today);

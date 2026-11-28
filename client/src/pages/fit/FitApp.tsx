@@ -449,6 +449,8 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const setOver = (o: Over) => { if ((o === "gyms" || o === "eat") && !plus) { ask(o === "gyms" ? "gyms" : "eat-out"); return; } setOverRaw(o); };
   const [joinCode, setJoinCode] = useState<string | undefined>();
   const [snap, setSnap] = useState(false);
+  /** A reminder's "log dinner" (shared/notifyLinks.ts): the food log opens on that meal, ready to add. */
+  const [logMeal, setLogMeal] = useState<"breakfast" | "lunch" | "dinner" | "snack" | null>(null);
   const apps = appsOf(data.apps);
   // Inside To Do the row of pages has room for every added plugin with a screen of its own (the iPhone
   // app's tab bar holds three).
@@ -507,7 +509,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     if (t === tab) return;
     haptic("light");
     if (!back) trail.current = [...trail.current.filter((x) => x !== t), tab].slice(-12);
-    setTab(t); setSnap(false); document.getElementById("fit-main")?.scrollTo({ top: 0 });
+    setTab(t); setSnap(false); setLogMeal(null); document.getElementById("fit-main")?.scrollTo({ top: 0 });
     if (embed) window.scrollTo({ top: 0 });
   };
   const goBack = () => {
@@ -567,7 +569,13 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     else if (a === "meds") openApp("meds");
     else if (a === "period") openApp("period");
     else if (a === "run") openApp("run");
-    else if (a === "meal") { setSnap(true); openApp("food"); }
+    // Set after opening: switching to the Food tab clears them otherwise.
+    else if (a === "meal") { openApp("food"); setSnap(true); }
+    else if (a === "log-breakfast" || a === "log-lunch" || a === "log-dinner" || a === "log-snack") { openApp("food"); setLogMeal(a.slice(4) as "breakfast" | "lunch" | "dinner" | "snack"); }
+    else if (a === "train") openApp("train");
+    else if (a === "weigh-in") openApp("progress");
+    else if (a === "stretch") openApp("mobility");
+    else if (a === "fast") openApp("fast");
     else setOver(a === "scan" ? "scan" : a === "gyms" ? "gyms" : a === "recipes" ? "recipes" : "circle");
   }, [pending, loaded, plusLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = String(user?.displayName || "").trim().split(/\s+/)[0] || "";
@@ -582,7 +590,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
       case "recipes": return <RecipesSheet inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "eat": return <EatOut inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "train": return <Sheet inline={inline} title="Train" onClose={close} testId="fit-app-train"><TrainExtras token={token} data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} onCoach={() => setCoach(true)} onVacation={() => setOver("vacation")} /><TrainTab data={data} update={update} list={list} onStart={(a) => { close(); setActive(a); }} say={say} onCoach={() => setCoach(true)} onMaxes={() => openApp("maxes")} onTemplates={() => openApp("templates")} onGyms={() => setOver("gyms")} /></Sheet>;
-      case "food": return <Sheet inline={inline} title="Food" onClose={close} testId="fit-app-food"><FoodTab token={token} data={data} update={update} say={say} snap={snap} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></Sheet>;
+      case "food": return <Sheet inline={inline} title="Food" onClose={close} testId="fit-app-food"><FoodTab key={logMeal ?? "food"} token={token} data={data} update={update} say={say} snap={snap} startMeal={logMeal} onRecipes={() => setOver("recipes")} onEatOut={() => setOver("eat")} /></Sheet>;
       case "fast": return <FastingSheet inline={inline} data={data} update={update} onClose={close} />;
       case "run": return <OutdoorHub inline={inline} data={data} update={update} say={say} onClose={close} />;
       case "sleep": return <SleepSheet inline={inline} data={data} update={update} say={say} onClose={close} onBreathe={() => openApp("mind")}

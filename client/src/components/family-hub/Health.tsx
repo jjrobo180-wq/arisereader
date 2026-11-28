@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, BookOpen, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
+import { scrollToFocus, useIntent } from "@/lib/deepLink";
 import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
 import { searchByName } from "@shared/foodSpelling";
 import type { FoundFood } from "@shared/foodLookup";
@@ -35,6 +36,14 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
   const member = people.find((m) => m.id === who) || people[0];
   const solo = people.length === 1;
   const [intake, setIntake] = useState(false);
+  // A tapped reminder (shared/notifyLinks.ts healthLink): for this person, on today, straight to logging it.
+  useIntent("health", (i) => {
+    if (i.who && people.some((m) => m.id === i.who)) setWho(i.who);
+    setDate(today);
+    if (i.log && (MEALS as readonly string[]).includes(i.log)) setAdding(i.log as Meal);
+    else if (i.log === "exercise") setMoving(true);
+    else if (i.log === "water" || i.log === "weight") scrollToFocus(`health:${i.log}`);
+  });
   const profile = health.profiles[member.id];
   const setHealth = (fn: (h: typeof health) => typeof health) => setFamily((f) => { const h = fn(f.health); return h === f.health ? f : { ...f, health: h }; });
   const apple = useAppleHealth(setHealth);
@@ -133,7 +142,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
       </div>
 
       <aside className="space-y-5">
-        <Panel eyebrow="Water" title={`${totals.water} of ${goals.water} cups`} right={<Droplet size={18} className="text-sky-500" />}>
+        <Panel focus="health:water" eyebrow="Water" title={`${totals.water} of ${goals.water} cups`} right={<Droplet size={18} className="text-sky-500" />}>
           <div className="grid grid-cols-8 gap-1.5">{Array.from({ length: Math.max(goals.water, totals.water) }, (_, i) => {
             const full = i < totals.water;
             return <button key={i} onClick={() => setHealth((h) => setDay(h, member.id, date, { water: full && i === totals.water - 1 ? i : i + 1 }))} aria-label={`${i + 1} cup${i ? "s" : ""}`} aria-pressed={full}
@@ -153,10 +162,10 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
 
         {!kid && <AppleHealthPanel member={member} apple={apple} say={say} />}
 
-        {!kid && <WeightPanel memberId={member.id} goalWeight={goals.goalWeight} draft={weightDraft} setDraft={setWeightDraft} today={today}
+        {!kid && <div data-focus="health:weight"><WeightPanel memberId={member.id} goalWeight={goals.goalWeight} draft={weightDraft} setDraft={setWeightDraft} today={today}
           list={latestWeight(health, member.id).list}
           onLog={(w) => { setHealth((h) => ({ ...h, weights: [...h.weights.filter((x) => !(x.memberId === member.id && x.date === today)), { id: makeId(), memberId: member.id, date: today, weight: w }].slice(-3000) })); setWeightDraft(""); say("Weight logged"); }}
-          onRemove={(id) => setHealth((h) => ({ ...h, weights: h.weights.filter((x) => x.id !== id) }))} />}
+          onRemove={(id) => setHealth((h) => ({ ...h, weights: h.weights.filter((x) => x.id !== id) }))} /></div>}
 
         {!kid && <WeekPanel days={Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)).map((d) => ({ date: d, calories: dayTotals(health, member.id, d).food.calories }))} goal={goals.calories} today={today} />}
       </aside>

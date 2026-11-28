@@ -53,7 +53,7 @@ export default function Pills({ family, setFamily, today, makeId, say }: Section
         right={<><button type="button" onClick={() => setDate(addDays(date, -1))} className={plain} aria-label="Previous day"><ChevronLeft size={17} /></button><button type="button" onClick={() => setDate(today)} className={plain}>Today</button><button type="button" onClick={() => setDate(addDays(date, 1))} disabled={date >= today} className={plain} aria-label="Next day"><ChevronRight size={17} /></button></>}>
         {doses.length ? <ul className="space-y-2">{doses.map((d) => {
           const late = date === today && !d.status && d.time < now;
-          return <li key={d.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3 ${d.status === "taken" ? "border-emerald-200 bg-emerald-50" : d.status === "skipped" ? "border-slate-200 bg-slate-50" : late ? "border-amber-200 bg-amber-50" : "border-[#ececf3] bg-white"}`}>
+          return <li key={d.id} data-focus={d.status ? undefined : `pill:${d.pill.id}`} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3 ${d.status === "taken" ? "border-emerald-200 bg-emerald-50" : d.status === "skipped" ? "border-slate-200 bg-slate-50" : late ? "border-amber-200 bg-amber-50" : "border-[#ececf3] bg-white"}`}>
             <span className="grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ background: d.pill.color }}><PillIcon size={18} /></span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-800">{d.pill.name}{d.pill.dose ? <span className="font-semibold text-slate-500"> · {d.pill.dose}</span> : null}</span>
               <span className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500"><Clock3 size={12} /> {clock12(d.time)}{name(d.pill.memberId) && who === "all" ? ` · ${name(d.pill.memberId)}` : ""}{d.status === "taken" ? ` · taken ${d.at ? new Date(d.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}` : d.status === "skipped" ? " · skipped" : late ? " · not taken yet" : ""}</span></span>
@@ -67,7 +67,7 @@ export default function Pills({ family, setFamily, today, makeId, say }: Section
         <Panel eyebrow="Medicines" title={`${pills.length} pill${pills.length === 1 ? "" : "s"}`}>
           <ul className="space-y-3">{pills.map((p) => {
             const a = adherence(family, p, today, 7, now), left = daysOfSupply(p);
-            return <li key={p.id} className={`rounded-2xl border border-[#ececf3] p-3 ${p.active ? "" : "opacity-60"}`}>
+            return <li key={p.id} data-focus={`pill:${p.id}`} className={`rounded-2xl border border-[#ececf3] p-3 ${p.active ? "" : "opacity-60"}`}>
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full" style={{ background: p.color }} />
                 <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-800">{p.name}{!p.active ? " (paused)" : ""}</span>

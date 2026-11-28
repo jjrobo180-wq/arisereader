@@ -1,4 +1,5 @@
 import { useAutoHideHeader } from "@/hooks/useAutoHideHeader";
+import { scrollToFocus } from "@/lib/deepLink";
 import { WithDaily } from "@/components/daily/WithDaily";
 import { fillDaily } from "@shared/dailySettings";
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
@@ -736,9 +737,12 @@ function TeacherHubPage() {
         if (go === "add") { setHomeQuick(""); setHomeTask(NEW_TASK); }
         // A to-do on the widget: Tasks scrolls straight to it and lights it up (lib/taskFocus.ts).
         else if (task) { setHomeTask(null); focusTask(task); }
-        if (!task) window.scrollTo({ top: 0 });
+        // A reminder about one item (shared/hubReminders.ts): a check-in or an event, scrolled to and lit up.
+        const focus = params.get("focus");
+        if (focus) scrollToFocus(focus);
+        if (!task && !focus) window.scrollTo({ top: 0 });
       } else return;
-      params.delete("go"); params.delete("ask"); params.delete("task"); params.delete("view");
+      params.delete("go"); params.delete("ask"); params.delete("task"); params.delete("view"); params.delete("focus");
       const rest = params.toString();
       try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
     };

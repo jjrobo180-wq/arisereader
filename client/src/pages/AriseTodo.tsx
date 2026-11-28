@@ -132,6 +132,7 @@ import { useLifeFeed } from "@/components/family-hub/useLifeFeed";
 import type { Forecast } from "@shared/lifePlugins";
 import { publishWidgets } from "@/lib/widgets";
 import { duoBoard, publishDuoBoard, publishDuoLinks, publishLifeScores, watchHubWidgetTaps } from "@/lib/duoBoard";
+import { scrollToFocus, setIntent } from "@/lib/deepLink";
 import { lifeInputFrom, lifeScore } from "@shared/lifeScore";
 import { lifeInsights, lifeWidgetData } from "@shared/lifeInsights";
 import { publishWatchPart, watchActions } from "@/lib/watch";
@@ -514,6 +515,11 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
         setSection(go as FamilySection);
         const v = params.get("view");
         if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
+        // The exact place (shared/notifyLinks.ts): a log form to open ("dinner for Sam"), a day, or one item to
+        // scroll to and light up (lib/deepLink.ts).
+        const focus = params.get("focus") || "", log = params.get("log") || "", who = params.get("who") || "", day = params.get("date") || "";
+        if (log || who || day || focus) setIntent({ section: go, ...(log ? { log } : {}), ...(who ? { who } : {}), ...(day ? { date: day } : {}), ...(focus ? { focus } : {}) });
+        if (focus) scrollToFocus(focus);
       }
       // A premium app (Potty Training's timer, a widget): opened inside LifeHub, menu and all.
       if (go === "pro") {
@@ -528,7 +534,8 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
         const askId = params.get("ask");
         openAsk(askId && isAskId(askId) ? askId : "");
       }
-      params.delete("go"); params.delete("view"); params.delete("ask"); params.delete("task"); for (const k of ["page", "s", "e", "coach"]) params.delete(k);
+      // Accountability reads its own "task" (the to-do a notification is about) once its data is in, so it stays.
+      params.delete("go"); params.delete("view"); params.delete("ask"); if (go !== "accountability") params.delete("task"); for (const k of ["page", "s", "e", "coach", "focus", "log", "who", "date"]) params.delete(k);
       const rest = params.toString();
       try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
     };

@@ -4,6 +4,7 @@
 // it rewarding; the swipe session ("Instead of scrolling") deals one chore per screen. Families still get owners,
 // weekly turns, stars and the week chart.
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { scrollToFocus, useIntent } from "@/lib/deepLink";
 import { Award, Check, ChevronLeft, ChevronRight, ChevronUp, Flame, Pencil, Plus, Repeat2, Search, Star, Timer, Trash2, Trophy, Zap } from "lucide-react";
 import { addDays, choreDoneOn, choreDueOn, choreOwner, choreWindow, toggleChore, weekStart, type Chore, type ChoreUnit, type Family } from "@shared/familyHub";
 import { CHORE_CATALOG, CHORE_CATEGORIES, CHORE_PACKS, FREQ_CHOICES, FREQ_CODES, catalogById, categoryOf, choreFromCatalog, freqLabel, type CatalogChore, type ChoreFreq } from "@shared/choreCatalog";
@@ -45,6 +46,8 @@ function choiceOf(d: Pick<Draft, "unit" | "every" | "days" | "flex">): string {
 
 export default function Chores({ family, setFamily, today, makeId, say }: SectionProps) {
   const [tab, setTab] = useState<Tab>(() => (family.chores.length ? "today" : "add"));
+  // A chore reminder (shared/notifyLinks.ts): Today, on that chore.
+  useIntent("chores", (i) => { if (i.focus?.startsWith("chore:")) { setTab("today"); scrollToFocus(i.focus); } });
   const [who, setWho] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [session, setSession] = useState(false);
@@ -177,7 +180,7 @@ function Hero({ family, today, lvl, xp, streakDays, alive, doneCount, dueCount, 
 /* ─── A chore row ─── */
 function ChoreCard({ c, family, today, done, onTick, onEdit, pop, sub }: { c: Chore; family: Family; today: string; done: boolean; onTick: () => void; onEdit: () => void; pop?: number; sub?: ReactNode }) {
   const owner = memberOf(family, choreOwner(c, today)), color = colorOf(c);
-  return <div className={`group relative flex min-h-[4.5rem] items-center gap-3 rounded-2xl border p-2.5 pr-3 transition ${done ? "border-emerald-200 bg-emerald-50/70" : "border-[#ececf3] bg-white hover:border-violet-200"}`}>
+  return <div data-focus={done ? undefined : `chore:${c.id}`} className={`group relative flex min-h-[4.5rem] items-center gap-3 rounded-2xl border p-2.5 pr-3 transition ${done ? "border-emerald-200 bg-emerald-50/70" : "border-[#ececf3] bg-white hover:border-violet-200"}`}>
     <button onClick={onTick} aria-pressed={done} aria-label={`${c.title}${done ? ", done" : ""}`} data-testid={`chore-tick-${c.id}`}
       className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl transition active:scale-90 ${done ? "bg-emerald-500 text-white" : ""}`} style={done ? undefined : { background: color + "1c" }}>
       {done ? <Check size={24} strokeWidth={3} /> : <span aria-hidden="true">{iconOf(c)}</span>}
