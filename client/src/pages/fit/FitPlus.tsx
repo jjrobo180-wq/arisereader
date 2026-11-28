@@ -114,6 +114,8 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
         ? <Btn className="mt-4 w-full" onClick={() => void subscribe()} disabled={!!busy} testId="fit-plus-buy">{busy === "/billing/checkout" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crown className="h-5 w-5" />}Get To Do Unlimited · {status.price}</Btn>
         : <p className="mt-3 px-1 text-[13px]" style={{ color: C.dim }}>Payments aren't switched on for this site yet.</p>)}
 
+    {/* No codes in the iPhone apps: paid features unlock only through In-App Purchase there (App Review 3.1.1). */}
+    {!native && <>
     <Title>Guest pass</Title>
     {p.role === "owner" ? <Card className="!p-4" testId="fit-pass-owner">
       {p.guest ? <>
@@ -137,6 +139,7 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
         <Btn type="submit" disabled={!!busy || code.length !== CODE_LEN} testId="fit-pass-redeem-go">{busy === "/pass/redeem" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Ticket className="h-5 w-5" />}Use</Btn>
       </form>}
     </Card>}
+    </>}
     {err && <p className="mt-3 px-1 text-[14px]" style={{ color: C.red }} role="alert">{err}</p>}
   </Sheet>;
 }

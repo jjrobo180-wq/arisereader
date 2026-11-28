@@ -1,6 +1,7 @@
 // Cooked's first-open setup and the animated tour of its features. The setup is a short wizard (goal, body,
 // goal weight and pace, activity, diet, gym, calories or Arise Points, then the permissions the app likes to have),
 // ending in a plan and the tour. From Settings it opens again as "Your goals" without the tour or permissions.
+import HealthSources from "@/components/HealthSources";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Activity, Apple, Bell, Check, ChevronLeft, ChevronRight, Dumbbell, Flame, HeartPulse, MapPin, Moon, Route, Sparkles, Target, Timer, Users, X } from "lucide-react";
 import { dayKey, fromKg, toKg, type FitData, type Goal, type Profile, type Units } from "@shared/fit";
@@ -266,6 +267,7 @@ function PlanReveal({ kcal, p, c, f, points, track, goal, weeks, units, curKg, g
       <p className="mt-1 text-[22px] leading-tight" style={display}>{Math.round(fromKg(curKg, units))} → {Math.round(fromKg(goalKg, units))} {units}{weeks ? ` · about ${weeks} weeks` : ""}</p>
       {weeks ? <p className="mt-0.5 text-[13px]" style={{ color: C.steel }}>On pace to get there around {finishDate(weeks).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}. Real progress isn't a straight line; we adjust as you log.</p> : null}
     </div>}
+    <div className="mt-3 px-1"><HealthSources tone={{ link: C.lime, soft: C.dim, ink: C.text }} /></div>
   </div>;
 }
 

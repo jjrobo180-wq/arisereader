@@ -1,5 +1,6 @@
 // Food & fitness: a MyFitnessPal-style diary for adults (calories, macros, exercise, water, steps, weight)
 // and a healthy-habits tracker for kids (fruits & veggies, water, active minutes, what they ate, no numbers).
+import HealthSources from "@/components/HealthSources";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, BookOpen, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -496,6 +497,7 @@ function GoalsModal({ member, goals, onSave, onClose }: { member: Member; goals:
           {sum !== 100 && <p className="mt-1.5 text-xs font-bold text-rose-600">These add up to {sum}%. Make them add up to 100%.</p>}</div>
         <div className="grid grid-cols-2 gap-4">{field("water", "Cups of water", 40)}{field("steps", "Daily steps", 100000, 500)}</div>
         <p className="text-[11px] leading-5 text-slate-500">Not sure what to aim for? Many adults need about 1,600–3,000 calories a day depending on size and activity. A doctor or dietitian can help you set the right number.</p>
+        <HealthSources />
       </>}
       <button type="submit" className={primary + " w-full"} disabled={!kid && sum !== 100}><Check size={17} /> Save goals</button>
     </form>

@@ -2,7 +2,7 @@
 // same items in the same order in both hubs, in groups so it's easy to find things. The tab bar's You
 // sheet (PhoneTabBar) shows the same items.
 import { useEffect, useRef, type ReactNode } from "react";
-import { Bell, BellRing, HelpCircle, Lock, LogOut, Maximize2, Moon, Settings2, ShieldCheck, ShoppingBag, Smartphone, Sun } from "lucide-react";
+import { Bell, BellRing, HeartPulse, HelpCircle, Lock, LogOut, Maximize2, Moon, Settings2, ShieldCheck, ShoppingBag, Smartphone, Sun } from "lucide-react";
 import { setFocusMode } from "@/lib/focusMode";
 import { isNativeApp } from "@/lib/nativeApp";
 
@@ -23,7 +23,8 @@ export function hubMoreGroups(o: {
     { title: "Notifications", items: [
       { id: "notification-settings", label: "Notification settings", detail: "Reminders on this phone and in the app", icon: <BellRing />, onClick: o.notificationSettings },
       // In the iPhone app: the first-run setup again, for anything skipped then.
-      ...(isNativeApp() ? [{ id: "iphone-setup", label: "iPhone connections", detail: "Notifications, Calendar and Reminders", icon: <Smartphone />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) }] : []),
+      ...(isNativeApp() ? [{ id: "iphone-setup", label: "iPhone connections", detail: "Apple Health, Notifications, Calendar, Reminders", icon: <Smartphone />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) },
+        { id: "apple-health", label: "Apple Health", detail: "What Arise To Do reads from and saves to Health", icon: <HeartPulse />, onClick: () => window.dispatchEvent(new Event(IPHONE_SETUP_EVENT)) }] : []),
     ] },
     { title: "Settings", items: [
       { id: "fullscreen", label: "Full screen", detail: "Just the plugin, no menus", icon: <Maximize2 />, onClick: () => setFocusMode(true) },

@@ -211,11 +211,11 @@ jobs:
           APP_PROFILE="$PROFILE_NAME" WIDGET_PROFILE="$WIDGET_PROFILE_NAME" ruby ../../.github/scripts/add_widget.rb ios/App/App.xcodeproj com.arisereader.arisetodo "$(cat widgets.json)" f5b400
           # The Apple Watch app goes inside the iPhone app; the Apple TV app is archived on its own below.
           if [[ -n "${WATCH_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name DuoWatch --display "Arise Duo" --host com.arisereader.arisetodo --sources native/watch-kit/AriseWatchLink.swift,native/duo-watch/DuoWatchApp.swift --icon client/public/app-icons/todo-1024.png --embed)
+            (cd ../.. && COMPANION_PROFILE="$WATCH_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind watch --name DuoWatch --display "Arise To Do" --host com.arisereader.arisetodo --sources native/watch-kit/AriseWatchLink.swift,native/duo-watch/DuoWatchApp.swift --icon client/public/app-icons/todo-1024.png --embed)
             echo "WATCH_ADDED=1" >> "$GITHUB_ENV"
           fi
           if [[ -n "${TV_PROFILE_NAME:-}" ]]; then
-            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name DuoTV --display "Arise Duo" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets)
+            (cd ../.. && COMPANION_PROFILE="$TV_PROFILE_NAME" ruby .github/scripts/add_companion.rb "$OLDPWD/ios/App/App.xcodeproj" --kind tv --name DuoTV --display "Arise To Do" --host com.arisereader.arisetodo --sources native/duo-tv/DuoTVApp.swift --tv-assets native/duo-tv/Assets.xcassets)
             echo "TV_ADDED=1" >> "$GITHUB_ENV"
           fi
       - name: Add the privacy manifest to the app and its extensions

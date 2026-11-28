@@ -2,6 +2,8 @@
 // #/fit on the website). Tabs: Today, up to three apps you pin (Train, Food and Run to start) and Apps,
 // where you add and arrange the rest (FitApps.tsx, shared/fitApps.ts). Data:
 // fitStore.ts → server/fit.ts. The look and motion follow the Cooked prototype (fitUi.tsx).
+import HealthSources from "@/components/HealthSources";
+import { isNativeApp } from "@/lib/nativeApp";
 import { FitTabsEditor } from "./FitTabsEditor";
 import AllAccessPopup from "@/components/AllAccessPopup";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -298,6 +300,7 @@ function DuoSettings({ data, update, say, onClose, onGoals, onTour, onAccount, o
         <SheetRow icon={<Target />} color="#ff9500" label="Body and goal" sub={`${fmtNum(g.kcal)} cal · P ${g.p}g · C ${g.c}g · F ${g.f}g`} onClick={onGoals} right={go} />
         <SheetRow icon={<Flame />} color="#ff3b30" label="Daily calories" right={<input inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value.replace(/\D/g, "").slice(0, 4))} onBlur={saveKcal} placeholder={String(g.kcal)} aria-label="Daily calorie goal" className="w-24 rounded-lg bg-slate-100 px-2 py-1.5 text-right text-[15px] tabular-nums text-slate-900" />} />
       </SheetGroup>
+      <div className="px-4"><HealthSources /></div>
       <SheetGroup caption="Units">
         <div className="grid grid-cols-2 gap-1 p-1.5" role="radiogroup" aria-label="Units" data-testid="fit-units">{(["lb", "kg"] as const).map((v) => { const on = data.profile.units === v; return <button key={v} type="button" role="radio" aria-checked={on} onClick={() => update((d) => ({ ...d, profile: { ...d.profile, units: v } }))}
           className={`rounded-xl px-3 py-2 text-left transition ${on ? "bg-[#6e5ae0] text-white" : "text-slate-600"}`}><span className="block text-[15px] font-bold">{v === "lb" ? "US" : "Metric"}</span><span className="block text-[12px] opacity-80">{v === "lb" ? "lb · miles · oz" : "kg · km · liters"}</span></button>; })}</div>
@@ -475,7 +478,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
   const sleepAuto = useSleepAuto(data, update, loaded, say);
   // Siri, Shortcuts and links: run once the data is here (a link can arrive before it loads).
   const [pending, setPending] = useState<SiriAction | null>(null);
-  useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass) onPass(l.pass); if (l.action) setPending(l.action); });
+  useDeepLinks((l) => { if (l.circle) { setJoinCode(l.circle); setOverRaw("circle"); } if (l.pass && !isNativeApp()) onPass(l.pass); if (l.action) setPending(l.action); });
   useEffect(() => { if (loaded && !data.onboarded) setSetup(true); }, [loaded, data.onboarded]);
   // A tab that was taken off the tab bar (here or on another device) goes back to Today.
   // Inside To Do there's no plugin store page: "apps" opens Edit tabs (FitTabsEditor.tsx) instead.

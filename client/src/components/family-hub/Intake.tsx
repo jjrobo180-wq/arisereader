@@ -1,4 +1,5 @@
 // Food & fitness intake: a few questions before an adult starts their diary, turned into a personal calorie plan.
+import HealthSources from "@/components/HealthSources";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Info } from "lucide-react";
 import type { ActivityLevel, DietStyle, GoalType, HealthProfile, Member, Sex } from "@shared/familyHub";
@@ -75,6 +76,7 @@ export default function Intake({ member, today, start, onSave, onCancel }: {
             <span className="mt-1 block text-xs text-slate-500">{blocked ? `More than 1% of your body weight a week isn't recommended.` : `About ${weeks} week${weeks === 1 ? "" : "s"} to your goal`}</span>
           </button>;
         })}</div>
+        <HealthSources />
       </>}
 
       {step === 3 && <div className="grid grid-cols-1 gap-3">{ACTIVITY_LEVELS.map((a) => <button key={a.id} type="button" onClick={() => setD({ ...d, activity: a.id })} aria-pressed={d.activity === a.id} className={choice(d.activity === a.id)}>
@@ -100,6 +102,7 @@ export default function Intake({ member, today, start, onSave, onCancel }: {
             <div key={k} className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-slate-600">{k}</dt><dd className="font-bold text-slate-800">{v}</dd></div>)}
         </dl>
         <p className="text-[11px] leading-5 text-slate-500">This is an estimate from the Mifflin-St Jeor formula, the one most calorie apps use. Everyone's body is a little different: check your weight trend after 2–3 weeks and adjust. If you're pregnant, nursing, have a medical condition or a history of disordered eating, check with a doctor before following a calorie target.</p>
+        <HealthSources open />
       </>}
     </div>
 

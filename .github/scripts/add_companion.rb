@@ -2,7 +2,7 @@
 # Adds an Apple Watch or Apple TV app to a generated Capacitor project (the Arise apps' companions:
 # native/duo-watch, native/fit-watch, native/notes-watch, native/duo-tv, native/fit-tv).
 #
-#   ruby add_companion.rb <App.xcodeproj> --kind watch|tv --name DuoWatch --display "Arise Duo"
+#   ruby add_companion.rb <App.xcodeproj> --kind watch|tv --name DuoWatch --display "Arise To Do"
 #        --host com.arisereader.arisetodo [--bundle <id>] --sources a.swift,b.swift [--resources x.json]
 #        [--icon icon-1024.png] [--embed] [--healthkit] [--mic]
 #

@@ -5,10 +5,11 @@
 // iPhone Duo, and for everyone else too). It opens again from ⋯ → "How to use Arise To Do".
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Bell, CalendarDays, Check, Columns2, LayoutGrid, ListChecks, MoreHorizontal, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, CalendarDays, Check, Columns2, HeartPulse, LayoutGrid, ListChecks, MoreHorizontal, Plus, Search, Sparkles, X } from "lucide-react";
 import { IPHONE_SETUP_EVENT, WALKTHROUGH_EVENT } from "@/components/HubMoreMenu";
 import { appleRemindersAvailable, appleRemindersOn, connectAppleReminders } from "@/lib/nativeAppleReminders";
 import { iphoneCalendarAvailable } from "@/lib/nativeCalendar";
+import { askHealthPermission, nativeHealthAvailable } from "@/lib/nativeHealth";
 import { looksLikeDuoInner, useAriseDuo } from "@/lib/useAriseDuo";
 import { isNativeApp } from "@/lib/nativeApp";
 import { isSampleMode } from "@/lib/sampleMode";
@@ -80,7 +81,7 @@ export default function AppWalkthrough({ userId, hub, arise, onGallery, onCustom
       body: <>Hold anything on Home to move it. <b>Customize</b> changes themes and the menu.</>,
       action: { label: "Open Customize", run: () => { close(); onCustomize("layout"); } } },
     { id: "connect", icon: <CalendarDays />, tint: "#0284c7", title: "Bring in your iPhone",
-      body: <>Your iPhone Calendar and Apple Reminders can show up right here: turn them on any time in <b>⋯ → iPhone connections</b>.</> },
+      body: <>Apple Health, your iPhone Calendar and Apple Reminders can show up right here: turn them on any time in <b>⋯ → iPhone connections</b>.</> },
     { id: "notify", icon: <Bell />, tint: "#e11d48", title: "Reminders on your phone",
       body: <>A morning summary and a heads-up before anything's due.</>,
       action: isNativeApp() && nativeRemindersAvailable()
@@ -212,9 +213,10 @@ function IphoneSetup({ hub, font, shell, primary, onConnectCalendar, onDone, don
   hub: "life" | "work"; font: CSSProperties; shell: string; primary: string;
   onConnectCalendar?: () => Promise<number>; onDone: () => void; doneLabel: string;
 }) {
-  type Row = "notify" | "calendar" | "reminders";
+  type Row = "notify" | "health" | "calendar" | "reminders";
   const [on, setOn] = useState<Record<Row, boolean>>(() => ({
     notify: nativeRemindersOn(hub),
+    health: (() => { try { return localStorage.getItem("arise-apple-health-asked") === "1"; } catch { return false; } })(),
     calendar: (() => { try { return localStorage.getItem("arise-iphone-calendar-on") === "1"; } catch { return false; } })(),
     reminders: appleRemindersOn(),
   }));
@@ -230,6 +232,9 @@ function IphoneSetup({ hub, font, shell, primary, onConnectCalendar, onDone, don
   const rows: { id: Row; show: boolean; icon: ReactNode; tint: string; title: string; text: string; go: () => Promise<string | void> }[] = [
     { id: "notify", show: nativeRemindersAvailable(), icon: <Bell />, tint: "#e0465f", title: "Notifications", text: "A morning summary and a heads-up before tasks, events and bills.",
       go: async () => { await turnOnNativeReminders(hub); } },
+    // Apple Health (HealthKit), named plainly so it's clear what the app reads (App Review 2.5.1).
+    { id: "health", show: nativeHealthAvailable(), icon: <HeartPulse />, tint: "#ff2d55", title: "Apple Health", text: "Arise To Do uses Apple Health (HealthKit). It reads steps, activity, calories, weight, sleep and heart data for Food & fitness, Cooked Fitness and Life Score, and saves the weight, workouts and mindful minutes you log, only if you allow it. Health data is never used for ads or sold.",
+      go: async () => { await askHealthPermission(); try { localStorage.setItem("arise-apple-health-asked", "1"); } catch { /* asked */ } return "Apple Health is connected. Your steps, active calories and weight show in Food & fitness. Change it any time in the Health app → Sharing → Apps → Arise To Do."; } },
     { id: "calendar", show: iphoneCalendarAvailable() && !!onConnectCalendar, icon: <CalendarDays />, tint: "#0a84ff", title: "iPhone Calendar", text: "Every calendar on your phone (iCloud, Google, Outlook, school), in your hub.",
       go: async () => { const n = await onConnectCalendar!(); try { localStorage.setItem("arise-iphone-calendar-on", "1"); } catch { /* still connected */ } return `${n} ${n === 1 ? "event" : "events"} brought in.`; } },
     { id: "reminders", show: appleRemindersAvailable(), icon: <ListChecks />, tint: "#f59e0b", title: "Apple Reminders", text: "Your reminders come into LifeHub → Tasks, and check-offs stay in step.",

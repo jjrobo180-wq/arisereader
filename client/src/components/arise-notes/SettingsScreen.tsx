@@ -36,7 +36,7 @@ export default function SettingsScreen({ ctx, tab }: { ctx: AppCtx; tab?: Tab })
     <TopBar ctx={ctx} title={TITLES[tab]} back={() => ctx.go({ name: "settings" })} />
     <main className="mx-auto max-w-3xl space-y-4 px-4 pb-28 pt-4 sm:px-5" data-testid={`notes-settings-${tab}`}>
       {tab === "plan" && <PlanTab ctx={ctx} />}
-      {tab === "family" && <FamilyTab ctx={ctx} />}
+      {tab === "family" && !isNativeApp() && <FamilyTab ctx={ctx} />}
       {tab === "privacy" && <PrivacyTab ctx={ctx} />}
       {tab === "look" && <LookTab ctx={ctx} />}
       {tab === "access" && <AccessTab ctx={ctx} />}
@@ -85,7 +85,8 @@ function MenuHome({ ctx }: { ctx: AppCtx }) {
       </Group>
       <Group title="Account">
         <Row icon={<Crown />} label="Plan & minutes" detail={ctx.me.planName} onClick={() => ctx.go({ name: "settings", tab: "plan" })} testId="notes-menu-plan" />
-        <Row icon={<Users />} label="Family" detail={ctx.me.family ? `${ctx.me.family.people.length} people` : "Share minutes with up to 4 people"} onClick={() => ctx.go({ name: "settings", tab: "family" })} />
+        {/* Family invite codes stay on the web: in the iPhone apps paid features unlock only through In-App Purchase (App Review 3.1.1). */}
+        {!isNativeApp() && <Row icon={<Users />} label="Family" detail={ctx.me.family ? `${ctx.me.family.people.length} people` : "Share minutes with up to 4 people"} onClick={() => ctx.go({ name: "settings", tab: "family" })} />}
         <Row icon={<Shield />} label="Privacy & data" detail="Audio, reminders, delete everything" onClick={() => ctx.go({ name: "settings", tab: "privacy" })} />
         <Row icon={<Shield />} label="Student data privacy" detail="FERPA and COPPA" onClick={() => ctx.go({ name: "privacy" })} />
       </Group>

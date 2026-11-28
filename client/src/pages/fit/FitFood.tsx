@@ -1,6 +1,7 @@
 // Cooked nutrition: the day's food by meal, with search (USDA + Open Food Facts), barcode scanning,
 // a photo or description estimated by AI, recent foods and quick add. Uses the same food lookup as the
 // Calorie counter in Arise To Do (server/foodLookup.ts).
+import HealthSources from "@/components/HealthSources";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dayGoals } from "@shared/fitVacation";
 import { Star, StickyNote, ListChecks, CalendarRange, BarChart3, Bookmark, Camera, Check, ChefHat, ChevronLeft, ChevronRight, Copy, Droplets, Loader2, MapPin, Plus, ScanLine, Search, Sparkles, Trash2, Utensils, Zap } from "lucide-react";
@@ -192,6 +193,7 @@ export function PlanSheet({ data, update, onClose }: { data: FitData; update: Up
       {on && <ul className="mt-3 space-y-1 text-[13px]" style={{ color: C.text }}>{d.tips.map((t) => <li key={t} className="flex gap-2"><span style={{ color: C.lime }}>▸</span>{t}</li>)}</ul>}
     </button>; })}</div>
     <p className="mt-6 text-[11px] leading-relaxed" style={{ color: C.dim }}>Plans set your daily macro targets from your calorie goal (Progress → Settings). Check with a doctor before a major diet change.</p>
+    <div className="mt-2"><HealthSources tone={{ link: C.lime, soft: C.dim, ink: C.text }} /></div>
   </Sheet>;
 }
 
