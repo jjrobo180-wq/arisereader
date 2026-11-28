@@ -71,6 +71,8 @@ import {
   WandSparkles,
   X,
   MoreHorizontal,
+  ArrowUpDown,
+  List as ListIcon,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
   Table, FolderOpen, QrCode, ShieldCheck,
@@ -167,6 +169,7 @@ import HubMakeups from "@/components/teacher-hub/HubMakeups";
 import HubGradePlans from "@/components/teacher-hub/HubGradePlans";
 import HubProblemSolver from "@/components/teacher-hub/HubProblemSolver";
 import { addSupplementary, studentsWithoutProfiles } from "@shared/hubSupplementary";
+import { COVERS, coverFor, daysWord, longDate, matchCard, nextReview, sortCards, urgency, type CardSort } from "@shared/hubStudentCards";
 import { FocusTimer } from "@/components/family-hub/Focus";
 import { focusSupported, listenForFocusLinks, stopFocus } from "@/lib/duoFocus";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
@@ -2249,6 +2252,41 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   const roster = workspace.students.filter((s) => (area === "all" || mOf(s.name).area === area) && (kind === "all" || (kind === "supplementary") === !!s.supplementary));
   const pill = (on: boolean) => `inline-flex min-h-[34px] items-center rounded-full border px-3.5 text-xs font-semibold transition ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 text-slate-900 hover:bg-slate-50"}`;
 
+  // Cards (a cover, the next review and how many days away it is) or the plain list.
+  const today = TODAY();
+  const [view, setView] = useState<"cards" | "list">(() => { try { return localStorage.getItem("hub:caseloadView") === "list" ? "list" : "cards"; } catch { return "cards"; } });
+  const pickView = (v: "cards" | "list") => { setView(v); try { localStorage.setItem("hub:caseloadView", v); } catch { /* private mode */ } };
+  const [sort, setSort] = useState<CardSort>("soonest");
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const shown = sortCards(roster.filter((s) => matchCard(s, query, today)), sort, today);
+  const SORT_WORD: Record<CardSort, string> = { soonest: "Soonest first", latest: "Latest first", name: "A to Z" };
+  // A student's details, edit and delete: inline under a list row, or in a pop-up from a card's "..." button.
+  const quick = (s: Student) => (
+            <div className="pb-4">
+            <div className="-mt-1 mb-3 flex items-center gap-1">
+              <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
+              <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+              <Info label="Grade" value={s.grade || "—"} />
+              <Info label="Reading" value={s.readingLevel ? levelLabel(s.readingLevel) : "—"} />
+              <Info label="Math" value={s.mathLevel ? levelLabel(s.mathLevel) : "—"} />
+              <Info label="IEP deadline" value={s.iepDate || "—"} />
+              <Info label="Reeval deadline" value={s.reevalDate || "—"} />
+              <Info label="Accommodations" value={s.accommodations || "—"} />
+              {s.disability1 && <Info label="Disability 1" value={s.disability1} />}
+              {s.disability2 && <Info label="Disability 2" value={s.disability2} />}
+            </div>
+            <StudentTeamSummary workspace={workspace} student={s.name} />
+            {!s.disability1 && !s.disability2 && teamMembers(workspace, s.name).length === 0 && (
+              <button type="button" onClick={() => startEdit(s, "team")} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 text-sm font-medium text-slate-600 hover:bg-slate-50" data-testid="hub-student-add-team"><Plus className="h-4 w-4" /> Add disabilities and IEP team</button>
+            )}
+            {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{s.notes}</div>}
+            <button type="button" onClick={() => setProfileId(s.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-900 hover:bg-teal-100" data-testid="hub-student-profile"><Users className="h-4 w-4" /> See everything for {s.name.split(/\s+/)[0]}</button>
+            </div>
+  );
+
   // One student's whole picture takes the place of the list until the teacher goes back.
   if (profileId && workspace.students.some((s) => s.id === profileId)) {
     return <StudentProfileView workspace={workspace} setWorkspace={setWorkspace} studentId={profileId} today={TODAY()} makeId={id} onBack={() => setProfileId(null)} onPick={setProfileId} onOpenTab={openTab}
@@ -2263,8 +2301,20 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             <h1 className="hub-figure text-[40px] leading-none sm:text-[46px]">Caseload</h1>
             <span className="hub-figure text-[20px] text-slate-500">{workspace.students.length}</span>
           </div>
-          <div className="flex items-center gap-3 pb-1">
+          <div className="flex flex-wrap items-center gap-2 pb-1 sm:gap-3">
             {seats !== null && <span className="text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")} seats</span>}
+            {searching || query ? (
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onBlur={() => { if (!query) setSearching(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setQuery(""); setSearching(false); } }}
+                placeholder="Search students" aria-label="Search students" data-testid="caseload-search" className="h-11 w-44 rounded-full border border-slate-200 px-4 text-sm outline-none focus:border-slate-400" />
+            ) : (
+              <button type="button" onClick={() => setSearching(true)} aria-label="Search students" title="Search" data-testid="caseload-search" className="grid h-11 w-11 place-items-center rounded-full text-sky-700 hover:bg-slate-100"><Search className="h-[18px] w-[18px]" /></button>
+            )}
+            <button type="button" onClick={() => setSort(sort === "soonest" ? "latest" : sort === "latest" ? "name" : "soonest")} title={`Sort: ${SORT_WORD[sort]}`} data-testid="caseload-sort"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-sky-700 hover:bg-slate-100"><ArrowUpDown className="h-[18px] w-[18px]" /><span className="hidden sm:inline">{SORT_WORD[sort]}</span></button>
+            <div className="inline-flex rounded-full border border-slate-200 p-0.5" role="group" aria-label="Show as">
+              <button type="button" onClick={() => pickView("cards")} aria-pressed={view === "cards"} aria-label="Cards" title="Cards" className={`grid h-10 w-10 place-items-center rounded-full ${view === "cards" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}><LayoutGrid className="h-4 w-4" /></button>
+              <button type="button" onClick={() => pickView("list")} aria-pressed={view === "list"} aria-label="List" title="List" className={`grid h-10 w-10 place-items-center rounded-full ${view === "list" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}><ListIcon className="h-4 w-4" /></button>
+            </div>
             {unlisted.length > 0 && <button type="button" onClick={() => setFromClasses(unlisted)} data-testid="caseload-from-classes"
               className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50">
               <Users className="h-4 w-4" /> Add students from my classes ({unlisted.length})
@@ -2347,8 +2397,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
         </form>
         </HubModal>
       )}
-      <div className="min-w-0">
-        {roster.length ? roster.map((s) => editing?.id === s.id ? (
+      {editing && (() => { const s = workspace.students.find((x) => x.id === editing.id); return s ? (
+        <div className="mt-6 min-w-0">
           <Card key={s.id} title={`Edit ${s.name}`}>
             <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
               <Labeled label="Student name"><Field value={editing.form.name} onChange={(e) => typed({ name: e.target.value })} required autoFocus={editing.start === "name"} /></Labeled>
@@ -2380,7 +2430,48 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               </div>
             </form>
           </Card>
-        ) : (
+        </div>) : null; })()}
+      {view === "cards" ? (
+        <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" data-testid="caseload-cards">
+          {shown.length ? shown.map((s) => { const r = nextReview(s, today); const u = urgency(r ? r.days : null); return (
+            <div key={s.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)] transition hover:shadow-[0_6px_18px_rgba(15,23,42,0.10)]" data-focus={`student:${s.id}`}>
+              <button type="button" onClick={() => setProfileId(s.id)} aria-label={`Open everything for ${s.name}`} data-testid={`hub-student-row-${s.id}`} className="block w-full text-left">
+                <span aria-hidden="true" className="block h-[118px] w-full" style={{ background: COVERS[coverFor(s)].css }} />
+                <span className="block px-4 pb-4 pt-3">
+                  <span className="block text-[17px] font-semibold leading-snug text-slate-900">
+                    {s.name}{r ? ` ${r.kind}` : ""}
+                    {s.supplementary && <span className="ml-2 inline-block rounded-full bg-sky-50 px-2 py-0.5 align-middle text-[10.5px] font-bold uppercase tracking-wide text-sky-700 ring-1 ring-sky-200">Supplementary</span>}
+                  </span>
+                  {r ? <>
+                    <span className={`mt-3 flex items-center gap-2 text-[14px] ${u === "overdue" ? "font-semibold text-red-700" : u === "soon" ? "font-semibold text-amber-800" : "text-slate-700"}`}>
+                      <span aria-hidden="true" className={`h-2 w-2 flex-none rounded-full ${u === "overdue" ? "bg-red-600" : u === "soon" ? "bg-amber-500" : u === "near" ? "bg-sky-500" : "bg-emerald-500"}`} />
+                      {daysWord(r.days)}
+                    </span>
+                    <span className="mt-2 block text-[14px] text-slate-700">{longDate(r.date)}</span>
+                  </> : <span className="mt-3 block text-[14px] text-slate-500">No IEP or reevaluation date yet</span>}
+                  {mOf(s.name).owed > 0 && <span className="mt-3 block h-[4px] overflow-hidden rounded-full bg-slate-100" title={`${mOf(s.name).met} of ${mOf(s.name).owed} minutes this week`}><span className="block h-full rounded-full" style={{ width: `${mOf(s.name).pct}%`, background: mOf(s.name).short ? "#c2410c" : "var(--hub-accent, #5b3be0)" }} /></span>}
+                </span>
+              </button>
+              <button type="button" onClick={() => setOpenId(s.id)} aria-label={`Quick details for ${s.name}`} title="More" data-testid={`hub-student-quick-${s.id}`}
+                className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-lg bg-white/90 text-slate-700 shadow-sm opacity-100 transition hover:bg-white sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>); }) : <div className="col-span-full"><Empty>{query ? `No students match "${query}".` : "Add students to start your caseload."}</Empty></div>}
+          {(() => { const s = workspace.students.find((x) => x.id === openId); return s && !editing ? (
+            <HubModal title={s.name} size="lg" closeOnBackdrop onClose={() => setOpenId(null)}>
+              <div className="mb-4">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Cover</div>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Cover">
+                  {COVERS.map((c, i) => <button key={c.name} type="button" title={c.name} aria-label={c.name} aria-pressed={coverFor(s) === i} onClick={() => setWorkspace((p) => ({ ...p, students: p.students.map((x) => x.id === s.id ? { ...x, cover: i } : x) }))}
+                    className={`h-10 w-14 rounded-lg ring-offset-2 ${coverFor(s) === i ? "ring-2 ring-slate-900" : "ring-1 ring-slate-200"}`} style={{ background: c.css }} />)}
+                </div>
+              </div>
+              {quick(s)}
+            </HubModal>) : null; })()}
+        </div>
+      ) : (
+      <div className="mt-4 min-w-0">
+        {shown.length ? shown.map((s) => (
           <div key={s.id} className="border-b border-slate-100">
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setProfileId(s.id)} aria-label={`Open everything for ${s.name}`}
@@ -2410,33 +2501,11 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
                 <ChevronDown className={`h-4 w-4 transition-transform ${openId === s.id ? "" : "-rotate-90"}`} />
               </button>
             </div>
-            {openId === s.id && (
-            <div className="pb-4">
-            <div className="-mt-1 mb-3 flex items-center gap-1">
-              <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
-              <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
-            </div>
-            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-              <Info label="Grade" value={s.grade || "—"} />
-              <Info label="Reading" value={s.readingLevel ? levelLabel(s.readingLevel) : "—"} />
-              <Info label="Math" value={s.mathLevel ? levelLabel(s.mathLevel) : "—"} />
-              <Info label="IEP deadline" value={s.iepDate || "—"} />
-              <Info label="Reeval deadline" value={s.reevalDate || "—"} />
-              <Info label="Accommodations" value={s.accommodations || "—"} />
-              {s.disability1 && <Info label="Disability 1" value={s.disability1} />}
-              {s.disability2 && <Info label="Disability 2" value={s.disability2} />}
-            </div>
-            <StudentTeamSummary workspace={workspace} student={s.name} />
-            {!s.disability1 && !s.disability2 && teamMembers(workspace, s.name).length === 0 && (
-              <button type="button" onClick={() => startEdit(s, "team")} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 text-sm font-medium text-slate-600 hover:bg-slate-50" data-testid="hub-student-add-team"><Plus className="h-4 w-4" /> Add disabilities and IEP team</button>
-            )}
-            {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{s.notes}</div>}
-            <button type="button" onClick={() => setProfileId(s.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-900 hover:bg-teal-100" data-testid="hub-student-profile"><Users className="h-4 w-4" /> See everything for {s.name.split(/\s+/)[0]}</button>
-            </div>
-            )}
+            {openId === s.id && quick(s)}
           </div>
-        )) : <Empty>Add students to start your caseload.</Empty>}
+        )) : <Empty>{query ? `No students match "${query}".` : "Add students to start your caseload."}</Empty>}
       </div>
+      )}
     </>
   );
 }

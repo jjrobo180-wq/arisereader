@@ -43,6 +43,8 @@ export type Student = {
    * with a full profile and in every student list like the rest. Left out of IEP-only lists (shared/hubSupplementary.ts).
    */
   supplementary?: boolean;
+  /** The cover picked for the student's card on the caseload (an index into COVERS, shared/hubStudentCards.ts). */
+  cover?: number;
 };
 
 export type Meeting = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
