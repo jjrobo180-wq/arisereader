@@ -19,6 +19,7 @@ import { parseTaskAsk, type AriseAsk } from "@shared/ariseAsks";
 import { TASK_LOOKS, type TaskLook } from "@shared/taskLooks";
 import { LookMenu, TaskLookView } from "@/components/teacher-hub/TaskLooks";
 import { DailySection } from "@/components/daily/DailyCheckins";
+import { RiseCard } from "@/components/daily/Rise";
 import type { DailyApi } from "@/components/daily/useDailyCheckins";
 
 /** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
@@ -236,6 +237,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
     {!looked && <div className="flex justify-end">{lookMenu()}</div>}
     {looked && aiTab && arise ? <div className="space-y-3"><button type="button" onClick={() => { setAiTab(false); openAsk(null); }} className="min-h-10 rounded-full bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200">← Back to to-dos</button><AriseAsks asks={arise.asks} loaded={arise.loaded} open={arise.open} say={(t) => toast(t)} /></div>
     : looked ? <>
+      {daily && (view === "all" || view === "today") && !search.trim() && <RiseCard d={daily} />}
       <TaskLookView look={look as Exclude<TaskLook, "classic">} tasks={workspace.tasks} shown={shown} lists={lists} today={today} view={view} setView={setView} views={views}
         listId={listId} setList={setListPick} listName={listName} toggle={toggle} edit={(id) => setEditing({ id })}
         add={(lid) => { if (lid !== undefined) setListPick(lid || "all"); setEditing({ id: null }); }}
@@ -289,6 +291,7 @@ export function Tasks({ workspace, setWorkspace, remove, makeId, toast, controls
                 <PrimaryButton type="submit" disabled={!quick.trim()}>{arise && parseTaskAsk(quick) ? "Ask Arise" : "Add"}</PrimaryButton>
               </form>
             )}
+            {daily && (view === "all" || view === "today") && <div className="mb-4"><RiseCard d={daily} /></div>}
             {daily && (view === "all" || view === "today") && <div className="mb-4"><DailySection d={daily} /></div>}
             {extra && (view === "all" || view === "today") && <div className="mb-4">{extra}</div>}
             <div className="flex flex-wrap items-center justify-between gap-3">

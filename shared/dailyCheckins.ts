@@ -364,7 +364,7 @@ export function withDone(settings: DailySettings | undefined, date: string, all:
   return { ...s, done: { date, ids } };
 }
 
-export type DailyReminder = { id: string; title: string; body: string; time: string; section: string };
+export type DailyReminder = { id: string; title: string; body: string; time: string; section: string; /** Opens somewhere of its own (the daily check-in on its card) instead of the list. */ url?: string };
 /** The check-in reminders for a day that can be known without the plugins' data: Cooked's meals, workout,
  *  weigh-in and sleep (when Cooked is on), and habits and routines given a time. Medicines and pills remind
  *  through their own plugins, and accountability through its own nudges. */
@@ -424,7 +424,7 @@ export function dueDailyReminders(plan: DailyReminder[], o: { date: string; minu
     const due = times.find(([t, suffix]) => o.minutes >= t && o.minutes < t + o.window && !o.sent[`${o.keyPrefix}${r.id}:${o.date}${suffix}`]);
     if (!due) continue;
     const still = r.title.replace(/^Log your /, "log your ").replace(/^Still to do today: /, "").replace(/^Chore( still to do)?: /, "");
-    out.push({ key: `${o.keyPrefix}${r.id}:${o.date}${due[1]}`, title: due[1] ? `Still to do: ${still}` : r.title, body: r.body, url: o.link ? o.link(r.id) : o.url });
+    out.push({ key: `${o.keyPrefix}${r.id}:${o.date}${due[1]}`, title: due[1] ? `Still to do: ${still}` : r.title, body: r.body, url: r.url || (o.link ? o.link(r.id) : o.url) });
   }
   return out;
 }

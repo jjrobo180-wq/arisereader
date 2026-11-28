@@ -9,6 +9,7 @@ import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanLifePlan, type LifePlan } from "./lifePlan";
 import { cleanLifeScore, type LifeScoreData } from "./lifeScore";
 import { cleanMindset, type MindsetData } from "./mindset";
+import { cleanRise, type RiseData } from "./rise";
 import { cleanDaily, type DailySettings } from "./dailySettings";
 import { cleanHubOpen, type HubOpenRule } from "./hubAutoOpen";
 import { cleanRecaps } from "./recaps";
@@ -293,6 +294,8 @@ export type Family = {
   lifeScore?: LifeScoreData;
   /** Mindset, the self-help feed: answers, dream board, wins, reflections, time by day (shared/mindset.ts). Not set until set up. */
   mindset?: MindsetData;
+  /** The daily check-in: why, vision, one streak, nudges (shared/rise.ts). Not set until first used. */
+  rise?: RiseData;
   /** Daily check-ins in the task list (shared/dailyCheckins.ts): what's hidden, times, reminders. Not set until changed. */
   daily?: DailySettings;
   /** Open a chosen hub by time or place when To Do opens (shared/hubAutoOpen.ts). */
@@ -704,6 +707,7 @@ export function cleanFamily(input: unknown): Family {
     ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
     ...(() => { const ls = cleanLifeScore(raw.lifeScore); return ls ? { lifeScore: ls } : {}; })(),
     ...(() => { const ms = cleanMindset(raw.mindset); return ms ? { mindset: ms } : {}; })(),
+    ...(() => { const rs = cleanRise(raw.rise); return rs ? { rise: rs } : {}; })(),
     ...(() => { const daily = cleanDaily(raw.daily); return daily ? { daily } : {}; })(),
     ...(() => { const hubOpen = cleanHubOpen(raw.hubOpen); return hubOpen ? { hubOpen } : {}; })(),
     linkPage: cleanLinkPage(raw.linkPage),

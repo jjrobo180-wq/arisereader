@@ -64,7 +64,8 @@ test("the switcher is at the top of Tasks; LifeHub starts on List, WorkHub on th
   // One "Customize" button opens the looks in a menu (not a row of buttons), beside each look's own buttons.
   assert.match(page, /\{!looked && <div className="flex justify-end">\{lookMenu\(\)\}<\/div>\}/);
   assert.match(page, /empty=\{emptyText\} customize=\{lookMenu\} daily=\{daily\} \/>/);
-  assert.match(page, /looked \? <>\s*<TaskLookView look=/);
+  // The daily check-in card (components/daily/Rise.tsx) sits above the look.
+  assert.match(page, /looked \? <>\s*\{daily && \(view === "all" \|\| view === "today"\) && !search\.trim\(\) && <RiseCard d=\{daily\} \/>\}\s*<TaskLookView look=/);
   // The edit pop-up is shared by every look.
   assert.equal(page.match(/<TaskModal /g)?.length, 1);
   const looks = readFileSync("client/src/components/teacher-hub/TaskLooks.tsx", "utf8");

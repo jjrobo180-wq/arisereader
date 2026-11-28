@@ -18,6 +18,7 @@ import { dosesOn, needsRefill } from "./pills";
 import { cycleSummary } from "./familyCycle";
 import { duePlanReminders } from "./lifePlan";
 import { dailyReminderPlan, dueDailyReminders } from "./dailyCheckins";
+import { motivation, riseReminders } from "./rise";
 
 export const TODO_REMINDER_URL = "/#/lifehub";
 /** Where tapping a reminder lands: the screen it's about (AriseTodo reads `go`). */
@@ -92,7 +93,16 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
 
   // Daily check-ins (shared/dailyCheckins.ts): log each meal, train, weigh in, habits and routines with a time.
   // They come back (when "Keep after me" is on) until done; "done" comes from the phone, which sees Cooked too.
-  const dailyPlan = dailyReminderPlan({ settings: family.daily, cooked: isOn("cooked", family), family, habits: isOn("habits", family), routines: isOn("routines", family) }, date);
+  const basePlan = dailyReminderPlan({ settings: family.daily, cooked: isOn("cooked", family), family, habits: isOn("habits", family), routines: isOn("routines", family) }, date);
+  // The daily check-in (shared/rise.ts): once it's been used, each reminder also says why it matters (it still opens
+  // the exact place it's about), and the morning nudge and the evening streak saver, which open the check-in, join in.
+  const rise = family.rise;
+  const doneToday = family.daily?.done?.date === date ? family.daily.done.ids.length : 0;
+  const totalToday = rise?.days.find((d) => d.date === date)?.total ?? 0;
+  const dailyPlan = rise && family.daily?.on !== false ? [
+    ...basePlan.map((r) => { const why = motivation(rise, date, r.id); return { ...r, body: why ? `${r.body.replace(/\.$/, "")}. ${why}` : r.body }; }),
+    ...riseReminders(rise, date, totalToday ? { done: Math.max(doneToday, rise.days.find((d) => d.date === date)?.done ?? 0), total: totalToday } : null, goUrl("tasks", "view=today&rise=start")),
+  ].sort((a, b) => a.time.localeCompare(b.time)) : basePlan;
   const dailyCovers = isOn("cooked", family) && family.daily?.on !== false;
   out.push(...dueDailyReminders(dailyPlan, { date, minutes, sent, keyPrefix: "todo:daily:", url: goUrl("tasks", "view=today"), link: (id) => checkinLink(TODO_REMINDER_URL, id), followUps: prefs.level === "persistent" ? FOLLOW_UPS : 0, every: FOLLOW_UP_EVERY, window: SEND_WINDOW_MINUTES }));
 

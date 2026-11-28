@@ -9,6 +9,7 @@ import { dueFamilyReminders, dueTodoReminders, goUrl, prepareTodoReminders } fro
 import type { Workspace } from "@shared/teacherHub";
 import { hasNativePlugin, isNativeApp, nativeCall, nativeListen, notificationHash } from "@/lib/nativeApp";
 import { startApplePush, stopApplePush } from "@/lib/applePush";
+import { isMealReminder, mealCheckin } from "@shared/rise";
 
 /** "family" is FamilyHub's shared check-ins and chores (Nov 24, 2026). */
 export type ReminderKind = "life" | "work" | "family";
@@ -90,6 +91,8 @@ export function reminderId(key: string): number {
   return (h >>> 1) || 1;
 }
 
+/** The button set on meal reminders. */
+export const MEAL_ACTIONS = "arise-meal";
 export type PlannedReminder = HubReminder & { at: number };
 /** Every reminder due from `from` to `from + ahead`, at the five-minute step it first comes due,
  *  exactly as the server's every-few-minutes check would send them. News headlines are left out
@@ -122,7 +125,8 @@ export function nativeNotifications(kind: ReminderKind, plan: PlannedReminder[])
     seen.set(r.at, n + 1);
     return {
       id: reminderId(`${kind}:${r.key}`), title: r.title, body: r.body, threadIdentifier: `${kind}:${r.key}`,
-      schedule: { at: new Date(r.at + n * SAME_TIME_GAP_MS), allowWhileIdle: true }, extra: { url: r.url }, ...soundField(),
+      schedule: { at: new Date(r.at + n * SAME_TIME_GAP_MS), allowWhileIdle: true }, extra: { url: r.url, ...(isMealReminder(r.key) ? { rise: mealCheckin(r.key) } : {}) }, ...soundField(),
+      ...(isMealReminder(r.key) ? { actionTypeId: MEAL_ACTIONS } : {}),
     };
   });
 }
@@ -161,9 +165,14 @@ export function installReminderTaps(): void {
   // Nothing is asked here; startApplePush(false) only goes ahead if notifications are already allowed.
   void startApplePush(false);
   try {
+    // The buttons on a meal reminder (Nov 27, 2026): "Same as last time" logs it again; "Log it" opens the check-in on it.
+    void nativeCall(PLUGIN, NAME, "registerActionTypes", { types: [{ id: MEAL_ACTIONS, actions: [{ id: "same", title: "Same as last time", foreground: true }, { id: "log", title: "Log it", foreground: true }] }] }).catch(() => {});
     void nativeListen("LocalNotifications", "localNotificationActionPerformed", (e: any) => {
-      const url = String(e?.notification?.extra?.url || "");
+      let url = String(e?.notification?.extra?.url || "");
       if (!url) return;
+      // "Same as last time": the daily check-in (components/daily/Rise.tsx) logs that meal again from Tasks.
+      const rise = String(e?.notification?.extra?.rise || "");
+      if (e?.actionId === "same" && rise) url = `${url.split("?")[0]}?go=tasks&view=today&rise=${encodeURIComponent(rise)}&act=same`;
       const hash = notificationHash(url) ?? fitLinkHash(url);
       if (hash !== null) window.location.hash = hash;
     });

@@ -15,6 +15,7 @@ import type { Family } from "@shared/familyHub";
 import type { FitData, Meal as FitMeal } from "@shared/fit";
 import type { AcctTask, Checkin as AcctCheckin } from "@shared/accountability";
 import { fillDaily, type DailySettings } from "@shared/dailySettings";
+import { recordDay } from "@shared/rise";
 import {
   addWater, buildCheckins, logMeal, logWeight, logWorkout, markChore, markHabit, markMed, markPill, markRoutine, removeCustom, removeFood, saveCustom, shownCheckins, tickCooked, tickCustom, withDone,
   type AcctInput, type Checkin, type FoodIn,
@@ -73,6 +74,10 @@ export type DailyApi = {
   fit: FitData;
   family: Family | null;
   token: string | null;
+  /** The hub's family, for the daily check-in's own data (shared/rise.ts). */
+  setFamily: DailyInput["setFamily"];
+  /** Sets the goal weight in Health & Fitness (kg; null clears it). */
+  setGoalKg: (kg: number | null) => void;
 };
 
 export function useDailyCheckins(input: DailyInput): DailyApi {
@@ -176,7 +181,8 @@ export function useDailyCheckins(input: DailyInput): DailyApi {
     saveCustom: (c) => setSettings((x) => saveCustom(x, c, input.by || "")),
     removeCustom: (id) => setSettings((x) => removeCustom(x, id)),
     shared: !!input.shared, on: { ...input.on, cooked: cookedOn },
-    fit, family: input.family, token,
+    fit, family: input.family, token, setFamily,
+    setGoalKg: (kg) => fitDo((d) => { const { goalKg: _old, ...rest } = d.profile; return { ...d, profile: kg ? { ...rest, goalKg: Math.round(kg * 10) / 10 } : rest }; }),
   };
 }
 
@@ -213,5 +219,22 @@ export function DailyDoneSync({ family, setFamily, on }: { family: Family; setFa
       return merged.done && f.daily?.done && merged.done.date === f.daily.done.date && merged.done.ids.join("|") === f.daily.done.ids.join("|") ? f : { ...f, daily: merged };
     });
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The daily check-in's streak (shared/rise.ts): today's done and total, and where the weight goal stands for the
+  // reminders, once the check-in has been used.
+  const shown = shownCheckins(all, fillDaily(family.daily));
+  const lastKg = fit.weights.length ? fit.weights[fit.weights.length - 1].kg : 0;
+  const riseKey = `${date}#${shown.done}/${shown.total}#${lastKg}/${fit.profile.goalKg ?? 0}/${fit.profile.units}`;
+  const lastRise = useRef("");
+  useEffect(() => {
+    if (lastRise.current === riseKey || !family.rise) return;
+    lastRise.current = riseKey;
+    setFamily((f) => {
+      if (!f.rise) return f;
+      let r = recordDay(f.rise, date, shown.done, shown.total);
+      const kg = lastKg && fit.profile.goalKg ? { now: lastKg, goal: fit.profile.goalKg, units: fit.profile.units } : undefined;
+      if (JSON.stringify(kg) !== JSON.stringify(r.kg)) { r = { ...r }; if (kg) r.kg = kg; else delete r.kg; }
+      return r === f.rise ? f : { ...f, rise: r };
+    });
+  }, [riseKey, !!family.rise]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
