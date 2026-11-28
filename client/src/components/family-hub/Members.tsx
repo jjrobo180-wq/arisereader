@@ -1,6 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Rocket, BadgeCheck as BadgeCheckIcon4, Sunrise as SunriseMind, Smartphone as SmartphoneFeed } from "lucide-react";
+import { Rocket, BadgeCheck as BadgeCheckIcon4, Sunrise as SunriseMind, Smartphone as SmartphoneFeed, Globe2 as WikiGlobe } from "lucide-react";
 import { Share2, Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
@@ -14,6 +14,7 @@ const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "�
 export const SECTION_INFO: Record<FamilySection, { label: string; detail: string; icon: ReactNode }> = {
   home: { label: "Home", detail: "Today at a glance", icon: null },
   lifescore: { label: "Life Score", detail: "Every part of your life scored, with the science and how to raise it", icon: <GaugeIcon2 size={17} /> },
+  wiki: { label: "Wikiverse", detail: "Every Wikipedia article as an endless swipe feed that learns what you like", icon: <WikiGlobe size={17} /> },
   feed: { label: "Arise Feed", detail: "Your whole week as a swipe feed that never ends: to-dos, events, health, money, Life Score", icon: <SmartphoneFeed size={17} /> },
   mindset: { label: "Mindset", detail: "A swipe feed made for you: quotes, advice, faith, dreams and wins", icon: <SunriseMind size={17} /> },
   tasks: { label: "Tasks", detail: "Your to-do lists", icon: null },

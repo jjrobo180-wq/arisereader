@@ -128,6 +128,7 @@ import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { registerGradePlanRoutes } from "./gradePlans";
 import { registerProblemSolverRoutes } from "./problemSolver";
 import { registerAccountLookRoutes } from "./accountLook";
+import { registerWikiRoutes } from "./wikiFeed";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
 import { askOpenAiJson, registerTodoAsks } from "./todoAsks";
@@ -2051,6 +2052,8 @@ export async function registerRoutes(
   });
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerAccountLookRoutes(app, authMiddleware, storage as any);
+  // Wikiverse (shared/wikiFeed.ts): its learned taste, saves, like counts and comments.
+  registerWikiRoutes(app, authMiddleware, storage as any);
   registerProblemSolverRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerGradePlanRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
