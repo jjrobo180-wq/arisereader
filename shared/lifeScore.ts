@@ -250,6 +250,8 @@ export function lifeInputFrom(family: any, tasks: { due: string; done: boolean }
 // ——— Dates and numbers ———————————————————————————————————————————————————————————————————————————————————
 const at = (d: string) => new Date(`${d}T12:00:00`);
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** The local day (YYYY-MM-DD) of a date or a full timestamp. */
+export const localDay = (v: unknown): string => { const t = String(v ?? ""); if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t; const x = new Date(t); return isNaN(x.getTime()) ? "" : iso(x); };
 export const plusDays = (d: string, n: number) => { const x = at(d); x.setDate(x.getDate() + n); return iso(x); };
 export const lastDays = (today: string, n: number) => Array.from({ length: n }, (_, i) => plusDays(today, i - n + 1));
 const clamp = (n: number) => Math.round(Math.max(0, Math.min(100, n)));
@@ -280,8 +282,9 @@ export function factsFor(input: LifeInput, d: string): DayFacts {
   const mindful = h.mindful !== undefined || c.mindful !== undefined || med ? (h.mindful ?? 0) + (c.mindful ?? 0) + med : undefined;
   // Exercise: the check-in, else the most any source has (Apple Watch exercise minutes, Health workouts, the
   // Health & Fitness workouts and runs, the LifeHub diary and Workouts page).
-  const fitMin = (Array.isArray(input.fit?.workouts) ? input.fit.workouts : []).filter((w: any) => w?.date === d).reduce((a: number, w: any) => a + Math.round((Number(w.secs) || 0) / 60), 0)
-    + (Array.isArray(input.fit?.runs) ? input.fit.runs : []).filter((r: any) => r?.date === d).reduce((a: number, r: any) => a + Math.round((Number(r.secs) || 0) / 60), 0);
+  // Cooked saves workouts and runs with a full timestamp (UTC); the local day is what counts.
+  const fitMin = (Array.isArray(input.fit?.workouts) ? input.fit.workouts : []).filter((w: any) => localDay(w?.date) === d).reduce((a: number, w: any) => a + Math.round((Number(w.secs) || 0) / 60), 0)
+    + (Array.isArray(input.fit?.runs) ? input.fit.runs : []).filter((r: any) => localDay(r?.date) === d).reduce((a: number, r: any) => a + Math.round((Number(r.secs) || 0) / 60), 0);
   const logged = Math.max(sumBy(input.exercise, d) + (input.workouts.some((w) => w.date === d) ? 30 : 0), fitMin, h.exMin ?? 0, h.woMin ?? 0);
   const exercise = c.exercise !== undefined ? Math.max(c.exercise, logged) : logged ? logged : h.exMin !== undefined ? 0 : undefined;
   const gr = input.gratitude.find((g) => g.date === d);

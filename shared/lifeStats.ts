@@ -4,7 +4,7 @@
 // (the Explorer). Reads the whole LifeHub, the to-dos from LifeHub, WorkHub and FamilyHub, WorkHub's records, the
 // Health & Fitness (Cooked) diary, Apple Health and Life Score's own check-ins, questionnaires and labs.
 // Pure, so it's tested (tests/life-stats.test.ts). Everything is tolerant: missing data just leaves things out.
-import { lastDays, plusDays, screeningStatus, type LifeScoreData, type LifeScoreResult } from "./lifeScore";
+import { lastDays, plusDays, screeningStatus, type LifeScoreData, type LifeScoreResult, localDay } from "./lifeScore";
 import { SCALES, adaRisk, le8, scoreScale, vo2Read } from "./lifeScales";
 
 // ——— Shapes ————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -165,8 +165,8 @@ export function buildSeries(x: StatsInput): Series[] {
   // Exercise minutes: check-in, LifeHub diary, Health workouts, Cooked workouts and runs.
   const ex = put(S("exercise", "Exercise", "min", "Activity"));
   for (const e of arr(f.health?.exercise)) add(ex.values, day(e.date), Number(e.minutes) || 0);
-  for (const w of arr(fit.workouts)) add(ex.values, day(w.date), Math.round((Number(w.secs) || 0) / 60));
-  for (const r of arr(fit.runs)) add(ex.values, day(r.date), Math.round((Number(r.secs) || 0) / 60));
+  for (const w of arr(fit.workouts)) add(ex.values, localDay(w.date), Math.round((Number(w.secs) || 0) / 60));
+  for (const r of arr(fit.runs)) add(ex.values, localDay(r.date), Math.round((Number(r.secs) || 0) / 60));
   for (const [d, v] of Object.entries(h)) if (v.woMin && !(d in ex.values)) ex.values[d] = v.woMin;
   for (const [d, v] of Object.entries(c)) if (v.exercise !== undefined) ex.values[d] = Math.max(ex.values[d] ?? 0, v.exercise);
   // To-dos.

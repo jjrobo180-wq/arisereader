@@ -29,6 +29,9 @@ export const SwipeFeed = forwardRef<SwipeFeedHandle, Props>(function SwipeFeed({
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      // Typing in a card (a journal line, a food search) keeps its keys: space types a space.
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       if (e.key === "Escape") onClose();
       else if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); goTo(current() + 1); }
       else if (e.key === "ArrowUp" || e.key === "PageUp") { e.preventDefault(); goTo(current() - 1); }
