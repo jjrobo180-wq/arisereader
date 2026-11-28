@@ -2,7 +2,7 @@
 // everything, and a 60-second swipe-through of today's check-ins, one tap each, starting with why it matters.
 // A reminder's link (?rise=<check-in id>, &act=same from a meal reminder's button) opens it right on that card.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronUp, Flame, Plus, Settings2, Share2, Snowflake, TrendingUp, X } from "lucide-react";
+import { Activity, Bed, Check, CheckCircle2, ChevronUp, ClipboardList, Droplet, Dumbbell, Flame, Handshake, Home, Hourglass, Lightbulb, MessageCircle, Pill, Plus, Repeat, Scale, Settings2, Share2, Snowflake, Sprout, Target, TrendingUp, UtensilsCrossed, Wind, X, type LucideIcon } from "lucide-react";
 import { Modal, inputClass, primary } from "@/components/family-hub/ui";
 import { SwipeFeed, type SwipeFeedHandle } from "@/components/swipe/SwipeFeed";
 import { confetti, tap } from "@/lib/celebrate";
@@ -13,7 +13,8 @@ import { clock12, type Checkin, type FoodIn } from "@shared/dailyCheckins";
 import type { DailyApi } from "./useDailyCheckins";
 
 const MEAL_NAME: Record<string, string> = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", snacks: "snack", snack: "snack" };
-const KIND_EMOJI: Record<string, string> = { meal: "🍽️", workout: "🏋️", water: "💧", weight: "⚖️", sleep: "😴", fast: "⏳", yoga: "🧘", breathe: "🌬️", stretch: "🤸", med: "💊", pill: "💊", habit: "🔁", routine: "📋", acct: "🤝", chore: "🏠", custom: "✅" };
+const KIND_ICON: Record<string, LucideIcon> = { meal: UtensilsCrossed, workout: Dumbbell, water: Droplet, weight: Scale, sleep: Bed, fast: Hourglass, yoga: Activity, breathe: Wind, stretch: Activity, med: Pill, pill: Pill, habit: Repeat, routine: ClipboardList, acct: Handshake, chore: Home, custom: CheckCircle2 };
+const KindIcon = ({ kind, className = "h-3.5 w-3.5" }: { kind: string; className?: string }) => { const I = KIND_ICON[kind] ?? CheckCircle2; return <I className={className} aria-hidden="true" />; };
 const KIND_BG: Record<string, string> = { meal: "#7c2d12", workout: "#3b2a8a", water: "#0c4a6e", weight: "#134e4a", med: "#831843", pill: "#831843", habit: "#14532d", chore: "#7c2d12", custom: "#312e81" };
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const toUnits = (kg: number, units: "lb" | "kg") => Math.round((units === "lb" ? kg * 2.20462 : kg) * 10) / 10;
@@ -92,8 +93,8 @@ export function RiseCard({ d }: { d: DailyApi }) {
       </div>
     </div>
     {rise && (rise.why || rise.vision.length > 0) && <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
-      {rise.why && <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90">💭 {rise.why.length > 60 ? `${rise.why.slice(0, 58)}…` : rise.why}</span>}
-      {rise.vision.map((v) => <span key={v.id} className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold">{v.emoji} {v.text}</span>)}
+      {rise.why && <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90"><MessageCircle className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />{rise.why.length > 60 ? `${rise.why.slice(0, 58)}…` : rise.why}</span>}
+      {rise.vision.map((v) => <span key={v.id} className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold"><Target className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />{v.text}</span>)}
     </div>}
     <div className="mt-3 flex gap-2">
       <button onClick={() => { ensure(); setOpen({ at: "start" }); }} data-testid="rise-start" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-white text-[15px] font-black text-[#241c52] shadow-lg transition active:scale-[.98]"><ChevronUp size={19} />{left ? "60-second check-in" : "Look back at today"}</button>
@@ -121,7 +122,7 @@ function RiseCheckin({ d, startAt, onClose }: { d: DailyApi; startAt: string; on
   const [celebrated, setCelebrated] = useState(false);
   const intro = <Intro d={d} rise={rise} count={ids.length} go={() => feed.current?.next()} />;
   const end = <div className="flex h-full flex-col items-center justify-center bg-[radial-gradient(100%_80%_at_50%_10%,#16a34a,#0d0b1a_75%)] px-7 text-center">
-    <p className="text-7xl">{todayCounts ? "🔥" : "🌱"}</p>
+    <div className="flex justify-center">{todayCounts ? <Flame className="h-20 w-20 text-orange-300" strokeWidth={1.6} aria-hidden="true" /> : <Sprout className="h-20 w-20 text-emerald-300" strokeWidth={1.6} aria-hidden="true" />}</div>
     <h2 className="mt-4 text-3xl font-black">{d.done} of {d.total} done</h2>
     <p className="mt-2 text-lg font-bold text-white/85">{todayCounts ? `${st.days}-day streak${st.days >= st.best && st.days > 2 ? " — your best yet" : ""}` : `${Math.max(1, Math.ceil(d.total / 2) - d.done)} more and today counts`}</p>
     <p className="mt-4 max-w-sm text-sm leading-6 text-white/70">{motivation(rise, d.date, "end") || "That's how it's done: a minute a day, every day."}</p>
@@ -152,8 +153,8 @@ function Intro({ d, rise, count, go }: { d: DailyApi; rise: RiseData; count: num
         : <><h2 className="mt-5 text-3xl font-black leading-tight">Why are you doing this?</h2><p className="mt-2 text-sm text-white/70">One line. We'll remind you of it when it's hard.</p>
           <div className="mt-4 flex gap-2"><input value={why} onChange={(e) => setWhy(e.target.value.slice(0, 400))} placeholder="To keep up with my kids" className="min-h-12 w-full rounded-2xl bg-white/10 px-4 text-white outline-none ring-1 ring-white/20 placeholder:text-white/40" />
             <button disabled={!why.trim()} onClick={() => d.setFamily((f) => ({ ...f, rise: { ...(f.rise ?? emptyRise()), why: why.trim() } }))} className="min-h-12 rounded-2xl bg-white px-4 font-black text-[#1c1440] disabled:opacity-40">Save</button></div></>}
-      {goal && <div className="mt-6 rounded-3xl bg-white/10 p-4 ring-1 ring-white/15"><p className="text-sm font-black">⚖️ {goal.text}</p><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-r from-[#7fffd4] to-[#ffe27a]" style={{ width: `${goal.pct * 100}%` }} /></div></div>}
-      {rise.vision.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{rise.vision.slice(0, 6).map((v) => <span key={v.id} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold">{v.emoji} {v.text}</span>)}</div>}
+      {goal && <div className="mt-6 rounded-3xl bg-white/10 p-4 ring-1 ring-white/15"><p className="flex items-center gap-1.5 text-sm font-black"><Scale className="h-4 w-4" aria-hidden="true" />{goal.text}</p><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-r from-[#7fffd4] to-[#ffe27a]" style={{ width: `${goal.pct * 100}%` }} /></div></div>}
+      {rise.vision.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{rise.vision.slice(0, 6).map((v) => <span key={v.id} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold"><Target className="h-3.5 w-3.5" aria-hidden="true" />{v.text}</span>)}</div>}
       <button onClick={go} className="mt-8 min-h-14 w-full rounded-full bg-white text-lg font-black text-[#1c1440] shadow-2xl active:scale-[.98]" data-testid="rise-go">{count ? `Let's go · ${count} thing${count === 1 ? "" : "s"}` : "See today"}</button>
     </div>
   </div>;
@@ -163,7 +164,7 @@ function CheckCard({ c, d, done, skip }: { c: Checkin; d: DailyApi; done: () => 
   const bg = `radial-gradient(110% 75% at 50% 10%, ${KIND_BG[c.kind] || "#312e81"}, #0d0b1a 78%)`;
   const wrap = (body: ReactNode) => <div className="flex h-full flex-col justify-center px-6 pb-24 pt-20 text-white" style={{ background: bg }}>
     <div className="mx-auto w-full max-w-md">
-      <p className="text-[11px] font-extrabold uppercase tracking-[.25em] text-white/60">{KIND_EMOJI[c.kind]} {c.time ? clock12(c.time) : "Today"}{c.done ? " · done ✓" : ""}</p>
+      <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[.25em] text-white/60"><KindIcon kind={c.kind} />{c.time ? clock12(c.time) : "Today"}{c.done ? " · done" : ""}</p>
       <h2 className="mt-3 text-[34px] font-black leading-tight">{c.title}</h2>
       {c.detail && <p className="mt-1 text-sm font-semibold text-white/60">{c.detail}</p>}
       <div className="mt-7">{body}</div>
@@ -178,14 +179,14 @@ function CheckCard({ c, d, done, skip }: { c: Checkin; d: DailyApi; done: () => 
     case "water": {
       const p = c.progress;
       return wrap(<div className="space-y-3"><p className="text-center text-6xl font-black">{p ? Math.round(p.now / 250) : 0}<span className="text-2xl text-white/50"> / {p ? Math.round(p.goal / 250) : 8} cups</span></p>
-        <button className={white} onClick={() => { d.addWater(250); tap("light"); }}>💧 +1 cup</button>
+        <button className={white} onClick={() => { d.addWater(250); tap("light"); }}><Droplet className="mr-1.5 inline h-4 w-4 align-[-3px]" aria-hidden="true" />+1 cup</button>
         <div className="grid grid-cols-2 gap-2"><button className={ghost} onClick={() => { d.addWater(500); tap("light"); }}>+2 cups</button><button className={ghost} onClick={done}>That's it for now</button></div></div>);
     }
     case "weight": return wrap(<WeightBody d={d} done={done} white={white} />);
     case "workout": return wrap(<div className="space-y-2"><div className="grid grid-cols-2 gap-2">{[["Walk", 20], ["Run", 30], ["Gym", 45], ["Yoga", 20], ["Bike", 30], ["Stretch", 10]].map(([n, m]) => <button key={n} className={ghost} onClick={() => { d.logWorkout(n as string, m as number); done(); }}>{n} · {m}m</button>)}</div>
       <button className={white} onClick={() => { if (!c.done) d.toggle(c); done(); }}>Rest day</button></div>);
     case "med": case "pill": return wrap(<div className="space-y-2"><button className={white} onClick={() => { d.dose(c, "taken"); done(); }}><Check size={20} /> Taken</button><button className={ghost} onClick={() => { d.dose(c, "skipped"); done(); }}>Skipped</button></div>);
-    default: return wrap(c.done ? <button className={white} onClick={skip}>Already done ✓</button> : <div className="space-y-2">
+    default: return wrap(c.done ? <button className={white} onClick={skip}><Check className="mr-1.5 inline h-4 w-4 align-[-3px]" aria-hidden="true" />Already done</button> : <div className="space-y-2">
       <button className={white} onClick={() => { if (d.toggle(c) === "open") { d.open(c); return; } done(); }} data-testid="rise-done"><Check size={20} /> Done</button>
       <button className={ghost} onClick={skip}>Not yet</button></div>);
   }
@@ -206,7 +207,7 @@ function MealBody({ c, d, done, white, ghost }: { c: Checkin; d: DailyApi; done:
     finally { setBusy(false); setText(""); }
   };
   return <div className="space-y-3">
-    {logged.length > 0 && <p className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-bold text-emerald-100">✓ {logged.map((f) => f.name).join(", ")} · {fmt(logged.reduce((s, f) => s + f.kcal * f.servings, 0))} cal</p>}
+    {logged.length > 0 && <p className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-bold text-emerald-100"><Check className="mr-1.5 inline h-4 w-4 align-[-3px]" aria-hidden="true" />{logged.map((f) => f.name).join(", ")} · {fmt(logged.reduce((s, f) => s + f.kcal * f.servings, 0))} cal</p>}
     {last && <button className={white} onClick={() => { d.logMeal(c, last.foods); done(); }} data-testid="rise-same">Same as last {word} <span className="text-sm font-bold text-slate-500">· {fmt(last.foods.reduce((s, f) => s + f.kcal * (f.servings || 1), 0))} cal</span></button>}
     {last && <p className="-mt-1 truncate px-1 text-center text-xs text-white/50">{last.foods.map((f) => f.name).join(", ")}</p>}
     {recent.length > 0 && <div className="flex flex-wrap gap-2">{recent.map((r) => <button key={r.name} onClick={() => { d.logMeal(c, [{ ...r }]); tap("light"); }} className="inline-flex min-h-10 max-w-full items-center gap-1 rounded-full bg-white/12 px-3.5 text-sm font-bold ring-1 ring-white/15"><Plus size={14} /><span className="truncate">{r.name}</span></button>)}</div>}
@@ -242,10 +243,9 @@ function RiseSetup({ d, onClose }: { d: DailyApi; onClose: () => void }) {
   const units = d.fit.profile.units;
   const nowKg = d.fit.weights.length ? d.fit.weights[d.fit.weights.length - 1].kg : 0;
   const [goal, setGoal] = useState(d.fit.profile.goalKg ? String(toUnits(d.fit.profile.goalKg, units)) : "");
-  const [emoji, setEmoji] = useState("⭐");
   const [text, setText] = useState("");
   const set = (p: Partial<RiseData>) => setR((x) => ({ ...x, ...p }));
-  const addVision = (e: string, t: string) => { if (!t.trim() || r.vision.length >= 12) return; set({ vision: [...r.vision, { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, emoji: e || "⭐", text: t.trim().slice(0, 120) }] }); setText(""); setEmoji("⭐"); };
+  const addVision = (e: string, t: string) => { if (!t.trim() || r.vision.length >= 12) return; set({ vision: [...r.vision, { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, emoji: e, text: t.trim().slice(0, 120) }] }); setText(""); };
   const save = () => {
     const g = Number(goal), goalKg = g > 0 ? (units === "lb" ? g / 2.20462 : g) : 0;
     const changedGoal = Math.round(goalKg * 10) !== Math.round((d.fit.profile.goalKg || 0) * 10);
@@ -267,9 +267,9 @@ function RiseSetup({ d, onClose }: { d: DailyApi; onClose: () => void }) {
         <div className="flex items-center gap-2"><input type="number" inputMode="decimal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder={nowKg ? String(toUnits(nowKg, units)) : "180"} className={inputClass + " w-36"} /><span className="text-sm font-bold text-slate-600">{units}</span>
           {nowKg ? <span className="text-xs text-slate-500">You're at {toUnits(nowKg, units)} {units}</span> : <span className="text-xs text-slate-500">Weigh in during a check-in to track it</span>}</div></div>
       <div><p className="mb-1.5 text-xs font-black uppercase tracking-wider text-slate-500">Vision board</p>
-        <div className="flex flex-wrap gap-2">{r.vision.map((v) => <span key={v.id} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 py-1.5 pl-3 pr-1.5 text-sm font-semibold text-violet-900">{v.emoji} {v.text}<button onClick={() => set({ vision: r.vision.filter((x) => x.id !== v.id) })} aria-label={`Remove ${v.text}`} className="rounded-full p-1 text-violet-400 hover:bg-violet-100"><X size={14} /></button></span>)}</div>
-        <form onSubmit={(e) => { e.preventDefault(); addVision(emoji, text); }} className="mt-2 flex gap-2"><input value={emoji} onChange={(e) => setEmoji([...e.target.value].slice(-2).join(""))} aria-label="Emoji" className="h-11 w-12 shrink-0 rounded-xl border border-slate-200 text-center text-xl" /><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Fit into my old jeans" className={inputClass} /><button className="min-h-11 rounded-xl bg-violet-600 px-3 text-sm font-bold text-white">Add</button></form>
-        {r.vision.length < 3 && <div className="mt-2 flex flex-wrap gap-1.5">{[{ emoji: "👖", text: "Fit into my old jeans" }, { emoji: "🏃", text: "Run a 5K without stopping" }, { emoji: "👨‍👧", text: "Keep up with my kids" }, ...DREAM_IDEAS.filter((x) => ["health", "money", "travel"].includes(x.cat)).slice(0, 5).map((x) => ({ emoji: x.emoji, text: x.title }))].filter((x) => !r.vision.some((v) => v.text === x.text)).map((x) => <button key={x.text} onClick={() => addVision(x.emoji, x.text)} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{x.emoji} {x.text}</button>)}</div>}</div>
+        <div className="flex flex-wrap gap-2">{r.vision.map((v) => <span key={v.id} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 py-1.5 pl-3 pr-1.5 text-sm font-semibold text-violet-900"><Target className="h-3.5 w-3.5 text-violet-500" aria-hidden="true" />{v.text}<button onClick={() => set({ vision: r.vision.filter((x) => x.id !== v.id) })} aria-label={`Remove ${v.text}`} className="rounded-full p-1 text-violet-400 hover:bg-violet-100"><X size={14} /></button></span>)}</div>
+        <form onSubmit={(e) => { e.preventDefault(); addVision("", text); }} className="mt-2 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Fit into my old jeans" className={inputClass} /><button className="min-h-11 rounded-xl bg-violet-600 px-3 text-sm font-bold text-white">Add</button></form>
+        {r.vision.length < 3 && <div className="mt-2 flex flex-wrap gap-1.5">{[{ text: "Fit into my old jeans" }, { text: "Run a 5K without stopping" }, { text: "Keep up with my kids" }, ...DREAM_IDEAS.filter((x) => ["health", "money", "travel"].includes(x.cat)).slice(0, 5).map((x) => ({ text: x.title }))].filter((x) => !r.vision.some((v) => v.text === x.text)).map((x) => <button key={x.text} onClick={() => addVision("", x.text)} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600"><Plus className="h-3.5 w-3.5" aria-hidden="true" />{x.text}</button>)}</div>}</div>
       <div className="space-y-2"><p className="text-xs font-black uppercase tracking-wider text-slate-500">Nudges</p>
         {timeRow("Morning nudge", "morning", "Your why, a goal or a quote, and the check-in ready to go")}
         {timeRow("Streak saver", "evening", "Only if today doesn't count yet")}
@@ -291,16 +291,16 @@ function RiseRecap({ d, onClose }: { d: DailyApi; onClose: () => void }) {
   const days = Array.from({ length: 7 }, (_, i) => { const date = new Date(Date.parse(`${rc.from}T12:00:00Z`) + i * 864e5).toISOString().slice(0, 10); return { date, day: rise.days.find((x) => x.date === date) }; });
   const tile = (label: string, value: ReactNode) => <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xl font-black text-slate-800">{value}</p><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p></div>;
   const share = async () => {
-    const text = `My week: checked in ${rc.daysCounted} of 7 days${st.days ? ` · 🔥 ${st.days}-day streak` : ""}.\n${rc.insights.slice(0, 2).join("\n")}`;
+    const text = `My week: checked in ${rc.daysCounted} of 7 days${st.days ? ` · ${st.days}-day streak` : ""}.\n${rc.insights.slice(0, 2).join("\n")}`;
     try { if (navigator.share) await navigator.share({ text }); else await navigator.clipboard.writeText(text); } catch { /* closed */ }
   };
   return <Modal title={`${rc.daysCounted} of 7 days`} eyebrow="Your week" onClose={onClose}>
     <div className="space-y-4">
       <div className="flex justify-between gap-1">{days.map(({ date, day }) => { const on = counts(day); const frozen = st.frozen.includes(date); return <div key={date} className="flex flex-1 flex-col items-center gap-1">
-        <span className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${on ? "bg-violet-600 text-white" : frozen ? "bg-sky-100" : "bg-slate-100 text-slate-300"}`}>{on ? "🔥" : frozen ? "❄️" : "·"}</span>
+        <span className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${on ? "bg-violet-600 text-white" : frozen ? "bg-sky-100" : "bg-slate-100 text-slate-300"}`}>{on ? <Flame className="h-5 w-5" aria-hidden="true" /> : frozen ? <Snowflake className="h-5 w-5 text-sky-500" aria-hidden="true" /> : "·"}</span>
         <span className="text-[11px] font-bold text-slate-500">{["S", "M", "T", "W", "T", "F", "S"][new Date(`${date}T12:00:00Z`).getUTCDay()]}</span></div>; })}</div>
-      <div className="grid grid-cols-3 gap-2">{tile("Check-ins", rc.checkins)}{tile("Meals logged", rc.meals)}{tile("Workouts", rc.workouts)}{tile("Streak", `${st.days}🔥`)}{tile("Avg calories", rc.avgKcal ? fmt(rc.avgKcal) : "—")}{tile("Weight", rc.weightChange === null ? "—" : `${rc.weightChange > 0 ? "+" : ""}${Math.round(rc.weightChange * 10) / 10}`)}</div>
-      <div className="space-y-2">{rc.insights.map((x) => <p key={x} className="rounded-2xl bg-violet-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-900">💡 {x}</p>)}</div>
+      <div className="grid grid-cols-3 gap-2">{tile("Check-ins", rc.checkins)}{tile("Meals logged", rc.meals)}{tile("Workouts", rc.workouts)}{tile("Streak", `${st.days} day${st.days === 1 ? "" : "s"}`)}{tile("Avg calories", rc.avgKcal ? fmt(rc.avgKcal) : "—")}{tile("Weight", rc.weightChange === null ? "—" : `${rc.weightChange > 0 ? "+" : ""}${Math.round(rc.weightChange * 10) / 10}`)}</div>
+      <div className="space-y-2">{rc.insights.map((x) => <p key={x} className="rounded-2xl bg-violet-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-900"><Lightbulb className="mr-1.5 inline h-4 w-4 align-[-3px] text-violet-500" aria-hidden="true" />{x}</p>)}</div>
       <button onClick={() => { void share(); }} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 font-black text-white"><Share2 size={17} />Send my week to {rise.buddy || "a friend"}</button>
     </div>
   </Modal>;

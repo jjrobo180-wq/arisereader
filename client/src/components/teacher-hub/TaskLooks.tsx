@@ -2,6 +2,7 @@
 // Original page (HubTasks.tsx), laid out six ways. The row of looks at the top of Tasks switches between
 // them in one tap, and the pick is remembered on this device.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Columns3, LayoutGrid, ListTodo, Minus, Plus, Search, Sparkles, StickyNote, Sun, ListOrdered, History, SlidersHorizontal } from "lucide-react";
 import { friendlyDate, dueState } from "@shared/hubDates";
 import { clock12, type Task } from "@shared/teacherHub";
@@ -16,17 +17,34 @@ const LOOK_ICON: Record<TaskLook, ReactNode> = {
   minimal: <Minus className="h-4 w-4" />, board: <Columns3 className="h-4 w-4" />, notes: <StickyNote className="h-4 w-4" />, classic: <History className="h-4 w-4" />,
 };
 
-/** "Customize": one small button that opens the looks in a menu, so the page stays uncluttered. */
+/** "Customize": one small button that opens the looks in a menu, so the page stays uncluttered. The menu is
+ *  placed in the page's themed wrapper (so dark mode still applies), not inside the button's box, and kept fully on screen: never past either edge, never
+ *  under the tab bar, and it scrolls when the screen is short. */
 export function LookMenu({ look, setLook, dark = false }: { look: TaskLook; setLook: (l: TaskLook) => void; dark?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number; maxH: number } | null>(null);
   const box = useRef<HTMLDivElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const place = () => {
+    const r = box.current?.getBoundingClientRect();
+    if (!r) return;
+    const vw = window.innerWidth, vh = window.innerHeight, gap = 12;
+    const width = Math.min(304, vw - gap * 2);
+    const left = Math.max(gap, Math.min(r.right - width, vw - width - gap));
+    const bottomSpace = vw < 1024 ? 104 : gap; // the phone's tab bar
+    const want = 460;
+    const top = Math.max(gap + 8, Math.min(r.bottom + 8, vh - bottomSpace - want));
+    setPos({ left, top, width, maxH: Math.max(200, vh - top - bottomSpace) });
+  };
   useEffect(() => {
     if (!open) return;
-    const away = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    place();
+    const away = (e: PointerEvent) => { const t = e.target as Node; if (!box.current?.contains(t) && !menu.current?.contains(t)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+    window.addEventListener("resize", place);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); window.removeEventListener("resize", place); };
   }, [open]);
   return (
     <div ref={box} className="relative shrink-0" data-testid="task-look-switcher">
@@ -34,8 +52,9 @@ export function LookMenu({ look, setLook, dark = false }: { look: TaskLook; setL
         className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-bold ${dark ? "bg-white/10 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-slate-900"}`}>
         <SlidersHorizontal className="h-4 w-4" /><span>Customize</span>
       </button>
-      {open && (
-        <div role="menu" aria-label="How Tasks looks" className="absolute right-0 top-12 z-40 w-[min(19rem,calc(100vw-2rem))] rounded-2xl bg-white p-1.5 text-slate-900 shadow-[0_16px_40px_#1d1b3333] ring-1 ring-slate-200">
+      {open && pos && createPortal(
+        <div ref={menu} role="menu" aria-label="How Tasks looks" style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, maxHeight: pos.maxH }}
+          className="z-[600] overflow-y-auto overscroll-contain rounded-2xl bg-white p-1.5 text-slate-900 shadow-[0_16px_40px_#1d1b3333] ring-1 ring-slate-200">
           <p className="px-3 pb-1 pt-2 text-[12px] font-extrabold uppercase tracking-[.12em] text-slate-500">Look</p>
           {TASK_LOOKS.map((l) => (
             <button key={l} type="button" role="menuitemradio" aria-checked={look === l} onClick={() => { setLook(l); setOpen(false); }} data-testid={`task-look-${l}`}
@@ -45,8 +64,7 @@ export function LookMenu({ look, setLook, dark = false }: { look: TaskLook; setL
               {look === l && <Check className="h-4 w-4 shrink-0 text-[#6e5ae0]" />}
             </button>
           ))}
-        </div>
-      )}
+        </div>, (box.current?.closest(".hub-look, .hub-night") as HTMLElement | null) ?? document.body)}
     </div>
   );
 }

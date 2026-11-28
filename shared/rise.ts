@@ -41,7 +41,7 @@ export function cleanRise(raw: unknown): RiseData | undefined {
   const out: RiseData = {
     why: str(r.why, 400), quotes: r.quotes !== false, buddy: str(r.buddy, 40),
     morning: r.morning === "" ? "" : isHm(r.morning) ? r.morning : "07:30", evening: r.evening === "" ? "" : isHm(r.evening) ? r.evening : "20:30",
-    vision: (Array.isArray(r.vision) ? r.vision : []).slice(0, RISE_LIMITS.vision).map((v: any) => ({ id: str(v?.id, 60), emoji: str(v?.emoji, 16) || "⭐", text: str(v?.text, 120).trim() })).filter((v: RiseVision) => v.id && v.text),
+    vision: (Array.isArray(r.vision) ? r.vision : []).slice(0, RISE_LIMITS.vision).map((v: any) => ({ id: str(v?.id, 60), emoji: "", text: str(v?.text, 120).trim() })).filter((v: RiseVision) => v.id && v.text),
     days: (Array.isArray(r.days) ? r.days : []).filter((d: any) => isDay(d?.date)).slice(-RISE_LIMITS.days)
       .map((d: any) => ({ date: d.date, done: Math.max(0, Math.min(200, Math.round(Number(d.done) || 0))), total: Math.max(0, Math.min(200, Math.round(Number(d.total) || 0))) })),
   };
@@ -121,7 +121,7 @@ export function motivation(rise: RiseData | undefined, date: string, salt: strin
   const w = rise.kg && weightGoal(rise.kg.now, rise.kg.goal, rise.startKg, rise.kg.units);
   if (w) options.push(w.text.includes("reached") ? w.text : `${w.text}. Every log counts.`);
   const v = pick(rise.vision, n);
-  if (v) options.push(`Picture it: ${v.emoji} ${v.text}`);
+  if (v) options.push(`Picture it: ${v.text}`);
   if (rise.quotes) { const q = pick(MOTIVE_QUOTES, n); if (q) options.push(`"${q.text}" — ${q.by}`); }
   return pick(options, n >> 3) ?? "";
 }

@@ -5,7 +5,7 @@
 // weekly turns, stars and the week chart.
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { scrollToFocus, useIntent } from "@/lib/deepLink";
-import { Award, Check, ChevronLeft, ChevronRight, ChevronUp, Flame, Pencil, Plus, Repeat2, Search, Star, Timer, Trash2, Trophy, Zap } from "lucide-react";
+import { Award, Brush, Check, CheckCircle2, Gem, Hourglass, House, Sparkles, Sprout, ChevronLeft, ChevronRight, ChevronUp, Flame, Pencil, Plus, Repeat2, Search, Star, Timer, Trash2, Trophy, Zap } from "lucide-react";
 import { addDays, choreDoneOn, choreDueOn, choreOwner, choreWindow, toggleChore, weekStart, type Chore, type ChoreUnit, type Family } from "@shared/familyHub";
 import { CHORE_CATALOG, CHORE_CATEGORIES, CHORE_PACKS, FREQ_CHOICES, FREQ_CODES, catalogById, categoryOf, choreFromCatalog, freqLabel, type CatalogChore, type ChoreFreq } from "@shared/choreCatalog";
 import { badges, bestStreak, freshness, homeScore, lastDone, lastWeek, levelOf, minutesLeft, perfectDay, quickQueue, rooms, streak, totalXp, xpFor } from "@shared/choreGame";
@@ -13,11 +13,11 @@ import { Avatar, Label, MemberPicker, MemberTag, Modal, Panel, confirmed, danger
 import { ShareButton } from "./ShareLink";
 import { SwipeFeed, type SwipeFeedHandle } from "@/components/swipe/SwipeFeed";
 import { confetti, tap } from "@/lib/celebrate";
+import { ChoreGlyph, PACK_ICON, RoomGlyph } from "./choreIcons";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type Tab = "today" | "mine" | "add" | "progress" | "week";
 const colorOf = (c: Pick<Chore, "cat"> | undefined) => categoryOf(c?.cat)?.color || "#7c5cff";
-const iconOf = (c: Pick<Chore, "icon" | "cat">) => c.icon || categoryOf(c.cat)?.emoji || "✨";
 const mins = (n: number) => (n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ""}` : `${n} min`);
 
 type Draft = {
@@ -67,11 +67,11 @@ export default function Chores({ family, setFamily, today, makeId, say }: Sectio
     tap("light");
     setPop({ id: c.id, xp: gained });
     window.setTimeout(() => setPop((p) => (p?.id === c.id ? null : p)), 1100);
-    if (after > before) { confetti(2); tap("success"); say(`Level ${after}! You're now a ${levelOf(totalXp(family) + gained).title} 🎉`); return; }
+    if (after > before) { confetti(2); tap("success"); say(`Level ${after}! You're now a ${levelOf(totalXp(family) + gained).title}!`); return; }
     const all = family.chores.filter((x) => choreDueOn(x, date, family.choreDone));
     const left = all.filter((x) => x.id !== c.id && !choreDoneOn(family, x.id, date));
-    if (date === today && all.length > 1 && !left.length) { confetti(); tap("success"); say("Perfect day — every chore done 🏆"); }
-    else say(`${c.title} · +${gained} XP${c.points ? ` · +${c.points} ⭐` : ""}`);
+    if (date === today && all.length > 1 && !left.length) { confetti(); tap("success"); say("Perfect day — every chore done!"); }
+    else say(`${c.title} · +${gained} XP${c.points ? ` · +${c.points} star${c.points === 1 ? "" : "s"}` : ""}`);
   };
 
   const addChore = (chore: Chore) => setFamily((f) => ({ ...f, chores: [...f.chores, chore] }));
@@ -85,7 +85,7 @@ export default function Chores({ family, setFamily, today, makeId, say }: Sectio
     const items = ids.map((id) => catalogById.get(id)).filter((x): x is CatalogChore => !!x && !have.has(x.title.toLowerCase()));
     if (!items.length) { say("You already have all of these"); return; }
     setFamily((f) => ({ ...f, chores: [...f.chores, ...items.map((i) => choreFromCatalog(i, FREQ_CODES[i.freq], makeId(), today))] }));
-    confetti(); say(`Added ${items.length} chore${items.length === 1 ? "" : "s"} 🎉`);
+    confetti(); say(`Added ${items.length} chore${items.length === 1 ? "" : "s"}.`);
     setTab("today");
   };
   const save = (d: Draft) => {
@@ -124,7 +124,7 @@ export default function Chores({ family, setFamily, today, makeId, say }: Sectio
 
     {family.members.length > 0 && tab !== "add" && <div className="flex flex-wrap gap-2">
       <button onClick={() => setWho("")} aria-pressed={!who} className={`min-h-10 rounded-xl px-4 text-xs font-bold ring-1 ${!who ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>Everyone</button>
-      {family.members.map((m) => <button key={m.id} onClick={() => setWho(who === m.id ? "" : m.id)} aria-pressed={who === m.id} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200" style={who === m.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}</button>)}
+      {family.members.map((m) => <button key={m.id} onClick={() => setWho(who === m.id ? "" : m.id)} aria-pressed={who === m.id} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200" style={who === m.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/10 text-[10px] font-black">{m.name.slice(0, 1).toUpperCase()}</span>{m.name}</button>)}
     </div>}
 
     {tab === "today" && <TodayTab family={family} today={today} due={due} pop={pop} tick={tick} edit={(c) => setDraft(draftFrom(c, today))} goAdd={() => setTab("add")} onSession={() => setSession(true)} />}
@@ -165,7 +165,7 @@ function Hero({ family, today, lvl, xp, streakDays, alive, doneCount, dueCount, 
           <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-r from-[#7fffd4] to-[#ffe27a] transition-all duration-700" style={{ width: `${(lvl.into / lvl.need) * 100}%` }} /></div></div>
         <div className="flex flex-wrap gap-2 text-xs font-extrabold">
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${streakDays ? "bg-orange-400/25 text-orange-100" : "bg-white/10 text-white/70"}`}><Flame size={14} className={streakDays ? "fill-orange-300 text-orange-300" : ""} />{streakDays} day{streakDays === 1 ? "" : "s"}{streakDays && !alive ? " · keep it going" : ""}</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1">🏡 Home {home}% fresh</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1"><House size={13} aria-hidden="true" />Home {home}% fresh</span>
           {left > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1"><Timer size={13} />{mins(left)} left</span>}
         </div>
       </div>
@@ -183,7 +183,7 @@ function ChoreCard({ c, family, today, done, onTick, onEdit, pop, sub }: { c: Ch
   return <div data-focus={done ? undefined : `chore:${c.id}`} className={`group relative flex min-h-[4.5rem] items-center gap-3 rounded-2xl border p-2.5 pr-3 transition ${done ? "border-emerald-200 bg-emerald-50/70" : "border-[#ececf3] bg-white hover:border-violet-200"}`}>
     <button onClick={onTick} aria-pressed={done} aria-label={`${c.title}${done ? ", done" : ""}`} data-testid={`chore-tick-${c.id}`}
       className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl transition active:scale-90 ${done ? "bg-emerald-500 text-white" : ""}`} style={done ? undefined : { background: color + "1c" }}>
-      {done ? <Check size={24} strokeWidth={3} /> : <span aria-hidden="true">{iconOf(c)}</span>}
+      {done ? <Check size={24} strokeWidth={3} /> : <ChoreGlyph c={c} size={22} color={color} />}
       {pop ? <span className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 animate-[xpPop_1.1s_ease-out_forwards] whitespace-nowrap rounded-full bg-[#1c1932] px-2 py-0.5 text-[11px] font-black text-[#ffe27a]">+{pop} XP</span> : null}
     </button>
     <button onClick={onEdit} className="min-w-0 flex-1 text-left">
@@ -198,7 +198,7 @@ function ChoreCard({ c, family, today, done, onTick, onEdit, pop, sub }: { c: Ch
 
 /* ─── Today ─── */
 function TodayTab({ family, today, due, pop, tick, edit, goAdd, onSession }: { family: Family; today: string; due: Chore[]; pop: { id: string; xp: number } | null; tick: (c: Chore, d?: string) => void; edit: (c: Chore) => void; goAdd: () => void; onSession: () => void }) {
-  if (!family.chores.length) return <Panel><div className="flex flex-col items-center py-8 text-center"><span className="text-5xl">🧹</span><p className="mt-3 text-lg font-black text-slate-800">Let's set up your home</p><p className="mt-1 max-w-sm text-sm text-slate-500">Pick chores from every room — {CHORE_CATALOG.length} to choose from — and say how often. They'll show up here and in your task list.</p><button onClick={goAdd} className={primary + " mt-4 min-h-12 px-6"}><Plus size={18} /> Pick my chores</button></div></Panel>;
+  if (!family.chores.length) return <Panel><div className="flex flex-col items-center py-8 text-center"><Brush size={48} className="text-violet-400" aria-hidden="true" /><p className="mt-3 text-lg font-black text-slate-800">Let's set up your home</p><p className="mt-1 max-w-sm text-sm text-slate-500">Pick chores from every room — {CHORE_CATALOG.length} to choose from — and say how often. They'll show up here and in your task list.</p><button onClick={goAdd} className={primary + " mt-4 min-h-12 px-6"}><Plus size={18} /> Pick my chores</button></div></Panel>;
   const isDone = (c: Chore) => !!choreDoneOn(family, c.id, today);
   const todo = due.filter((c) => !isDone(c)).sort((a, b) => (a.mins || 10) - (b.mins || 10)), finished = due.filter(isDone);
   const dueIds = new Set(due.map((c) => c.id));
@@ -206,8 +206,8 @@ function TodayTab({ family, today, due, pop, tick, edit, goAdd, onSession }: { f
   const quick = todo.filter((c) => (c.mins || 10) <= 5);
   return <div className="space-y-5">
     {todo.length > 0 && quick.length > 1 && <button onClick={onSession} className="flex w-full items-center gap-3 rounded-2xl bg-amber-50 p-3 text-left ring-1 ring-amber-200">
-      <span className="text-2xl">⚡</span><span className="min-w-0 flex-1 text-sm font-bold text-amber-900">{quick.length} chores take 5 minutes or less. Knock them out in one swipe session.</span><ChevronRight size={18} className="text-amber-500" /></button>}
-    <Panel eyebrow={todo.length ? `${todo.length} to go` : due.length ? "All done" : "Today"} title={todo.length ? "Up next" : due.length ? "Every chore done today 🏆" : "Nothing due today"}>
+      <Zap size={22} className="shrink-0 text-amber-500" aria-hidden="true" /><span className="min-w-0 flex-1 text-sm font-bold text-amber-900">{quick.length} chores take 5 minutes or less. Knock them out in one swipe session.</span><ChevronRight size={18} className="text-amber-500" /></button>}
+    <Panel eyebrow={todo.length ? `${todo.length} to go` : due.length ? "All done" : "Today"} title={todo.length ? "Up next" : due.length ? "Every chore done today" : "Nothing due today"}>
       {todo.length ? <div className="space-y-2">{todo.map((c) => <ChoreCard key={c.id} c={c} family={family} today={today} done={false} onTick={() => tick(c)} onEdit={() => edit(c)} pop={pop?.id === c.id ? pop.xp : 0}
         sub={byWhen(c, today)} />)}</div>
         : <p className="text-sm text-slate-500">{due.length ? "You showed up for your home today. That's how calm gets built. Come back tomorrow to keep the streak." : "A rest day. Enjoy it — or get ahead on something below."}</p>}
@@ -236,17 +236,17 @@ function MineTab({ family, today, who, edit, goAdd }: { family: Family; today: s
     for (const c of list) m.set(c.cat || "", [...(m.get(c.cat || "") || []), c]);
     return [...m].sort((a, b) => (CHORE_CATEGORIES.findIndex((x) => x.id === a[0]) + 99) % 99 - (CHORE_CATEGORIES.findIndex((x) => x.id === b[0]) + 99) % 99);
   }, [list]);
-  if (!list.length) return <Panel><div className="py-8 text-center"><p className="text-4xl">🗂️</p><p className="mt-2 font-black text-slate-800">No chores yet</p><button onClick={goAdd} className={soft + " mt-3"}><Plus size={16} /> Add chores</button></div></Panel>;
+  if (!list.length) return <Panel><div className="py-8 text-center"><Sparkles size={36} className="mx-auto text-violet-400" aria-hidden="true" /><p className="mt-2 font-black text-slate-800">No chores yet</p><button onClick={goAdd} className={soft + " mt-3"}><Plus size={16} /> Add chores</button></div></Panel>;
   return <div className="space-y-4">
     {groups.map(([cat, chores]) => {
       const info = categoryOf(cat), fresh = chores.reduce((s, c) => s + freshness(family, c, today), 0) / chores.length;
       return <Panel key={cat || "other"}>
-        <div className="mb-3 flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl text-2xl" style={{ background: (info?.color || "#7c5cff") + "1f" }}>{info?.emoji || "✨"}</span>
+        <div className="mb-3 flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl text-2xl" style={{ background: (info?.color || "#7c5cff") + "1f" }}><RoomGlyph cat={info?.id} size={20} /></span>
           <div className="min-w-0 flex-1"><p className="font-black text-slate-800">{info?.name || "My own"}</p><div className="mt-1 flex items-center gap-2"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full" style={{ width: `${Math.round(fresh * 100)}%`, background: fresh > 0.8 ? "#22c55e" : fresh > 0.5 ? "#f59e0b" : "#ef4444" }} /></div><span className="text-[11px] font-bold text-slate-500">{Math.round(fresh * 100)}% fresh</span></div></div></div>
         <div className="divide-y divide-slate-100">{chores.map((c) => {
           const last = lastDone(family, c.id), owner = c.rotation.length ? null : memberOf(family, c.memberId);
           return <button key={c.id} onClick={() => edit(c)} className="flex w-full items-center gap-3 py-2.5 text-left">
-            <span className="text-xl" aria-hidden="true">{iconOf(c)}</span>
+            <ChoreGlyph c={c} size={18} />
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-800">{c.title}</span><span className="block text-[11px] font-semibold text-slate-500">{freqLabel(c)}{c.rotation.length ? " · takes turns" : owner ? ` · ${owner.name}` : ""}{last ? ` · last ${shortDate(last, { month: "short", day: "numeric" })}` : ""}</span></span>
             {choreDueOn(c, today, family.choreDone) && !choreDoneOn(family, c.id, today) && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-700">TODAY</span>}
             <Pencil size={15} className="shrink-0 text-slate-300" />
@@ -270,7 +270,7 @@ function AddTab({ family, today, pick, quickAdd, addPack, custom }: { family: Fa
       <p className="mb-2 px-1 text-[11px] font-black uppercase tracking-[.14em] text-slate-500">Start with a pack</p>
       <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
         {CHORE_PACKS.map((p) => <button key={p.id} onClick={() => addPack(p.chores)} className="w-60 shrink-0 snap-start rounded-3xl bg-gradient-to-br from-[#f4f0ff] to-white p-4 text-left ring-1 ring-violet-100 transition active:scale-[.98]">
-          <span className="text-3xl">{p.emoji}</span><p className="mt-2 font-black text-slate-800">{p.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{p.blurb}</p>
+          {(() => { const I = PACK_ICON[p.id] ?? Sparkles; return <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 text-violet-600"><I size={22} aria-hidden="true" /></span>; })()}<p className="mt-3 font-black text-slate-800">{p.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{p.blurb}</p>
           <p className="mt-3 inline-flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white"><Plus size={13} /> Add {p.chores.length}</p>
         </button>)}
       </div>
@@ -279,14 +279,14 @@ function AddTab({ family, today, pick, quickAdd, addPack, custom }: { family: Fa
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${CHORE_CATALOG.length} chores`} className={inputClass + " min-h-12 rounded-2xl pl-10"} aria-label="Search chores" data-testid="chores-search" /></div>
     <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
       <button onClick={() => setCat("")} aria-pressed={!cat} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-extrabold ring-1 ${!cat ? "bg-[#1c1932] text-white ring-[#1c1932]" : "bg-white text-slate-600 ring-slate-200"}`}>All</button>
-      {CHORE_CATEGORIES.map((c) => <button key={c.id} onClick={() => setCat(cat === c.id ? "" : c.id)} aria-pressed={cat === c.id} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-extrabold text-slate-600 ring-1 ring-slate-200" style={cat === c.id ? { background: c.color, color: "#fff", boxShadow: `0 0 0 1px ${c.color}` } : undefined}><span>{c.emoji}</span>{c.name}</button>)}
+      {CHORE_CATEGORIES.map((c) => <button key={c.id} onClick={() => setCat(cat === c.id ? "" : c.id)} aria-pressed={cat === c.id} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-extrabold text-slate-600 ring-1 ring-slate-200" style={cat === c.id ? { background: c.color, color: "#fff", boxShadow: `0 0 0 1px ${c.color}` } : undefined}><RoomGlyph cat={c.id} size={15} color={cat === c.id ? "#fff" : c.color} />{c.name}</button>)}
     </div>
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
         const added = have.has(item.title.toLowerCase()), color = categoryOf(item.cat)?.color || "#7c5cff";
         return <div key={item.id} className={`relative flex min-h-[8.5rem] flex-col rounded-3xl p-3 ring-1 transition ${added ? "bg-emerald-50 ring-emerald-200" : "bg-white ring-slate-200 hover:ring-violet-300"}`}>
           <button onClick={() => pick(item)} className="flex flex-1 flex-col text-left" aria-label={`${item.title}, choose how often`}>
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-2xl" style={{ background: color + "1c" }}>{item.icon}</span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-2xl" style={{ background: color + "1c" }}><ChoreGlyph c={item} size={22} color={color} /></span>
             <span className="mt-2 text-[13px] font-extrabold leading-snug text-slate-800">{item.title}</span>
             <span className="mt-auto pt-1 text-[11px] font-semibold text-slate-500">{freqLabel({ ...FREQ_CODES[item.freq], days: FREQ_CODES[item.freq].days ?? [], start: today })} · {mins(item.mins)}</span>
           </button>
@@ -312,10 +312,10 @@ function ProgressTab({ family, today, who }: { family: Family; today: string; wh
   const roomList = rooms(family, today);
   const weekFrom = weekStart(today);
   const stars = family.members.map((m) => ({ m, xp: totalXp({ chores: family.chores, choreDone: family.choreDone.filter((d) => d.date >= weekFrom) }, m.id), stars: family.choreDone.filter((d) => d.memberId === m.id && d.date >= weekFrom).reduce((s, d) => s + d.points, 0) })).sort((a, b) => b.xp - a.xp);
-  const tile = (label: string, value: ReactNode, emoji: string) => <div className="rounded-2xl bg-white p-3.5 ring-1 ring-slate-200"><p className="text-xl">{emoji}</p><p className="mt-1 text-2xl font-black text-slate-800">{value}</p><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p></div>;
+  const tile = (label: string, value: ReactNode, icon: ReactNode) => <div className="rounded-2xl bg-white p-3.5 ring-1 ring-slate-200"><p className="text-violet-500">{icon}</p><p className="mt-1 text-2xl font-black text-slate-800">{value}</p><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p></div>;
   return <div className="space-y-5">
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      {tile("Chores done", done.length.toLocaleString(), "✅")}{tile("Time invested", mins(minutes), "⏳")}{tile("Best streak", `${best} day${best === 1 ? "" : "s"}`, "🔥")}{tile("Perfect days", perfect, "💎")}
+      {tile("Chores done", done.length.toLocaleString(), <CheckCircle2 size={20} />)}{tile("Time invested", mins(minutes), <Hourglass size={20} />)}{tile("Best streak", `${best} day${best === 1 ? "" : "s"}`, <Flame size={20} />)}{tile("Perfect days", perfect, <Gem size={20} />)}
     </div>
     <Panel eyebrow="Last 7 days" title={`${week.reduce((s, w) => s + w.count, 0)} chores this week`}>
       <div className="flex h-36 items-end gap-2">{week.map((w) => <div key={w.date} className="flex flex-1 flex-col items-center gap-1.5">
@@ -325,13 +325,13 @@ function ProgressTab({ family, today, who }: { family: Family; today: string; wh
     </Panel>
     {roomList.length > 0 && <Panel eyebrow={`Home ${homeScore(family, today)}% fresh`} title="Your rooms">
       <div className="space-y-3">{roomList.map((r) => { const info = categoryOf(r.cat), pct = Math.round(r.fresh * 100); return <div key={r.cat} className="flex items-center gap-3">
-        <span className="text-xl">{info?.emoji || "✨"}</span><div className="min-w-0 flex-1"><div className="flex justify-between text-xs font-bold"><span className="text-slate-700">{info?.name || "My own"}</span><span className={pct > 80 ? "text-emerald-600" : pct > 50 ? "text-amber-600" : "text-rose-600"}>{pct}%</span></div>
+        <RoomGlyph cat={info?.id} size={20} /><div className="min-w-0 flex-1"><div className="flex justify-between text-xs font-bold"><span className="text-slate-700">{info?.name || "My own"}</span><span className={pct > 80 ? "text-emerald-600" : pct > 50 ? "text-amber-600" : "text-rose-600"}>{pct}%</span></div>
           <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct > 80 ? "#22c55e" : pct > 50 ? "#f59e0b" : "#ef4444" }} /></div>
           {r.stale.length > 0 && <p className="mt-1 truncate text-[11px] text-slate-500">Needs: {r.stale.slice(0, 3).map((c) => c.title).join(", ")}</p>}</div></div>; })}</div>
     </Panel>}
     <Panel eyebrow={`${earned} of ${list.length} earned`} title="Badges" right={<Award size={18} className="text-amber-500" />}>
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">{list.map((b) => <div key={b.id} className={`flex flex-col items-center rounded-2xl p-3 text-center ring-1 ${b.earned ? "bg-gradient-to-b from-amber-50 to-white ring-amber-200" : "bg-slate-50 ring-slate-200"}`} title={b.blurb}>
-        <span className={`text-3xl ${b.earned ? "" : "opacity-35 grayscale"}`}>{b.emoji}</span>
+        <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${b.earned ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-300"}`}><Award size={22} aria-hidden="true" /></span>
         <span className={`mt-1 text-[11px] font-black leading-tight ${b.earned ? "text-slate-800" : "text-slate-500"}`}>{b.name}</span>
         {!b.earned && <><div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-violet-500" style={{ width: `${(b.have / b.goal) * 100}%` }} /></div><span className="mt-0.5 text-[10px] font-bold text-slate-400">{b.have}/{b.goal}</span></>}
       </div>)}</div>
@@ -359,7 +359,7 @@ function WeekTab({ family, today, who, tick, edit }: { family: Family; today: st
         <thead><tr><th className="sticky left-0 z-10 bg-white pb-2 text-left text-[11px] font-black uppercase tracking-wider text-slate-400">Chore</th>{days.map((d) => <th key={d} className={`pb-2 text-center text-[11px] font-black uppercase tracking-wider ${d === today ? "text-violet-600" : "text-slate-400"}`}>{DAY_NAMES[new Date(`${d}T12:00:00`).getDay()]}<span className="block text-xs font-bold normal-case tracking-normal">{Number(d.slice(8))}</span></th>)}</tr></thead>
         <tbody>{chores.map((c) => <tr key={c.id}>
           <td className="sticky left-0 z-10 max-w-[220px] border-t border-slate-100 bg-white py-2 pr-3">
-            <button onClick={() => edit(c)} className="group flex w-full min-w-0 items-center gap-2 text-left"><span aria-hidden="true">{iconOf(c)}</span><span className="min-w-0 flex-1"><span className="block truncate font-bold text-slate-800 group-hover:text-violet-700">{c.title}</span><span className="flex items-center gap-1 text-[11px] text-slate-500">{c.rotation.length ? <><Repeat2 size={11} /> Takes turns</> : memberOf(family, c.memberId)?.name || freqLabel(c)}{c.points ? ` · ${c.points}⭐` : ""}</span></span></button>
+            <button onClick={() => edit(c)} className="group flex w-full min-w-0 items-center gap-2 text-left"><ChoreGlyph c={c} size={16} /><span className="min-w-0 flex-1"><span className="block truncate font-bold text-slate-800 group-hover:text-violet-700">{c.title}</span><span className="flex items-center gap-1 text-[11px] text-slate-500">{c.rotation.length ? <><Repeat2 size={11} /> Takes turns</> : memberOf(family, c.memberId)?.name || freqLabel(c)}{c.points ? ` · ${c.points} star${c.points === 1 ? "" : "s"}` : ""}</span></span></button>
           </td>
           {days.map((d) => {
             if (!choreDueOn(c, d, family.choreDone)) return <td key={d} className="border-t border-slate-100 py-2 text-center text-slate-200">–</td>;
@@ -367,7 +367,7 @@ function WeekTab({ family, today, who, tick, edit }: { family: Family; today: st
             return <td key={d} className={`border-t border-slate-100 py-2 text-center ${d === today ? "bg-violet-50/50" : ""}`}>
               <button onClick={() => tick(c, d)} aria-pressed={done} aria-label={`${c.title} on ${shortDate(d)}${done ? ", done" : ""}`} title={owner?.name || "Anyone"}
                 className={`mx-auto flex h-9 w-9 items-center justify-center rounded-xl border-2 text-xs font-black transition ${done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-200 bg-white hover:border-violet-400"}`}
-                style={!done && owner ? { borderColor: owner.color + "88", color: owner.color } : undefined}>{done ? <Check size={17} /> : owner ? (owner.emoji || owner.name[0]) : ""}</button>
+                style={!done && owner ? { borderColor: owner.color + "88", color: owner.color } : undefined}>{done ? <Check size={17} /> : owner ? owner.name[0] : ""}</button>
             </td>;
           })}
         </tr>)}</tbody>
@@ -385,13 +385,13 @@ function ChoreSheet({ draft: start, family, today, onClose, onSave, onDelete }: 
   const canFlex = !["d", "wd", "we"].includes(choice);
   const submit = (e: FormEvent) => { e.preventDefault(); onSave(d); };
   const info = categoryOf(d.cat);
-  return <Modal title={d.id ? "Edit chore" : d.title ? d.title : "New chore"} eyebrow={info ? `${info.emoji} ${info.name}` : "Chores"} onClose={onClose}>
+  return <Modal title={d.id ? "Edit chore" : d.title ? d.title : "New chore"} eyebrow={info ? info.name : "Chores"} onClose={onClose}>
     <form onSubmit={submit} className="space-y-5">
       <div className="flex items-center gap-3">
-        <input value={d.icon} onChange={(e) => set({ icon: [...e.target.value].slice(-2).join("") })} aria-label="Emoji" placeholder="✨" className="h-14 w-14 shrink-0 rounded-2xl border border-slate-200 text-center text-3xl outline-none focus:border-violet-400" />
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl" style={{ background: (info?.color || "#7c5cff") + "1c" }}><ChoreGlyph c={{ title: d.title, cat: d.cat }} size={26} /></span>
         <input autoFocus={!d.title} required maxLength={120} value={d.title} onChange={(e) => set({ title: e.target.value })} className={inputClass + " min-h-14 rounded-2xl text-base font-bold"} placeholder="What needs doing?" aria-label="Chore" />
       </div>
-      {!start.title && <Label text="Room or area"><select value={d.cat} onChange={(e) => set({ cat: e.target.value })} className={inputClass}><option value="">My own</option>{CHORE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}</select></Label>}
+      {!start.title && <Label text="Room or area"><select value={d.cat} onChange={(e) => set({ cat: e.target.value })} className={inputClass}><option value="">My own</option>{CHORE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>}
 
       <div>
         <p className="mb-2 text-xs font-black uppercase tracking-[.12em] text-slate-500">How often</p>
@@ -429,7 +429,7 @@ function ChoreSheet({ draft: start, family, today, onClose, onSave, onDelete }: 
           : <><MemberPicker members={family.members} value={d.rotation} onChange={(ids) => set({ rotation: ids })} multi /><p className="mt-2 text-xs text-slate-500">The turn moves to the next person each Sunday, in the order you tap them.</p></>}
       </div>}
 
-      <p className="rounded-2xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-800">✅ {freqLabel({ ...d, days: d.unit === "week" && !d.flex ? d.days : [] })} · {xpFor({ mins: d.mins })} XP each time · shows in your task list on the days it's due</p>
+      <p className="rounded-2xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-800">{freqLabel({ ...d, days: d.unit === "week" && !d.flex ? d.days : [] })} · {xpFor({ mins: d.mins })} XP each time · shows in your task list on the days it's due</p>
 
       <div className={stickyFoot}>
         <button type="submit" className={primary + " min-h-12 flex-1 px-5"} data-testid="chore-save"><Check size={17} /> {d.id ? "Save" : "Add chore"}</button>
@@ -466,7 +466,7 @@ function QuickSession({ family, today, tick, onClose }: { family: Family; today:
   };
 
   const pick = <div className="flex h-full flex-col items-center justify-center bg-[radial-gradient(100%_80%_at_50%_0%,#5b3fe0,#0d0b1a)] px-6 text-center">
-    <p className="text-6xl">⚡</p>
+    <Zap size={64} className="mx-auto text-amber-300" strokeWidth={1.6} aria-hidden="true" />
     <h2 className="mt-4 text-3xl font-black">How long have you got?</h2>
     <p className="mt-2 max-w-xs text-sm text-white/70">Pick a time. You'll swipe through your chores one at a time — done, swipe, done. It's the same thumb, just spent on your life.</p>
     <div className="mt-8 grid w-full max-w-xs grid-cols-2 gap-3">{[5, 10, 15, 30].map((m) => <button key={m} onClick={() => begin(m)} data-testid={`session-${m}`} className="min-h-16 rounded-3xl bg-white/10 text-xl font-black ring-1 ring-white/20 transition active:scale-95 hover:bg-white/20">{m} min</button>)}</div>
@@ -475,8 +475,8 @@ function QuickSession({ family, today, tick, onClose }: { family: Family; today:
   const cards = queue.map((c) => {
     const info = categoryOf(c.cat), color = colorOf(c), isDone = did.includes(c.id) || !!choreDoneOn(family, c.id, today);
     return <div className="flex h-full flex-col items-center justify-center px-7 text-center" style={{ background: `radial-gradient(110% 70% at 50% 15%, ${color}, #0d0b1a 75%)` }}>
-      <p className="text-xs font-extrabold uppercase tracking-[.25em] text-white/70">{info ? `${info.emoji} ${info.name}` : "Chore"}</p>
-      <p className={`mt-6 text-[110px] leading-none transition-transform duration-500 ${isDone ? "scale-110" : ""}`} aria-hidden="true">{isDone ? "✅" : iconOf(c)}</p>
+      <p className="text-xs font-extrabold uppercase tracking-[.25em] text-white/70">{info ? info.name : "Chore"}</p>
+      <div className={`mt-6 flex justify-center transition-transform duration-500 ${isDone ? "scale-110" : ""}`} aria-hidden="true">{isDone ? <CheckCircle2 size={110} strokeWidth={1.5} className="text-emerald-300" /> : <ChoreGlyph c={c} size={110} color="#fff" />}</div>
       <h2 className="mt-6 text-3xl font-black leading-tight sm:text-4xl">{c.title}</h2>
       <p className="mt-3 text-sm font-bold text-white/70">{mins(c.mins || 10)} · {freqLabel(c)} · +{xpFor(c)} XP</p>
       <button onClick={() => finish(c)} disabled={isDone} className={`mt-10 flex min-h-16 w-full max-w-xs items-center justify-center gap-2 rounded-full text-lg font-black transition active:scale-95 ${isDone ? "bg-emerald-400 text-emerald-950" : "bg-white text-[#1c1932] shadow-2xl"}`}>
@@ -487,7 +487,7 @@ function QuickSession({ family, today, tick, onClose }: { family: Family; today:
 
   const st = streak(family, today);
   const end = <div className="flex h-full flex-col items-center justify-center bg-[radial-gradient(100%_80%_at_50%_10%,#16a34a,#0d0b1a_75%)] px-7 text-center">
-    <p className="text-7xl">{did.length ? "🏆" : "🌿"}</p>
+    <div className="flex justify-center">{did.length ? <Trophy size={80} className="text-amber-300" strokeWidth={1.6} aria-hidden="true" /> : <Sprout size={80} className="text-emerald-300" strokeWidth={1.6} aria-hidden="true" />}</div>
     <h2 className="mt-5 text-3xl font-black">{did.length ? `${did.length} chore${did.length === 1 ? "" : "s"} done` : queue.length ? "No worries" : "You're all caught up"}</h2>
     <p className="mt-3 max-w-xs text-sm text-white/75">{did.length ? `+${gained} XP and a ${Math.max(1, st.days)}-day streak. That's time you took back from the scroll — your home (and your head) will feel it.` : queue.length ? "Every swipe counts as a look. Come back when you have a minute." : "Nothing's due and nothing's stale. Enjoy it — you earned the rest."}</p>
     <button onClick={close} className="mt-10 min-h-14 w-full max-w-xs rounded-full bg-white text-lg font-black text-[#1c1932]">Finish</button>

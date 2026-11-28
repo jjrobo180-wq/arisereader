@@ -441,7 +441,7 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
         <p className="text-sm font-bold text-white/85">Pick a few things you're into</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {TOPICS.map((t) => { const on = picks.includes(t.id); return <button key={t.id} type="button" aria-pressed={on} onClick={() => setPicks((p) => (on ? p.filter((x) => x !== t.id) : [...p, t.id]))}
-            className={`min-h-10 rounded-full px-3.5 text-[14px] font-bold transition ${on ? "bg-white text-[#111]" : "bg-white/10 text-white hover:bg-white/15"}`}>{t.emoji} {t.label}</button>; })}
+            className={`min-h-10 rounded-full px-3.5 text-[14px] font-bold transition ${on ? "bg-white text-[#111]" : "bg-white/10 text-white hover:bg-white/15"}`}>{t.label}</button>; })}
         </div>
         <button type="button" disabled={picks.length < 1} onClick={() => { setProfile(newProfile(picks)); reset(); setTimeout(start, 0); }} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#c4b5fd] px-6 text-[15px] font-extrabold text-[#16141f] disabled:opacity-40" data-testid="wiki-start">
           <Play className="h-4 w-4" fill="currentColor" />{picks.length ? `Start with ${picks.length} pick${picks.length === 1 ? "" : "s"}` : "Pick at least one"}

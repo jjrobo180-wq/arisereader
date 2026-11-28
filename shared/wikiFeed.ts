@@ -24,16 +24,16 @@ export const LANES: readonly Lane[] = ["seed", "topic", "trend", "explore"];
 
 /** Wikipedia's article topics (the CirrusSearch articletopic: names), as chips to pick from. */
 export const TOPICS = [
-  { id: "space", label: "Space", emoji: "🪐" }, { id: "physics", label: "Physics", emoji: "⚛️" }, { id: "biology", label: "Biology", emoji: "🧬" },
-  { id: "chemistry", label: "Chemistry", emoji: "🧪" }, { id: "mathematics", label: "Math", emoji: "📐" }, { id: "medicine-and-health", label: "Health", emoji: "🩺" },
-  { id: "earth-and-environment", label: "Earth", emoji: "🌋" }, { id: "history", label: "History", emoji: "🏛️" }, { id: "military-and-warfare", label: "Wars", emoji: "⚔️" },
-  { id: "biography", label: "People", emoji: "👤" }, { id: "geographical", label: "Places", emoji: "🗺️" }, { id: "architecture", label: "Architecture", emoji: "🏰" },
-  { id: "visual-arts", label: "Art", emoji: "🎨" }, { id: "music", label: "Music", emoji: "🎵" }, { id: "films", label: "Movies", emoji: "🎬" },
-  { id: "television", label: "TV", emoji: "📺" }, { id: "literature", label: "Books", emoji: "📚" }, { id: "video-games", label: "Video games", emoji: "🎮" },
-  { id: "sports", label: "Sports", emoji: "🏀" }, { id: "food-and-drink", label: "Food", emoji: "🍜" }, { id: "technology", label: "Tech", emoji: "💡" },
-  { id: "computing", label: "Computers", emoji: "💻" }, { id: "transportation", label: "Cars & planes", emoji: "✈️" }, { id: "philosophy-and-religion", label: "Big ideas", emoji: "🕊️" },
-  { id: "business-and-economics", label: "Money & business", emoji: "📈" }, { id: "fashion", label: "Fashion", emoji: "👗" }, { id: "comics-and-anime", label: "Comics & anime", emoji: "💥" },
-  { id: "engineering", label: "Engineering", emoji: "⚙️" },
+  { id: "space", label: "Space" }, { id: "physics", label: "Physics" }, { id: "biology", label: "Biology" },
+  { id: "chemistry", label: "Chemistry" }, { id: "mathematics", label: "Math" }, { id: "medicine-and-health", label: "Health" },
+  { id: "earth-and-environment", label: "Earth" }, { id: "history", label: "History" }, { id: "military-and-warfare", label: "Wars" },
+  { id: "biography", label: "People" }, { id: "geographical", label: "Places" }, { id: "architecture", label: "Architecture" },
+  { id: "visual-arts", label: "Art" }, { id: "music", label: "Music" }, { id: "films", label: "Movies" },
+  { id: "television", label: "TV" }, { id: "literature", label: "Books" }, { id: "video-games", label: "Video games" },
+  { id: "sports", label: "Sports" }, { id: "food-and-drink", label: "Food" }, { id: "technology", label: "Tech" },
+  { id: "computing", label: "Computers" }, { id: "transportation", label: "Cars & planes" }, { id: "philosophy-and-religion", label: "Big ideas" },
+  { id: "business-and-economics", label: "Money & business" }, { id: "fashion", label: "Fashion" }, { id: "comics-and-anime", label: "Comics & anime" },
+  { id: "engineering", label: "Engineering" },
 ] as const;
 export type TopicId = (typeof TOPICS)[number]["id"];
 const TOPIC_IDS = new Set<string>(TOPICS.map((t) => t.id));
