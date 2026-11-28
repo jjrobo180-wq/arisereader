@@ -2,6 +2,7 @@
 // (blood pressure, heart rate, blood sugar, weight, temperature, blood oxygen) and the Prevention list of
 // screenings, checkups and vaccines. The analysis is shared/lifeHealthLog.ts; prevention is shared/lifeScore.ts.
 // Nothing here is a diagnosis; warning signs point to emergency care.
+import HealthSources from "@/components/HealthSources";
 import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, HeartPulse, Plus, ShieldCheck, Stethoscope, Trash2 } from "lucide-react";
 import {
@@ -84,6 +85,7 @@ export function SymptomsView({ data, today, go, back }: { data: LifeScoreData; t
   return (
     <div className="space-y-4">
       <Back onClick={back} label="Health" />
+      <HealthSources topics={["symptoms"]} label="Sources for this health information" />
       <div className="flex items-end justify-between gap-3 px-1"><div><Eyebrow>Symptom tracker</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold text-slate-900">Symptoms</h1></div>
         <button type="button" onClick={() => go({ kind: "log-symptom" })} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-slate-900 px-4 text-sm font-bold text-white"><Plus className="h-4 w-4" />Log one</button></div>
       <Card><Eyebrow>Last 30 days · worst each day</Eyebrow><div className="mt-3"><Bars values={all30.map((v) => v || null)} max={10} color={sevColor} title="Worst symptom each day" /></div>
@@ -181,6 +183,7 @@ export function SymptomDetail({ id, input, today, update, back, logAgain }: { id
   return (
     <div className="space-y-4">
       <Back onClick={back} label="Symptoms" />
+      <HealthSources topics={["symptoms"]} label="Sources for this health information" />
       <div className="flex items-end justify-between gap-3 px-1"><div><Eyebrow>Symptom</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold text-slate-900">{s.name}</h1></div>
         <button type="button" onClick={logAgain} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-slate-900 px-4 text-sm font-bold text-white"><Plus className="h-4 w-4" />Log it</button></div>
       {s.urgent && <div className="flex gap-3 rounded-2xl border-2 border-rose-400 bg-rose-50 p-4 text-rose-900" role="alert"><AlertTriangle className="h-6 w-6 shrink-0" /><p className="text-sm font-semibold">{s.urgent}</p></div>}
@@ -238,6 +241,7 @@ export function VitalsView({ data, today, update, start, back }: { data: LifeSco
   return (
     <div className="space-y-4">
       <Back onClick={back} label="Health" />
+      <HealthSources topics={["vitals"]} label="Sources for this health information" />
       <div className="px-1"><Eyebrow>Vitals</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold text-slate-900">{d.name}</h1></div>
       <div className="flex gap-1.5 overflow-x-auto pb-1">{KINDS.map((k) => <Chip key={k} on={k === kind} onClick={() => { setKind(k); setSaved(null); }}>{VITALS[k].name}</Chip>)}</div>
       <Card>
@@ -287,6 +291,7 @@ export function PreventionView({ data, today, update, back }: { data: LifeScoreD
   return (
     <div className="space-y-4">
       <Back onClick={back} label="Health" />
+      <HealthSources topics={["screenings"]} label="Sources for this health information" />
       <div className="px-1"><Eyebrow>Prevention</Eyebrow><h1 className="mt-1 text-[26px] font-extrabold text-slate-900">Screenings, checkups and vaccines</h1>
         <p className="mt-1 text-sm text-slate-500">What's recommended for people at average risk at your age and sex. Your doctor may advise a different plan.</p></div>
       {(!data.settings.birthYear || !data.settings.sex) && <Card>

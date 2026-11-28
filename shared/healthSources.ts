@@ -14,4 +14,28 @@ export const HEALTH_SOURCES: HealthSource[] = [
   { id: "pag", title: "Physical Activity Guidelines for Americans", by: "U.S. Department of Health and Human Services", url: "https://odphp.health.gov/our-work/nutrition-physical-activity/physical-activity-guidelines", for: "Activity and exercise goals" },
 ];
 
+/** Sources for the other health information in the app, by topic. "nutrition" is the list above. */
+export type HealthTopic = "nutrition" | "cycle" | "sleep" | "medicine" | "heart" | "screenings" | "mind" | "bmi" | "vitals" | "symptoms";
+const MORE: Record<Exclude<HealthTopic, "nutrition">, HealthSource[]> = {
+  cycle: [
+    { id: "owh-cycle", title: "Your menstrual cycle", by: "Office on Women's Health, U.S. Department of Health and Human Services", url: "https://www.womenshealth.gov/menstrual-cycle/your-menstrual-cycle", for: "Cycle phases, period length, ovulation, PMS and when to see a doctor" },
+    { id: "medline-period", title: "Menstruation", by: "MedlinePlus, U.S. National Library of Medicine", url: "https://medlineplus.gov/menstruation.html", for: "Periods, symptoms and discharge" },
+  ],
+  sleep: [{ id: "cdc-sleep", title: "About Sleep", by: "Centers for Disease Control and Prevention", url: "https://www.cdc.gov/sleep/about/index.html", for: "How much sleep people need and healthy sleep habits" }],
+  medicine: [{ id: "medline-drugs", title: "Drugs, Herbs and Supplements", by: "MedlinePlus, U.S. National Library of Medicine", url: "https://medlineplus.gov/druginformation.html", for: "Medicine information. The app only reminds you of the doses you enter; follow your doctor's or pharmacist's directions" }],
+  heart: [{ id: "aha-hr", title: "Target Heart Rates Chart", by: "American Heart Association", url: "https://www.heart.org/en/healthy-living/fitness/fitness-basics/target-heart-rates", for: "Resting and target heart rates" }],
+  screenings: [{ id: "uspstf", title: "Recommendation Topics", by: "U.S. Preventive Services Task Force", url: "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics", for: "Health screenings by age and sex" }],
+  bmi: [{ id: "cdc-bmi", title: "About Body Mass Index (BMI)", by: "Centers for Disease Control and Prevention", url: "https://www.cdc.gov/bmi/about/index.html", for: "BMI and the healthy weight range" }],
+  vitals: [
+    { id: "aha-bp", title: "Understanding Blood Pressure Readings", by: "American Heart Association", url: "https://www.heart.org/en/health-topics/high-blood-pressure/understanding-blood-pressure-readings", for: "Blood pressure categories" },
+    { id: "medline-vitals", title: "Vital signs", by: "MedlinePlus Medical Encyclopedia, U.S. National Library of Medicine", url: "https://medlineplus.gov/ency/article/002341.htm", for: "Normal heart rate, temperature, breathing and blood oxygen" },
+    { id: "cdc-glucose", title: "Diabetes Testing", by: "Centers for Disease Control and Prevention", url: "https://www.cdc.gov/diabetes/diabetes-testing/index.html", for: "Blood sugar ranges" },
+  ],
+  symptoms: [{ id: "medline-topics", title: "Health Topics", by: "MedlinePlus, U.S. National Library of Medicine", url: "https://medlineplus.gov/healthtopics.html", for: "Common symptoms, what can help and when to see a doctor" }],
+  mind: [{ id: "nimh", title: "Mental Health Information", by: "National Institute of Mental Health (NIH)", url: "https://www.nimh.nih.gov/health", for: "Stress, mood and when to get help" }],
+};
+export const sourcesFor = (topics: HealthTopic[] = ["nutrition"]): HealthSource[] => topics.flatMap((t) => (t === "nutrition" ? HEALTH_SOURCES : MORE[t]));
+export const ALL_HEALTH_TOPICS: HealthTopic[] = ["nutrition", "cycle", "sleep", "medicine", "heart", "screenings", "mind", "bmi", "vitals", "symptoms"];
+
+export const GENERAL_DISCLAIMER = "This is general health information, not medical advice. Ask a doctor, nurse or pharmacist about your own health, and call your local emergency number in an emergency.";
 export const HEALTH_DISCLAIMER = "These numbers are estimates for healthy adults, not medical advice. Ask a doctor or registered dietitian before changing how you eat, especially if you're pregnant, nursing, under 18 or have a health condition.";

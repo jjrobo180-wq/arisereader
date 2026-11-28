@@ -310,7 +310,7 @@ function DuoSettings({ data, update, say, onClose, onGoals, onTour, onAccount, o
         <SheetRow icon={<Bell />} color="#ff3b30" label="Notifications" onClick={() => setSheet("reminders")} right={go} testId="fit-open-reminders" />
         <SheetRow icon={<Mic />} color="#5856d6" label="Siri & Shortcuts" onClick={onSiri} right={go} testId="fit-open-siri" />
       </SheetGroup>
-      <SheetGroup caption="Premium"><SheetRow icon={<Crown />} color="#ffcc00" label={plus ? "You have Premium" : `Get Premium · ${status.price}`} onClick={() => ask()} right={go} testId="fit-settings-plus" /></SheetGroup>
+      <SheetGroup caption="Premium"><SheetRow icon={<Crown />} color="#ffcc00" label={plus ? "You have Premium" : isNativeApp() ? "Get Premium" : `Get Premium · ${status.price}`} onClick={() => ask()} right={go} testId="fit-settings-plus" /></SheetGroup>
       <SheetGroup caption="Help & privacy" note="How-to videos play from YouTube. Exercise photos from wger.de. Food data from USDA FoodData Central and Open Food Facts.">
         <SheetRow icon={<Play />} color="#34c759" label="How it works" onClick={onTour} right={go} testId="fit-open-tour" />
         <SheetRow icon={<ShieldCheck />} color="#8e8e93" label="Account & privacy" onClick={onAccount} right={go} />
@@ -376,7 +376,7 @@ function PlusButton() {
 function PlusRow() {
   const { plus, status, ask } = usePlus();
   return <Card onClick={() => ask()} className="!p-4" testId="fit-settings-plus"><div className="flex items-center gap-3"><Crown className="h-5 w-5" style={{ color: C.lime }} />
-    <span className="min-w-0 flex-1"><span className="block font-semibold">{plus ? "You have Fit+" : `Get Fit+ · ${status.price}`}</span><span className="block text-[13px]" style={{ color: C.dim }}>{status.pass.role === "owner" ? (status.pass.guest ? `Guest pass: ${status.pass.guest.name}` : "Guest pass: not shared yet") : status.pass.role === "guest" ? `Guest pass from ${status.pass.owner?.name}` : "Guest pass, plans and billing"}</span></span>
+    <span className="min-w-0 flex-1"><span className="block font-semibold">{plus ? "You have Fit+" : isNativeApp() ? "Get Fit+" : `Get Fit+ · ${status.price}`}</span><span className="block text-[13px]" style={{ color: C.dim }}>{isNativeApp() ? (plus ? "On your account" : "Subscribe with your Apple ID") : status.pass.role === "owner" ? (status.pass.guest ? `Guest pass: ${status.pass.guest.name}` : "Guest pass: not shared yet") : status.pass.role === "guest" ? `Guest pass from ${status.pass.owner?.name}` : "Guest pass, plans and billing"}</span></span>
     <ChevronRight className="h-5 w-5" style={{ color: C.dim }} /></div></Card>;
 }
 
@@ -633,7 +633,7 @@ function FitMain({ say, onPass, embed }: { say: (m: string) => void; onPass: (co
     {setup && <Onboarding data={data} update={update} edit={!!data.onboarded} onDone={() => setSetup(false)} />}
     {tour && <Layer><FeatureTour onClose={() => setTour(false)} /></Layer>}
     {/* After setup (the first-run goals): the To Do Unlimited pop-up, once. */}
-    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro="Cooked Fitness by Arise is free to use. Arise To Do Unlimited adds Premium with a guest pass for a friend, plus the extras in To Do, Notes and Podster." />}
+    {!embed && <AllAccessPopup app="fit" userId={user?.id} token={token} ready={loaded && !!data.onboarded && !setup && !tour} dark intro={isNativeApp() ? "Cooked Fitness by Arise is free to use. Arise To Do Unlimited adds Premium, plus the extras in To Do and Notes." : "Cooked Fitness by Arise is free to use. Arise To Do Unlimited adds Premium with a guest pass for a friend, plus the extras in To Do, Notes and Podster."} />}
     {invite && token && <InviteJoinSheet token={token} code={invite} onClose={() => setInvite(null)} onJoined={() => { setInvite(null); setCoach(true); }} />}
     {coach && <CoachScreen token={token} me={Number(user?.id) || 0} data={data} update={update} list={list} onStart={startNow} onClose={() => setCoach(false)} />}
     {form && <FormCheck onClose={() => setForm(false)} />}

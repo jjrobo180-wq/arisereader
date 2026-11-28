@@ -1,6 +1,7 @@
 // Health apps: trackers for water, sleep, weight, steps, blood pressure, symptoms, food and
 // caffeine; a medication schedule; a screen-break timer; first aid; medical ID cards; doctor
 // visits; health calculators; and a toothbrush timer for kids.
+import HealthSources from "@/components/HealthSources";
 import { Suspense, lazy, useEffect, useState, type ComponentType } from "react";
 // Potty Training is a big app of its own; its code loads only when it's opened.
 const PottyLazy = lazy(() => import("../potty/PottyApp"));
@@ -328,6 +329,8 @@ function Calculators() {
       <div className="mt-2 grid grid-cols-3 gap-2">{beds.map((b) => <Stat key={b.cycles} label={`${b.cycles} cycles · ${b.cycles * 1.5} h`} value={fmtTime(b.t)} color={b.cycles === 6 ? "#7c3aed" : undefined} />)}</div></Card>}
     {tab === "water" && <Card><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Field label="Weight (lb)"><NumIn value={lb} onChange={setLb} /></Field><Field label="Minutes of exercise today"><NumIn value={rest} onChange={setRest} /></Field></div>
       <p className="mt-4 text-center text-5xl font-black text-sky-600">{fmtNum(Number(lb || 0) / 2 + (Number(rest || 0) / 30) * 12, 0)} oz</p><p className="text-center text-sm text-slate-500">about {fmtNum((Number(lb || 0) / 2 + (Number(rest || 0) / 30) * 12) / 8, 0)} glasses — half your weight in ounces, plus 12 oz per 30 minutes of exercise</p></Card>}
+    {/* Sources for every number on these tabs (App Review 1.4.1). */}
+    <HealthSources topics={tab === "bmi" ? ["bmi"] : tab === "hr" ? ["heart"] : tab === "sleep" ? ["sleep"] : ["nutrition"]} />
   </div>;
 }
 

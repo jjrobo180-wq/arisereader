@@ -1,5 +1,6 @@
 // Two Cooked health plugins: the Medicine tracker (shared/fitMeds.ts) and the Period tracker
 // (shared/fitCycle.ts). Both keep their records with the rest of a person's Cooked data.
+import HealthSources from "@/components/HealthSources";
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Pencil, Pill, Plus, SkipForward, Trash2, TriangleAlert, Undo2, X } from "lucide-react";
 import { dayKey, uid, type FitData } from "@shared/fit";
@@ -58,6 +59,7 @@ export function MedsApp({ data, update, say, inline, onClose }: { data: FitData;
       <div className="space-y-2">{list.map((m) => { const left = daysLeft(m); return <Card key={m.id} onClick={() => setEditing(m)} className="!p-3" testId="fit-meds-row"><div className="flex items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: m.color + "33", color: m.color }}><Pill className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="truncate text-[16px] font-semibold">{m.name}</div><div className="truncate text-[13px]" style={{ color: C.dim }}>{m.times.map(clock12).join(", ")} · {m.days.length === 7 ? "every day" : m.days.map((d) => DAY_LETTERS[d]).join(" ")}{left !== null ? ` · ${m.supply} left` : ""}</div></div><Pencil className="h-4 w-4" style={{ color: C.dim }} /></div></Card>; })}</div>
     </>}
     <p className="mt-4 px-1 text-[12px]" style={{ color: C.dim }}>Reminders come from the iPhone app. This is a helper, not medical advice: follow what your doctor and pharmacist tell you.</p>
+    <div className="mt-1 px-1"><HealthSources topics={["medicine"]} label="Medicine information sources" tone={{ link: C.lime, soft: C.dim, ink: C.text }} /></div>
     {editing && <MedEditor med={editing} isNew={!list.some((x) => x.id === editing.id)} onSave={save} onDelete={() => remove(editing.id)} onClose={() => setEditing(null)} />}
   </Sheet>;
 }
@@ -124,5 +126,6 @@ export function PeriodApp({ data, update, say, inline, onClose }: { data: FitDat
       <Field label="Note"><input value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => note !== entry.note && save({ note })} placeholder="Anything to remember" maxLength={300} className={inputCls} style={inputStyle} /></Field>
     </Card>
     <p className="mt-4 px-1 text-[12px]" style={{ color: C.dim }}>Predictions are estimates from your own history, for planning. They are not birth control or medical advice. Your records stay in your Cooked account.</p>
+    <div className="mt-1 px-1"><HealthSources topics={["cycle"]} label="Cycle information sources" tone={{ link: C.lime, soft: C.dim, ink: C.text }} /></div>
   </Sheet>;
 }

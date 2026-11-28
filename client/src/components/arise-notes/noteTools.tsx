@@ -65,7 +65,7 @@ export default function ToolsTab({ ctx, note, onNote, onTranslated }: { ctx: App
     </Section>
 
     <Section title="Notes beside your to-dos" icon={<Columns2 className="h-4 w-4" />} className="an-extra">
-      <p className="mb-3 text-[14px] text-[var(--an-muted)]">Open Arise To Do's split screen: your notes on one side, your to-do list, calendar or WorkHub on the other. Made for the iPhone Duo, foldables, tablets and wide screens.</p>
+      <p className="mb-3 text-[14px] text-[var(--an-muted)]">Open Arise To Do's split screen: your notes on one side, your to-do list, calendar or WorkHub on the other. Works great on iPhone Duo, foldables, tablets and wide screens.</p>
       <div className="flex flex-wrap gap-2"><Btn kind="soft" onClick={() => openSplit(ctx.mode, "tasks")}>With my to-dos</Btn><Btn kind="plain" onClick={() => openSplit(ctx.mode, "calendar")}>With my calendar</Btn>{ctx.me.user.workHub && <Btn kind="plain" onClick={() => openSplit(ctx.mode, "workhub")}>With WorkHub</Btn>}</div>
     </Section>
   </div>;

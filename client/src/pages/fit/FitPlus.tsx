@@ -94,16 +94,17 @@ export function PlusSheet({ status, feature, passCode, reload, say, onClose }: {
     <p className="mb-3 px-1 text-center text-[15px] font-semibold" style={{ color: C.text }} data-testid="fit-plus-name">Cooked Fitness by Arise: Premium All in one Health & Fitness App</p>
     {status.plus ? <Card className="!p-4" testId="fit-plus-on"><div className="flex items-center gap-3"><Crown className="h-7 w-7 shrink-0" style={{ color: C.lime }} />
       <div><p className="text-[22px] leading-none" style={display}>You have Fit+</p>
-        <p className="mt-1 text-[13px]" style={{ color: C.steel }}>{status.via === "guest-pass" ? `Shared with you by ${p.owner?.name} with their guest pass.` : status.via === "admin" ? "On your account." : status.endsAt ? `Renews or ends ${date(status.endsAt)}.` : "On your account."}</p></div></div>
+        <p className="mt-1 text-[13px]" style={{ color: C.steel }}>{status.via === "guest-pass" && !native ? `Shared with you by ${p.owner?.name} with their guest pass.` : status.via === "admin" ? "On your account." : status.endsAt ? `Renews or ends ${date(status.endsAt)}.` : "On your account."}</p></div></div>
       {status.canManage && !native && <Btn kind="soft" className="mt-3 w-full" onClick={() => void manage()} disabled={!!busy}>Manage billing</Btn>}
     </Card> : <>
       {feature && <p className="px-1 text-[15px]" style={{ color: C.steel }}><b style={{ color: C.text }}>{PLUS_NAME[feature]}</b> is part of Cooked Fitness by Arise Premium.</p>}
-      <p className="mt-1 px-1 text-[40px] leading-none" style={display}>{status.price}</p>
-      <p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>Fit+ comes with Arise To Do Unlimited: one plan that also unlocks To Do Unlimited, Arise Notes Plus and ad-free Podster.</p>
+      {/* In the iPhone app the price shown is Apple's, in the offer below (the website price can differ). */}
+      {!native && <p className="mt-1 px-1 text-[40px] leading-none" style={display}>{status.price}</p>}
+      <p className="mt-1 px-1 text-[13px]" style={{ color: C.dim }}>{native ? "Fit+ comes with Arise To Do Unlimited: one plan that also unlocks To Do Unlimited and Arise Notes Plus." : "Fit+ comes with Arise To Do Unlimited: one plan that also unlocks To Do Unlimited, Arise Notes Plus and ad-free Podster."}</p>
     </>}
 
     <Title>{status.plus ? "Included" : "What you get"}</Title>
-    <Card className="!p-4"><ul className="space-y-3">{PLUS_FEATURES.map((f) => <li key={f.id} className="flex gap-3" style={feature === f.id ? { color: C.text } : undefined}>
+    <Card className="!p-4"><ul className="space-y-3">{PLUS_FEATURES.filter((f) => !(native && f.id === "guest-pass")).map((f) => <li key={f.id} className="flex gap-3" style={feature === f.id ? { color: C.text } : undefined}>
       <FeatureIcon id={f.id} className="mt-0.5 h-5 w-5 shrink-0" />
       <span className="min-w-0"><span className="block text-[15px] font-semibold">{f.name}{status.plus && <Check className="ml-1.5 inline h-4 w-4" style={{ color: C.lime }} />}</span><span className="block text-[13px] leading-snug" style={{ color: C.dim }}>{f.blurb}</span></span></li>)}</ul>
       <p className="mt-3 text-[12px]" style={{ color: C.dim }}>Workouts, programs, food, fasting, runs, recipes and your workout circle stay free.</p></Card>

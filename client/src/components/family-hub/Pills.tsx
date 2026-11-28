@@ -1,6 +1,7 @@
 // Pill reminders: each person's medicines and vitamins with their dose times and days, today's doses
 // to check off (or skip), the last week at a glance, and a supply count that warns before it runs out.
 // Phone reminders come from LifeHub's notifications at each dose time.
+import HealthSources from "@/components/HealthSources";
 import { useMemo, useState, type FormEvent } from "react";
 import { Bell, Check, ChevronLeft, ChevronRight, Clock3, Pencil, Pill as PillIcon, Plus, RotateCcw, SkipForward, Trash2, TriangleAlert, X } from "lucide-react";
 import { PILL_COLORS, addDays, type Pill } from "@shared/familyHub";
@@ -87,6 +88,8 @@ export default function Pills({ family, setFamily, today, makeId, say }: Section
         <p className="rounded-2xl bg-slate-50 p-4 text-[11px] leading-5 text-slate-500">Reminders help you remember; they don't replace your doctor's or pharmacist's directions. Change reminder settings in Notifications.</p>
       </div>
     </div>}
+
+    <HealthSources topics={["medicine"]} label="Medicine information sources" />
 
     {editing && <PillEditor pill={editing} people={people} isNew={!family.pills.some((p) => p.id === editing.id)} onClose={() => setEditing(null)}
       onSave={(p) => { setFamily((f) => ({ ...f, pills: f.pills.some((x) => x.id === p.id) ? f.pills.map((x) => (x.id === p.id ? p : x)) : [...f.pills, p] })); setEditing(null); say(`${p.name} saved`); }}

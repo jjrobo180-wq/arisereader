@@ -1,6 +1,7 @@
 // Cycle tracker: log period days, symptoms, discharge, pain, energy, temperature and ovulation tests;
 // see the next period and fertile window; get a daily insight, tips and foods for the phase you're in;
 // and read short guides (cycle vs. period, discharge, PMS, when to see a doctor).
+import HealthSources from "@/components/HealthSources";
 import { useState, type ReactNode } from "react";
 import { useIntent } from "@/lib/deepLink";
 import { Apple, BookOpen, CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Droplets, Dumbbell, Info, Lightbulb, Sparkles, Thermometer, XCircle } from "lucide-react";
@@ -140,6 +141,7 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
 
     {view === "learn" && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Panel eyebrow="Learn" title="Readings">
+        <HealthSources topics={["cycle"]} label="Sources for these readings" className="mb-2" />
         <ul className="space-y-2">{READINGS.map((r, i) => <Reading key={r.id} title={r.title} minutes={r.minutes} open={i === 0}>{r.paragraphs.map((p, j) => <p key={j} className="text-sm leading-6 text-slate-700">{p}</p>)}</Reading>)}</ul>
       </Panel>
       <div className="space-y-6">

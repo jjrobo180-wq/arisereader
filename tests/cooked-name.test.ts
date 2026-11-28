@@ -30,7 +30,7 @@ test("the in-app upgrade sheet and popup use the new name", () => {
   const plus = read("client/src/pages/fit/FitPlus.tsx");
   assert.ok(!/<Sheet title="Cooked\+"/.test(plus));
   assert.match(plus, /part of Cooked\(\\\+\| Fitness\)/);
-  assert.ok(read("client/src/pages/fit/FitApp.tsx").includes('intro="Cooked Fitness by Arise is free to use.'));
+  assert.ok(read("client/src/pages/fit/FitApp.tsx").includes('intro={isNativeApp() ? "Cooked Fitness by Arise is free to use.'));
 });
 
 test("All Access perks are the app name, then a smaller description", () => {

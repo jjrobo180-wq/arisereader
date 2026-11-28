@@ -1,6 +1,7 @@
 // Health Nudges: pick goals and a tone, and get motivation, science, tips and tiny challenges through the day.
 // The messages come from shared/healthNudges.ts, the same code the server uses for phone notifications, so the
 // phone and this screen always say the same thing.
+import HealthSources from "@/components/HealthSources";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellOff, Pause, Play, Shuffle } from "lucide-react";
 import { Btn, Card, Empty, Field, Tabs, fmtTime, inputCls, today, usePro } from "../kit";
@@ -161,5 +162,6 @@ export default function HealthNudges() {
 
     {sample && tab !== "today" && <p className="text-center text-xs text-slate-500">Example: “{sample.body}”</p>}
     <p className="text-center text-[11px] leading-snug text-slate-500">Health Nudges are encouragement, not medical advice. Talk to a doctor before big changes to eating, exercise or medicine. If you've struggled with disordered eating, choose Gentle and skip calorie and weight goals. If you're in crisis, contact your local emergency number.</p>
+    <HealthSources topics={["nutrition", "sleep", "heart", "mind"]} label="Sources for these health tips" className="text-center" />
   </div>;
 }
