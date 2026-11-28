@@ -98,3 +98,23 @@ test("searches and subtopics teach the feed, and a search feed is its results in
   assert.equal(toCards(stub, "search", "village", { seen: [], nope: [] }).length, 1);
   assert.equal(MIN_BYTES.search, 0);
 });
+
+test("an article reads as pages of prose: lists of sources, charts and maps are left out", async () => {
+  const { paginate, skipSection, boringImage, budgetFor, toCards } = await import("../shared/wikiFeed");
+  for (const h of ["See also", "References", "External links", "Further reading", "Notes", "Career statistics", "Discography", "Gallery"]) assert.ok(skipSection(h), h);
+  for (const h of ["Early life", "Legacy", "The war in Europe", "Death"]) assert.ok(!skipSection(h), h);
+  for (const src of ["https://upload.wikimedia.org/a/b/World_War_II_casualties_chart.png", "Map_of_Europe_1942.jpg", "https://u/x/Flag_of_Japan.svg.png", "Population graph of Ohio", "Logo_of_Nike.png"]) assert.ok(boringImage(src), src);
+  for (const src of ["https://upload.wikimedia.org/a/b/Raising_the_Flag_on_Iwo_Jima.jpg", "https://upload.wikimedia.org/x/LeBron_James_2019.jpg", "Mapplethorpe portrait.jpg"]) assert.ok(!boringImage(src), src);
+  // A card's own picture is dropped when it's a chart or a map.
+  const json = { query: { pages: [{ title: "Ohio", ns: 0, extract: "x".repeat(200), thumbnail: { source: "https://upload.wikimedia.org/x/Map_of_Ohio.svg.png" } }] } };
+  assert.equal(toCards(json, "search", "ohio", { seen: [], nope: [] })[0].image, undefined);
+
+  const p = (n: number) => ({ kind: "p" as const, html: "x".repeat(n), text: n });
+  const blocks = [p(300), p(300), { kind: "h" as const, html: "Early life", text: 10 }, p(400), { kind: "img" as const, html: "", text: 0, src: "https://upload.wikimedia.org/a.jpg" }, p(500), p(500), { kind: "h" as const, html: "Legacy", text: 6 }];
+  const pages = paginate(blocks, 400, 900);
+  assert.equal(pages[0].length, 1, "the first page holds what fits under the picture");
+  for (const pg of pages) assert.notEqual(pg[pg.length - 1].kind, "h", "a heading never ends a page");
+  assert.ok(pages.every((pg) => pg.filter((b) => b.kind === "img").length <= 1));
+  assert.ok(!pages[0].some((b) => b.kind === "img"), "the first page already has the card's picture");
+  assert.ok(budgetFor(300, 600) > budgetFor(300, 300));
+});

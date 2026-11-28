@@ -97,6 +97,7 @@ export type WikiCard = {
   description: string; extract: string;
   image?: string; imageW?: number; imageH?: number;
   url: string; lane: Lane;
+  /** Opened by tapping a link on this article's card. */ linkedFrom?: string;
   /** The seed or topic it came from. */ from?: string;
 };
 
@@ -319,7 +320,7 @@ const MATURE = /\b(porn\w*|pornograph\w*|sex(ual(ity)?|ually)? (act|position|int
 export const isMature = (c: Pick<WikiCard, "title" | "description" | "extract">) => MATURE.test(`${c.title} ${c.description} ${c.extract.slice(0, 400)}`);
 
 /** Wikipedia's answer made into cards: stubs, lists, disambiguation pages, already-seen and "not for me" left out. */
-export function toCards(json: any, lane: Lane, from: string | undefined, p: Pick<WikiProfile, "seen" | "nope" | "matureOff">): WikiCard[] {
+export function toCards(json: any, lane: Lane, from: string | undefined, p: Pick<WikiProfile, "seen" | "nope" | "matureOff">, minBytes = MIN_BYTES[lane]): WikiCard[] {
   const pages: any[] = Array.isArray(json?.query?.pages) ? json.query.pages : [];
   const skip = new Set([...p.seen, ...p.nope]);
   const order = (x: any) => num(x?.index, 0);
@@ -329,10 +330,10 @@ export function toCards(json: any, lane: Lane, from: string | undefined, p: Pick
     if (!title || pg?.missing || pg?.ns !== 0 || pg?.pageprops?.disambiguation !== undefined) return [];
     if (/^(List|Lists|Index|Outline|Timeline) of /i.test(title) || /\(disambiguation\)$/i.test(title)) return [];
     if (extract.length < 140 || skip.has(title)) return [];
-    if (typeof pg?.length === "number" && pg.length < MIN_BYTES[lane]) return [];
+    if (typeof pg?.length === "number" && pg.length < minBytes) return [];
     const card: WikiCard = { title, description: str(pg?.description, 200), extract, url: str(pg?.fullurl, 600) || pageUrl(title), lane, ...(from ? { from } : {}) };
     const t = pg?.thumbnail;
-    if (typeof t?.source === "string" && t.source.startsWith("https://")) { card.image = t.source; card.imageW = num(t.width) || undefined; card.imageH = num(t.height) || undefined; }
+    if (typeof t?.source === "string" && t.source.startsWith("https://") && !boringImage(t.source)) { card.image = t.source; card.imageW = num(t.width) || undefined; card.imageH = num(t.height) || undefined; }
     if (!p.matureOff && isMature(card)) return [];
     return [card];
   });
@@ -372,4 +373,58 @@ export function interleave(primary: WikiCard[], related: WikiCard[]): WikiCard[]
   let i = 0, j = 0;
   while (i < primary.length || j < related.length) { add(primary[i++]); add(primary[i++]); add(related[j++]); }
   return out;
+}
+
+
+// ── Reading an article on its cards ─────────────────────────────────────────
+// A card is the article itself: its picture, title and opening, then swipe sideways for the rest, page after page.
+// Only what's worth reading goes on the pages: prose, short lists and real photos. Tables, infoboxes, charts, maps,
+// diagrams, flags, logos, references and "See also"-type sections are left out.
+
+/** Sections that are lists of sources or links, not reading. */
+export const SKIP_SECTIONS = /^(see also|references|notes|notes and references|references and notes|external links|further reading|bibliography|select(ed)? bibliography|sources|citations|footnotes|explanatory notes|works cited|general (and cited )?references|gallery|images|discography|filmography|videography|bibliography and filmography|awards and nominations|awards|accolades|honou?rs|track listing|personnel|credits|career statistics|statistics|records|works|publications|list of works|selected works|charts|weekly charts|year-end charts|certifications|tour dates|box office|release history|episodes|cast|results|standings|medal table|squad|roster|demographics|climate|geography and climate)$/i;
+export const skipSection = (heading: string) => SKIP_SECTIONS.test(heading.replace(/\s+/g, " ").trim());
+/** Pictures that are data, not something to look at. */
+export const BORING_IMAGE = /(\b|_)(graph|graphs|chart|charts|plot|diagram|map|maps|locator|distribution|population|percent|statistics?|logo|wordmark|signature|coat[ _]of[ _]arms|flag[ _]of|seal[ _]of|emblem|infographic|schematic|blank)(\b|_|\.)/i;
+export const boringImage = (srcOrCaption: string) => BORING_IMAGE.test(srcOrCaption) || /\.svg(\.png)?$/i.test(srcOrCaption.split("?")[0]);
+
+/** One piece of an article: a heading, a paragraph (or part of one), a list item, or a photo. html is already safe. */
+export type Block = { kind: "h" | "p" | "li" | "img"; html: string; text: number; src?: string; caption?: string };
+
+/** How much a block takes up on a page, in characters. */
+export const weight = (b: Block, budget: number) => (b.kind === "h" ? 90 : b.kind === "img" ? Math.round(budget * 0.5) : b.kind === "li" ? b.text + 30 : b.text + 20);
+
+/**
+ * The article's blocks laid out as pages: the first page (under the card's picture and title) holds firstBudget
+ * characters, the rest budget each. A heading never ends a page (it moves with what it heads), and a page has at
+ * most one photo. At most maxPages pages.
+ */
+export function paginate(blocks: Block[], firstBudget: number, budget: number, maxPages = 80): Block[][] {
+  const pages: Block[][] = [];
+  let cur: Block[] = [], used = 0, cap = Math.max(120, firstBudget);
+  const flush = () => { if (cur.length) { pages.push(cur); cur = []; used = 0; cap = budget; } };
+  for (let i = 0; i < blocks.length && pages.length < maxPages; i++) {
+    const b = blocks[i];
+    // The first page already has the card's picture; after that, one photo a page.
+    if (b.kind === "img" && (pages.length === 0 || cur.some((x) => x.kind === "img"))) continue;
+    let w = weight(b, budget);
+    if (b.kind === "h") { const next = blocks[i + 1]; if (next) w += Math.min(weight(next, budget), budget * 0.3); }
+    if (used + w > cap && cur.length) flush();
+    // A photo that won't fit beside what's on a page waits for a page of its own (it's dropped if the page is full).
+    if (b.kind === "img" && used + weight(b, budget) > cap) continue;
+    cur.push(b);
+    used += weight(b, budget);
+  }
+  if (pages.length < maxPages) flush();
+  // A heading never ends a page: it moves to the top of the next one (or goes, at the very end).
+  for (let i = 0; i < pages.length; i++) {
+    while (pages[i].length && pages[i][pages[i].length - 1].kind === "h") { const h = pages[i].pop()!; if (pages[i + 1]) pages[i + 1].unshift(h); }
+  }
+  return pages.filter((pg) => pg.length);
+}
+
+/** How many characters fit in a text area this big (17px type, 1.6 line height). */
+export function budgetFor(width: number, height: number) {
+  const perLine = Math.max(20, width / 8.6), lines = Math.max(3, height / 27.5);
+  return Math.floor(perLine * lines * 0.8);
 }
