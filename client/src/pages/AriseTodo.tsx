@@ -1342,7 +1342,7 @@ export default function AriseTodo({ space = "life", onFamilyPeople }: { space?: 
     // Life Score reads everything: every hub's to-dos (with when they were made and done), WorkHub and the Health & Fitness diary.
     : shown === "lifescore" ? <LifeScoreApp {...appProps} token={token} lifeTasks={data.tasks} lists={data.lists} familySpace={familySpace} />
     // Arise Feed: the week as a swipe feed; its cards check off to-dos and move them, and open the part they came from.
-    : shown === "wiki" ? <WikiFeed say={say} token={token} student={user?.role === "student"} userId={user?.id} />
+    : shown === "wiki" ? <WikiFeed say={appProps.say} token={token} student={user?.role === "student"} userId={user?.id} />
     : shown === "feed" ? <AriseFeed {...appProps} token={token} lifeTasks={data.tasks as any} lists={data.lists} familySpace={familySpace} userName={(user?.displayName || "").split(" ")[0]}
         onToggleTask={(id) => { const task = data.tasks.find((row) => row.id === id); if (task) toggleDone(task); }}
         onMoveTask={(id, due) => setData((previous) => ({ ...previous, tasks: previous.tasks.map((row) => (row.id === id ? { ...row, due } : row)) }))}

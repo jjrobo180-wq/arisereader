@@ -25,3 +25,8 @@ test("the Tasks look menu stays on screen on a phone", () => {
   assert.match(src, /Math\.max\(gap, Math\.min\(r\.right - width, vw - width - gap\)\)/, "never past either edge");
   assert.match(src, /maxHeight: pos\.maxH/, "scrolls instead of running under the tab bar");
 });
+
+test("Arise Wiki opens: the LifeHub passes it the page's message function", () => {
+  const src = readFileSync("client/src/pages/AriseTodo.tsx", "utf8");
+  assert.match(src, /<WikiFeed say=\{appProps\.say\}/);
+});
