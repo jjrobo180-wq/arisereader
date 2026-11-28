@@ -9,8 +9,9 @@ import { SwipeFeed, type SwipeFeedHandle } from "@/components/swipe/SwipeFeed";
 import { tap } from "@/lib/celebrate";
 import { API_BASE } from "@/lib/queryClient";
 import {
-  articleUrl, cleanProfile, dwellSignal, laneUrl, learn, markSeen, mergeProfiles, newProfile, pageUrl, pickLane, pickSeed, pickTopic, searchUrl, short, titlesUrl,
-  toCards, toggleSave, TOPICS, trendTitles, trendUrl, unlike, weave, type Lane, type Signal, type WikiCard, type WikiProfile,
+  articleUrl, cleanProfile, dwellSignal, interleave, laneUrl, learn, learnSearch, learnSubtopic, markSeen, mergeProfiles, newProfile, pageUrl, pickLane, pickSearch, pickSeed, pickTopic,
+  relatedUrl, searchPageUrl, short, subLabel, SUBTOPICS, suggestions, suggestUrl, titlesUrl, toCards, toggleSave, TOPICS, trendTitles, trendUrl, unlike, weave,
+  type Lane, type Signal, type WikiCard, type WikiProfile,
 } from "@shared/wikiFeed";
 
 type Props = { say: (m: string) => void; token?: string | null; student?: boolean; userId?: number };
@@ -24,7 +25,7 @@ const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null)
 const random = Math.random;
 const GRADIENTS = ["from-[#1e1b4b] to-[#7c3aed]", "from-[#0f172a] to-[#0e7490]", "from-[#3b0764] to-[#db2777]", "from-[#052e16] to-[#16a34a]", "from-[#431407] to-[#ea580c]", "from-[#172554] to-[#2563eb]", "from-[#1c1917] to-[#a16207]"];
 const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
-const laneLabel: Record<Lane, string> = { seed: "More like what you love", topic: "Picked for you", trend: "Trending today", explore: "Discover" };
+const laneLabel: Record<Lane, string> = { seed: "More like what you love", topic: "Picked for you", search: "From your search", trend: "Trending today", explore: "Discover" };
 
 /** The interest profile: this device's copy, merged with the account's, saved to both. */
 function useProfile(token: string | null | undefined, uid: number | undefined, student: boolean) {
@@ -62,14 +63,33 @@ function useProfile(token: string | null | undefined, uid: number | undefined, s
   return { profile: profile ? forced(profile) : null, setProfile, ref, synced, auth };
 }
 
-/** The endless feed: batches from four lanes, woven together, more fetched as you near the end. */
-function useFeed(profileRef: MutableRefObject<WikiProfile | null>, student: boolean) {
+/** What the feed is showing: For you, a search, one subject (and everything like it), or a whole topic. */
+export type FeedMode = { kind: "you" } | { kind: "search"; q: string } | { kind: "focus"; title: string } | { kind: "topic"; id: string };
+export const modeKey = (m: FeedMode) => (m.kind === "you" ? "you" : m.kind === "search" ? `s:${m.q}` : m.kind === "focus" ? `f:${m.title}` : `t:${m.id}`);
+
+/**
+ * The endless feed. For you: batches from the learning lanes, woven together. A search: its results in order, best
+ * first, two at a time with one "more like the top result" between, page after page; when they run out, more like
+ * what you liked in it. A subject: that article, then everything like it. A topic: its best-known articles mixed with
+ * its subtopics. More is fetched as you near the end, so none of them ends.
+ */
+function useFeed(profileRef: MutableRefObject<WikiProfile | null>, student: boolean, onSearched: (q: string, top: string | null) => void) {
   const [cards, setCards] = useState<WikiCard[]>([]);
+  const [mode, setModeState] = useState<FeedMode>({ kind: "you" });
+  const modeRef = useRef<FeedMode>(mode);
   const pool = useRef<WikiCard[]>([]);
   const inFeed = useRef(new Set<string>());
-  const busy = useRef(false);
+  const busy = useRef(0); // which mode's fetch is running (a new mode makes an old fetch's answer ignored)
+  const gen = useRef(0);
+  const page = useRef(0);
+  const anchor = useRef<string | null>(null);
   const trend = useRef<{ day: string; titles: string[] } | null>(null);
 
+  const filterFor = (focused: boolean) => {
+    const p = profileRef.current ?? newProfile();
+    // A search shows what you asked for even if you've seen it; For you never repeats.
+    return { seen: focused ? [...inFeed.current] : [...p.seen, ...inFeed.current], nope: p.nope, matureOff: student ? false : p.matureOff };
+  };
   const trending = async (): Promise<string[]> => {
     const d = new Date(), day = d.toISOString().slice(0, 10);
     if (trend.current?.day !== day) {
@@ -85,37 +105,80 @@ function useFeed(profileRef: MutableRefObject<WikiProfile | null>, student: bool
   };
   const batch = async (lane: Lane): Promise<WikiCard[]> => {
     const p = profileRef.current ?? newProfile();
-    const filter = { seen: [...p.seen, ...inFeed.current], nope: p.nope, matureOff: student ? false : p.matureOff };
     if (lane === "trend") {
       const titles = await trending();
       if (!titles.length) return batch("explore");
-      return toCards(await getJson(titlesUrl(titles)), "trend", undefined, filter);
+      return toCards(await getJson(titlesUrl(titles)), "trend", undefined, filterFor(false));
     }
-    const from = lane === "seed" ? pickSeed(p, random) : lane === "topic" ? pickTopic(p, random) : null;
-    if ((lane === "seed" || lane === "topic") && !from) return batch("explore");
-    return toCards(await getJson(laneUrl(lane, from, random)), lane, from ?? undefined, filter);
+    const from = lane === "seed" ? pickSeed(p, random) : lane === "topic" ? pickTopic(p, random) : lane === "search" ? pickSearch(p, random) : null;
+    if ((lane === "seed" || lane === "topic" || lane === "search") && !from) return batch("explore");
+    return toCards(await getJson(laneUrl(lane, from, random)), lane, from ?? undefined, filterFor(false));
+  };
+  const forYou = async (want: number) => {
+    for (let tries = 0; pool.current.length < want && tries < 3; tries++) {
+      const p = profileRef.current ?? newProfile();
+      const lanes = Array.from({ length: 4 }, () => pickLane(p, random));
+      const got = (await Promise.all(lanes.map((l) => batch(l).catch(() => [])))).flat();
+      pool.current.push(...got.filter((c) => !inFeed.current.has(c.title) && !pool.current.some((x) => x.title === c.title)).sort(() => random() - 0.5));
+    }
+    const { out, rest } = weave(pool.current, want);
+    pool.current = rest.slice(0, 60);
+    return out;
+  };
+  /** Something you liked or stayed on in this feed, to find more like when the asked-for results run out. */
+  const lovedHere = () => {
+    const p = profileRef.current;
+    const here = [...inFeed.current];
+    const good = (p?.seeds ?? []).filter((s) => s.w > 0 && here.includes(s.title)).sort((a, b) => b.at - a.at);
+    return good.length ? good[Math.floor(random() * Math.min(3, good.length))].title : anchor.current;
+  };
+  const focused = async (m: Exclude<FeedMode, { kind: "you" }>): Promise<WikiCard[]> => {
+    const n = page.current++;
+    const f = filterFor(true);
+    const get = async (url: string, lane: Lane, from?: string) => toCards(await getJson(url), lane, from, f);
+    let primary: WikiCard[] = [], related: WikiCard[] = [];
+    if (m.kind === "search") {
+      primary = n < 6 ? await get(searchPageUrl(m.q, n), "search", m.q) : [];
+      if (n === 0) { anchor.current = primary[0]?.title ?? null; onSearched(m.q, anchor.current); }
+      const like = n < 3 ? anchor.current : lovedHere();
+      if (like) related = await get(relatedUrl(like, n < 3 ? n : Math.floor(random() * 3)), "seed", like);
+    } else if (m.kind === "focus") {
+      if (n === 0) { anchor.current = m.title; primary = await get(titlesUrl([m.title]), "seed", m.title); }
+      const more = await get(relatedUrl(m.title, Math.min(n, 8)), "seed", m.title);
+      primary = [...primary, ...(n < 9 ? more : [])];
+      if (n >= 2) { const like = lovedHere(); if (like && like !== m.title) related = await get(relatedUrl(like, Math.floor(random() * 3)), "seed", like); }
+    } else {
+      const subs = SUBTOPICS[m.id as keyof typeof SUBTOPICS] ?? [];
+      const sub = subs[Math.floor(random() * subs.length)];
+      const [a, b] = await Promise.all([get(laneUrl("topic", m.id, random), "topic", m.id), sub ? get(relatedUrl(sub, Math.floor(random() * 3)), "seed", sub) : Promise.resolve([])]);
+      primary = a.sort(() => random() - 0.5); related = b.sort(() => random() - 0.5);
+    }
+    return interleave(primary, related).filter((c) => !inFeed.current.has(c.title));
   };
   const more = useCallback(async (want = 8) => {
-    if (busy.current) return;
-    busy.current = true;
+    const g = gen.current;
+    if (busy.current === g + 1) return;
+    busy.current = g + 1;
     try {
-      for (let tries = 0; pool.current.length < want && tries < 3; tries++) {
-        const p = profileRef.current ?? newProfile();
-        const lanes = Array.from({ length: 4 }, () => pickLane(p, random));
-        const got = (await Promise.all(lanes.map((l) => batch(l).catch(() => [])))).flat();
-        const fresh = got.filter((c) => !inFeed.current.has(c.title) && !pool.current.some((x) => x.title === c.title));
-        // Each batch gives up to a dozen; a few from each keeps the mix (the rest wait in the pool).
-        pool.current.push(...fresh.sort(() => random() - 0.5));
-      }
-      const { out, rest } = weave(pool.current, want);
-      pool.current = rest.slice(0, 60);
+      const m = modeRef.current;
+      let out = m.kind === "you" ? await forYou(want) : await focused(m);
+      // A search with nothing left to show keeps going with For you, so it never just stops.
+      if (m.kind !== "you" && !out.length) out = await focused(m);
+      if (m.kind !== "you" && !out.length) out = await forYou(want);
+      if (g !== gen.current) return;
       for (const c of out) inFeed.current.add(c.title);
       if (out.length) setCards((cs) => [...cs, ...out]);
-    } finally { busy.current = false; }
+    } finally { if (busy.current === g + 1) busy.current = 0; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [student]);
-  const reset = useCallback(() => { setCards([]); pool.current = []; inFeed.current = new Set(); }, []);
-  return { cards, more, reset };
+  const setMode = useCallback((m: FeedMode) => {
+    gen.current++; busy.current = 0;
+    modeRef.current = m; setModeState(m);
+    setCards([]); pool.current = []; inFeed.current = new Set(); page.current = 0; anchor.current = null;
+    // After this render, so a profile set in the same tap (picks, a search) is what the first batch uses.
+    window.setTimeout(() => void more(8), 0);
+  }, [more]);
+  return { cards, more, mode, setMode };
 }
 
 /** Wikipedia's article HTML made safe and made to fit: no scripts or handlers, links marked for in-app opening. */
@@ -322,7 +385,7 @@ function Card({ c, liked, saved, stats, active, onLike, onSave, onComment, onSha
     <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] pl-5 pr-3">
       <div className="min-w-0 flex-1 pb-1">
         <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.08em] text-white/85 backdrop-blur">
-          <Sparkles size={12} />{laneLabel[c.lane]}{c.lane === "seed" && c.from ? ` · ${c.from}` : c.lane === "topic" && c.from ? ` · ${TOPICS.find((t) => t.id === c.from)?.label ?? ""}` : ""}
+          <Sparkles size={12} />{c.from === c.title ? "Your pick" : <>{laneLabel[c.lane]}{(c.lane === "seed" || c.lane === "search") && c.from ? ` · ${subLabel(c.from)}` : c.lane === "topic" && c.from ? ` · ${TOPICS.find((t) => t.id === c.from)?.label ?? ""}` : ""}</>}
         </p>
         <h2 className="text-[30px] font-black leading-[1.05] tracking-[-0.025em] text-white [overflow-wrap:anywhere] sm:text-[36px]">{c.title}</h2>
         {c.description && <p className="mt-1 text-[14px] font-semibold text-white/70">{c.description.charAt(0).toUpperCase() + c.description.slice(1)}</p>}
@@ -342,17 +405,49 @@ function Card({ c, liked, saved, stats, active, onLike, onSave, onComment, onSha
   </div>;
 }
 
+/** A search box with title suggestions as you type. Enter searches (a swipe feed of results); a suggestion opens
+ *  that article's feed. */
+function SearchBox({ onSearch, onPick, dark = false, autoFocus = false }: { onSearch: (q: string) => void; onPick: (title: string, typed: string) => void; dark?: boolean; autoFocus?: boolean }) {
+  const [q, setQ] = useState("");
+  const [hints, setHints] = useState<string[]>([]);
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setHints([]); return; }
+    let live = true;
+    const t = window.setTimeout(() => { void getJson(suggestUrl(term)).then((j) => { if (live) setHints(suggestions(j)); }); }, 220);
+    return () => { live = false; window.clearTimeout(t); };
+  }, [q]);
+  const go = () => { const term = q.trim(); if (term) { setHints([]); onSearch(term); } };
+  return <div className="relative">
+    <form onSubmit={(e) => { e.preventDefault(); go(); }} className="flex items-center gap-2">
+      <div className="relative min-w-0 flex-1">
+        <Search className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${dark ? "text-white/50" : "text-slate-400"}`} size={18} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} enterKeyHint="search" placeholder="Search anything: WW2, sharks, LeBron…" aria-label="Search Wikipedia" data-testid="wiki-search"
+          className={`min-h-12 w-full rounded-2xl pl-10 pr-3 text-[16px] font-medium outline-none ${dark ? "bg-white/10 text-white placeholder:text-white/40 focus:bg-white/15" : "border border-slate-200 bg-white text-slate-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"}`} />
+      </div>
+      <button type="submit" className={`min-h-12 rounded-2xl px-4 text-sm font-bold ${dark ? "bg-white text-[#111]" : "bg-[#16142a] text-white"}`}>Swipe</button>
+    </form>
+    {hints.length > 0 && <div className={`mt-2 overflow-hidden rounded-2xl ${dark ? "bg-white/10" : "border border-slate-100 bg-white shadow-sm"}`} data-testid="wiki-suggestions">
+      <button type="button" onClick={go} className={`flex w-full items-center gap-2 px-4 py-3 text-left text-[15px] font-bold ${dark ? "text-white hover:bg-white/10" : "text-violet-700 hover:bg-violet-50"}`}><Search size={16} />Swipe through "{q.trim()}"</button>
+      {hints.map((h) => <button key={h} type="button" onClick={() => { setHints([]); onPick(h, q.trim()); }} className={`block w-full truncate border-t px-4 py-3 text-left text-[15px] ${dark ? "border-white/5 text-white/85 hover:bg-white/10" : "border-slate-100 text-slate-700 hover:bg-slate-50"}`}>{h}</button>)}
+    </div>}
+  </div>;
+}
+
 export default function WikiFeed({ say, token, student = false, userId }: Props) {
   const { profile, setProfile, ref, auth } = useProfile(token, userId, student);
-  const { cards, more, reset } = useFeed(ref, student);
+  const onSearched = useCallback((q: string, top: string | null) => setProfile((p) => learnSearch(p ?? newProfile(), q, top)), [setProfile]);
+  const { cards, more, mode, setMode } = useFeed(ref, student, onSearched);
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [reading, setReading] = useState<string | null>(null);
   const [commenting, setCommenting] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
   const [stats, setStats] = useState<Record<string, Stats>>({});
   const [picks, setPicks] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<WikiCard[] | null>(null);
+  const [subPicks, setSubPicks] = useState<string[]>([]);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [browse, setBrowse] = useState<string | null>(null);
   const [tab, setTab] = useState<"saved" | "liked">("saved");
   const feedRef = useRef<SwipeFeedHandle>(null);
   const shownAt = useRef<{ i: number; t: number }>({ i: -1, t: 0 });
@@ -368,7 +463,7 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
     if (c && t && !acted.current.has(c.title)) signal(c, dwellSignal((Date.now() - t) / 1000));
   }, [cards, signal]);
   const onIndex = (i: number) => {
-    if (reading) return;
+    if (reading || searching) return;
     leave();
     shownAt.current = { i, t: Date.now() };
     setIndex(i);
@@ -383,7 +478,26 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards.length, open, auth]);
 
-  const start = () => { setOpen(true); setIndex(0); shownAt.current = { i: -1, t: 0 }; if (!cards.length) void more(8); };
+  // The first card arrives after the loading screen: start its clock then.
+  const firstTitle = cards[0]?.title;
+  useEffect(() => {
+    if (!open || !firstTitle || index !== 0) return;
+    shownAt.current = { i: 0, t: Date.now() };
+    setProfile((p) => markSeen(p ?? newProfile(), [firstTitle]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstTitle, open]);
+
+  /** Opens the feed in a mode (For you, a search, a subject, a topic), from the top. */
+  const openFeed = (m: FeedMode) => {
+    leave();
+    shownAt.current = { i: -1, t: 0 };
+    setIndex(0); setSearching(false); setOpen(true);
+    if (modeKey(m) !== modeKey(mode) || !cards.length) setMode(m);
+  };
+  const searchFor = (q: string) => openFeed({ kind: "search", q });
+  const pickTitle = (title: string, typed: string) => { setProfile((p) => learnSearch(p ?? newProfile(), typed || title, title)); openFeed({ kind: "focus", title }); };
+  const openSub = (title: string) => { setProfile((p) => learnSubtopic(p ?? newProfile(), title)); openFeed({ kind: "focus", title }); };
+  const openTopic = (id: string) => { setProfile((p) => { const q = p ?? newProfile(); return { ...q, topics: { ...q.topics, [id]: Math.min(20, (q.topics[id] || 0) + 2) }, updatedAt: Date.now() }; }); openFeed({ kind: "topic", id }); };
   const close = () => { leave(); shownAt.current = { i: -1, t: 0 }; setOpen(false); };
   const react = (title: string, kind: "like" | "unlike" | "share") => {
     if (!auth) return;
@@ -413,21 +527,25 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
   };
   const nope = (c: WikiCard) => { acted.current.add(c.title); signal(c, "nope"); say("Got it, less like that."); feedRef.current?.next(); };
 
-  const runSearch = async () => {
-    const q = query.trim();
-    if (!q) { setResults(null); return; }
-    setResults([]);
-    const json = await getJson(searchUrl(q));
-    setResults(toCards(json, "explore", undefined, { seen: [], nope: [], matureOff: student ? false : profile?.matureOff }));
-  };
-
   const fromCard = (title: string): WikiCard => cards.find((c) => c.title === title) ?? { title, description: "", extract: "", url: pageUrl(title), lane: "explore" };
   const pages: ReactNode[] = cards.map((c, i) => <Card key={c.title} c={c} active={i === index} liked={!!profile?.liked.includes(c.title)} saved={!!profile?.saved.some((s) => s.title === c.title)} stats={stats[c.title]}
     onLike={() => like(c)} onSave={() => save(c)} onComment={() => setCommenting(c.title)} onShare={() => void share(c)} onNope={() => nope(c)} onRead={() => setReading(c.title)} />);
-  if (open && !cards.length) pages.push(<div key="loading" className="flex h-full items-center justify-center gap-2 text-white/70"><Loader2 className="animate-spin" size={20} />Finding articles for you…</div>);
+  if (open && !cards.length) pages.push(<div key="loading" className="flex h-full items-center justify-center gap-2 text-white/70"><Loader2 className="animate-spin" size={20} />{mode.kind === "search" ? `Finding "${mode.q}"…` : "Finding articles for you…"}</div>);
 
-  const onboarding = !!profile === false || (!!profile && profile.n === 0 && !Object.keys(profile.topics).length);
+  const onboarding = !profile || (profile.n === 0 && !Object.keys(profile.topics).length && !profile.seeds.length);
   const list = tab === "saved" ? [...(profile?.saved ?? [])].reverse() : [...(profile?.liked ?? [])].reverse().map((t) => ({ title: t, description: "", image: undefined as string | undefined }));
+  const recent = [...(profile?.searches ?? [])].sort((a, b) => b.at - a.at).slice(0, 8);
+  const modeLabel = mode.kind === "you" ? "For you" : mode.kind === "search" ? mode.q : mode.kind === "focus" ? subLabel(mode.title) : TOPICS.find((t) => t.id === mode.id)?.label ?? "Topic";
+  const chip = (on: boolean) => `min-h-10 rounded-full px-3.5 text-[14px] font-bold transition ${on ? "bg-white text-[#111]" : "bg-white/10 text-white hover:bg-white/15"}`;
+
+  const top = <div className="flex max-w-[calc(100vw-5rem)] items-center gap-2">
+    <button type="button" onClick={() => openFeed({ kind: "you" })} aria-pressed={mode.kind === "you"} className={`min-h-10 shrink-0 rounded-full px-3.5 text-[13px] font-extrabold backdrop-blur ${mode.kind === "you" ? "bg-white text-[#111]" : "bg-black/30 text-white"}`}>For you</button>
+    {mode.kind !== "you" && <span className="inline-flex min-h-10 min-w-0 items-center gap-1 rounded-full bg-white py-0 pl-3.5 pr-1 text-[13px] font-extrabold text-[#111]">
+      <span className="truncate">{modeLabel}</span>
+      <button type="button" onClick={() => openFeed({ kind: "you" })} aria-label="Back to For you" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-black/5"><X size={15} /></button>
+    </span>}
+    <button type="button" onClick={() => setSearching(true)} aria-label="Search" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur" data-testid="wiki-feed-search"><Search size={18} /></button>
+  </div>;
 
   return <div className="mx-auto w-full max-w-2xl py-6" data-testid="wiki-feed">
     <style>{"@keyframes wvpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-70%) scale(.9)}}"}</style>
@@ -436,46 +554,61 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
       <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-[#0ea5e9]/30 blur-3xl" />
       <p className="relative text-xs font-bold uppercase tracking-[0.16em] text-[#c4b5fd]">Arise Wiki</p>
       <h1 className="relative mt-2 text-[32px] font-black leading-tight tracking-[-0.02em]">All of Wikipedia. Endless. Made for you.</h1>
-      <p className="relative mt-2 max-w-md text-[15px] leading-6 text-white/70">Swipe through any of 6 million articles. The more you scroll, like, save and read, the better it gets at finding what you love.</p>
-      {onboarding ? <div className="relative mt-6">
-        <p className="text-sm font-bold text-white/85">Pick a few things you're into</p>
+      {onboarding ? (step === 1 ? <div className="relative mt-5">
+        <p className="text-sm font-bold text-white/85">What are you into? Pick a few.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {TOPICS.map((t) => { const on = picks.includes(t.id); return <button key={t.id} type="button" aria-pressed={on} onClick={() => setPicks((p) => (on ? p.filter((x) => x !== t.id) : [...p, t.id]))}
-            className={`min-h-10 rounded-full px-3.5 text-[14px] font-bold transition ${on ? "bg-white text-[#111]" : "bg-white/10 text-white hover:bg-white/15"}`}>{t.label}</button>; })}
+          {TOPICS.map((t) => { const on = picks.includes(t.id); return <button key={t.id} type="button" aria-pressed={on} onClick={() => setPicks((p) => (on ? p.filter((x) => x !== t.id) : [...p, t.id]))} className={chip(on)}>{t.label}</button>; })}
         </div>
-        <button type="button" disabled={picks.length < 1} onClick={() => { setProfile(newProfile(picks)); reset(); setTimeout(start, 0); }} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#c4b5fd] px-6 text-[15px] font-extrabold text-[#16141f] disabled:opacity-40" data-testid="wiki-start">
-          <Play className="h-4 w-4" fill="currentColor" />{picks.length ? `Start with ${picks.length} pick${picks.length === 1 ? "" : "s"}` : "Pick at least one"}
+        <button type="button" disabled={!picks.length} onClick={() => setStep(2)} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#c4b5fd] px-6 text-[15px] font-extrabold text-[#16141f] disabled:opacity-40" data-testid="wiki-next">
+          {picks.length ? "Next" : "Pick at least one"}<ChevronUp size={16} className="rotate-90" />
         </button>
-        <button type="button" onClick={() => { setProfile(newProfile([])); reset(); setTimeout(start, 0); }} className="ml-3 mt-5 text-sm font-bold text-white/60 underline-offset-4 hover:underline">Surprise me</button>
-      </div> : <div className="relative mt-6 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={start} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#c4b5fd] px-6 text-[15px] font-extrabold text-[#16141f]" data-testid="wiki-open"><Play className="h-4 w-4" fill="currentColor" />{cards.length ? "Keep scrolling" : "Start scrolling"}</button>
+        <button type="button" onClick={() => { setProfile(newProfile([])); openFeed({ kind: "you" }); }} className="ml-3 mt-5 text-sm font-bold text-white/60 underline-offset-4 hover:underline">Surprise me</button>
+      </div> : <div className="relative mt-5">
+        <p className="text-sm font-bold text-white/85">Now get specific. What in these?</p>
+        {picks.map((id) => <div key={id} className="mt-4">
+          <p className="text-[11px] font-extrabold uppercase tracking-[.14em] text-white/50">{TOPICS.find((t) => t.id === id)?.label}</p>
+          <div className="mt-2 flex flex-wrap gap-2">{(SUBTOPICS[id as keyof typeof SUBTOPICS] ?? []).map((title) => { const on = subPicks.includes(title); return <button key={title} type="button" aria-pressed={on} onClick={() => setSubPicks((p) => (on ? p.filter((x) => x !== title) : [...p, title]))} className={chip(on)}>{subLabel(title)}</button>; })}</div>
+        </div>)}
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => { setProfile(newProfile(picks, Date.now(), subPicks)); openFeed({ kind: "you" }); }} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#c4b5fd] px-6 text-[15px] font-extrabold text-[#16141f]" data-testid="wiki-start">
+            <Play className="h-4 w-4" fill="currentColor" />Start swiping
+          </button>
+          <button type="button" onClick={() => setStep(1)} className="text-sm font-bold text-white/60 underline-offset-4 hover:underline">Back</button>
+        </div>
+      </div>) : <div className="relative mt-5 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => openFeed({ kind: "you" })} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#c4b5fd] px-6 text-[15px] font-extrabold text-[#16141f]" data-testid="wiki-open"><Play className="h-4 w-4" fill="currentColor" />{cards.length && mode.kind === "you" ? "Keep swiping" : "Swipe For you"}</button>
         <p className="text-xs font-semibold text-white/50">{(profile?.seen.length ?? 0).toLocaleString()} read · {profile?.liked.length ?? 0} liked · {profile?.saved.length ?? 0} saved</p>
       </div>}
     </div>
 
-    <form onSubmit={(e) => { e.preventDefault(); void runSearch(); }} className="mt-5 flex items-center gap-2">
-      <div className="relative min-w-0 flex-1">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-        <input value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) setResults(null); }} placeholder="Search any Wikipedia article" aria-label="Search Wikipedia"
-          className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-[15px] font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-      </div>
-      <button type="submit" className="min-h-12 rounded-2xl bg-[#16142a] px-4 text-sm font-bold text-white">Search</button>
-    </form>
-    {results && <div className="mt-3 space-y-2" data-testid="wiki-results">
-      {!results.length ? <p className="py-4 text-center text-sm text-slate-500">Searching…</p> : results.map((r) => <button key={r.title} type="button" onClick={() => setReading(r.title)} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left hover:bg-slate-50">
-        {r.image ? <img src={r.image} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" /> : <div className={`h-14 w-14 shrink-0 rounded-xl bg-gradient-to-br ${GRADIENTS[hash(r.title) % GRADIENTS.length]}`} />}
-        <div className="min-w-0"><p className="truncate font-bold text-slate-800">{r.title}</p><p className="line-clamp-2 text-sm text-slate-500">{r.description || r.extract}</p></div>
-      </button>)}
+    <div className="mt-5"><SearchBox onSearch={searchFor} onPick={pickTitle} /></div>
+    {recent.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+      {recent.map((r) => <button key={r.q} type="button" onClick={() => searchFor(r.q)} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 text-[13px] font-bold text-slate-600 hover:bg-slate-200"><Search size={13} />{r.q}</button>)}
     </div>}
 
-    <div className="mt-6">
+    <div className="mt-7">
+      <p className="text-[11px] font-black uppercase tracking-[.14em] text-slate-500">Browse</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {TOPICS.map((t) => <button key={t.id} type="button" aria-expanded={browse === t.id} onClick={() => setBrowse(browse === t.id ? null : t.id)}
+          className={`min-h-10 rounded-full px-3.5 text-[14px] font-bold transition ${browse === t.id ? "bg-[#16142a] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{t.label}</button>)}
+      </div>
+      {browse && <div className="mt-3 rounded-3xl bg-[#16142a] p-4 text-white" data-testid="wiki-subtopics">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[15px] font-extrabold">{TOPICS.find((t) => t.id === browse)?.label}</p>
+          <button type="button" onClick={() => openTopic(browse)} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3.5 text-[13px] font-extrabold text-[#111]"><Play size={13} fill="currentColor" />Swipe all of it</button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">{(SUBTOPICS[browse as keyof typeof SUBTOPICS] ?? []).map((title) => <button key={title} type="button" onClick={() => openSub(title)} className="min-h-10 rounded-full bg-white/10 px-3.5 text-[14px] font-bold text-white hover:bg-white/20">{subLabel(title)}</button>)}</div>
+      </div>}
+    </div>
+
+    <div className="mt-7">
       <div className="flex gap-2">
         {(["saved", "liked"] as const).map((t) => <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={`min-h-10 rounded-full px-4 text-sm font-bold ${tab === t ? "bg-[#16142a] text-white" : "bg-slate-100 text-slate-600"}`}>{t === "saved" ? `Saved (${profile?.saved.length ?? 0})` : `Liked (${profile?.liked.length ?? 0})`}</button>)}
         {!student && profile && <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-slate-500"><input type="checkbox" checked={!profile.matureOff} onChange={(e) => setProfile((p) => ({ ...(p ?? newProfile()), matureOff: e.target.checked ? undefined : true, updatedAt: Date.now() }))} />Filter mature topics</label>}
       </div>
       {!list.length ? <p className="mt-4 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">{tab === "saved" ? "Tap the bookmark on any card to keep it here." : "Tap the heart (or double-tap a card) to like it."}</p>
         : <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {list.slice(0, 120).map((s) => <button key={s.title} type="button" onClick={() => setReading(s.title)} className="group relative aspect-[3/4] overflow-hidden rounded-2xl text-left">
+          {list.slice(0, 120).map((s) => <button key={s.title} type="button" onClick={() => openFeed({ kind: "focus", title: s.title })} className="group relative aspect-[3/4] overflow-hidden rounded-2xl text-left">
             {s.image ? <img src={s.image} alt="" className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105" loading="lazy" /> : <div className={`absolute inset-0 bg-gradient-to-br ${GRADIENTS[hash(s.title) % GRADIENTS.length]}`} />}
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-3"><p className="line-clamp-2 text-[15px] font-extrabold leading-tight text-white">{s.title}</p>{s.description && <p className="mt-0.5 line-clamp-1 text-xs text-white/70">{s.description}</p>}</div>
@@ -483,8 +616,14 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
         </div>}
     </div>
 
-    {open && <SwipeFeed ref={feedRef} pages={pages} label="Arise Wiki" onClose={close} onIndex={onIndex} onNearEnd={() => void more(8)}
-      top={<p className="rounded-full bg-black/30 px-3 py-2 text-[13px] font-extrabold tracking-wide text-white backdrop-blur">Arise Wiki</p>} />}
+    {open && <SwipeFeed key={modeKey(mode)} ref={feedRef} pages={pages} label="Arise Wiki" onClose={close} onIndex={onIndex} onNearEnd={() => void more(8)} top={top} />}
+    {open && searching && <div className="fixed inset-0 z-[540] bg-[#0d0b1a]/95 px-4 pt-[max(1rem,env(safe-area-inset-top))] text-white backdrop-blur" role="dialog" aria-modal="true" aria-label="Search">
+      <div className="mx-auto max-w-xl">
+        <div className="mb-3 flex items-center justify-between"><p className="text-[15px] font-extrabold">Search and swipe</p><button type="button" onClick={() => setSearching(false)} aria-label="Close search" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"><X size={18} /></button></div>
+        <SearchBox dark autoFocus onSearch={searchFor} onPick={pickTitle} />
+        {recent.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{recent.map((r) => <button key={r.q} type="button" onClick={() => searchFor(r.q)} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 text-[13px] font-bold"><Search size={13} />{r.q}</button>)}</div>}
+      </div>
+    </div>}
     {reading && <Reader title={reading} onClose={() => setReading(null)}
       onOpen={(t) => { acted.current.add(t); signal(fromCard(t), t === reading ? "open" : "link"); }}
       onLink={() => { /* the opened page learns as "link" in onOpen */ }} />}

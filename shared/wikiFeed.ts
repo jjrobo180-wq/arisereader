@@ -8,7 +8,10 @@
 //     (CirrusSearch morelike:), so the feed drifts toward what holds you. Seeds fade with time and with skips.
 //   • TOPICS (Wikipedia's article topics: space, music, history…) are weighted the same way, from the chips picked
 //     at the start and from how cards from each topic do.
-//   • Cards come from four LANES: more like your seeds, your topics, what the world is reading today, and pure
+//   • SEARCHES teach it too: what you look up is kept (with a weight that grows with each search and with how the
+//     results do) and its top article becomes a seed. A search opens its own swipe feed (searchFeed below).
+//   • Each topic has SUBTOPICS (History → World War II, Ancient Rome…): picking one makes its article a seed.
+//   • Cards come from five LANES: more like your seeds, your topics, your searches, what the world is reading today, and
 //     discovery (random articles). Each lane keeps a running score of how its cards do, and the next card's lane is
 //     drawn in proportion to those scores (with a floor, so discovery never stops). The more you use it, the more
 //     it leans on what works for you.
@@ -19,8 +22,8 @@
 
 export const WIKI_HOST = "https://en.wikipedia.org";
 
-export type Lane = "seed" | "topic" | "trend" | "explore";
-export const LANES: readonly Lane[] = ["seed", "topic", "trend", "explore"];
+export type Lane = "seed" | "topic" | "search" | "trend" | "explore";
+export const LANES: readonly Lane[] = ["seed", "topic", "search", "trend", "explore"];
 
 /** Wikipedia's article topics (the CirrusSearch articletopic: names), as chips to pick from. */
 export const TOPICS = [
@@ -37,6 +40,40 @@ export const TOPICS = [
 ] as const;
 export type TopicId = (typeof TOPICS)[number]["id"];
 const TOPIC_IDS = new Set<string>(TOPICS.map((t) => t.id));
+
+/** What's inside each topic, as the Wikipedia article each one starts from (it becomes a seed when picked). */
+export const SUBTOPICS: Record<TopicId, string[]> = {
+  space: ["Black hole", "Mars", "Solar System", "Apollo 11", "International Space Station", "Galaxy", "Exoplanet", "James Webb Space Telescope"],
+  physics: ["Quantum mechanics", "Theory of relativity", "Albert Einstein", "Nuclear fission", "Speed of light", "Dark matter", "Electricity", "Isaac Newton"],
+  biology: ["Evolution", "DNA", "Dinosaur", "Shark", "Human brain", "Octopus", "Virus", "Rainforest"],
+  chemistry: ["Periodic table", "Atom", "Chemical reaction", "Marie Curie", "Carbon", "Acid", "Polymer", "Crystal"],
+  mathematics: ["Pi", "Prime number", "Infinity", "Fibonacci sequence", "Geometry", "Probability", "Golden ratio", "Cryptography"],
+  "medicine-and-health": ["Heart", "Immune system", "Sleep", "Vaccine", "Penicillin", "Nutrition", "Exercise", "Cancer"],
+  "earth-and-environment": ["Volcano", "Earthquake", "Tropical cyclone", "Climate change", "Ocean", "Mount Everest", "Plate tectonics", "Tornado"],
+  history: ["World War II", "Ancient Rome", "Ancient Egypt", "Civil rights movement", "Cold War", "Middle Ages", "American Revolution", "Vikings"],
+  "military-and-warfare": ["World War I", "Normandy landings", "American Civil War", "Battle of Gettysburg", "Samurai", "Napoleon", "Aircraft carrier", "United States Navy SEALs"],
+  biography: ["Martin Luther King Jr.", "Abraham Lincoln", "Leonardo da Vinci", "Harriet Tubman", "Nelson Mandela", "Cleopatra", "Steve Jobs", "Frederick Douglass"],
+  geographical: ["Japan", "Grand Canyon", "Amazon rainforest", "Antarctica", "New York City", "Sahara", "Great Barrier Reef", "Iceland"],
+  architecture: ["Great Wall of China", "Egyptian pyramids", "Skyscraper", "Colosseum", "Taj Mahal", "Burj Khalifa", "Machu Picchu", "Gothic architecture"],
+  "visual-arts": ["Vincent van Gogh", "Mona Lisa", "Pablo Picasso", "Frida Kahlo", "Street art", "Photography", "Michelangelo", "Graffiti"],
+  music: ["Hip hop music", "Jazz", "Michael Jackson", "The Beatles", "Gospel music", "Rhythm and blues", "Beyoncé", "Motown"],
+  films: ["Star Wars", "Marvel Cinematic Universe", "Pixar", "Academy Awards", "Alfred Hitchcock", "Horror film", "Denzel Washington", "Animation"],
+  television: ["The Simpsons", "SpongeBob SquarePants", "Breaking Bad", "Saturday Night Live", "Reality television", "Sitcom", "Game of Thrones", "The Office (American TV series)"],
+  literature: ["Harry Potter", "William Shakespeare", "Maya Angelou", "Toni Morrison", "Greek mythology", "The Lord of the Rings", "Edgar Allan Poe", "Poetry"],
+  "video-games": ["Minecraft", "Fortnite", "Super Mario", "The Legend of Zelda", "Pokémon", "Esports", "Nintendo", "Grand Theft Auto"],
+  sports: ["National Basketball Association", "LeBron James", "Michael Jordan", "National Football League", "Serena Williams", "FIFA World Cup", "Olympic Games", "Muhammad Ali"],
+  "food-and-drink": ["Pizza", "Barbecue", "Chocolate", "Coffee", "Sushi", "Soul food", "Taco", "Hot sauce"],
+  technology: ["Artificial intelligence", "Smartphone", "Electric vehicle", "Internet", "Robot", "3D printing", "Nikola Tesla", "Thomas Edison"],
+  computing: ["Computer programming", "Apple Inc.", "Google", "Computer security", "Bitcoin", "Linux", "Alan Turing", "Microsoft"],
+  transportation: ["Formula One", "Tesla, Inc.", "Boeing 747", "High-speed rail", "Titanic", "Wright brothers", "Lamborghini", "Harley-Davidson"],
+  "philosophy-and-religion": ["Christianity", "Bible", "Jesus", "Stoicism", "Buddhism", "Islam", "Socrates", "Ten Commandments"],
+  "business-and-economics": ["Stock market", "Warren Buffett", "Amazon (company)", "Great Depression", "Cryptocurrency", "Inflation", "Nike, Inc.", "Entrepreneurship"],
+  fashion: ["Sneakers", "Air Jordan", "Streetwear", "Jeans", "Hip hop fashion", "Coco Chanel", "Supreme (brand)", "Tattoo"],
+  "comics-and-anime": ["Spider-Man", "Batman", "Naruto", "Dragon Ball", "One Piece", "Black Panther (character)", "Studio Ghibli", "Superman"],
+  engineering: ["Bridge", "Golden Gate Bridge", "Hoover Dam", "Rocket", "Panama Canal", "Nuclear power", "Roller coaster", "Eiffel Tower"],
+};
+/** A subtopic's chip label: the title without a disambiguating "(…)". */
+export const subLabel = (title: string) => title.replace(/\s*\([^)]*\)\s*$/, "");
 
 /** What a card earns, by what happened to it. Dwell is in seconds. */
 export const REWARD = {
@@ -64,10 +101,13 @@ export type WikiCard = {
 };
 
 export type Seed = { title: string; w: number; at: number };
+export type SearchTerm = { q: string; w: number; at: number };
 export type WikiProfile = {
   v: 1;
   topics: Record<string, number>;
   seeds: Seed[];
+  /** What you've searched for, weighted like seeds. */
+  searches: SearchTerm[];
   /** Running score per lane (an average of recent rewards), so lanes that work get picked more. */
   lanes: Record<Lane, number>;
   /** Recently shown titles, newest last; nothing here is shown again. */
@@ -82,12 +122,12 @@ export type WikiProfile = {
   updatedAt: number;
 };
 
-export const LIMITS = { seen: 4000, seeds: 60, liked: 2000, saved: 2000, nope: 1000 } as const;
+export const LIMITS = { seen: 4000, seeds: 60, searches: 40, liked: 2000, saved: 2000, nope: 1000 } as const;
 
-export function newProfile(topics: string[] = [], now = Date.now()): WikiProfile {
+export function newProfile(topics: string[] = [], now = Date.now(), seeds: string[] = []): WikiProfile {
   const t: Record<string, number> = {};
   for (const id of topics) if (TOPIC_IDS.has(id)) t[id] = 3;
-  return { v: 1, topics: t, seeds: [], lanes: { seed: 0.6, topic: 0.5, trend: 0.3, explore: 0.2 }, seen: [], liked: [], saved: [], nope: [], n: 0, updatedAt: now };
+  return { v: 1, topics: t, seeds: seeds.slice(0, LIMITS.seeds).map((title) => ({ title, w: 4, at: now })), searches: [], lanes: { seed: 0.6, topic: 0.5, search: 0.6, trend: 0.3, explore: 0.2 }, seen: [], liked: [], saved: [], nope: [], n: 0, updatedAt: now };
 }
 
 const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -105,6 +145,7 @@ export function cleanProfile(raw: any, now = Date.now()): WikiProfile {
   return {
     v: 1, topics, lanes,
     seeds: (Array.isArray(raw.seeds) ? raw.seeds : []).map((s: any) => ({ title: titleOf(s?.title), w: Math.max(-5, Math.min(30, num(s?.w))), at: num(s?.at, now) })).filter((s: Seed) => s.title).slice(-LIMITS.seeds),
+    searches: (Array.isArray(raw.searches) ? raw.searches : []).map((s: any) => ({ q: str(s?.q, 120), w: Math.max(-5, Math.min(30, num(s?.w))), at: num(s?.at, now) })).filter((s: SearchTerm) => s.q).slice(-LIMITS.searches),
     seen: uniqTail((Array.isArray(raw.seen) ? raw.seen : []).map(titleOf), LIMITS.seen),
     liked: uniqTail((Array.isArray(raw.liked) ? raw.liked : []).map(titleOf), LIMITS.liked),
     nope: uniqTail((Array.isArray(raw.nope) ? raw.nope : []).map(titleOf), LIMITS.nope),
@@ -137,6 +178,8 @@ export function learn(p: WikiProfile, card: Pick<WikiCard, "title" | "lane" | "f
   next.lanes[card.lane] = +(next.lanes[card.lane] * 0.92 + r * 0.08).toFixed(4);
   if (card.lane === "topic" && card.from && TOPIC_IDS.has(card.from)) next.topics[card.from] = Math.max(-5, Math.min(20, (next.topics[card.from] || 0) + r * 0.5));
   if (card.lane === "seed" && card.from) { const s = next.seeds.find((x) => x.title === card.from); if (s) s.w = Math.max(-5, Math.min(30, s.w + r * 0.4)); }
+  next.searches = p.searches.map((x) => ({ ...x }));
+  if (card.lane === "search" && card.from) { const q = next.searches.find((x) => x.q.toLowerCase() === card.from!.toLowerCase()); if (q) q.w = Math.max(-5, Math.min(30, q.w + r * 0.4)); }
   // The card itself: a good one becomes (or grows as) a seed; a bad one that was a seed shrinks.
   const own = next.seeds.find((x) => x.title === card.title);
   if (r >= REWARD.read) {
@@ -147,6 +190,23 @@ export function learn(p: WikiProfile, card: Pick<WikiCard, "title" | "lane" | "f
   if (signal === "nope") next.nope = uniqTail([...p.nope, card.title], LIMITS.nope);
   if (signal === "like" && !p.liked.includes(card.title)) next.liked = [...p.liked, card.title].slice(-LIMITS.liked);
   return next;
+}
+/** A search: kept (or strengthened) as a search term, and its top article becomes a strong seed. */
+export function learnSearch(p: WikiProfile, q: string, top: string | null, now = Date.now()): WikiProfile {
+  const term = q.trim().slice(0, 120);
+  if (!term) return p;
+  const searches = p.searches.filter((x) => x.q.toLowerCase() !== term.toLowerCase());
+  const old = p.searches.find((x) => x.q.toLowerCase() === term.toLowerCase());
+  searches.push({ q: term, w: Math.min(30, (old?.w ?? 0) + 4), at: now });
+  let seeds = p.seeds.map((s) => ({ ...s }));
+  if (top) { const s = seeds.find((x) => x.title === top); if (s) { s.w = Math.min(30, s.w + 3); s.at = now; } else seeds.push({ title: top, w: 4, at: now }); }
+  seeds = seeds.sort((x, y) => x.at - y.at).slice(-LIMITS.seeds);
+  return { ...p, searches: searches.slice(-LIMITS.searches), seeds, n: p.n + 1, updatedAt: now };
+}
+/** A subtopic tapped (or picked at the start): its article becomes a strong seed. */
+export function learnSubtopic(p: WikiProfile, title: string, now = Date.now()): WikiProfile {
+  const w = Math.min(30, (p.seeds.find((s) => s.title === title)?.w ?? 0) + 4);
+  return { ...p, seeds: [...p.seeds.filter((s) => s.title !== title), { title, w, at: now }].slice(-LIMITS.seeds), n: p.n + 1, updatedAt: now };
 }
 export const unlike = (p: WikiProfile, title: string, now = Date.now()): WikiProfile => ({ ...p, liked: p.liked.filter((t) => t !== title), updatedAt: now });
 export const toggleSave = (p: WikiProfile, card: Pick<WikiCard, "title" | "description" | "image">, now = Date.now()): WikiProfile =>
@@ -163,12 +223,13 @@ export function rng(seed: number) { let s = seed >>> 0 || 1; return () => { s ^=
 /** How strongly each lane is wanted now: its score, softened, with floors so every lane keeps a share. */
 export function laneOdds(p: WikiProfile): Record<Lane, number> {
   const exp = (x: number) => Math.exp(Math.max(-3, Math.min(3, x)) * 1.2);
-  const hasSeeds = p.seeds.some((s) => s.w > 0), hasTopics = Object.values(p.topics).some((w) => w > 0);
+  const hasSeeds = p.seeds.some((s) => s.w > 0), hasTopics = Object.values(p.topics).some((w) => w > 0), hasSearches = p.searches.some((s) => s.w > 0);
   // New to it: mostly topics, trending and discovery. As signals add up, the learned lanes take over.
   const learned = Math.min(1, p.n / 40);
   const raw: Record<Lane, number> = {
     seed: hasSeeds ? exp(p.lanes.seed) * (0.4 + learned) : 0,
     topic: hasTopics ? exp(p.lanes.topic) * (0.9 - learned * 0.3) : 0,
+    search: hasSearches ? exp(p.lanes.search) * 0.7 : 0,
     trend: exp(p.lanes.trend) * 0.45,
     explore: exp(p.lanes.explore) * 0.35,
   };
@@ -203,6 +264,14 @@ export function pickSeed(p: WikiProfile, rand: () => number, now = Date.now()): 
   for (const { s, w } of live) { if ((x -= w) <= 0) return s.title; }
   return live[live.length - 1].s.title;
 }
+export function pickSearch(p: WikiProfile, rand: () => number, now = Date.now()): string | null {
+  const live = p.searches.filter((s) => s.w > 0).map((s) => ({ s, w: s.w * Math.pow(0.5, (now - s.at) / (10 * 86_400_000)) }));
+  const total = live.reduce((a, b) => a + b.w, 0);
+  if (!total) return null;
+  let x = rand() * total;
+  for (const { s, w } of live) { if ((x -= w) <= 0) return s.q; }
+  return live[live.length - 1].s.q;
+}
 export function pickTopic(p: WikiProfile, rand: () => number): string | null {
   const live = Object.entries(p.topics).filter(([, w]) => w > 0);
   const total = live.reduce((a, [, w]) => a + w, 0);
@@ -217,17 +286,32 @@ export function pickTopic(p: WikiProfile, rand: () => number): string | null {
 const PROPS = "prop=extracts|pageimages|description|info|pageprops&exintro=1&explaintext=1&exchars=700&exlimit=max&piprop=thumbnail&pithumbsize=900&pilimit=max&inprop=url&ppprop=disambiguation";
 const api = (q: string) => `${WIKI_HOST}/w/api.php?action=query&format=json&formatversion=2&origin=*&redirects=1&${PROPS}&${q}`;
 /** The request for a batch of cards from one lane. */
+const search = (q: string, offset: number) => api(`generator=search&gsrnamespace=0&gsrlimit=20&gsroffset=${offset}&gsrsearch=${encodeURIComponent(q)}`);
+// A topic with no other words is ranked by how well-known and well-linked its articles are, so a random spot in its
+// top ~1,500 gives real articles, not stubs.
+const topicQuery = (id: string) => `articletopic:${id} -intitle:List -intitle:Timeline`;
 export function laneUrl(lane: Lane, from: string | null, rand: () => number): string {
-  if (lane === "seed" && from) return api(`generator=search&gsrnamespace=0&gsrlimit=12&gsroffset=${Math.floor(rand() * 4) * 12}&gsrsearch=${encodeURIComponent(`morelike:${from}`)}`);
-  if (lane === "topic" && from) return api(`generator=search&gsrnamespace=0&gsrlimit=12&gsrsort=random&gsrsearch=${encodeURIComponent(`articletopic:${from} -intitle:List`)}`);
+  if (lane === "seed" && from) return search(`morelike:${from}`, Math.floor(rand() * 3) * 20);
+  if (lane === "topic" && from) return search(topicQuery(from), Math.floor(rand() * 75) * 20);
+  if (lane === "search" && from) return search(from, Math.floor(rand() * 4) * 20);
+  // Discovery: mostly a random topic's well-known articles, sometimes a truly random one.
+  if (rand() < 0.65) return search(topicQuery(TOPICS[Math.floor(rand() * TOPICS.length)].id), Math.floor(rand() * 50) * 20);
   return api("generator=random&grnnamespace=0&grnlimit=20");
 }
+/** A search's own feed: its results page by page (in Wikipedia's order, best first). */
+export const searchPageUrl = (q: string, page: number) => search(q, page * 20);
+/** More like one article, page by page. */
+export const relatedUrl = (title: string, page: number) => search(`morelike:${title}`, page * 20);
+/** Title suggestions as you type. */
+export const suggestUrl = (q: string) => `${WIKI_HOST}/w/api.php?action=opensearch&format=json&origin=*&namespace=0&limit=8&search=${encodeURIComponent(q)}`;
+export const suggestions = (json: any): string[] => (Array.isArray(json?.[1]) ? json[1].filter((t: unknown) => typeof t === "string").slice(0, 8) : []);
+/** The smallest article (in bytes) each lane keeps, so the feed isn't full of stubs. Searches keep everything. */
+export const MIN_BYTES: Record<Lane, number> = { seed: 2500, topic: 6000, search: 0, trend: 0, explore: 7000 };
 /** Today's most-read articles (for the trend lane): the titles, from Wikipedia's featured feed. */
 export const trendUrl = (day: Date) => `https://en.wikipedia.org/api/rest_v1/feed/featured/${day.getUTCFullYear()}/${String(day.getUTCMonth() + 1).padStart(2, "0")}/${String(day.getUTCDate()).padStart(2, "0")}`;
 export const titlesUrl = (titles: string[]) => api(`titles=${titles.slice(0, 20).map(encodeURIComponent).join("|")}`);
-export const searchUrl = (q: string) => api(`generator=search&gsrnamespace=0&gsrlimit=20&gsrsearch=${encodeURIComponent(q)}`);
-/** The full article, as Wikipedia's mobile HTML. */
-export const articleUrl = (title: string) => `${WIKI_HOST}/w/api.php?action=parse&format=json&formatversion=2&origin=*&redirects=1&prop=text|displaytitle&mobileformat=1&disableeditsection=1&disabletoc=1&page=${encodeURIComponent(title)}`;
+/** The full article's HTML (the desktop version: the mobile one hides pictures behind placeholders). */
+export const articleUrl = (title: string) => `${WIKI_HOST}/w/api.php?action=parse&format=json&formatversion=2&origin=*&redirects=1&prop=text|displaytitle&disableeditsection=1&disablelimitreport=1&disabletoc=1&page=${encodeURIComponent(title)}`;
 export const pageUrl = (title: string) => `${WIKI_HOST}/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 
 /** Words that keep an article out while the mature-topics filter is on (title, description or opening). */
@@ -245,6 +329,7 @@ export function toCards(json: any, lane: Lane, from: string | undefined, p: Pick
     if (!title || pg?.missing || pg?.ns !== 0 || pg?.pageprops?.disambiguation !== undefined) return [];
     if (/^(List|Lists|Index|Outline|Timeline) of /i.test(title) || /\(disambiguation\)$/i.test(title)) return [];
     if (extract.length < 140 || skip.has(title)) return [];
+    if (typeof pg?.length === "number" && pg.length < MIN_BYTES[lane]) return [];
     const card: WikiCard = { title, description: str(pg?.description, 200), extract, url: str(pg?.fullurl, 600) || pageUrl(title), lane, ...(from ? { from } : {}) };
     const t = pg?.thumbnail;
     if (typeof t?.source === "string" && t.source.startsWith("https://")) { card.image = t.source; card.imageW = num(t.width) || undefined; card.imageH = num(t.height) || undefined; }
@@ -279,3 +364,12 @@ export function weave(pool: WikiCard[], take: number): { out: WikiCard[]; rest: 
 }
 
 export const short = (n: number) => (n < 1000 ? String(n) : n < 1e6 ? `${(n / 1000).toFixed(n < 1e4 ? 1 : 0).replace(/\.0$/, "")}K` : `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`);
+
+/** A search or subtopic feed: two of what you asked for, then one related, in order (no shuffling: best first). */
+export function interleave(primary: WikiCard[], related: WikiCard[]): WikiCard[] {
+  const out: WikiCard[] = [], seen = new Set<string>();
+  const add = (c: WikiCard | undefined) => { if (c && !seen.has(c.title)) { seen.add(c.title); out.push(c); } };
+  let i = 0, j = 0;
+  while (i < primary.length || j < related.length) { add(primary[i++]); add(primary[i++]); add(related[j++]); }
+  return out;
+}

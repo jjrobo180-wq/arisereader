@@ -53,7 +53,7 @@ test("lanes and seeds are drawn in proportion, and the requests ask Wikipedia fo
   assert.equal(pickSeed(p, rng(1)), "Roman Empire");
   assert.match(laneUrl("seed", "Roman Empire", rng(1)), /gsrsearch=morelike%3ARoman%20Empire/);
   assert.match(laneUrl("topic", "history", rng(1)), /articletopic%3Ahistory/);
-  assert.match(laneUrl("explore", null, rng(1)), /generator=random/);
+  for (let i = 1; i < 40; i++) assert.match(laneUrl("explore", null, rng(i)), /generator=random|articletopic%3A/);
   assert.match(laneUrl("seed", "x", rng(1)), /origin=\*/);
 });
 
@@ -71,4 +71,30 @@ test("cards are woven so lanes don't clump, saves toggle, profiles merge across 
   assert.equal(m.saved.length, 1, "a save the other device never saw is kept");
   assert.deepEqual(cleanProfile({ topics: { space: 99, bogus: 3 }, seen: ["x", "x", 5] }).topics, { space: 20 });
   assert.deepEqual(trendTitles({ tfa: { title: "Octopus" }, mostread: { articles: [{ title: "Main_Page" }, { title: "Taylor_Swift" }] } }), ["Octopus", "Taylor Swift"]);
+});
+
+test("searches and subtopics teach the feed, and a search feed is its results in order with related ones between", async () => {
+  const { learnSearch, learnSubtopic, interleave, laneOdds, laneUrl, searchPageUrl, relatedUrl, SUBTOPICS, TOPICS, toCards, newProfile, rng, MIN_BYTES } = await import("../shared/wikiFeed");
+  let p = newProfile(["history"], 1000, ["World War II"]);
+  assert.equal(p.seeds[0].title, "World War II");
+  p = learnSearch(p, "ww2", "World War II", 2000);
+  p = learnSearch(p, "WW2", "World War II", 3000);
+  assert.equal(p.searches.length, 1, "the same search, any case, is one term that grows");
+  assert.equal(p.searches[0].w, 8);
+  assert.ok(p.seeds.find((s) => s.title === "World War II")!.w > 4);
+  assert.ok(laneOdds(p).search > 0, "searches get their own lane in For you");
+  assert.match(laneUrl("search", "ww2", rng(3)), /gsrsearch=ww2/);
+  p = learnSubtopic(p, "Ancient Rome", 4000);
+  assert.ok(p.seeds.some((s) => s.title === "Ancient Rome"));
+  for (const t of TOPICS) assert.ok((SUBTOPICS as any)[t.id]?.length >= 6, `${t.id} has subtopics`);
+  assert.ok(SUBTOPICS.history.includes("World War II"));
+  assert.match(searchPageUrl("ww2", 2), /gsroffset=40/);
+  assert.match(relatedUrl("World War II", 0), /morelike%3AWorld%20War%20II/);
+  const c = (title: string, lane: any) => ({ title, lane, description: "", extract: "", url: "" });
+  assert.deepEqual(interleave([c("a", "search"), c("b", "search"), c("c", "search")], [c("x", "seed"), c("a", "seed")]).map((x) => x.title), ["a", "b", "x", "c"]);
+  // Stubs are left out of For you, never out of a search.
+  const stub = { query: { pages: [{ title: "Village hall", ns: 0, extract: "x".repeat(200), length: 1500 }] } };
+  assert.equal(toCards(stub, "explore", undefined, { seen: [], nope: [] }).length, 0);
+  assert.equal(toCards(stub, "search", "village", { seen: [], nope: [] }).length, 1);
+  assert.equal(MIN_BYTES.search, 0);
 });
