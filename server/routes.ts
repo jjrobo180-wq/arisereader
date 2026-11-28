@@ -2052,7 +2052,7 @@ export async function registerRoutes(
   });
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerAccountLookRoutes(app, authMiddleware, storage as any);
-  // Wikiverse (shared/wikiFeed.ts): its learned taste, saves, like counts and comments.
+  // Arise Wiki (shared/wikiFeed.ts): its learned taste, saves, like counts and comments.
   registerWikiRoutes(app, authMiddleware, storage as any);
   registerProblemSolverRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   registerGradePlanRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });

@@ -1,4 +1,4 @@
-// Wikiverse (LifeHub section "wiki"): every Wikipedia article as an endless, full-screen swipe feed that learns what
+// Arise Wiki (LifeHub section "wiki"): every Wikipedia article as an endless, full-screen swipe feed that learns what
 // you like (the algorithm is shared/wikiFeed.ts). Cards come straight from Wikipedia's public API. Tap a card for the
 // whole article with every link working (links open inside, as deep as you like, with Back). Like (or double-tap),
 // comment, save, share, or "Not for me". Taste, likes and saves are kept on this device and on the account
@@ -17,7 +17,7 @@ type Props = { say: (m: string) => void; token?: string | null; student?: boolea
 type Stats = { likes: number; comments: number; shares: number };
 type Comment = { id: string; author: string; text: string; at: string; mine: boolean };
 
-const KEY = (uid?: number) => `wikiverse-profile:${uid ?? "me"}`;
+const KEY = (uid?: number) => `arise-wiki-profile:${uid ?? "me"}`;
 const readLocal = (uid?: number): WikiProfile | null => { try { const v = localStorage.getItem(KEY(uid)); return v ? cleanProfile(JSON.parse(v)) : null; } catch { return null; } };
 const writeLocal = (uid: number | undefined, p: WikiProfile) => { try { localStorage.setItem(KEY(uid), JSON.stringify(p)); } catch { /* this visit only */ } };
 const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -434,7 +434,7 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
     <div className="relative overflow-hidden rounded-[28px] bg-[#0d0b1a] p-6 text-white sm:p-8">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#7c3aed]/40 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-[#0ea5e9]/30 blur-3xl" />
-      <p className="relative text-xs font-bold uppercase tracking-[0.16em] text-[#c4b5fd]">Wikiverse</p>
+      <p className="relative text-xs font-bold uppercase tracking-[0.16em] text-[#c4b5fd]">Arise Wiki</p>
       <h1 className="relative mt-2 text-[32px] font-black leading-tight tracking-[-0.02em]">All of Wikipedia. Endless. Made for you.</h1>
       <p className="relative mt-2 max-w-md text-[15px] leading-6 text-white/70">Swipe through any of 6 million articles. The more you scroll, like, save and read, the better it gets at finding what you love.</p>
       {onboarding ? <div className="relative mt-6">
@@ -483,8 +483,8 @@ export default function WikiFeed({ say, token, student = false, userId }: Props)
         </div>}
     </div>
 
-    {open && <SwipeFeed ref={feedRef} pages={pages} label="Wikiverse" onClose={close} onIndex={onIndex} onNearEnd={() => void more(8)}
-      top={<p className="rounded-full bg-black/30 px-3 py-2 text-[13px] font-extrabold tracking-wide text-white backdrop-blur">Wikiverse</p>} />}
+    {open && <SwipeFeed ref={feedRef} pages={pages} label="Arise Wiki" onClose={close} onIndex={onIndex} onNearEnd={() => void more(8)}
+      top={<p className="rounded-full bg-black/30 px-3 py-2 text-[13px] font-extrabold tracking-wide text-white backdrop-blur">Arise Wiki</p>} />}
     {reading && <Reader title={reading} onClose={() => setReading(null)}
       onOpen={(t) => { acted.current.add(t); signal(fromCard(t), t === reading ? "open" : "link"); }}
       onLink={() => { /* the opened page learns as "link" in onOpen */ }} />}

@@ -14,7 +14,7 @@ const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "�
 export const SECTION_INFO: Record<FamilySection, { label: string; detail: string; icon: ReactNode }> = {
   home: { label: "Home", detail: "Today at a glance", icon: null },
   lifescore: { label: "Life Score", detail: "Every part of your life scored, with the science and how to raise it", icon: <GaugeIcon2 size={17} /> },
-  wiki: { label: "Wikiverse", detail: "Every Wikipedia article as an endless swipe feed that learns what you like", icon: <WikiGlobe size={17} /> },
+  wiki: { label: "Arise Wiki", detail: "Every Wikipedia article as an endless swipe feed that learns what you like", icon: <WikiGlobe size={17} /> },
   feed: { label: "Arise Feed", detail: "Your whole week as a swipe feed that never ends: to-dos, events, health, money, Life Score", icon: <SmartphoneFeed size={17} /> },
   mindset: { label: "Mindset", detail: "A swipe feed made for you: quotes, advice, faith, dreams and wins", icon: <SunriseMind size={17} /> },
   tasks: { label: "Tasks", detail: "Your to-do lists", icon: null },

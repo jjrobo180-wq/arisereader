@@ -1,4 +1,4 @@
-// Wikiverse's server side (shared/wikiFeed.ts has the algorithm; the cards come straight from Wikipedia):
+// Arise Wiki's server side (shared/wikiFeed.ts has the algorithm; the cards come straight from Wikipedia):
 //   GET/PUT /api/wiki/profile          what the feed learned, likes and saves, kept on the account so every device
 //                                      shares them (merged with mergeProfiles, newest settings win)
 //   GET  /api/wiki/stats?titles=a|b    like, comment and share counts for up to 30 articles

@@ -16,7 +16,7 @@ function fakeApp() {
   return { app, run };
 }
 
-test("Wikiverse keeps taste and saves on the account, counts likes, and takes comments (not from students)", async () => {
+test("Arise Wiki keeps taste and saves on the account, counts likes, and takes comments (not from students)", async () => {
   const settings = new Map<string, string>();
   const { app, run } = fakeApp();
   registerWikiRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, { getSetting: async (k) => settings.get(k) ?? null, upsertSetting: async (k, v) => { settings.set(k, v); } });

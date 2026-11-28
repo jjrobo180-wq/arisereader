@@ -1,4 +1,4 @@
-// Wikiverse (LifeHub section "wiki", client/src/components/family-hub/WikiFeed.tsx): every Wikipedia article as an
+// Arise Wiki (LifeHub section "wiki", client/src/components/family-hub/WikiFeed.tsx): every Wikipedia article as an
 // endless, full-screen swipe feed that learns what you like.
 //
 // How it learns (all here, pure, tested in tests/wiki-feed.test.ts):
