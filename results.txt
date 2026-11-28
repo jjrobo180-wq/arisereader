@@ -1,0 +1,26 @@
+iphone: gallery shows 4/4 of the apps (1,1,1,1)
+iphone: Arise Health & Fitness: heading shown; pages: Today · Daily · Food · Training · Yoga · Progress · Friends
+iphone: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+iphone: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+iphone: Arise Podcasts: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study · Social · Library
+iphone: menu has Arise Health & Fitness: true
+iphone: menu has Cooked PT: true
+iphone: menu has Arise Notes: true
+iphone: menu has Arise Podcasts: true
+iphone-night: Arise Health & Fitness: heading shown; pages: Today · Daily · Food · Training · Yoga · Progress · Friends
+iphone-night: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+iphone-night: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+iphone-night: Arise Podcasts: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study · Social · Library
+desktop: gallery shows 4/4 of the apps (1,1,1,1)
+desktop: Arise Health & Fitness: heading shown; pages: Today · Daily · Food · Training · Yoga · Progress · Friends
+desktop: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+desktop: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+desktop: Arise Podcasts: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study · Social · Library
+desktop: menu has Arise Health & Fitness: true
+desktop: menu has Cooked PT: true
+desktop: menu has Arise Notes: true
+desktop: menu has Arise Podcasts: true
+desktop-night: Arise Health & Fitness: heading shown; pages: Today · Daily · Food · Training · Yoga · Progress · Friends
+desktop-night: Cooked PT: heading shown; pages: Clients · Inbox · Schedule · Library · Business
+desktop-night: Arise Notes: heading shown; pages: Notes · Record · Upload · @arise · Plugins · Settings
+desktop-night: Arise Podcasts: heading shown; pages: Home · Swipe feed · Audiobooks · Music · Radio · Study · Social · Library
